@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { runCli } from "./index.js";
+import { renderCompactTrace, runCli } from "./index.js";
 
 describe("runCli", () => {
   test("renders help", async () => {
@@ -33,9 +33,29 @@ describe("runCli", () => {
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("Assistant: Fake response to: Hello runtime");
     expect(result.stdout).toContain("Trace:");
-    expect(result.stdout).toContain("run_started");
-    expect(result.stdout).toContain("assistant_message_created");
-    expect(result.stdout).toContain("run_completed");
+    expect(result.stdout).toContain("1. Received user message");
+    expect(result.stdout).toContain("5. Created assistant message");
+    expect(result.stdout).toContain("6. Completed run");
+  });
+
+  test("renders compact trace lines for successful runtime events", () => {
+    expect(
+      renderCompactTrace([
+        {
+          type: "run_started",
+          eventId: "evt_1",
+          runId: "run_1",
+          timestamp: "2026-05-03T01:40:00.000Z",
+          userMessage: "Hello"
+        },
+        {
+          type: "run_completed",
+          eventId: "evt_2",
+          runId: "run_1",
+          timestamp: "2026-05-03T01:40:01.000Z"
+        }
+      ])
+    ).toEqual(["1. Received user message (run_started)", "2. Completed run (run_completed)"]);
   });
 
   test("reports unknown commands without crashing", async () => {

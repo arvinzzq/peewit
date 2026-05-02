@@ -96,7 +96,7 @@ async function runFakeChatTurn(message: string): Promise<CliResult> {
     assistantMessage?.type === "assistant_message_created"
       ? assistantMessage.message.content
       : "No assistant message was produced.";
-  const traceLines = events.map((event) => `- ${event.type}`).join("\n");
+  const traceLines = renderCompactTrace(events).join("\n");
 
   return {
     exitCode: events.some((event) => event.type === "run_failed") ? 1 : 0,
@@ -113,6 +113,29 @@ async function collectEvents(events: AsyncIterable<RuntimeEvent>): Promise<Runti
   }
 
   return collected;
+}
+
+export function renderCompactTrace(events: RuntimeEvent[]): string[] {
+  return events.map((event, index) => `${index + 1}. ${traceEventLabel(event)} (${event.type})`);
+}
+
+function traceEventLabel(event: RuntimeEvent): string {
+  switch (event.type) {
+    case "run_started":
+      return "Received user message";
+    case "context_assembled":
+      return "Assembled context";
+    case "model_request_started":
+      return "Started model request";
+    case "model_request_completed":
+      return "Completed model request";
+    case "assistant_message_created":
+      return "Created assistant message";
+    case "run_completed":
+      return "Completed run";
+    case "run_failed":
+      return "Failed run";
+  }
 }
 
 async function main(): Promise<void> {
