@@ -262,6 +262,7 @@ MVP context assembly 成功标准：
 ## 16. 相关文档
 
 - [Prompt Assembly](./prompt-assembly.zh-CN.md)
+- [Workspace Files](./workspace-files.zh-CN.md)
 - [Session Storage](./session-storage.zh-CN.md)
 - [Memory System](./memory-system.zh-CN.md)
 - [Agent Loop](./agent-loop.zh-CN.md)

@@ -289,6 +289,7 @@ This map is successful when:
 
 - [Reference systems](./reference-systems.md)
 - [Memory system](./memory-system.md)
+- [Workspace files](./workspace-files.md)
 - [Session storage](./session-storage.md)
 - [Permission system](./permission-system.md)
 - [Skill system](./skill-system.md)

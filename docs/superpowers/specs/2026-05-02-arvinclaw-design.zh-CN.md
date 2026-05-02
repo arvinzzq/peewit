@@ -59,6 +59,8 @@ Session storage 详细架构说明：[docs/architecture/session-storage.zh-CN.md
 
 Memory system 详细架构说明：[docs/architecture/memory-system.zh-CN.md](../../architecture/memory-system.zh-CN.md)
 
+Workspace files 详细架构说明：[docs/architecture/workspace-files.zh-CN.md](../../architecture/workspace-files.zh-CN.md)
+
 MVP 记忆边界：
 
 - MVP 通过 session storage 包含 session memory。

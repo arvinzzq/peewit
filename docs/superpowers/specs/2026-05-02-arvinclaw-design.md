@@ -57,6 +57,8 @@ Detailed architecture note for session storage: [docs/architecture/session-stora
 
 Detailed architecture note for memory system: [docs/architecture/memory-system.md](../../architecture/memory-system.md)
 
+Detailed architecture note for workspace files: [docs/architecture/workspace-files.md](../../architecture/workspace-files.md)
+
 MVP memory boundary:
 
 - MVP includes session memory through session storage.

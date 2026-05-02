@@ -289,6 +289,7 @@ OpenClaw-like features 需要安全导向测试。
 
 - [Reference Systems](./reference-systems.zh-CN.md)
 - [Memory System](./memory-system.zh-CN.md)
+- [Workspace Files](./workspace-files.zh-CN.md)
 - [Session Storage](./session-storage.zh-CN.md)
 - [Permission System](./permission-system.zh-CN.md)
 - [Skill System](./skill-system.zh-CN.md)

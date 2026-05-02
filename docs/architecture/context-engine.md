@@ -262,6 +262,7 @@ MVP context assembly should be considered successful when:
 ## 16. Related Documents
 
 - [Prompt assembly](./prompt-assembly.md)
+- [Workspace files](./workspace-files.md)
 - [Session storage](./session-storage.md)
 - [Memory system](./memory-system.md)
 - [Agent loop](./agent-loop.md)

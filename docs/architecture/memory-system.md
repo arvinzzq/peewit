@@ -284,6 +284,7 @@ The MVP memory boundary should be considered successful when:
 - [Main design](../superpowers/specs/2026-05-02-arvinclaw-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [Session storage](./session-storage.md)
+- [Workspace files](./workspace-files.md)
 - [Agent loop](./agent-loop.md)
 - [Permission system](./permission-system.md)
 - [Skill system](./skill-system.md)
