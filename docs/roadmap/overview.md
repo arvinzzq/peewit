@@ -33,7 +33,7 @@ The roadmap follows a dual-track approach:
 | Phase | Status | Goal | Product Result | Architecture Focus |
 | --- | --- | --- | --- | --- |
 | Phase 0 | Complete | Project foundation | A documented TypeScript workspace with CLI shell | Monorepo, config, context package, documentation layout |
-| Phase 1 | In Progress | MVP agent loop | CLI chat can call a model and produce traceable responses | Agent Core, context assembly, ModelProvider, basic loop |
+| Phase 1 | Complete | MVP agent loop | CLI chat can call a model and produce traceable responses | Agent Core, context assembly, ModelProvider, basic loop |
 | Phase 2 | Not Started | Tools and permissions | Agent can inspect files, run approved commands, and read web content | Tool Registry, PermissionPolicy |
 | Phase 3 | Not Started | Lightweight skills | Agent can load local `SKILL.md` instructions | Skill loader, skill precedence, prompt assembly |
 | Phase 4 | Not Started | Planning and autonomy | Agent can plan tasks and run in `observe`, `confirm`, or `auto` mode | Planner, task state, execution modes |
@@ -110,6 +110,7 @@ The user can start `arvinclaw chat`, send a message, receive a model response, a
 - `docs/architecture/model-provider.md`
 - `docs/architecture/execution-trace.md`
 - `docs/architecture/cli-adapter.md`
+- `docs/plans/phase-1-mvp-test-guide.md`
 
 Primary architecture note: [Agent Loop](../architecture/agent-loop.md)
 
@@ -119,6 +120,8 @@ Supporting architecture note: [Execution Trace](../architecture/execution-trace.
 
 Supporting architecture note: [CLI Adapter](../architecture/cli-adapter.md)
 
+User verification guide: [Phase 1 MVP Test Guide](../plans/phase-1-mvp-test-guide.md)
+
 ### Acceptance Criteria
 
 - `arvinclaw chat` starts an interactive session.
@@ -126,6 +129,8 @@ Supporting architecture note: [CLI Adapter](../architecture/cli-adapter.md)
 - The Agent Core does not import CLI-specific code.
 - Each response produces a trace entry.
 - Model configuration can be loaded from config files and environment variables.
+- Missing API keys produce a clear CLI error.
+- Fake-provider paths remain available for local learning and tests.
 
 ### Non-Goals
 
@@ -133,6 +138,12 @@ Supporting architecture note: [CLI Adapter](../architecture/cli-adapter.md)
 - No long-term memory.
 - No Web UI.
 - No multi-agent runtime.
+
+### OpenClaw Gap After Phase 1
+
+Phase 1 intentionally stops before persistent sessions, workspace prompt loading, memory files, tools, permissions, skills, channels, heartbeat, and multi-agent behavior.
+
+The next OpenClaw-aligned increment should add session storage and short-term memory before broader tools or channels.
 
 ## 5. Phase 2: Tools and Permissions
 

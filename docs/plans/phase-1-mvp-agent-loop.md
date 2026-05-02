@@ -1,13 +1,13 @@
 # Phase 1 MVP Agent Loop Plan
 
-Status: Draft
+Status: Complete
 Date: 2026-05-02
 
 Simplified Chinese version: [phase-1-mvp-agent-loop.zh-CN.md](./phase-1-mvp-agent-loop.zh-CN.md)
 
 ## Progress
 
-Status: In Progress
+Status: Complete
 
 Completed:
 
@@ -22,10 +22,11 @@ Completed:
 - Same-run `/config` command with redacted config: `ef005af`
 - Interactive CLI chat loop with fake provider: `518a936`
 - Interactive CLI configured provider wiring: `b1bfe3a`
+- Phase 1 acceptance and user test guide: in progress
 
 Remaining:
 
-- Phase 1 acceptance update after CLI wiring works
+- None for Phase 1 MVP scope
 
 Latest verification:
 
@@ -35,10 +36,11 @@ Latest verification:
 - `pnpm run cli chat --fake "hello" /trace`
 - `ARVINCLAW_API_KEY=secret pnpm run cli chat --fake "hello" /config`
 - `printf 'Hello\n/trace\n/config\n/exit\n' | pnpm run cli chat --fake-interactive`
+- `pnpm run cli chat`
 
 Next recommended slice:
 
-- Update Phase 1 acceptance criteria after configured-provider CLI smoke behavior is verified.
+- Start Phase 5-style session storage and short-term memory work as the next OpenClaw-aligned increment.
 
 ## 1. Purpose
 
@@ -223,7 +225,20 @@ Phase 1 is complete when:
 - Tests cover runtime, provider normalization, context assembly, trace, and CLI rendering.
 - The implementation still leaves tools and permissions ready for Phase 2.
 
-## 14. Related Documents
+## 14. User Test Guide
+
+Phase 1 user-facing verification lives in [Phase 1 MVP Test Guide](./phase-1-mvp-test-guide.md).
+
+That guide records:
+
+- Local verification commands.
+- CLI smoke paths.
+- Redacted config behavior.
+- Configured provider behavior.
+- Current OpenClaw alignment and gaps.
+- The next OpenClaw-aligned implementation focus.
+
+## 15. Related Documents
 
 - [Roadmap](../roadmap/overview.md)
 - [Agent Loop](../architecture/agent-loop.md)
@@ -235,3 +250,4 @@ Phase 1 is complete when:
 - [Runtime Composition](../architecture/runtime-composition.md)
 - [Architecture Contracts](../architecture/contracts.md)
 - [Testing Strategy](../architecture/testing-strategy.md)
+- [Phase 1 MVP Test Guide](./phase-1-mvp-test-guide.md)
