@@ -10,10 +10,11 @@
   ],
   "scripts": {
     "cli": "tsx apps/cli/src/index.ts",
+    "docs:check": "tsx scripts/check-docs.ts",
     "typecheck": "tsc -b",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run typecheck && npm test && npm run docs:check"
   },
   "engines": {
     "node": ">=22"

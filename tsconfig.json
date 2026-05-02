@@ -3,7 +3,7 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "include": ["vitest.config.ts"],
+  "include": ["vitest.config.ts", "scripts/**/*.ts"],
   "references": [
     { "path": "./apps/cli" },
     { "path": "./packages/config" },
