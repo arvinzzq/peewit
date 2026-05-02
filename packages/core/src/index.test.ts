@@ -1,5 +1,8 @@
 import { describe, expect, test } from "vitest";
+import { DefaultContextAssembler } from "@arvinclaw/context";
+import { FakeModelProvider } from "@arvinclaw/models";
 import {
+  AgentRuntime,
   createRuntimeEvent,
   isTerminalRuntimeEvent,
   runtimeEventTypes,
@@ -75,3 +78,100 @@ describe("runtime event contracts", () => {
     expect(isTerminalRuntimeEvent(nonTerminal)).toBe(false);
   });
 });
+
+describe("message-only AgentRuntime", () => {
+  test("emits the successful run event order around context assembly and model generation", async () => {
+    const modelProvider = new FakeModelProvider([
+      {
+        type: "message",
+        content: "Hello from runtime."
+      }
+    ]);
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider,
+      systemInstruction: "You are ArvinClaw.",
+      runtime: {
+        mode: "confirm",
+        workspace: "/workspace/project",
+        currentDate: "2026-05-03"
+      },
+      createRunId: () => "run_1",
+      createEventId: (() => {
+        let next = 0;
+        return () => `evt_${++next}`;
+      })(),
+      now: () => "2026-05-03T01:20:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ sessionId: "session_1", message: "Hello" }));
+
+    expect(events.map((event) => event.type)).toEqual([
+      "run_started",
+      "context_assembled",
+      "model_request_started",
+      "model_request_completed",
+      "assistant_message_created",
+      "run_completed"
+    ]);
+    expect(events[4]).toMatchObject({
+      type: "assistant_message_created",
+      message: {
+        role: "assistant",
+        content: "Hello from runtime."
+      }
+    });
+    expect(modelProvider.requests[0]?.messages.at(-1)).toEqual({
+      role: "user",
+      content: "Hello"
+    });
+  });
+
+  test("emits a failed run when the provider returns a normalized error", async () => {
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([
+        {
+          type: "error",
+          category: "network",
+          message: "Network unavailable.",
+          recoverable: true
+        }
+      ]),
+      systemInstruction: "You are ArvinClaw.",
+      createRunId: () => "run_2",
+      createEventId: (() => {
+        let next = 0;
+        return () => `evt_fail_${++next}`;
+      })(),
+      now: () => "2026-05-03T01:21:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Hello" }));
+
+    expect(events.map((event) => event.type)).toEqual([
+      "run_started",
+      "context_assembled",
+      "model_request_started",
+      "model_request_completed",
+      "run_failed"
+    ]);
+    expect(events.at(-1)).toMatchObject({
+      type: "run_failed",
+      error: {
+        message: "Network unavailable.",
+        recoverable: true
+      }
+    });
+  });
+});
+
+async function collect(events: AsyncIterable<RuntimeEvent>): Promise<RuntimeEvent[]> {
+  const collected: RuntimeEvent[] = [];
+
+  for await (const event of events) {
+    collected.push(event);
+  }
+
+  return collected;
+}

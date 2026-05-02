@@ -31,7 +31,14 @@ importers:
         specifier: workspace:*
         version: link:../models
 
-  packages/core: {}
+  packages/core:
+    dependencies:
+      '@arvinclaw/context':
+        specifier: workspace:*
+        version: link:../context
+      '@arvinclaw/models':
+        specifier: workspace:*
+        version: link:../models
 
   packages/models: {}
 
