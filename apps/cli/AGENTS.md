@@ -10,7 +10,7 @@ Update `README.md`, `README.zh-CN.md`, `AGENTS.md`, and `AGENTS.zh-CN.md` when f
 
 ## Testing
 
-CLI-visible behavior and trace rendering need tests in `src/index.test.ts`. Fake-provider smoke paths are allowed. Do not require a real model provider or API key in CLI unit tests.
+CLI-visible behavior, slash commands, and trace rendering need tests in `src/index.test.ts`. Fake-provider smoke paths are allowed. Do not require a real model provider or API key in CLI unit tests.
 
 ## Boundaries
 

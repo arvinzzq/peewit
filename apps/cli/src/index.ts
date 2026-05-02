@@ -1,13 +1,13 @@
 /**
  * INPUT: CLI arguments, package version, runtime package, context assembler, and fake model provider.
- * OUTPUT: CLI result objects, assistant text, compact trace output, and terminal stdout/stderr side effects.
+ * OUTPUT: CLI result objects, assistant text, compact trace output, slash command output, and terminal stdout/stderr side effects.
  * POS: CLI adapter layer; translates terminal commands without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
 import { fileURLToPath } from "node:url";
 import { DefaultContextAssembler } from "@arvinclaw/context";
-import { AgentRuntime, type RuntimeEvent } from "@arvinclaw/core";
+import { AgentRuntime, InMemoryRuntimeTraceStore, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
 import { FakeModelProvider } from "@arvinclaw/models";
 
 export const cliPackageName = "@arvinclaw/cli";
@@ -49,7 +49,7 @@ export async function runCli(args: string[], packageVersion: string): Promise<Cl
 
   if (command === "chat") {
     if (rest[0] === "--fake") {
-      return runFakeChatTurn(rest.slice(1).join(" "));
+      return runFakeChatTurn(parseFakeChatArgs(rest.slice(1)));
     }
 
     return {
@@ -66,7 +66,25 @@ export async function runCli(args: string[], packageVersion: string): Promise<Cl
   };
 }
 
-async function runFakeChatTurn(message: string): Promise<CliResult> {
+interface ParsedFakeChatArgs {
+  message: string;
+  slashCommands: string[];
+}
+
+function parseFakeChatArgs(args: string[]): ParsedFakeChatArgs {
+  const slashIndex = args.findIndex((arg) => arg.startsWith("/"));
+  const messageArgs = slashIndex === -1 ? args : args.slice(0, slashIndex);
+  const slashCommands = slashIndex === -1 ? [] : args.slice(slashIndex);
+
+  return {
+    message: messageArgs.join(" "),
+    slashCommands
+  };
+}
+
+async function runFakeChatTurn(input: ParsedFakeChatArgs): Promise<CliResult> {
+  const { message, slashCommands } = input;
+
   if (message.trim() === "") {
     return {
       exitCode: 1,
@@ -75,44 +93,94 @@ async function runFakeChatTurn(message: string): Promise<CliResult> {
     };
   }
 
-  const runtime = new AgentRuntime({
-    contextAssembler: new DefaultContextAssembler(),
-    modelProvider: new FakeModelProvider([
-      {
-        type: "message",
-        content: `Fake response to: ${message}`
-      }
-    ]),
-    systemInstruction: "You are ArvinClaw, a CLI-first OpenClaw-like learning agent.",
-    runtime: {
-      mode: "confirm",
-      workspace: process.cwd(),
-      currentDate: new Date().toISOString().slice(0, 10)
-    }
-  });
-  const events = await collectEvents(runtime.runTurn({ message }));
-  const assistantMessage = events.find((event) => event.type === "assistant_message_created");
-  const assistantText =
-    assistantMessage?.type === "assistant_message_created"
-      ? assistantMessage.message.content
-      : "No assistant message was produced.";
+  const session = CliChatSession.createFake(`Fake response to: ${message}`);
+  const turn = await session.sendMessage(message);
+  const commandOutput = await renderSlashCommands(session, slashCommands);
+  const assistantText = turn.assistantText;
+  const events = turn.events;
   const traceLines = renderCompactTrace(events).join("\n");
 
   return {
     exitCode: events.some((event) => event.type === "run_failed") ? 1 : 0,
-    stdout: `Assistant: ${assistantText}\n\nTrace:\n${traceLines}\n`,
+    stdout: `Assistant: ${assistantText}\n\nTrace:\n${traceLines}\n${commandOutput}`,
     stderr: ""
   };
 }
 
-async function collectEvents(events: AsyncIterable<RuntimeEvent>): Promise<RuntimeEvent[]> {
-  const collected: RuntimeEvent[] = [];
+async function renderSlashCommands(session: CliChatSession, slashCommands: string[]): Promise<string> {
+  const rendered: string[] = [];
 
-  for await (const event of events) {
-    collected.push(event);
+  for (const command of slashCommands) {
+    if (command === "/trace") {
+      rendered.push(["", "Recent Trace:", ...(await session.runSlashCommand(command))].join("\n"));
+    } else {
+      rendered.push(["", `Unknown slash command: ${command}`].join("\n"));
+    }
   }
 
-  return collected;
+  return rendered.length === 0 ? "" : `${rendered.join("\n")}\n`;
+}
+
+export interface CliChatTurnResult {
+  assistantText: string;
+  events: RuntimeEvent[];
+}
+
+export class CliChatSession {
+  readonly #runtime: AgentRuntime;
+  readonly #traceStore: RuntimeTraceStore;
+
+  constructor(runtime: AgentRuntime, traceStore: RuntimeTraceStore = new InMemoryRuntimeTraceStore()) {
+    this.#runtime = runtime;
+    this.#traceStore = traceStore;
+  }
+
+  static createFake(responseContent = "Fake response to: Hello trace"): CliChatSession {
+    return new CliChatSession(
+      new AgentRuntime({
+        contextAssembler: new DefaultContextAssembler(),
+        modelProvider: new FakeModelProvider([
+          {
+            type: "message",
+            content: responseContent
+          }
+        ]),
+        systemInstruction: "You are ArvinClaw, a CLI-first OpenClaw-like learning agent.",
+        runtime: {
+          mode: "confirm",
+          workspace: process.cwd(),
+          currentDate: new Date().toISOString().slice(0, 10)
+        }
+      })
+    );
+  }
+
+  async sendMessage(message: string): Promise<CliChatTurnResult> {
+    const events: RuntimeEvent[] = [];
+
+    for await (const event of this.#runtime.runTurn({ message })) {
+      await this.#traceStore.append(event);
+      events.push(event);
+    }
+
+    const assistantMessage = events.find((event) => event.type === "assistant_message_created");
+
+    return {
+      assistantText:
+        assistantMessage?.type === "assistant_message_created"
+          ? assistantMessage.message.content
+          : "No assistant message was produced.",
+      events
+    };
+  }
+
+  async runSlashCommand(command: string): Promise<string[]> {
+    if (command !== "/trace") {
+      return [`Unknown slash command: ${command}`];
+    }
+
+    return renderCompactTrace(await this.#traceStore.listRecent());
+  }
 }
 
 export function renderCompactTrace(events: RuntimeEvent[]): string[] {

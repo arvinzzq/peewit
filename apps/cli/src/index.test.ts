@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { renderCompactTrace, runCli } from "./index.js";
+import { CliChatSession, renderCompactTrace, runCli } from "./index.js";
 
 describe("runCli", () => {
   test("renders help", async () => {
@@ -36,6 +36,32 @@ describe("runCli", () => {
     expect(result.stdout).toContain("1. Received user message");
     expect(result.stdout).toContain("5. Created assistant message");
     expect(result.stdout).toContain("6. Completed run");
+  });
+
+  test("runs slash trace after a fake-provider chat turn in the same CLI run", async () => {
+    const result = await runCli(["chat", "--fake", "Hello runtime", "/trace"], "0.0.0");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("Assistant: Fake response to: Hello runtime");
+    expect(result.stdout).toContain("Recent Trace:");
+    expect(result.stdout).toContain("1. Received user message (run_started)");
+    expect(result.stdout).toContain("6. Completed run (run_completed)");
+  });
+
+  test("chat session can return recent trace through slash command", async () => {
+    const session = CliChatSession.createFake();
+
+    await session.sendMessage("Hello trace");
+
+    expect(await session.runSlashCommand("/trace")).toEqual([
+      "1. Received user message (run_started)",
+      "2. Assembled context (context_assembled)",
+      "3. Started model request (model_request_started)",
+      "4. Completed model request (model_request_completed)",
+      "5. Created assistant message (assistant_message_created)",
+      "6. Completed run (run_completed)"
+    ]);
   });
 
   test("renders compact trace lines for successful runtime events", () => {
