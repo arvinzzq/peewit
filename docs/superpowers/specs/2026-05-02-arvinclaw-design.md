@@ -331,6 +331,8 @@ ArvinClaw should treat context assembly as a first-class architecture module, fo
 
 Detailed architecture note for prompt assembly: [docs/architecture/prompt-assembly.md](../../architecture/prompt-assembly.md)
 
+Detailed architecture note for context engine: [docs/architecture/context-engine.md](../../architecture/context-engine.md)
+
 MVP context assembly should include:
 
 - Base system instructions

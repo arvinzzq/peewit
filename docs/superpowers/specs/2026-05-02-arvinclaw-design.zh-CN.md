@@ -333,6 +333,8 @@ ArvinClaw 应把 context assembly 视为一等架构模块，遵循 OpenClaw 将
 
 Prompt assembly 详细架构说明：[docs/architecture/prompt-assembly.zh-CN.md](../../architecture/prompt-assembly.zh-CN.md)
 
+Context engine 详细架构说明：[docs/architecture/context-engine.zh-CN.md](../../architecture/context-engine.zh-CN.md)
+
 MVP context assembly 应包括：
 
 - Base system instructions

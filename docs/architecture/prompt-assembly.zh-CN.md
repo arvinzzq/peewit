@@ -239,6 +239,7 @@ MVP prompt assembly 成功标准：
 - [主设计](../superpowers/specs/2026-05-02-arvinclaw-design.zh-CN.md)
 - [OpenClaw Implementation Notes](../research/openclaw-implementation-notes.zh-CN.md)
 - [OpenClaw Architecture Map](./openclaw-architecture-map.zh-CN.md)
+- [Context Engine](./context-engine.zh-CN.md)
 - [Agent Loop](./agent-loop.zh-CN.md)
 - [Model Provider](./model-provider.zh-CN.md)
 - [Skill System](./skill-system.zh-CN.md)
