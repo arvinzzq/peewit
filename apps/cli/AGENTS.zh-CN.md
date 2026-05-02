@@ -10,7 +10,7 @@
 
 ## Testing
 
-CLI 可见行为、slash commands、trace rendering 和 config redaction 需要在 `src/index.test.ts` 中有测试。允许 fake-provider smoke paths。CLI 单元测试不能要求真实 model provider 或 API key。
+CLI 可见行为、interactive input loops、slash commands、trace rendering 和 config redaction 需要在 `src/index.test.ts` 中有测试。允许 fake-provider smoke paths。CLI 单元测试不能要求真实 model provider 或 API key。
 
 ## Boundaries
 

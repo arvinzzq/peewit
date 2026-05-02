@@ -18,12 +18,30 @@ describe("runCli", () => {
     });
   });
 
-  test("keeps interactive chat as a Phase 1 placeholder", async () => {
-    const result = await runCli(["chat"], "0.0.0");
+  test("runs an interactive fake-provider chat loop", async () => {
+    const inputs = ["Hello interactive", "/exit"];
+    const result = await runCli(["chat"], "0.0.0", {
+      readLine: async () => inputs.shift()
+    });
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
-    expect(result.stdout).toContain("interactive chat is not wired yet");
+    expect(result.stdout).toContain("ArvinClaw chat");
+    expect(result.stdout).toContain("Assistant: Fake response to: Hello interactive");
+    expect(result.stdout).toContain("Goodbye.");
+  });
+
+  test("runs slash trace inside an interactive chat loop", async () => {
+    const inputs = ["Hello trace", "/trace", "/exit"];
+    const result = await runCli(["chat"], "0.0.0", {
+      readLine: async () => inputs.shift()
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("Recent Trace:");
+    expect(result.stdout).toContain("1. Received user message (run_started)");
+    expect(result.stdout).toContain("6. Completed run (run_completed)");
   });
 
   test("runs a fake-provider chat turn through the runtime", async () => {

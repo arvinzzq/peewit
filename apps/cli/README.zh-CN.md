@@ -12,8 +12,8 @@
 | --- | --- | --- |
 | `package.json` | Package manifest | 声明 CLI package、executable name、build scripts 和 runtime/config package dependencies。 |
 | `tsconfig.json` | TypeScript config | 使用对 config、core、context 和 models 的 references 构建 CLI package。 |
-| `src/index.ts` | CLI adapter | 解析命令、运行 fake-provider chat smoke path、保存 in-process trace events，并渲染 `/trace` 和 `/config`。 |
-| `src/index.test.ts` | CLI tests | 保护 help、version、chat placeholder、fake-provider chat、compact trace rendering、`/trace`、`/config` 和 unknown-command behavior。 |
+| `src/index.ts` | CLI adapter | 解析命令、运行 interactive fake-provider chat loop、保存 in-process trace events，并渲染 `/help`、`/trace`、`/config` 和 `/exit`。 |
+| `src/index.test.ts` | CLI tests | 保护 help、version、interactive chat、fake-provider chat、compact trace rendering、`/trace`、`/config` 和 unknown-command behavior。 |
 
 ## Update Reminder
 

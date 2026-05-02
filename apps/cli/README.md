@@ -12,8 +12,8 @@ It wires CLI-visible commands to runtime and config dependencies without owning 
 | --- | --- | --- |
 | `package.json` | Package manifest | Declares the CLI package, executable name, build scripts, and runtime/config package dependencies. |
 | `tsconfig.json` | TypeScript config | Builds the CLI package with references to config, core, context, and models. |
-| `src/index.ts` | CLI adapter | Parses commands, runs the fake-provider chat smoke path, stores in-process trace events, and renders `/trace` and `/config`. |
-| `src/index.test.ts` | CLI tests | Protects help, version, chat placeholder, fake-provider chat, compact trace rendering, `/trace`, `/config`, and unknown-command behavior. |
+| `src/index.ts` | CLI adapter | Parses commands, runs the interactive fake-provider chat loop, stores in-process trace events, and renders `/help`, `/trace`, `/config`, and `/exit`. |
+| `src/index.test.ts` | CLI tests | Protects help, version, interactive chat, fake-provider chat, compact trace rendering, `/trace`, `/config`, and unknown-command behavior. |
 
 ## Update Reminder
 

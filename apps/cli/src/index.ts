@@ -1,15 +1,16 @@
 /**
- * INPUT: CLI arguments, package version, config loader, runtime package, context assembler, and fake model provider.
- * OUTPUT: CLI result objects, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
+ * INPUT: CLI arguments, package version, optional line reader, config loader, runtime package, context assembler, and fake model provider.
+ * OUTPUT: CLI result objects, interactive chat transcript, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
  * POS: CLI adapter layer; translates terminal commands without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
+import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { loadConfig, redactedConfig, type RedactedConfigView } from "@arvinclaw/config";
 import { DefaultContextAssembler } from "@arvinclaw/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
-import { FakeModelProvider } from "@arvinclaw/models";
+import { FakeModelProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
 
 export const cliPackageName = "@arvinclaw/cli";
 
@@ -21,6 +22,8 @@ export interface CliResult {
 
 export interface RunCliOptions {
   env?: Record<string, string | undefined>;
+  readLine?: (prompt: string) => Promise<string | undefined>;
+  write?: (text: string) => void;
 }
 
 const helpText = `Usage: arvinclaw <command>
@@ -57,11 +60,7 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
       return runFakeChatTurn(parseFakeChatArgs(rest.slice(1)), options);
     }
 
-    return {
-      exitCode: 0,
-      stdout: "arvinclaw interactive chat is not wired yet. Use `arvinclaw chat --fake <message>` for the Phase 1 smoke path.\n",
-      stderr: ""
-    };
+    return runInteractiveFakeChat(options);
   }
 
   return {
@@ -112,6 +111,62 @@ async function runFakeChatTurn(input: ParsedFakeChatArgs, options: RunCliOptions
   };
 }
 
+async function runInteractiveFakeChat(options: RunCliOptions): Promise<CliResult> {
+  const session = CliChatSession.createFake((message) => `Fake response to: ${message}`, options);
+  const output: string[] = [];
+  const emit = (...lines: string[]) => {
+    if (options.write) {
+      options.write(`${lines.join("\n")}\n`);
+    } else {
+      output.push(...lines);
+    }
+  };
+
+  emit(
+    "ArvinClaw chat (fake provider)",
+    "Type /help for commands or /exit to leave.",
+    ""
+  );
+
+  while (true) {
+    const line = await options.readLine?.("> ");
+
+    if (line === undefined) {
+      break;
+    }
+
+    const message = line.trim();
+
+    if (message === "") {
+      continue;
+    }
+
+    if (message === "/exit") {
+      emit("Goodbye.");
+      break;
+    }
+
+    if (message === "/help") {
+      emit(...renderInteractiveHelp(), "");
+      continue;
+    }
+
+    if (message.startsWith("/")) {
+      emit(...renderInteractiveSlashCommand(await session.runSlashCommand(message)), "");
+      continue;
+    }
+
+    const turn = await session.sendMessage(message);
+    emit(`Assistant: ${turn.assistantText}`, "");
+  }
+
+  return {
+    exitCode: 0,
+    stdout: options.write ? "" : `${output.join("\n")}\n`,
+    stderr: ""
+  };
+}
+
 async function renderSlashCommands(session: CliChatSession, slashCommands: string[]): Promise<string> {
   const rendered: string[] = [];
 
@@ -126,6 +181,30 @@ async function renderSlashCommands(session: CliChatSession, slashCommands: strin
   }
 
   return rendered.length === 0 ? "" : `${rendered.join("\n")}\n`;
+}
+
+function renderInteractiveSlashCommand(lines: string[]): string[] {
+  const [firstLine] = lines;
+
+  if (firstLine?.startsWith("Unknown slash command")) {
+    return lines;
+  }
+
+  if (lines.some((line) => line.startsWith("Provider:"))) {
+    return ["Config:", ...lines];
+  }
+
+  return ["Recent Trace:", ...lines];
+}
+
+function renderInteractiveHelp(): string[] {
+  return [
+    "Commands:",
+    "/help    Show commands",
+    "/trace   Show recent trace events",
+    "/config  Show redacted configuration",
+    "/exit    Leave chat"
+  ];
 }
 
 export interface CliChatTurnResult {
@@ -148,18 +227,22 @@ export class CliChatSession {
     this.#traceStore = traceStore;
   }
 
-  static createFake(responseContent = "Fake response to: Hello trace", options: RunCliOptions = {}): CliChatSession {
+  static createFake(responseContent: string | ((message: string) => string) = "Fake response to: Hello trace", options: RunCliOptions = {}): CliChatSession {
     const config = redactedConfig(loadConfig(options.env ? { env: options.env } : {}));
+    const provider =
+      typeof responseContent === "function"
+        ? new MessageMappedFakeModelProvider(responseContent)
+        : new FakeModelProvider([
+            {
+              type: "message",
+              content: responseContent
+            }
+          ]);
 
     return new CliChatSession(
       new AgentRuntime({
         contextAssembler: new DefaultContextAssembler(),
-        modelProvider: new FakeModelProvider([
-          {
-            type: "message",
-            content: responseContent
-          }
-        ]),
+        modelProvider: provider,
         systemInstruction: "You are ArvinClaw, a CLI-first OpenClaw-like learning agent.",
         runtime: {
           mode: "confirm",
@@ -203,6 +286,26 @@ export class CliChatSession {
   }
 }
 
+class MessageMappedFakeModelProvider implements ModelProvider {
+  readonly requests: ModelInput[] = [];
+
+  readonly #mapMessage: (message: string) => string;
+
+  constructor(mapMessage: (message: string) => string) {
+    this.#mapMessage = mapMessage;
+  }
+
+  async generate(input: ModelInput): Promise<ModelOutput> {
+    this.requests.push(input);
+    const lastUserMessage = [...input.messages].reverse().find((message) => message.role === "user")?.content ?? "";
+
+    return {
+      type: "message",
+      content: this.#mapMessage(lastUserMessage)
+    };
+  }
+}
+
 export function renderRedactedConfig(config: RedactedConfigView): string[] {
   return [
     `Provider: ${config.model.provider}`,
@@ -238,7 +341,24 @@ function traceEventLabel(event: RuntimeEvent): string {
 }
 
 async function main(): Promise<void> {
-  const result = await runCli(process.argv.slice(2), "0.0.0", { env: process.env });
+  const terminal = createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+  const lineIterator = terminal[Symbol.asyncIterator]();
+
+  const result = await runCli(process.argv.slice(2), "0.0.0", {
+    env: process.env,
+    readLine: async (prompt) => {
+      process.stdout.write(prompt);
+      const line = await lineIterator.next();
+
+      return line.done ? undefined : line.value;
+    },
+    write: (text) => process.stdout.write(text)
+  });
+
+  terminal.close();
   process.stdout.write(result.stdout);
   process.stderr.write(result.stderr);
   process.exitCode = result.exitCode;
