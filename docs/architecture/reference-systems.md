@@ -44,6 +44,8 @@ These ideas define the long-term shape of ArvinClaw.
 
 Detailed OpenClaw mapping: [OpenClaw Architecture Map](./openclaw-architecture-map.md)
 
+Implementation research notes: [OpenClaw Implementation Notes](../research/openclaw-implementation-notes.md)
+
 ## 3. What to Learn from Claude Code
 
 Claude Code is useful because it shows how an agent can work deeply inside a codebase while keeping user control and project conventions visible.

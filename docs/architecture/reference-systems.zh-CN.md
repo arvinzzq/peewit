@@ -44,6 +44,8 @@ ArvinClaw 应研究这些 OpenClaw 思路：
 
 详细 OpenClaw 映射：[OpenClaw Architecture Map](./openclaw-architecture-map.zh-CN.md)
 
+实现研究笔记：[OpenClaw Implementation Notes](../research/openclaw-implementation-notes.zh-CN.md)
+
 ## 3. 从 Claude Code 学什么
 
 Claude Code 有用，因为它展示了 Agent 如何深入代码库工作，同时让用户控制和项目约定保持可见。

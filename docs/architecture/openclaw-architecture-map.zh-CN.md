@@ -15,6 +15,8 @@ ArvinClaw 的目标是从 0 到 1 实现一个 OpenClaw-like 的个人通用 Age
 
 OpenClaw 是 primary architecture reference。ArvinClaw 以分阶段、可测试的增量实现它的核心思想。
 
+实现研究笔记：[OpenClaw Implementation Notes](../research/openclaw-implementation-notes.zh-CN.md)
+
 ## 2. 映射摘要
 
 | OpenClaw Concept | ArvinClaw Plan | Phase |

@@ -15,6 +15,8 @@ The core rule:
 
 OpenClaw is the primary architecture reference. ArvinClaw implements its core ideas in staged, testable increments.
 
+Implementation research notes: [OpenClaw Implementation Notes](../research/openclaw-implementation-notes.md)
+
 ## 2. Mapping Summary
 
 | OpenClaw Concept | ArvinClaw Plan | Phase |
