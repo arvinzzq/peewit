@@ -25,7 +25,11 @@ importers:
 
   packages/config: {}
 
-  packages/context: {}
+  packages/context:
+    dependencies:
+      '@arvinclaw/models':
+        specifier: workspace:*
+        version: link:../models
 
   packages/core: {}
 
