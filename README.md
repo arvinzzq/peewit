@@ -11,17 +11,19 @@ The goal is twofold:
 
 ## Current Phase
 
-ArvinClaw is in Phase 0: project foundation.
+ArvinClaw is in Phase 1: MVP agent loop.
 
-Phase 0 focuses on:
+Phase 0 foundation is complete. Phase 1 is now building the first message-only agent loop.
 
-- TypeScript workspace setup
-- Package boundaries
-- CLI shell
-- Initial configuration layer
-- Test and documentation checks
+Current Phase 1 progress:
 
-It does not include real model calls, tool execution, long-term memory, or Web UI yet.
+- Runtime event contracts are implemented.
+- `ModelProvider`, fake provider, and OpenAI-compatible provider are implemented.
+- Minimal context assembly is implemented.
+- Message-only `AgentRuntime.runTurn` is implemented.
+- CLI chat runtime wiring is still in progress.
+
+Phase 1 does not include full tool execution, long-term memory, or Web UI yet.
 
 ## Documentation
 
@@ -30,7 +32,7 @@ Start here:
 - [Documentation Index](./docs/README.md)
 - [Main Design](./docs/product/arvinclaw-design.md)
 - [Roadmap](./docs/roadmap/overview.md)
-- [Phase 0 Plan](./docs/plans/phase-0-foundation.md)
+- [Phase 1 Plan](./docs/plans/phase-1-mvp-agent-loop.md)
 
 ## Development
 

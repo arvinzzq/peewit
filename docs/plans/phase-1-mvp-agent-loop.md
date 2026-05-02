@@ -5,6 +5,37 @@ Date: 2026-05-02
 
 Simplified Chinese version: [phase-1-mvp-agent-loop.zh-CN.md](./phase-1-mvp-agent-loop.zh-CN.md)
 
+## Progress
+
+Status: In Progress
+
+Completed:
+
+- Runtime event contracts: `24439e5`
+- `ModelProvider` interface and fake provider: `7df669d`
+- OpenAI-compatible provider with fake HTTP tests: `4b86a80`
+- Minimal context assembler: `8ef0c54`
+- Message-only `AgentRuntime.runTurn`: `eacb8e8`
+
+Remaining:
+
+- CLI chat runtime wiring
+- Compact trace rendering in CLI
+- `/trace` command for recent runtime events
+- `/config` command with secret redaction
+- Fake-provider CLI smoke test
+- Phase 1 acceptance update after CLI wiring works
+
+Latest verification:
+
+- `pnpm run check`
+- `pnpm run cli --help`
+- `pnpm run cli chat`
+
+Next recommended slice:
+
+- Wire CLI chat to runtime with a fake-provider smoke path before adding real provider configuration.
+
 ## 1. Purpose
 
 Phase 1 creates the first usable ArvinClaw agent loop.

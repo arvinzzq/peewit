@@ -5,6 +5,37 @@
 
 English version: [phase-1-mvp-agent-loop.md](./phase-1-mvp-agent-loop.md)
 
+## Progress
+
+状态：In Progress
+
+已完成：
+
+- Runtime event contracts：`24439e5`
+- `ModelProvider` interface 和 fake provider：`7df669d`
+- 带 fake HTTP tests 的 OpenAI-compatible provider：`4b86a80`
+- Minimal context assembler：`8ef0c54`
+- Message-only `AgentRuntime.runTurn`：`eacb8e8`
+
+剩余：
+
+- CLI chat runtime wiring
+- CLI 中的 compact trace rendering
+- 用于查看 recent runtime events 的 `/trace` command
+- 带 secret redaction 的 `/config` command
+- Fake-provider CLI smoke test
+- CLI wiring 可用后更新 Phase 1 acceptance
+
+最新验证：
+
+- `pnpm run check`
+- `pnpm run cli --help`
+- `pnpm run cli chat`
+
+下一步建议切片：
+
+- 先把 CLI chat 接到 runtime，并提供 fake-provider smoke path，再加入真实 provider configuration。
+
 ## 1. 目的
 
 Phase 1 创建第一个可用的 ArvinClaw agent loop。

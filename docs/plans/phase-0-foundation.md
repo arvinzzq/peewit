@@ -5,6 +5,27 @@ Date: 2026-05-02
 
 Simplified Chinese version: [phase-0-foundation.zh-CN.md](./phase-0-foundation.zh-CN.md)
 
+## Progress
+
+Status: Complete
+
+Completed:
+
+- TypeScript workspace and pnpm workspace setup: `59c3064`, `6a36343`
+- Package boundaries for apps and packages: `2df365e`
+- CLI command shell with help, version, and chat placeholder: `7e499a4`
+- Initial config loader with defaults, env overrides, validation, and redaction: `5794556`
+- Documentation checks for links, bilingual headings, module guides, and source headers: `0703b1d`, `b63eb5b`
+- Root README and documentation maintenance policy: `54690fe`, `f1ec4e2`
+
+Latest verification:
+
+- `pnpm run check`
+- `pnpm run cli --help`
+- `pnpm run cli chat`
+
+Phase 0 is considered complete. Further foundation changes should be tracked as separate maintenance decisions or as part of the phase that needs them.
+
 ## 1. Purpose
 
 Phase 0 creates the project foundation before the first working agent loop.

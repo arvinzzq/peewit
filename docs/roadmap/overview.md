@@ -30,21 +30,23 @@ The roadmap follows a dual-track approach:
 
 ## 2. Phase Summary
 
-| Phase | Goal | Product Result | Architecture Focus |
-| --- | --- | --- | --- |
-| Phase 0 | Project foundation | A documented TypeScript workspace with CLI shell | Monorepo, config, context package, documentation layout |
-| Phase 1 | MVP agent loop | CLI chat can call a model and produce traceable responses | Agent Core, context assembly, ModelProvider, basic loop |
-| Phase 2 | Tools and permissions | Agent can inspect files, run approved commands, and read web content | Tool Registry, PermissionPolicy |
-| Phase 3 | Lightweight skills | Agent can load local `SKILL.md` instructions | Skill loader, skill precedence, prompt assembly |
-| Phase 4 | Planning and autonomy | Agent can plan tasks and run in `observe`, `confirm`, or `auto` mode | Planner, task state, execution modes |
-| Phase 5 | Sessions and memory | Agent remembers sessions and can use local knowledge | Session store, trace store, memory interfaces |
-| Phase 6 | Web UI | User can chat, inspect traces, and approve actions in a browser | UI adapter, API boundary, trace visualization |
-| Phase 7 | Multi-entry adapters | CLI, Web, desktop, and message entries share one Agent Core | Adapter interface, gateway direction |
-| Phase 8 | Background automation | Agent can run scheduled and event-triggered tasks | Scheduler, daemon, task queue |
-| Phase 9 | Plugin and skill ecosystem | User can install, enable, disable, and review capabilities | Plugin metadata, permission declarations, versioning |
-| Phase 10 | Full personal agent platform | OpenClaw-like personal agent with multiple models, agents, nodes, and sandboxed tools | Gateway, multi-agent runtime, node protocol, sandboxing |
+| Phase | Status | Goal | Product Result | Architecture Focus |
+| --- | --- | --- | --- | --- |
+| Phase 0 | Complete | Project foundation | A documented TypeScript workspace with CLI shell | Monorepo, config, context package, documentation layout |
+| Phase 1 | In Progress | MVP agent loop | CLI chat can call a model and produce traceable responses | Agent Core, context assembly, ModelProvider, basic loop |
+| Phase 2 | Not Started | Tools and permissions | Agent can inspect files, run approved commands, and read web content | Tool Registry, PermissionPolicy |
+| Phase 3 | Not Started | Lightweight skills | Agent can load local `SKILL.md` instructions | Skill loader, skill precedence, prompt assembly |
+| Phase 4 | Not Started | Planning and autonomy | Agent can plan tasks and run in `observe`, `confirm`, or `auto` mode | Planner, task state, execution modes |
+| Phase 5 | Not Started | Sessions and memory | Agent remembers sessions and can use local knowledge | Session store, trace store, memory interfaces |
+| Phase 6 | Not Started | Web UI | User can chat, inspect traces, and approve actions in a browser | UI adapter, API boundary, trace visualization |
+| Phase 7 | Not Started | Multi-entry adapters | CLI, Web, desktop, and message entries share one Agent Core | Adapter interface, gateway direction |
+| Phase 8 | Not Started | Background automation | Agent can run scheduled and event-triggered tasks | Scheduler, daemon, task queue |
+| Phase 9 | Not Started | Plugin and skill ecosystem | User can install, enable, disable, and review capabilities | Plugin metadata, permission declarations, versioning |
+| Phase 10 | Not Started | Full personal agent platform | OpenClaw-like personal agent with multiple models, agents, nodes, and sandboxed tools | Gateway, multi-agent runtime, node protocol, sandboxing |
 
 Some later-phase learning documents are listed as planned filenames before they exist. They should be created when that phase is being actively designed, not all at once during MVP setup.
+
+Progress detail lives in the phase plan documents. Roadmap status should stay high level and should be updated when a phase starts, completes, or materially changes scope.
 
 ## 3. Phase 0: Project Foundation
 
