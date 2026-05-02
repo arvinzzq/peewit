@@ -17,6 +17,8 @@ OpenClaw 是 primary architecture reference。ArvinClaw 以分阶段、可测试
 
 实现研究笔记：[OpenClaw Implementation Notes](../research/openclaw-implementation-notes.zh-CN.md)
 
+兼容性决策：[0002：OpenClaw-Aligned, Not Identical](../decisions/0002-openclaw-aligned-not-identical.zh-CN.md)
+
 ## 2. 映射摘要
 
 | OpenClaw Concept | ArvinClaw Plan | Phase |

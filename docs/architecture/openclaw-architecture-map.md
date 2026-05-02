@@ -17,6 +17,8 @@ OpenClaw is the primary architecture reference. ArvinClaw implements its core id
 
 Implementation research notes: [OpenClaw Implementation Notes](../research/openclaw-implementation-notes.md)
 
+Compatibility decision: [0002: OpenClaw-Aligned, Not Identical](../decisions/0002-openclaw-aligned-not-identical.md)
+
 ## 2. Mapping Summary
 
 | OpenClaw Concept | ArvinClaw Plan | Phase |

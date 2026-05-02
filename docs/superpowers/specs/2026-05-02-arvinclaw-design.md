@@ -13,6 +13,8 @@ Reference systems: [docs/architecture/reference-systems.md](../../architecture/r
 
 OpenClaw architecture map: [docs/architecture/openclaw-architecture-map.md](../../architecture/openclaw-architecture-map.md)
 
+Compatibility decision: [docs/decisions/0002-openclaw-aligned-not-identical.md](../../decisions/0002-openclaw-aligned-not-identical.md)
+
 ## 2. Product Goals
 
 ArvinClaw should eventually support multiple user entry points:
