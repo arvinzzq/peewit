@@ -1,0 +1,26 @@
+{
+  "name": "arvinclaw",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenClaw-inspired personal general-purpose agent for learning and real use.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc -b",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm test"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
+  }
+}
