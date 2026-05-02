@@ -46,6 +46,14 @@ ArvinClaw 最终应该支持多个用户入口：
 - Memory
 - Runtime and execution tracing
 
+Session storage 详细架构说明：[docs/architecture/session-storage.zh-CN.md](../../architecture/session-storage.zh-CN.md)
+
+MVP 记忆边界：
+
+- MVP 通过 session storage 包含 session memory。
+- MVP 不包含完整 long-term memory。
+- Long-term memory 会延后，直到 session storage、trace、permission 和用户控制边界清楚。
+
 ## 3.1 测试目标
 
 每个模块和每次迭代都必须包含与其风险和职责相匹配的测试保障。

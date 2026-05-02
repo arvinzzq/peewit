@@ -249,6 +249,8 @@ The agent can preserve session history, show previous traces, and begin using lo
 - `docs/architecture/memory.md`
 - `docs/architecture/local-knowledge.md`
 
+Primary architecture note: [Session Storage](../architecture/session-storage.md)
+
 ### Acceptance Criteria
 
 - Sessions can be saved and resumed.

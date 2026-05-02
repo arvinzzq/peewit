@@ -44,6 +44,14 @@ Expected documentation areas include:
 - Memory
 - Runtime and execution tracing
 
+Detailed architecture note for session storage: [docs/architecture/session-storage.md](../../architecture/session-storage.md)
+
+MVP memory boundary:
+
+- MVP includes session memory through session storage.
+- MVP does not include full long-term memory.
+- Long-term memory is deferred until session storage, trace, permission, and user control are clear.
+
 ## 3.1 Testing Goals
 
 Each module and each iteration must include testing coverage appropriate to its risk and responsibility.

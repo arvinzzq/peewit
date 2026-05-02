@@ -249,6 +249,8 @@ Agent 可以保存 session history，展示之前的 traces，并开始跨任务
 - `docs/architecture/memory.md`
 - `docs/architecture/local-knowledge.md`
 
+主要架构说明：[Session Storage](../architecture/session-storage.zh-CN.md)
+
 ### 验收标准
 
 - Sessions 可以保存和恢复。
