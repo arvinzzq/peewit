@@ -1,3 +1,10 @@
+/**
+ * INPUT: User config, project config, and environment variable overrides.
+ * OUTPUT: EffectiveConfig, redacted config views, and validation errors.
+ * POS: Configuration boundary; keeps config loading separate from runtime behavior.
+ *
+ * Update this header and the parent directory docs when responsibilities change.
+ */
 export const configPackageName = "@arvinclaw/config";
 
 export type AutonomyMode = "observe" | "confirm" | "auto";

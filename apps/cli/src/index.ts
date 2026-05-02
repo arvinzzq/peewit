@@ -1,3 +1,10 @@
+/**
+ * INPUT: CLI arguments, package version, and Node process streams in direct execution mode.
+ * OUTPUT: CLI result objects and terminal stdout/stderr side effects from main().
+ * POS: CLI adapter layer; translates terminal commands without owning agent behavior.
+ *
+ * Update this header and the parent directory docs when responsibilities change.
+ */
 import { fileURLToPath } from "node:url";
 
 export const cliPackageName = "@arvinclaw/cli";

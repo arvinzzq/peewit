@@ -1,3 +1,10 @@
+/**
+ * INPUT: Model message types plus system instructions, runtime metadata, and user messages.
+ * OUTPUT: Provider-neutral model input and a context assembly report.
+ * POS: Context assembly layer; decides what the model sees before provider formatting.
+ *
+ * Update this header and the parent directory docs when responsibilities change.
+ */
 import type { ModelInput } from "@arvinclaw/models";
 
 export const contextPackageName = "@arvinclaw/context";

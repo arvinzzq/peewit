@@ -1,3 +1,10 @@
+/**
+ * INPUT: Provider-neutral model messages, request options, and optional fetch implementation.
+ * OUTPUT: ModelProvider contracts, fake provider, and OpenAI-compatible provider.
+ * POS: Model provider layer; isolates Agent Core from vendor-specific APIs.
+ *
+ * Update this header and the parent directory docs when responsibilities change.
+ */
 export const modelsPackageName = "@arvinclaw/models";
 
 export type ModelMessageRole = "system" | "user" | "assistant" | "tool";

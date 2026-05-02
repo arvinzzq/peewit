@@ -1,3 +1,10 @@
+/**
+ * INPUT: ContextAssembler, ModelProvider, runtime metadata, and user turn input.
+ * OUTPUT: AgentRuntime, runtime event contracts, and message-only run orchestration.
+ * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
+ *
+ * Update this header and the parent directory docs when responsibilities change.
+ */
 import type {
   ContextAssembler,
   ContextRuntimeMetadata
