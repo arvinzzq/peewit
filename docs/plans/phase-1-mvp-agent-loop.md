@@ -17,10 +17,10 @@ Completed:
 - Minimal context assembler: `8ef0c54`
 - Message-only `AgentRuntime.runTurn`: `eacb8e8`
 - CLI fake-provider chat smoke path: `8547d63`
+- In-memory runtime trace store and compact CLI trace rendering: `39c7868`, `2751a9c`
 
 Remaining:
 
-- Compact trace rendering in CLI
 - `/trace` command for recent runtime events
 - `/config` command with secret redaction
 - Interactive CLI chat loop
@@ -35,7 +35,7 @@ Latest verification:
 
 Next recommended slice:
 
-- Add compact trace formatting and a `/trace`-ready in-memory trace shape before real provider configuration.
+- Add `/trace` command wiring using the in-memory trace shape before real provider configuration.
 
 ## 1. Purpose
 

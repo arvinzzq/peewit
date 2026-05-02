@@ -17,10 +17,10 @@ English version: [phase-1-mvp-agent-loop.md](./phase-1-mvp-agent-loop.md)
 - Minimal context assembler：`8ef0c54`
 - Message-only `AgentRuntime.runTurn`：`eacb8e8`
 - CLI fake-provider chat smoke path：`8547d63`
+- In-memory runtime trace store 和 compact CLI trace rendering：`39c7868`、`2751a9c`
 
 剩余：
 
-- CLI 中的 compact trace rendering
 - 用于查看 recent runtime events 的 `/trace` command
 - 带 secret redaction 的 `/config` command
 - Interactive CLI chat loop
@@ -35,7 +35,7 @@ English version: [phase-1-mvp-agent-loop.md](./phase-1-mvp-agent-loop.md)
 
 下一步建议切片：
 
-- 在加入真实 provider configuration 前，先添加 compact trace formatting 和可支持 `/trace` 的 in-memory trace shape。
+- 在加入真实 provider configuration 前，先使用 in-memory trace shape 接上 `/trace` command。
 
 ## 1. 目的
 
