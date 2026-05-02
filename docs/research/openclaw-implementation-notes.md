@@ -352,6 +352,7 @@ It also suggests adding these future test categories:
 - [OpenClaw architecture map](../architecture/openclaw-architecture-map.md)
 - [Reference systems](../architecture/reference-systems.md)
 - [Agent loop](../architecture/agent-loop.md)
+- [Run queue](../architecture/run-queue.md)
 - [Prompt assembly](../architecture/prompt-assembly.md)
 - [Context engine](../architecture/context-engine.md)
 - [Memory system](../architecture/memory-system.md)

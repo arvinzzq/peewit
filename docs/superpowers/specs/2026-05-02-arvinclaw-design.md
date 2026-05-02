@@ -307,6 +307,8 @@ The preferred direction is an OpenClaw-aligned loop:
 
 Detailed architecture note: [docs/architecture/agent-loop.md](../../architecture/agent-loop.md)
 
+Detailed architecture note for run queue: [docs/architecture/run-queue.md](../../architecture/run-queue.md)
+
 - Each run flows through intake, context assembly, model inference, tool execution, streaming/trace, and persistence.
 - Simple tasks can use a direct tool-calling loop.
 - Complex tasks can include a lightweight planning phase.

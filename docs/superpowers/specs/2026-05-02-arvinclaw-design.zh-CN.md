@@ -309,6 +309,8 @@ CLI `/config` 命令应展示当前生效配置，同时隐藏密钥值。
 
 详细架构说明：[docs/architecture/agent-loop.zh-CN.md](../../architecture/agent-loop.zh-CN.md)
 
+Run queue 详细架构说明：[docs/architecture/run-queue.zh-CN.md](../../architecture/run-queue.zh-CN.md)
+
 - 每个 run 流经 intake、context assembly、model inference、tool execution、streaming/trace 和 persistence。
 - 简单任务可以使用直接工具调用 loop。
 - 复杂任务可以包含轻量规划阶段。
