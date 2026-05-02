@@ -45,6 +45,8 @@ ArvinClaw 旨在成为一个真实的个人通用 Agent 产品，同时也作为
 - [Runtime Composition](./architecture/runtime-composition.zh-CN.md)
 - [Architecture Contracts](./architecture/contracts.zh-CN.md)
 - [Testing Strategy](./architecture/testing-strategy.zh-CN.md)
+- [Development Workflow](./architecture/dev-workflow.zh-CN.md)
+- [Documentation System](./architecture/documentation-system.zh-CN.md)
 
 MVP runtime：
 
@@ -79,6 +81,7 @@ MVP runtime：
 
 - [Phase 0 Foundation](./plans/phase-0-foundation.zh-CN.md)
 - [Phase 1 MVP Agent Loop](./plans/phase-1-mvp-agent-loop.zh-CN.md)
+- [Phase 2 Tools and Permissions](./plans/phase-2-tools-and-permissions.zh-CN.md)
 
 ## 6. 决策
 

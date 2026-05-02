@@ -45,6 +45,8 @@ Foundation:
 - [Runtime Composition](./architecture/runtime-composition.md)
 - [Architecture Contracts](./architecture/contracts.md)
 - [Testing Strategy](./architecture/testing-strategy.md)
+- [Development Workflow](./architecture/dev-workflow.md)
+- [Documentation System](./architecture/documentation-system.md)
 
 MVP runtime:
 
@@ -79,6 +81,7 @@ Planned phase documents:
 
 - [Phase 0 Foundation](./plans/phase-0-foundation.md)
 - [Phase 1 MVP Agent Loop](./plans/phase-1-mvp-agent-loop.md)
+- [Phase 2 Tools and Permissions](./plans/phase-2-tools-and-permissions.md)
 
 ## 6. Decisions
 
