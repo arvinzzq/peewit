@@ -54,7 +54,7 @@ Roadmap 采用双轨方法：
 
 - 轻量 monorepo 结构
 - CLI app 边界
-- core、models、tools、skills、permissions 和 sessions 的 package 边界
+- core、config、models、tools、skills、permissions 和 sessions 的 package 边界
 - 用于 prompt 和 context assembly 的 context package 边界
 - 配置文件约定
 - 文档结构
@@ -63,9 +63,12 @@ Roadmap 采用双轨方法：
 
 - `docs/roadmap/overview.md`
 - `docs/architecture/project-structure.md`
+- `docs/architecture/configuration-system.md`
 - `docs/superpowers/specs/` 下的主设计文档
 
 主要架构说明：[项目结构](../architecture/project-structure.zh-CN.md)
+
+支持架构说明：[Configuration System](../architecture/configuration-system.zh-CN.md)
 
 ### 验收标准
 

@@ -253,4 +253,5 @@ The MVP permission system should be considered successful when:
 - [Roadmap](../roadmap/overview.md)
 - [Agent loop](./agent-loop.md)
 - [Tool system](./tool-system.md)
+- [Configuration System](./configuration-system.md)
 - [Project structure](./project-structure.md)

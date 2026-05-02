@@ -50,6 +50,7 @@ Expected documentation areas include:
 - Permission system
 - Skill system
 - Model provider abstraction
+- Configuration system
 - Session storage
 - Memory
 - Runtime and execution tracing
@@ -61,6 +62,8 @@ Detailed architecture note for memory system: [docs/architecture/memory-system.m
 Detailed architecture note for workspace files: [docs/architecture/workspace-files.md](../../architecture/workspace-files.md)
 
 Detailed architecture note for CLI adapter: [docs/architecture/cli-adapter.md](../../architecture/cli-adapter.md)
+
+Detailed architecture note for configuration system: [docs/architecture/configuration-system.md](../../architecture/configuration-system.md)
 
 MVP memory boundary:
 
@@ -120,6 +123,7 @@ apps/
   cli/
 packages/
   core/
+  config/
   context/
   models/
   tools/
@@ -137,6 +141,7 @@ Responsibilities:
 
 - `apps/cli`: CLI entry point and terminal interaction only
 - `packages/core`: agent loop, task orchestration, shared domain types
+- `packages/config`: configuration loading, validation, precedence, and redaction
 - `packages/context`: prompt assembly, context projection, workspace file loading, and future compaction
 - `packages/models`: model provider interfaces and provider implementations
 - `packages/tools`: tool registry and built-in tools
@@ -282,6 +287,8 @@ Future providers may include:
 
 ## 8.1 Configuration and Secrets
 
+Detailed architecture note: [docs/architecture/configuration-system.md](../../architecture/configuration-system.md)
+
 The MVP should use configuration files for non-sensitive settings and environment variables for secrets.
 
 Configuration layers:
@@ -304,7 +311,7 @@ Example non-sensitive configuration:
 
 Secrets should not be written into project configuration files. API keys should be provided through environment variables such as `ARVINCLAW_API_KEY`.
 
-The CLI `/config` command should show the effective configuration while hiding secret values.
+The `arvinclaw config` command should show the effective configuration while hiding secret values. A future interactive `/config` slash command may show the same redacted view inside chat.
 
 Future versions may support encrypted local secret storage or OS keychain integration.
 

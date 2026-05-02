@@ -22,6 +22,7 @@ apps/
   cli/
 packages/
   core/
+  config/
   context/
   models/
   tools/
@@ -61,6 +62,20 @@ The core package owns the agent runtime:
 - Shared domain types
 
 Other entry points should be able to use `packages/core` without importing CLI code.
+
+### `packages/config`
+
+The config package owns configuration loading, validation, precedence, and redaction:
+
+- Built-in defaults
+- User config loading
+- Project config loading
+- Environment variable overrides
+- Effective config creation
+- Secret presence checks
+- Redacted config views
+
+Other packages should receive validated configuration or configured dependencies. They should not independently read config files or environment variables.
 
 ### `packages/context`
 
@@ -155,12 +170,13 @@ The root `skills` directory contains project-local skills. These should override
 Dependencies should generally flow inward:
 
 ```text
-apps/* -> packages/core -> packages/{models,tools,skills,permissions,sessions}
+apps/* -> packages/{config,core} -> packages/{models,tools,skills,permissions,sessions}
 ```
 
 Important boundaries:
 
 - `packages/core` must not import from `apps/cli`.
+- `packages/config` must not import from `apps/cli`.
 - `packages/models` must not import from `apps/cli`.
 - `packages/tools` must not import from `apps/cli`.
 - `packages/permissions` must not import from `apps/cli`.
@@ -215,3 +231,4 @@ Phase 0 should be considered complete when:
 - [Main design](../superpowers/specs/2026-05-02-arvinclaw-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [CLI adapter](./cli-adapter.md)
+- [Configuration system](./configuration-system.md)

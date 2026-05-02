@@ -103,6 +103,7 @@ MVP slash 命令：
 | --- | --- |
 | `/skills` | 显示已加载 skills |
 | `/context` | 显示 context assembly summary |
+| `/config` | 显示脱敏后的 effective configuration |
 | `/session` | 显示当前 session metadata |
 | `/mode observe|confirm|auto` | 支持 autonomy mode 后切换模式 |
 | `/model <name>` | provider switching 存在后切换模型 |
@@ -315,6 +316,7 @@ MVP CLI adapter 成功标准：
 - [Main design](../superpowers/specs/2026-05-02-arvinclaw-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)
 - [Project Structure](./project-structure.zh-CN.md)
+- [Configuration System](./configuration-system.zh-CN.md)
 - [Agent Loop](./agent-loop.zh-CN.md)
 - [Execution Trace](./execution-trace.zh-CN.md)
 - [Permission System](./permission-system.zh-CN.md)

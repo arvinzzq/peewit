@@ -103,6 +103,7 @@ Future slash commands:
 | --- | --- |
 | `/skills` | Show loaded skills |
 | `/context` | Show context assembly summary |
+| `/config` | Show redacted effective configuration |
 | `/session` | Show current session metadata |
 | `/mode observe|confirm|auto` | Change autonomy mode when supported |
 | `/model <name>` | Change model when provider switching exists |
@@ -315,6 +316,7 @@ The MVP CLI adapter is successful when:
 - [Main design](../superpowers/specs/2026-05-02-arvinclaw-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [Project Structure](./project-structure.md)
+- [Configuration System](./configuration-system.md)
 - [Agent Loop](./agent-loop.md)
 - [Execution Trace](./execution-trace.md)
 - [Permission System](./permission-system.md)

@@ -353,6 +353,7 @@ Workspace file design is successful when:
 
 - [Prompt assembly](./prompt-assembly.md)
 - [Context engine](./context-engine.md)
+- [Configuration system](./configuration-system.md)
 - [Memory system](./memory-system.md)
 - [Permission system](./permission-system.md)
 - [OpenClaw architecture map](./openclaw-architecture-map.md)

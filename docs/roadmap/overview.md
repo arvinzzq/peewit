@@ -54,7 +54,7 @@ The user can inspect a clean project structure and understand the intended archi
 
 - Lightweight monorepo structure
 - CLI app boundary
-- Package boundaries for core, models, tools, skills, permissions, and sessions
+- Package boundaries for core, config, models, tools, skills, permissions, and sessions
 - Context package boundary for prompt and context assembly
 - Configuration file conventions
 - Documentation structure
@@ -63,9 +63,12 @@ The user can inspect a clean project structure and understand the intended archi
 
 - `docs/roadmap/overview.md`
 - `docs/architecture/project-structure.md`
+- `docs/architecture/configuration-system.md`
 - Main design document under `docs/superpowers/specs/`
 
 Primary architecture note: [Project Structure](../architecture/project-structure.md)
+
+Supporting architecture note: [Configuration System](../architecture/configuration-system.md)
 
 ### Acceptance Criteria
 

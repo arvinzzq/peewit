@@ -353,6 +353,7 @@ Workspace file design 成功标准：
 
 - [Prompt Assembly](./prompt-assembly.zh-CN.md)
 - [Context Engine](./context-engine.zh-CN.md)
+- [Configuration System](./configuration-system.zh-CN.md)
 - [Memory System](./memory-system.zh-CN.md)
 - [Permission System](./permission-system.zh-CN.md)
 - [OpenClaw Architecture Map](./openclaw-architecture-map.zh-CN.md)

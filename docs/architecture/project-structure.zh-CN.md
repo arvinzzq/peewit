@@ -22,6 +22,7 @@ apps/
   cli/
 packages/
   core/
+  config/
   context/
   models/
   tools/
@@ -61,6 +62,20 @@ Core 包负责 Agent runtime：
 - 共享领域类型
 
 其他入口应该可以使用 `packages/core`，而不导入 CLI 代码。
+
+### `packages/config`
+
+Config 包负责配置加载、验证、优先级和脱敏：
+
+- 内置默认值
+- 用户配置加载
+- 项目配置加载
+- 环境变量覆盖
+- Effective config 创建
+- Secret presence checks
+- Redacted config views
+
+其他包应接收已验证配置或已经配置好的依赖。它们不应该各自读取配置文件或环境变量。
 
 ### `packages/context`
 
@@ -155,12 +170,13 @@ Docs 目录负责产品和学习文档：
 依赖应大致向内流动：
 
 ```text
-apps/* -> packages/core -> packages/{models,tools,skills,permissions,sessions}
+apps/* -> packages/{config,core} -> packages/{models,tools,skills,permissions,sessions}
 ```
 
 重要边界：
 
 - `packages/core` 不能导入 `apps/cli`。
+- `packages/config` 不能导入 `apps/cli`。
 - `packages/models` 不能导入 `apps/cli`。
 - `packages/tools` 不能导入 `apps/cli`。
 - `packages/permissions` 不能导入 `apps/cli`。
@@ -215,3 +231,4 @@ Phase 0 完成标准：
 - [主设计](../superpowers/specs/2026-05-02-arvinclaw-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)
 - [CLI Adapter](./cli-adapter.zh-CN.md)
+- [Configuration System](./configuration-system.zh-CN.md)

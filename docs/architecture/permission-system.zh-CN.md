@@ -253,4 +253,5 @@ MVP Permission System 成功标准：
 - [Roadmap](../roadmap/overview.zh-CN.md)
 - [Agent Loop](./agent-loop.zh-CN.md)
 - [Tool System](./tool-system.zh-CN.md)
+- [Configuration System](./configuration-system.zh-CN.md)
 - [项目结构](./project-structure.zh-CN.md)

@@ -260,5 +260,6 @@ The MVP model provider layer should be considered successful when:
 
 - [Main design](../superpowers/specs/2026-05-02-arvinclaw-design.md)
 - [Roadmap](../roadmap/overview.md)
+- [Configuration System](./configuration-system.md)
 - [Agent loop](./agent-loop.md)
 - [Project structure](./project-structure.md)

@@ -258,5 +258,6 @@ MVP Model Provider 层成功标准：
 
 - [主设计](../superpowers/specs/2026-05-02-arvinclaw-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)
+- [Configuration System](./configuration-system.zh-CN.md)
 - [Agent Loop](./agent-loop.zh-CN.md)
 - [项目结构](./project-structure.zh-CN.md)
