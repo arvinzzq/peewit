@@ -50,7 +50,9 @@ Initial commands:
 
 | Command | Purpose | Phase |
 | --- | --- | --- |
-| `arvinclaw chat` | Start an interactive chat session | Phase 1 |
+| `arvinclaw chat` | Start an interactive chat session using configured provider settings | Phase 1 |
+| `arvinclaw chat --fake-interactive` | Start an interactive local learning session with a fake provider | Phase 1 |
+| `arvinclaw chat --fake "<message>"` | Run a one-turn fake-provider smoke path | Phase 1 |
 | `arvinclaw --version` | Show version | Phase 0-1 |
 | `arvinclaw --help` | Show available commands | Phase 0-1 |
 
@@ -74,13 +76,14 @@ MVP should avoid a large command surface. Commands should appear when the underl
 Expected behavior:
 
 1. Load configuration.
-2. Create or resume a lightweight session.
-3. Create a run ID for each user turn.
-4. Send the user message to Agent Core.
-5. Stream or print assistant output.
-6. Render trace events as they arrive.
-7. Ask for permission when the core reports an approval request.
-8. Persist session and trace data when storage exists.
+2. Require `ARVINCLAW_API_KEY` for the configured provider path.
+3. Create or resume a lightweight session.
+4. Create a run ID for each user turn.
+5. Send the user message to Agent Core.
+6. Stream or print assistant output.
+7. Render trace events as they arrive.
+8. Ask for permission when the core reports an approval request.
+9. Persist session and trace data when storage exists.
 
 The CLI should not know how the prompt was assembled. It can display a summary or report produced by the context package.
 
@@ -95,6 +98,7 @@ MVP slash commands:
 | `/help` | Show chat controls |
 | `/exit` | End the session |
 | `/trace` | Show recent explainable trace events |
+| `/config` | Show redacted effective configuration |
 | `/clear` | Clear terminal display, not session history |
 
 Future slash commands:
@@ -103,7 +107,6 @@ Future slash commands:
 | --- | --- |
 | `/skills` | Show loaded skills |
 | `/context` | Show context assembly summary |
-| `/config` | Show redacted effective configuration |
 | `/session` | Show current session metadata |
 | `/mode observe|confirm|auto` | Change autonomy mode when supported |
 | `/model <name>` | Change model when provider switching exists |

@@ -21,10 +21,10 @@ Completed:
 - Same-run `/trace` command shape: `4d2ebe2`
 - Same-run `/config` command with redacted config: `ef005af`
 - Interactive CLI chat loop with fake provider: `518a936`
+- Interactive CLI configured provider wiring: in progress
 
 Remaining:
 
-- Real provider configuration wiring
 - Phase 1 acceptance update after CLI wiring works
 
 Latest verification:
@@ -34,11 +34,11 @@ Latest verification:
 - `pnpm run cli chat --fake "hello"`
 - `pnpm run cli chat --fake "hello" /trace`
 - `ARVINCLAW_API_KEY=secret pnpm run cli chat --fake "hello" /config`
-- `printf 'Hello\n/trace\n/config\n/exit\n' | pnpm run cli chat`
+- `printf 'Hello\n/trace\n/config\n/exit\n' | pnpm run cli chat --fake-interactive`
 
 Next recommended slice:
 
-- Wire interactive CLI chat to configured real provider while keeping fake-provider tests as the default safety net.
+- Update Phase 1 acceptance criteria after configured-provider CLI smoke behavior is verified.
 
 ## 1. Purpose
 

@@ -18,9 +18,69 @@ describe("runCli", () => {
     });
   });
 
+  test("reports missing API key before starting the configured interactive chat loop", async () => {
+    const result = await runCli(["chat"], "0.0.0", {
+      env: {},
+      readLine: async () => "Hello real provider"
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("ARVINCLAW_API_KEY");
+  });
+
+  test("runs an interactive configured-provider chat loop", async () => {
+    const inputs = ["Hello configured", "/exit"];
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    const result = await runCli(["chat"], "0.0.0", {
+      env: {
+        ARVINCLAW_API_KEY: "secret-api-key",
+        ARVINCLAW_BASE_URL: "https://provider.example/v1",
+        ARVINCLAW_MODEL: "test-model"
+      },
+      readLine: async () => inputs.shift(),
+      fetch: async (url, init) => {
+        requests.push({
+          url,
+          ...(init ? { init } : {})
+        });
+
+        return new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: "Configured provider response"
+                }
+              }
+            ]
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json"
+            }
+          }
+        );
+      }
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("ArvinClaw chat");
+    expect(result.stdout).toContain("Assistant: Configured provider response");
+    expect(result.stdout).toContain("Goodbye.");
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.url).toBe("https://provider.example/v1/chat/completions");
+    expect(requests[0]?.init?.headers).toMatchObject({
+      authorization: "Bearer secret-api-key"
+    });
+    expect(requests[0]?.init?.body).toContain("\"model\":\"test-model\"");
+  });
+
   test("runs an interactive fake-provider chat loop", async () => {
     const inputs = ["Hello interactive", "/exit"];
-    const result = await runCli(["chat"], "0.0.0", {
+    const result = await runCli(["chat", "--fake-interactive"], "0.0.0", {
       readLine: async () => inputs.shift()
     });
 
@@ -33,7 +93,7 @@ describe("runCli", () => {
 
   test("runs slash trace inside an interactive chat loop", async () => {
     const inputs = ["Hello trace", "/trace", "/exit"];
-    const result = await runCli(["chat"], "0.0.0", {
+    const result = await runCli(["chat", "--fake-interactive"], "0.0.0", {
       readLine: async () => inputs.shift()
     });
 

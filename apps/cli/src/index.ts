@@ -1,16 +1,16 @@
 /**
- * INPUT: CLI arguments, package version, optional line reader, config loader, runtime package, context assembler, and fake model provider.
- * OUTPUT: CLI result objects, interactive chat transcript, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
+ * INPUT: CLI arguments, package version, optional line reader/fetch implementation, config loader, runtime package, context assembler, and model providers.
+ * OUTPUT: CLI result objects, configured/fake interactive chat transcript, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
  * POS: CLI adapter layer; translates terminal commands without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import { loadConfig, redactedConfig, type RedactedConfigView } from "@arvinclaw/config";
+import { loadConfig, redactedConfig, type EffectiveConfig, type RedactedConfigView } from "@arvinclaw/config";
 import { DefaultContextAssembler } from "@arvinclaw/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
-import { FakeModelProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
+import { FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
 
 export const cliPackageName = "@arvinclaw/cli";
 
@@ -20,8 +20,11 @@ export interface CliResult {
   stderr: string;
 }
 
+type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
+
 export interface RunCliOptions {
   env?: Record<string, string | undefined>;
+  fetch?: FetchLike;
   readLine?: (prompt: string) => Promise<string | undefined>;
   write?: (text: string) => void;
 }
@@ -32,6 +35,8 @@ Commands:
   chat        Start an interactive chat session
   chat --fake <message>
               Run one message-only turn with a fake provider
+  chat --fake-interactive
+              Start an interactive chat session with a fake provider
   --help      Show this help message
   --version   Show the CLI version
 `;
@@ -60,7 +65,11 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
       return runFakeChatTurn(parseFakeChatArgs(rest.slice(1)), options);
     }
 
-    return runInteractiveFakeChat(options);
+    if (rest[0] === "--fake-interactive") {
+      return runInteractiveFakeChat(options);
+    }
+
+    return runInteractiveConfiguredChat(options);
   }
 
   return {
@@ -113,6 +122,25 @@ async function runFakeChatTurn(input: ParsedFakeChatArgs, options: RunCliOptions
 
 async function runInteractiveFakeChat(options: RunCliOptions): Promise<CliResult> {
   const session = CliChatSession.createFake((message) => `Fake response to: ${message}`, options);
+
+  return runInteractiveLoop(session, "ArvinClaw chat (fake provider)", options);
+}
+
+async function runInteractiveConfiguredChat(options: RunCliOptions): Promise<CliResult> {
+  const config = loadConfig(options.env ? { env: options.env } : {});
+
+  if (config.secrets.apiKey === undefined) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: "Missing ARVINCLAW_API_KEY. Set it to start `arvinclaw chat`, or use `arvinclaw chat --fake-interactive` for local learning.\n"
+    };
+  }
+
+  return runInteractiveLoop(CliChatSession.createConfigured(config, options), "ArvinClaw chat", options);
+}
+
+async function runInteractiveLoop(session: CliChatSession, title: string, options: RunCliOptions): Promise<CliResult> {
   const output: string[] = [];
   const emit = (...lines: string[]) => {
     if (options.write) {
@@ -122,11 +150,7 @@ async function runInteractiveFakeChat(options: RunCliOptions): Promise<CliResult
     }
   };
 
-  emit(
-    "ArvinClaw chat (fake provider)",
-    "Type /help for commands or /exit to leave.",
-    ""
-  );
+  emit(title, "Type /help for commands or /exit to leave.", "");
 
   while (true) {
     const line = await options.readLine?.("> ");
@@ -251,6 +275,33 @@ export class CliChatSession {
         }
       }),
       config
+    );
+  }
+
+  static createConfigured(config: EffectiveConfig, options: RunCliOptions = {}): CliChatSession {
+    if (config.secrets.apiKey === undefined) {
+      throw new Error("Configured chat requires an API key.");
+    }
+
+    return new CliChatSession(
+      new AgentRuntime({
+        contextAssembler: new DefaultContextAssembler(),
+        modelProvider: new OpenAICompatibleProvider({
+          baseURL: config.model.baseURL,
+          apiKey: config.secrets.apiKey,
+          model: config.model.model,
+          temperature: config.model.temperature,
+          maxTokens: config.model.maxTokens,
+          ...(options.fetch ? { fetch: options.fetch } : {})
+        }),
+        systemInstruction: "You are ArvinClaw, a CLI-first OpenClaw-like learning agent.",
+        runtime: {
+          mode: config.runtime.defaultMode,
+          workspace: config.workspace.root,
+          currentDate: new Date().toISOString().slice(0, 10)
+        }
+      }),
+      redactedConfig(config)
     );
   }
 
