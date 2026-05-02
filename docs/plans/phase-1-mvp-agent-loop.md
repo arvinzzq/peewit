@@ -16,25 +16,26 @@ Completed:
 - OpenAI-compatible provider with fake HTTP tests: `4b86a80`
 - Minimal context assembler: `8ef0c54`
 - Message-only `AgentRuntime.runTurn`: `eacb8e8`
+- CLI fake-provider chat smoke path: `8547d63`
 
 Remaining:
 
-- CLI chat runtime wiring
 - Compact trace rendering in CLI
 - `/trace` command for recent runtime events
 - `/config` command with secret redaction
-- Fake-provider CLI smoke test
+- Interactive CLI chat loop
+- Real provider configuration wiring
 - Phase 1 acceptance update after CLI wiring works
 
 Latest verification:
 
 - `pnpm run check`
 - `pnpm run cli --help`
-- `pnpm run cli chat`
+- `pnpm run cli chat --fake "hello"`
 
 Next recommended slice:
 
-- Wire CLI chat to runtime with a fake-provider smoke path before adding real provider configuration.
+- Add compact trace formatting and a `/trace`-ready in-memory trace shape before real provider configuration.
 
 ## 1. Purpose
 

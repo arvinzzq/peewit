@@ -16,25 +16,26 @@ English version: [phase-1-mvp-agent-loop.md](./phase-1-mvp-agent-loop.md)
 - 带 fake HTTP tests 的 OpenAI-compatible provider：`4b86a80`
 - Minimal context assembler：`8ef0c54`
 - Message-only `AgentRuntime.runTurn`：`eacb8e8`
+- CLI fake-provider chat smoke path：`8547d63`
 
 剩余：
 
-- CLI chat runtime wiring
 - CLI 中的 compact trace rendering
 - 用于查看 recent runtime events 的 `/trace` command
 - 带 secret redaction 的 `/config` command
-- Fake-provider CLI smoke test
+- Interactive CLI chat loop
+- Real provider configuration wiring
 - CLI wiring 可用后更新 Phase 1 acceptance
 
 最新验证：
 
 - `pnpm run check`
 - `pnpm run cli --help`
-- `pnpm run cli chat`
+- `pnpm run cli chat --fake "hello"`
 
 下一步建议切片：
 
-- 先把 CLI chat 接到 runtime，并提供 fake-provider smoke path，再加入真实 provider configuration。
+- 在加入真实 provider configuration 前，先添加 compact trace formatting 和可支持 `/trace` 的 in-memory trace shape。
 
 ## 1. 目的
 
