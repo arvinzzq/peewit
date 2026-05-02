@@ -37,17 +37,17 @@ Start here:
 Install dependencies:
 
 ```text
-npm install
+pnpm install
 ```
 
 Run checks:
 
 ```text
-npm run check
+pnpm run check
 ```
 
 Run the CLI shell:
 
 ```text
-npm run cli -- --help
+pnpm run cli --help
 ```

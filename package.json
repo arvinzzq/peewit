@@ -4,17 +4,14 @@
   "private": true,
   "type": "module",
   "description": "OpenClaw-inspired personal general-purpose agent for learning and real use.",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "packageManager": "pnpm@10.14.0",
   "scripts": {
     "cli": "tsx apps/cli/src/index.ts",
     "docs:check": "tsx scripts/check-docs.ts",
     "typecheck": "tsc -b",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "check": "npm run typecheck && npm test && npm run docs:check"
+    "check": "pnpm run typecheck && pnpm run test && pnpm run docs:check"
   },
   "engines": {
     "node": ">=22"

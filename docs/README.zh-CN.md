@@ -89,6 +89,7 @@ MVP runtime：
 
 - [0001：OpenClaw-Aligned Core Architecture](./decisions/0001-openclaw-aligned-core-architecture.zh-CN.md)
 - [0002：OpenClaw-Aligned, Not Identical](./decisions/0002-openclaw-aligned-not-identical.zh-CN.md)
+- [0003：Technology Stack Selection](./decisions/0003-technology-stack-selection.zh-CN.md)
 
 ## 7. 语言策略
 

@@ -37,17 +37,17 @@ Phase 0 聚焦：
 安装依赖：
 
 ```text
-npm install
+pnpm install
 ```
 
 运行检查：
 
 ```text
-npm run check
+pnpm run check
 ```
 
 运行 CLI shell：
 
 ```text
-npm run cli -- --help
+pnpm run cli --help
 ```

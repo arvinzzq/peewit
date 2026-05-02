@@ -22,10 +22,13 @@ function readJson(path: string): unknown {
 describe("package boundaries", () => {
   test("declares the Phase 0 app and package workspaces", () => {
     const rootPackage = readJson("package.json") as {
-      workspaces?: string[];
+      packageManager?: string;
     };
+    const workspaceConfig = readFileSync(join(root, "pnpm-workspace.yaml"), "utf8");
 
-    expect(rootPackage.workspaces).toEqual(["apps/*", "packages/*"]);
+    expect(rootPackage.packageManager).toMatch(/^pnpm@/);
+    expect(workspaceConfig).toContain("  - apps/*");
+    expect(workspaceConfig).toContain("  - packages/*");
     expect(readJson("apps/cli/package.json")).toMatchObject({
       name: "@arvinclaw/cli",
       private: true
