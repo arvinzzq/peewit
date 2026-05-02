@@ -19,10 +19,10 @@ Completed:
 - CLI fake-provider chat smoke path: `8547d63`
 - In-memory runtime trace store and compact CLI trace rendering: `39c7868`, `2751a9c`
 - Same-run `/trace` command shape: `4d2ebe2`
+- Same-run `/config` command with redacted config: `ef005af`
 
 Remaining:
 
-- `/config` command with secret redaction
 - Interactive CLI chat loop
 - Real provider configuration wiring
 - Phase 1 acceptance update after CLI wiring works
@@ -33,10 +33,11 @@ Latest verification:
 - `pnpm run cli --help`
 - `pnpm run cli chat --fake "hello"`
 - `pnpm run cli chat --fake "hello" /trace`
+- `ARVINCLAW_API_KEY=secret pnpm run cli chat --fake "hello" /config`
 
 Next recommended slice:
 
-- Add `/config` command output with redacted configuration before real provider configuration.
+- Start interactive CLI chat loop using the same session shape, still backed by fake provider first.
 
 ## 1. Purpose
 
