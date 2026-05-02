@@ -1,1 +1,206 @@
 export const configPackageName = "@arvinclaw/config";
+
+export type AutonomyMode = "observe" | "confirm" | "auto";
+export type TraceVerbosity = "explainable" | "debug";
+
+export interface EffectiveConfig {
+  model: {
+    provider: "openai-compatible";
+    baseURL: string;
+    model: string;
+    temperature: number;
+    maxTokens: number;
+  };
+  workspace: {
+    root: string;
+  };
+  runtime: {
+    defaultMode: AutonomyMode;
+    maxSteps: number;
+  };
+  trace: {
+    verbosity: TraceVerbosity;
+  };
+  tools: {
+    fileSystem: boolean;
+    shell: boolean;
+    web: boolean;
+  };
+  permissions: {
+    allowLowRisk: boolean;
+  };
+  sessions: {
+    directory: string;
+  };
+  secrets: {
+    apiKey: string | undefined;
+  };
+}
+
+export interface RedactedConfigView extends Omit<EffectiveConfig, "secrets"> {
+  secrets: {
+    apiKey: "configured" | "missing";
+  };
+}
+
+export interface LoadConfigInput {
+  userConfig?: unknown;
+  projectConfig?: unknown;
+  env?: Record<string, string | undefined>;
+}
+
+export class ConfigValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ConfigValidationError";
+  }
+}
+
+const defaultConfig: EffectiveConfig = {
+  model: {
+    provider: "openai-compatible",
+    baseURL: "https://api.openai.com/v1",
+    model: "gpt-4.1-mini",
+    temperature: 0.2,
+    maxTokens: 4096
+  },
+  workspace: {
+    root: "."
+  },
+  runtime: {
+    defaultMode: "confirm",
+    maxSteps: 12
+  },
+  trace: {
+    verbosity: "explainable"
+  },
+  tools: {
+    fileSystem: true,
+    shell: true,
+    web: false
+  },
+  permissions: {
+    allowLowRisk: true
+  },
+  sessions: {
+    directory: "~/.arvinclaw/sessions"
+  },
+  secrets: {
+    apiKey: undefined
+  }
+};
+
+export function loadConfig(input: LoadConfigInput = {}): EffectiveConfig {
+  const config = cloneConfig(defaultConfig);
+
+  applyConfig(config, input.userConfig);
+  applyConfig(config, input.projectConfig);
+  applyEnv(config, input.env ?? {});
+  validateConfig(config);
+
+  return config;
+}
+
+export function redactedConfig(config: EffectiveConfig): RedactedConfigView {
+  return {
+    ...config,
+    model: { ...config.model },
+    workspace: { ...config.workspace },
+    runtime: { ...config.runtime },
+    trace: { ...config.trace },
+    tools: { ...config.tools },
+    permissions: { ...config.permissions },
+    sessions: { ...config.sessions },
+    secrets: {
+      apiKey: config.secrets.apiKey === undefined ? "missing" : "configured"
+    }
+  };
+}
+
+function cloneConfig(config: EffectiveConfig): EffectiveConfig {
+  return {
+    model: { ...config.model },
+    workspace: { ...config.workspace },
+    runtime: { ...config.runtime },
+    trace: { ...config.trace },
+    tools: { ...config.tools },
+    permissions: { ...config.permissions },
+    sessions: { ...config.sessions },
+    secrets: { ...config.secrets }
+  };
+}
+
+function applyConfig(config: EffectiveConfig, value: unknown): void {
+  if (value === undefined) {
+    return;
+  }
+
+  if (!isRecord(value)) {
+    throw new ConfigValidationError("Configuration must be an object.");
+  }
+
+  applyObject(config.model, value.model);
+  applyObject(config.workspace, value.workspace);
+  applyObject(config.runtime, value.runtime);
+  applyObject(config.trace, value.trace);
+  applyObject(config.tools, value.tools);
+  applyObject(config.permissions, value.permissions);
+  applyObject(config.sessions, value.sessions);
+}
+
+function applyObject(target: Record<string, unknown>, value: unknown): void {
+  if (value === undefined) {
+    return;
+  }
+
+  if (!isRecord(value)) {
+    throw new ConfigValidationError("Configuration sections must be objects.");
+  }
+
+  for (const [key, sectionValue] of Object.entries(value)) {
+    if (key in target) {
+      target[key] = sectionValue;
+    }
+  }
+}
+
+function applyEnv(config: EffectiveConfig, env: Record<string, string | undefined>): void {
+  if (env.ARVINCLAW_BASE_URL !== undefined) {
+    config.model.baseURL = env.ARVINCLAW_BASE_URL;
+  }
+  if (env.ARVINCLAW_MODEL !== undefined) {
+    config.model.model = env.ARVINCLAW_MODEL;
+  }
+  if (env.ARVINCLAW_DEFAULT_MODE !== undefined) {
+    config.runtime.defaultMode = env.ARVINCLAW_DEFAULT_MODE as AutonomyMode;
+  }
+  if (env.ARVINCLAW_API_KEY !== undefined) {
+    config.secrets.apiKey = env.ARVINCLAW_API_KEY;
+  }
+}
+
+function validateConfig(config: EffectiveConfig): void {
+  if (!isAutonomyMode(config.runtime.defaultMode)) {
+    throw new ConfigValidationError(
+      `Invalid runtime.defaultMode "${String(config.runtime.defaultMode)}". Expected observe, confirm, or auto.`
+    );
+  }
+
+  if (!isTraceVerbosity(config.trace.verbosity)) {
+    throw new ConfigValidationError(
+      `Invalid trace.verbosity "${String(config.trace.verbosity)}". Expected explainable or debug.`
+    );
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isAutonomyMode(value: unknown): value is AutonomyMode {
+  return value === "observe" || value === "confirm" || value === "auto";
+}
+
+function isTraceVerbosity(value: unknown): value is TraceVerbosity {
+  return value === "explainable" || value === "debug";
+}
