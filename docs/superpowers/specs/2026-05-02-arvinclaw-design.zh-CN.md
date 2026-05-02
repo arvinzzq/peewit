@@ -48,6 +48,8 @@ ArvinClaw 最终应该支持多个用户入口：
 
 Session storage 详细架构说明：[docs/architecture/session-storage.zh-CN.md](../../architecture/session-storage.zh-CN.md)
 
+Memory system 详细架构说明：[docs/architecture/memory-system.zh-CN.md](../../architecture/memory-system.zh-CN.md)
+
 MVP 记忆边界：
 
 - MVP 通过 session storage 包含 session memory。

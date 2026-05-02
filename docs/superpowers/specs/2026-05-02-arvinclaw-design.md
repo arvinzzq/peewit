@@ -46,6 +46,8 @@ Expected documentation areas include:
 
 Detailed architecture note for session storage: [docs/architecture/session-storage.md](../../architecture/session-storage.md)
 
+Detailed architecture note for memory system: [docs/architecture/memory-system.md](../../architecture/memory-system.md)
+
 MVP memory boundary:
 
 - MVP includes session memory through session storage.
