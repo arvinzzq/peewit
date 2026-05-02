@@ -32,8 +32,8 @@ Roadmap 采用双轨方法：
 
 | Phase | 目标 | 产品结果 | 架构焦点 |
 | --- | --- | --- | --- |
-| Phase 0 | 项目基础 | 带文档说明的 TypeScript workspace 和 CLI shell | Monorepo、配置、文档布局 |
-| Phase 1 | MVP agent loop | CLI chat 可以调用模型并产生可追踪响应 | Agent Core、ModelProvider、基础 loop |
+| Phase 0 | 项目基础 | 带文档说明的 TypeScript workspace 和 CLI shell | Monorepo、配置、context package、文档布局 |
+| Phase 1 | MVP agent loop | CLI chat 可以调用模型并产生可追踪响应 | Agent Core、context assembly、ModelProvider、基础 loop |
 | Phase 2 | 工具与权限 | Agent 可以检查文件、运行已批准命令，并读取 Web 内容 | Tool Registry、PermissionPolicy |
 | Phase 3 | 轻量 skills | Agent 可以加载本地 `SKILL.md` 指令 | Skill loader、skill 优先级、prompt assembly |
 | Phase 4 | 规划与自主 | Agent 可以规划任务，并在 `observe`、`confirm` 或 `auto` 模式运行 | Planner、任务状态、执行模式 |
@@ -55,6 +55,7 @@ Roadmap 采用双轨方法：
 - 轻量 monorepo 结构
 - CLI app 边界
 - core、models、tools、skills、permissions 和 sessions 的 package 边界
+- 用于 prompt 和 context assembly 的 context package 边界
 - 配置文件约定
 - 文档结构
 
@@ -89,6 +90,7 @@ Roadmap 采用双轨方法：
 ### 新增架构
 
 - Agent Core
+- Context assembly package
 - `ModelProvider` interface
 - OpenAI-compatible model provider
 - 基础 agent loop

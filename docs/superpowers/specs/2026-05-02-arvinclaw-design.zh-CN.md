@@ -41,6 +41,9 @@ ArvinClaw 最终应该支持多个用户入口：
 预期文档领域包括：
 
 - Agent loop
+- Run queue and session locking
+- Prompt assembly
+- Context engine
 - Planner
 - Tool registry
 - Permission system
@@ -91,6 +94,7 @@ MVP 将是一个 TypeScript / Node.js CLI Agent。
 - Skill 范围：基于本地 `SKILL.md` 的轻量 Skill 系统
 - 自主模式：`observe`、`confirm`、`auto`
 - MVP 默认模式：倾向于 `confirm`，同时提供 `observe` 用于学习和调试
+- OpenClaw 对齐：prompt assembly、context engine、run queue、session locking 和 workspace files 是核心架构概念，不是可选的后续润色。
 
 Agent Core 不能依赖 CLI。CLI 应该是共享核心之上的一个 adapter。
 
@@ -109,6 +113,7 @@ apps/
   cli/
 packages/
   core/
+  context/
   models/
   tools/
   skills/
@@ -125,6 +130,7 @@ skills/
 
 - `apps/cli`：CLI 入口和终端交互
 - `packages/core`：Agent loop、任务编排、共享领域类型
+- `packages/context`：prompt assembly、context projection、workspace file loading 和未来 compaction
 - `packages/models`：模型 provider 接口和 provider 实现
 - `packages/tools`：工具 registry 和内置工具
 - `packages/skills`：本地 Skill 发现和 prompt 集成
@@ -297,17 +303,20 @@ CLI `/config` 命令应展示当前生效配置，同时隐藏密钥值。
 
 ## 9. Agent Loop 方向
 
-首选方向是混合 loop：
+首选方向是 OpenClaw-aligned loop：
 
 详细架构说明：[docs/architecture/agent-loop.zh-CN.md](../../architecture/agent-loop.zh-CN.md)
 
+- 每个 run 流经 intake、context assembly、model inference、tool execution、streaming/trace 和 persistence。
 - 简单任务可以使用直接工具调用 loop。
 - 复杂任务可以包含轻量规划阶段。
 - 架构应为后续更强的 Planner 预留空间。
+- Runs 最终应按 session 序列化，并带有 run queue 和 session write lock。
 
 Loop 应支持：
 
 - 目标输入
+- Context assembly
 - 可选规划
 - 工具选择
 - 权限检查
@@ -315,6 +324,32 @@ Loop 应支持：
 - Observation
 - 计划更新或最终响应
 - 执行轨迹持久化
+
+## 9.2 Context Assembly
+
+ArvinClaw 应把 context assembly 视为一等架构模块，遵循 OpenClaw 将 runtime orchestration 与 context construction 分离的方式。
+
+MVP context assembly 应包括：
+
+- Base system instructions
+- Runtime metadata
+- Effective configuration
+- Session resume context
+- Skill index
+- Tool descriptions
+- Permission policy guidance
+
+OpenClaw-like 后续 context assembly 应增加：
+
+- `AGENTS.md`
+- Read-only `SOUL.md`
+- 当 long-term memory policy 就绪时加入 `USER.md`
+- 当 long-term memory policy 就绪时加入 `MEMORY.md`
+- Recent daily memory files
+- Context compaction summaries
+- Context engine plugin outputs
+
+Context assembly 必须可测试，并且在 trace 中可见。CLI 不应直接组装 prompts。
 
 ## 9.1 执行轨迹
 

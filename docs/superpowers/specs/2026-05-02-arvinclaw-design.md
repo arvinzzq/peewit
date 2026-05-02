@@ -39,6 +39,9 @@ The project should explain agent architecture as it is built. Each core module s
 Expected documentation areas include:
 
 - Agent loop
+- Run queue and session locking
+- Prompt assembly
+- Context engine
 - Planner
 - Tool registry
 - Permission system
@@ -89,6 +92,7 @@ Confirmed choices:
 - Skill scope: lightweight local `SKILL.md` based skill system
 - Autonomy modes: `observe`, `confirm`, and `auto`
 - Default MVP mode: likely `confirm`, with `observe` available for learning and debugging
+- OpenClaw alignment: prompt assembly, context engine, run queue, session locking, and workspace files are core architecture concepts, not optional later polish.
 
 The Agent Core must not depend on the CLI. CLI should be an adapter over the shared core.
 
@@ -107,6 +111,7 @@ apps/
   cli/
 packages/
   core/
+  context/
   models/
   tools/
   skills/
@@ -123,6 +128,7 @@ Responsibilities:
 
 - `apps/cli`: CLI entry point and terminal interaction only
 - `packages/core`: agent loop, task orchestration, shared domain types
+- `packages/context`: prompt assembly, context projection, workspace file loading, and future compaction
 - `packages/models`: model provider interfaces and provider implementations
 - `packages/tools`: tool registry and built-in tools
 - `packages/skills`: local skill discovery and prompt integration
@@ -295,17 +301,20 @@ Future versions may support encrypted local secret storage or OS keychain integr
 
 ## 9. Agent Loop Direction
 
-The preferred direction is a hybrid loop:
+The preferred direction is an OpenClaw-aligned loop:
 
 Detailed architecture note: [docs/architecture/agent-loop.md](../../architecture/agent-loop.md)
 
+- Each run flows through intake, context assembly, model inference, tool execution, streaming/trace, and persistence.
 - Simple tasks can use a direct tool-calling loop.
 - Complex tasks can include a lightweight planning phase.
 - The architecture should leave room for a stronger Planner later.
+- Runs should eventually be serialized per session with a run queue and session write lock.
 
 The loop should support:
 
 - Goal intake
+- Context assembly
 - Optional planning
 - Tool selection
 - Permission check
@@ -313,6 +322,32 @@ The loop should support:
 - Observation
 - Plan update or final response
 - Execution trace persistence
+
+## 9.2 Context Assembly
+
+ArvinClaw should treat context assembly as a first-class architecture module, following OpenClaw's separation between runtime orchestration and context construction.
+
+MVP context assembly should include:
+
+- Base system instructions
+- Runtime metadata
+- Effective configuration
+- Session resume context
+- Skill index
+- Tool descriptions
+- Permission policy guidance
+
+OpenClaw-like later context assembly should add:
+
+- `AGENTS.md`
+- Read-only `SOUL.md`
+- `USER.md`, when long-term memory policy is ready
+- `MEMORY.md`, when long-term memory policy is ready
+- Recent daily memory files
+- Context compaction summaries
+- Context engine plugin outputs
+
+Context assembly must be testable and trace-visible. The CLI should not assemble prompts directly.
 
 ## 9.1 Execution Trace
 
