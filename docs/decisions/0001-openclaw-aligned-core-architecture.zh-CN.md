@@ -119,4 +119,5 @@ packages/
 - [OpenClaw Architecture Map](../architecture/openclaw-architecture-map.zh-CN.md)
 - [主设计](../superpowers/specs/2026-05-02-arvinclaw-design.zh-CN.md)
 - [Agent Loop](../architecture/agent-loop.zh-CN.md)
+- [Prompt Assembly](../architecture/prompt-assembly.zh-CN.md)
 - [Session Storage](../architecture/session-storage.zh-CN.md)

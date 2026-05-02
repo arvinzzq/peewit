@@ -22,6 +22,7 @@ apps/
   cli/
 packages/
   core/
+  context/
   models/
   tools/
   skills/
@@ -60,6 +61,21 @@ The core package owns the agent runtime:
 - Shared domain types
 
 Other entry points should be able to use `packages/core` without importing CLI code.
+
+### `packages/context`
+
+The context package owns prompt and context assembly:
+
+- Base system instruction assembly
+- Runtime metadata projection
+- Skill index projection
+- Tool definition projection
+- Permission guidance projection
+- Session resume context projection
+- Workspace file loading in later phases
+- Context compaction in later phases
+
+Prompt assembly should be testable and adapter-agnostic. CLI and Web UI should not construct prompts directly.
 
 ### `packages/models`
 

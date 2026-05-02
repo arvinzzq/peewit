@@ -352,5 +352,6 @@ It also suggests adding these future test categories:
 - [OpenClaw architecture map](../architecture/openclaw-architecture-map.md)
 - [Reference systems](../architecture/reference-systems.md)
 - [Agent loop](../architecture/agent-loop.md)
+- [Prompt assembly](../architecture/prompt-assembly.md)
 - [Memory system](../architecture/memory-system.md)
 - [Session storage](../architecture/session-storage.md)

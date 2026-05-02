@@ -331,6 +331,8 @@ Loop 应支持：
 
 ArvinClaw 应把 context assembly 视为一等架构模块，遵循 OpenClaw 将 runtime orchestration 与 context construction 分离的方式。
 
+Prompt assembly 详细架构说明：[docs/architecture/prompt-assembly.zh-CN.md](../../architecture/prompt-assembly.zh-CN.md)
+
 MVP context assembly 应包括：
 
 - Base system instructions

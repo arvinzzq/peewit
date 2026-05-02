@@ -22,6 +22,7 @@ apps/
   cli/
 packages/
   core/
+  context/
   models/
   tools/
   skills/
@@ -60,6 +61,21 @@ Core 包负责 Agent runtime：
 - 共享领域类型
 
 其他入口应该可以使用 `packages/core`，而不导入 CLI 代码。
+
+### `packages/context`
+
+Context 包负责 prompt 和 context assembly：
+
+- Base system instruction assembly
+- Runtime metadata projection
+- Skill index projection
+- Tool definition projection
+- Permission guidance projection
+- Session resume context projection
+- 后续 phases 的 workspace file loading
+- 后续 phases 的 context compaction
+
+Prompt assembly 应可测试并与 adapter 无关。CLI 和 Web UI 不应直接构建 prompts。
 
 ### `packages/models`
 

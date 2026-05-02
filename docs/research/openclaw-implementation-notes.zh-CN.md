@@ -352,5 +352,6 @@ OpenClaw 有很多 hook points。ArvinClaw 应将 hooks 延后到 tool、permiss
 - [OpenClaw Architecture Map](../architecture/openclaw-architecture-map.zh-CN.md)
 - [Reference Systems](../architecture/reference-systems.zh-CN.md)
 - [Agent Loop](../architecture/agent-loop.zh-CN.md)
+- [Prompt Assembly](../architecture/prompt-assembly.zh-CN.md)
 - [Memory System](../architecture/memory-system.zh-CN.md)
 - [Session Storage](../architecture/session-storage.zh-CN.md)

@@ -329,6 +329,8 @@ The loop should support:
 
 ArvinClaw should treat context assembly as a first-class architecture module, following OpenClaw's separation between runtime orchestration and context construction.
 
+Detailed architecture note for prompt assembly: [docs/architecture/prompt-assembly.md](../../architecture/prompt-assembly.md)
+
 MVP context assembly should include:
 
 - Base system instructions
