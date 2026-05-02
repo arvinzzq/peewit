@@ -1,11 +1,14 @@
 /**
- * INPUT: CLI arguments, package version, and Node process streams in direct execution mode.
- * OUTPUT: CLI result objects and terminal stdout/stderr side effects from main().
+ * INPUT: CLI arguments, package version, runtime package, context assembler, and fake model provider.
+ * OUTPUT: CLI result objects, assistant text, compact trace output, and terminal stdout/stderr side effects.
  * POS: CLI adapter layer; translates terminal commands without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
 import { fileURLToPath } from "node:url";
+import { DefaultContextAssembler } from "@arvinclaw/context";
+import { AgentRuntime, type RuntimeEvent } from "@arvinclaw/core";
+import { FakeModelProvider } from "@arvinclaw/models";
 
 export const cliPackageName = "@arvinclaw/cli";
 
@@ -19,12 +22,14 @@ const helpText = `Usage: arvinclaw <command>
 
 Commands:
   chat        Start an interactive chat session
+  chat --fake <message>
+              Run one message-only turn with a fake provider
   --help      Show this help message
   --version   Show the CLI version
 `;
 
 export async function runCli(args: string[], packageVersion: string): Promise<CliResult> {
-  const [command] = args;
+  const [command, ...rest] = args;
 
   if (command === undefined || command === "--help" || command === "-h") {
     return {
@@ -43,9 +48,13 @@ export async function runCli(args: string[], packageVersion: string): Promise<Cl
   }
 
   if (command === "chat") {
+    if (rest[0] === "--fake") {
+      return runFakeChatTurn(rest.slice(1).join(" "));
+    }
+
     return {
       exitCode: 0,
-      stdout: "arvinclaw chat is planned for Phase 1. Phase 0 only provides the CLI shell.\n",
+      stdout: "arvinclaw interactive chat is not wired yet. Use `arvinclaw chat --fake <message>` for the Phase 1 smoke path.\n",
       stderr: ""
     };
   }
@@ -55,6 +64,55 @@ export async function runCli(args: string[], packageVersion: string): Promise<Cl
     stdout: helpText,
     stderr: `Unknown command "${command}".\n`
   };
+}
+
+async function runFakeChatTurn(message: string): Promise<CliResult> {
+  if (message.trim() === "") {
+    return {
+      exitCode: 1,
+      stdout: helpText,
+      stderr: "Missing message for `chat --fake`.\n"
+    };
+  }
+
+  const runtime = new AgentRuntime({
+    contextAssembler: new DefaultContextAssembler(),
+    modelProvider: new FakeModelProvider([
+      {
+        type: "message",
+        content: `Fake response to: ${message}`
+      }
+    ]),
+    systemInstruction: "You are ArvinClaw, a CLI-first OpenClaw-like learning agent.",
+    runtime: {
+      mode: "confirm",
+      workspace: process.cwd(),
+      currentDate: new Date().toISOString().slice(0, 10)
+    }
+  });
+  const events = await collectEvents(runtime.runTurn({ message }));
+  const assistantMessage = events.find((event) => event.type === "assistant_message_created");
+  const assistantText =
+    assistantMessage?.type === "assistant_message_created"
+      ? assistantMessage.message.content
+      : "No assistant message was produced.";
+  const traceLines = events.map((event) => `- ${event.type}`).join("\n");
+
+  return {
+    exitCode: events.some((event) => event.type === "run_failed") ? 1 : 0,
+    stdout: `Assistant: ${assistantText}\n\nTrace:\n${traceLines}\n`,
+    stderr: ""
+  };
+}
+
+async function collectEvents(events: AsyncIterable<RuntimeEvent>): Promise<RuntimeEvent[]> {
+  const collected: RuntimeEvent[] = [];
+
+  for await (const event of events) {
+    collected.push(event);
+  }
+
+  return collected;
 }
 
 async function main(): Promise<void> {

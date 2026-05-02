@@ -4,16 +4,16 @@
 
 This directory owns the command-line entry point.
 It translates terminal input and output around shared runtime packages.
-It must not own agent planning, prompt assembly, model calls, tools, or permission policy.
+It wires CLI-visible commands to runtime dependencies without owning agent planning, prompt assembly, tools, or permission policy.
 
 ## File Inventory
 
 | File | Role | Purpose |
 | --- | --- | --- |
-| `package.json` | Package manifest | Declares the CLI package, executable name, and build scripts. |
-| `tsconfig.json` | TypeScript config | Builds the CLI package with project references. |
-| `src/index.ts` | CLI adapter | Parses commands and renders CLI results. |
-| `src/index.test.ts` | CLI tests | Protects help, version, chat placeholder, and unknown-command behavior. |
+| `package.json` | Package manifest | Declares the CLI package, executable name, build scripts, and runtime package dependencies. |
+| `tsconfig.json` | TypeScript config | Builds the CLI package with references to core, context, and models. |
+| `src/index.ts` | CLI adapter | Parses commands, runs the fake-provider chat smoke path, and renders CLI results. |
+| `src/index.test.ts` | CLI tests | Protects help, version, chat placeholder, fake-provider chat, and unknown-command behavior. |
 
 ## Update Reminder
 

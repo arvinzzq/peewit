@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-Keep this package focused on terminal adaptation. Agent behavior belongs in `packages/core`, prompt/context work belongs in `packages/context`, and provider calls belong in `packages/models`.
+Keep this package focused on terminal adaptation. It may compose runtime dependencies for CLI commands, but agent behavior belongs in `packages/core`, prompt/context work belongs in `packages/context`, and provider normalization belongs in `packages/models`.
 
 ## When Files Change
 
@@ -10,8 +10,8 @@ Update `README.md`, `README.zh-CN.md`, `AGENTS.md`, and `AGENTS.zh-CN.md` when f
 
 ## Testing
 
-CLI-visible behavior needs tests in `src/index.test.ts`. Do not require a real model provider or API key in CLI unit tests.
+CLI-visible behavior needs tests in `src/index.test.ts`. Fake-provider smoke paths are allowed. Do not require a real model provider or API key in CLI unit tests.
 
 ## Boundaries
 
-Do not assemble prompts, instantiate long-lived agent internals, execute tools, or decide permissions here.
+Do not assemble prompts, execute tools, decide permissions, or embed vendor-specific provider logic here.

@@ -18,12 +18,24 @@ describe("runCli", () => {
     });
   });
 
-  test("keeps chat as a Phase 1 placeholder", async () => {
+  test("keeps interactive chat as a Phase 1 placeholder", async () => {
     const result = await runCli(["chat"], "0.0.0");
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
-    expect(result.stdout).toContain("chat is planned for Phase 1");
+    expect(result.stdout).toContain("interactive chat is not wired yet");
+  });
+
+  test("runs a fake-provider chat turn through the runtime", async () => {
+    const result = await runCli(["chat", "--fake", "Hello runtime"], "0.0.0");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("Assistant: Fake response to: Hello runtime");
+    expect(result.stdout).toContain("Trace:");
+    expect(result.stdout).toContain("run_started");
+    expect(result.stdout).toContain("assistant_message_created");
+    expect(result.stdout).toContain("run_completed");
   });
 
   test("reports unknown commands without crashing", async () => {
