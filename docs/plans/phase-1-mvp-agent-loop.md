@@ -20,10 +20,10 @@ Completed:
 - In-memory runtime trace store and compact CLI trace rendering: `39c7868`, `2751a9c`
 - Same-run `/trace` command shape: `4d2ebe2`
 - Same-run `/config` command with redacted config: `ef005af`
+- Interactive CLI chat loop with fake provider: `518a936`
 
 Remaining:
 
-- Interactive CLI chat loop
 - Real provider configuration wiring
 - Phase 1 acceptance update after CLI wiring works
 
@@ -34,10 +34,11 @@ Latest verification:
 - `pnpm run cli chat --fake "hello"`
 - `pnpm run cli chat --fake "hello" /trace`
 - `ARVINCLAW_API_KEY=secret pnpm run cli chat --fake "hello" /config`
+- `printf 'Hello\n/trace\n/config\n/exit\n' | pnpm run cli chat`
 
 Next recommended slice:
 
-- Start interactive CLI chat loop using the same session shape, still backed by fake provider first.
+- Wire interactive CLI chat to configured real provider while keeping fake-provider tests as the default safety net.
 
 ## 1. Purpose
 

@@ -20,10 +20,10 @@ English version: [phase-1-mvp-agent-loop.md](./phase-1-mvp-agent-loop.md)
 - In-memory runtime trace store 和 compact CLI trace rendering：`39c7868`、`2751a9c`
 - Same-run `/trace` command shape：`4d2ebe2`
 - 带 redacted config 的 same-run `/config` command：`ef005af`
+- 使用 fake provider 的 interactive CLI chat loop：`518a936`
 
 剩余：
 
-- Interactive CLI chat loop
 - Real provider configuration wiring
 - CLI wiring 可用后更新 Phase 1 acceptance
 
@@ -34,10 +34,11 @@ English version: [phase-1-mvp-agent-loop.md](./phase-1-mvp-agent-loop.md)
 - `pnpm run cli chat --fake "hello"`
 - `pnpm run cli chat --fake "hello" /trace`
 - `ARVINCLAW_API_KEY=secret pnpm run cli chat --fake "hello" /config`
+- `printf 'Hello\n/trace\n/config\n/exit\n' | pnpm run cli chat`
 
 下一步建议切片：
 
-- 复用同一个 session shape 开始 interactive CLI chat loop，先继续使用 fake provider。
+- 将 interactive CLI chat 接到配置中的真实 provider，同时保留 fake-provider tests 作为默认安全网。
 
 ## 1. 目的
 
