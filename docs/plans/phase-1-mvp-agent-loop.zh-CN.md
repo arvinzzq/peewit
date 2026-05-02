@@ -18,10 +18,10 @@ English version: [phase-1-mvp-agent-loop.md](./phase-1-mvp-agent-loop.md)
 - Message-only `AgentRuntime.runTurn`：`eacb8e8`
 - CLI fake-provider chat smoke path：`8547d63`
 - In-memory runtime trace store 和 compact CLI trace rendering：`39c7868`、`2751a9c`
+- Same-run `/trace` command shape：`4d2ebe2`
 
 剩余：
 
-- 用于查看 recent runtime events 的 `/trace` command
 - 带 secret redaction 的 `/config` command
 - Interactive CLI chat loop
 - Real provider configuration wiring
@@ -32,10 +32,11 @@ English version: [phase-1-mvp-agent-loop.md](./phase-1-mvp-agent-loop.md)
 - `pnpm run check`
 - `pnpm run cli --help`
 - `pnpm run cli chat --fake "hello"`
+- `pnpm run cli chat --fake "hello" /trace`
 
 下一步建议切片：
 
-- 在加入真实 provider configuration 前，先使用 in-memory trace shape 接上 `/trace` command。
+- 在加入真实 provider configuration 前，先添加带 redacted configuration 的 `/config` command output。
 
 ## 1. 目的
 

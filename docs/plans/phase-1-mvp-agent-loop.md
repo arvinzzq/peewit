@@ -18,10 +18,10 @@ Completed:
 - Message-only `AgentRuntime.runTurn`: `eacb8e8`
 - CLI fake-provider chat smoke path: `8547d63`
 - In-memory runtime trace store and compact CLI trace rendering: `39c7868`, `2751a9c`
+- Same-run `/trace` command shape: `4d2ebe2`
 
 Remaining:
 
-- `/trace` command for recent runtime events
 - `/config` command with secret redaction
 - Interactive CLI chat loop
 - Real provider configuration wiring
@@ -32,10 +32,11 @@ Latest verification:
 - `pnpm run check`
 - `pnpm run cli --help`
 - `pnpm run cli chat --fake "hello"`
+- `pnpm run cli chat --fake "hello" /trace`
 
 Next recommended slice:
 
-- Add `/trace` command wiring using the in-memory trace shape before real provider configuration.
+- Add `/config` command output with redacted configuration before real provider configuration.
 
 ## 1. Purpose
 
