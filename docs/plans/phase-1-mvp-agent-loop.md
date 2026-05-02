@@ -21,7 +21,7 @@ Completed:
 - Same-run `/trace` command shape: `4d2ebe2`
 - Same-run `/config` command with redacted config: `ef005af`
 - Interactive CLI chat loop with fake provider: `518a936`
-- Interactive CLI configured provider wiring: in progress
+- Interactive CLI configured provider wiring: `b1bfe3a`
 
 Remaining:
 

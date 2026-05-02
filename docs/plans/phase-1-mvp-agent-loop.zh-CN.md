@@ -21,7 +21,7 @@ English version: [phase-1-mvp-agent-loop.md](./phase-1-mvp-agent-loop.md)
 - Same-run `/trace` command shape：`4d2ebe2`
 - 带 redacted config 的 same-run `/config` command：`ef005af`
 - 使用 fake provider 的 interactive CLI chat loop：`518a936`
-- Interactive CLI configured provider wiring：in progress
+- Interactive CLI configured provider wiring：`b1bfe3a`
 
 剩余：
 
