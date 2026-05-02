@@ -162,6 +162,8 @@ Agent 可以安全使用基础工具：
 
 支持架构说明：[Permission System](../architecture/permission-system.zh-CN.md)
 
+实施计划：[Phase 2 Tools and Permissions](../plans/phase-2-tools-and-permissions.zh-CN.md)
+
 ### 验收标准
 
 - 工具可以注册，而不需要修改 Agent Core 逻辑。

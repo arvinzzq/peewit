@@ -162,6 +162,8 @@ Primary architecture note: [Tool System](../architecture/tool-system.md)
 
 Supporting architecture note: [Permission System](../architecture/permission-system.md)
 
+Implementation plan: [Phase 2 Tools and Permissions](../plans/phase-2-tools-and-permissions.md)
+
 ### Acceptance Criteria
 
 - Tools can be registered without changing Agent Core logic.
