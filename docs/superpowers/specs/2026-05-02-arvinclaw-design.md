@@ -45,6 +45,8 @@ Expected documentation areas include:
 - Run queue and session locking
 - Prompt assembly
 - Context engine
+- Runtime composition
+- Architecture contracts
 - Planner
 - Tool registry
 - Permission system
@@ -54,6 +56,7 @@ Expected documentation areas include:
 - Session storage
 - Memory
 - Runtime and execution tracing
+- Testing strategy
 
 Detailed architecture note for session storage: [docs/architecture/session-storage.md](../../architecture/session-storage.md)
 
@@ -64,6 +67,12 @@ Detailed architecture note for workspace files: [docs/architecture/workspace-fil
 Detailed architecture note for CLI adapter: [docs/architecture/cli-adapter.md](../../architecture/cli-adapter.md)
 
 Detailed architecture note for configuration system: [docs/architecture/configuration-system.md](../../architecture/configuration-system.md)
+
+Detailed architecture note for runtime composition: [docs/architecture/runtime-composition.md](../../architecture/runtime-composition.md)
+
+Detailed architecture note for architecture contracts: [docs/architecture/contracts.md](../../architecture/contracts.md)
+
+Detailed architecture note for testing strategy: [docs/architecture/testing-strategy.md](../../architecture/testing-strategy.md)
 
 MVP memory boundary:
 
@@ -341,7 +350,7 @@ The loop should support:
 - Plan update or final response
 - Execution trace persistence
 
-## 9.2 Context Assembly
+## 9.1 Context Assembly
 
 ArvinClaw should treat context assembly as a first-class architecture module, following OpenClaw's separation between runtime orchestration and context construction.
 
@@ -371,7 +380,7 @@ OpenClaw-like later context assembly should add:
 
 Context assembly must be testable and trace-visible. The CLI should not assemble prompts directly.
 
-## 9.1 Execution Trace
+## 9.2 Execution Trace
 
 The MVP should use an explainable execution trace by default.
 
@@ -474,9 +483,9 @@ docs/
     skill-system.md
     session-storage.md
     execution-trace.md
-  roadmap/
-    phase-0.md
-    phase-1.md
+  plans/
+    phase-0-foundation.md
+    phase-1-mvp-agent-loop.md
 ```
 
 This draft should be updated as the design conversation continues. Once the design is approved, it should be reviewed for placeholders, contradictions, ambiguity, and scope creep before implementation planning begins.
@@ -485,7 +494,7 @@ As the design grows, this main document should stay as a concise product and arc
 
 - Roadmap details: `docs/roadmap/`
 - Architecture module explanations: `docs/architecture/`
-- Phase implementation plans: future planning documents under `docs/superpowers/plans/`
+- Phase implementation plans: planning documents under `docs/plans/`
 - Product decisions and trade-offs: linked from this design document when they become too detailed
 
 Documentation language policy:

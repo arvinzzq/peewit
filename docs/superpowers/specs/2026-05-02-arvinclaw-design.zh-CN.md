@@ -47,6 +47,8 @@ ArvinClaw 最终应该支持多个用户入口：
 - Run queue and session locking
 - Prompt assembly
 - Context engine
+- Runtime composition
+- Architecture contracts
 - Planner
 - Tool registry
 - Permission system
@@ -56,6 +58,7 @@ ArvinClaw 最终应该支持多个用户入口：
 - Session storage
 - Memory
 - Runtime and execution tracing
+- Testing strategy
 
 Session storage 详细架构说明：[docs/architecture/session-storage.zh-CN.md](../../architecture/session-storage.zh-CN.md)
 
@@ -66,6 +69,12 @@ Workspace files 详细架构说明：[docs/architecture/workspace-files.zh-CN.md
 CLI adapter 详细架构说明：[docs/architecture/cli-adapter.zh-CN.md](../../architecture/cli-adapter.zh-CN.md)
 
 Configuration system 详细架构说明：[docs/architecture/configuration-system.zh-CN.md](../../architecture/configuration-system.zh-CN.md)
+
+Runtime composition 详细架构说明：[docs/architecture/runtime-composition.zh-CN.md](../../architecture/runtime-composition.zh-CN.md)
+
+Architecture contracts 详细架构说明：[docs/architecture/contracts.zh-CN.md](../../architecture/contracts.zh-CN.md)
+
+Testing strategy 详细架构说明：[docs/architecture/testing-strategy.zh-CN.md](../../architecture/testing-strategy.zh-CN.md)
 
 MVP 记忆边界：
 
@@ -343,7 +352,7 @@ Loop 应支持：
 - 计划更新或最终响应
 - 执行轨迹持久化
 
-## 9.2 Context Assembly
+## 9.1 Context Assembly
 
 ArvinClaw 应把 context assembly 视为一等架构模块，遵循 OpenClaw 将 runtime orchestration 与 context construction 分离的方式。
 
@@ -373,7 +382,7 @@ OpenClaw-like 后续 context assembly 应增加：
 
 Context assembly 必须可测试，并且在 trace 中可见。CLI 不应直接组装 prompts。
 
-## 9.1 执行轨迹
+## 9.2 执行轨迹
 
 MVP 默认应使用可解释执行轨迹。
 
@@ -476,9 +485,9 @@ docs/
     skill-system.md
     session-storage.md
     execution-trace.md
-  roadmap/
-    phase-0.md
-    phase-1.md
+  plans/
+    phase-0-foundation.md
+    phase-1-mvp-agent-loop.md
 ```
 
 这份草案应随着设计讨论继续更新。设计批准后，应检查占位符、矛盾、歧义和范围膨胀，然后再进入实现计划。
@@ -487,7 +496,7 @@ docs/
 
 - Roadmap 细节：`docs/roadmap/`
 - 架构模块说明：`docs/architecture/`
-- Phase 实现计划：未来放在 `docs/superpowers/plans/` 下的计划文档
+- Phase 实现计划：放在 `docs/plans/` 下的计划文档
 - 产品决策和权衡：当内容过于详细时，从本设计文档链接出去
 
 文档语言策略：

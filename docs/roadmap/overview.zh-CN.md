@@ -44,6 +44,8 @@ Roadmap 采用双轨方法：
 | Phase 9 | Plugin 和 skill 生态 | 用户可以安装、启用、禁用和审查能力 | Plugin metadata、permission declarations、versioning |
 | Phase 10 | 完整个人 Agent 平台 | OpenClaw-like 的个人 Agent，具备多模型、多 Agent、多节点和沙箱化工具 | Gateway、multi-agent runtime、node protocol、sandboxing |
 
+部分后续阶段的学习文档会先以 planned filenames 的形式列出，实际文件尚未存在。它们应该在对应 phase 被正式设计时创建，而不是在 MVP setup 阶段一次性全部创建。
+
 ## 3. Phase 0：项目基础
 
 ### 用户结果
@@ -227,6 +229,8 @@ Agent 可以将目标拆解为步骤，以可见进度执行步骤，并在 `obs
 - `docs/architecture/planner.md`
 - `docs/architecture/autonomy-modes.md`
 
+这些文档是 planned documents，目前尚未创建。
+
 ### 验收标准
 
 - 复杂任务可以在执行前产生计划。
@@ -258,8 +262,10 @@ Agent 可以保存 session history，展示之前的 traces，并开始跨任务
 ### 学习文档
 
 - `docs/architecture/session-storage.md`
-- `docs/architecture/memory.md`
+- `docs/architecture/memory-system.md`
 - `docs/architecture/local-knowledge.md`
+
+`local-knowledge.md` 是 planned document，目前尚未创建。
 
 主要架构说明：[Session Storage](../architecture/session-storage.zh-CN.md)
 

@@ -44,6 +44,8 @@ The roadmap follows a dual-track approach:
 | Phase 9 | Plugin and skill ecosystem | User can install, enable, disable, and review capabilities | Plugin metadata, permission declarations, versioning |
 | Phase 10 | Full personal agent platform | OpenClaw-like personal agent with multiple models, agents, nodes, and sandboxed tools | Gateway, multi-agent runtime, node protocol, sandboxing |
 
+Some later-phase learning documents are listed as planned filenames before they exist. They should be created when that phase is being actively designed, not all at once during MVP setup.
+
 ## 3. Phase 0: Project Foundation
 
 ### User Result
@@ -227,6 +229,8 @@ The agent can decompose a goal into steps, execute the steps with visible progre
 - `docs/architecture/planner.md`
 - `docs/architecture/autonomy-modes.md`
 
+These documents are planned and have not been created yet.
+
 ### Acceptance Criteria
 
 - Complex tasks can produce a plan before execution.
@@ -258,8 +262,10 @@ The agent can preserve session history, show previous traces, and begin using lo
 ### Learning Documents
 
 - `docs/architecture/session-storage.md`
-- `docs/architecture/memory.md`
+- `docs/architecture/memory-system.md`
 - `docs/architecture/local-knowledge.md`
+
+`local-knowledge.md` is planned and has not been created yet.
 
 Primary architecture note: [Session Storage](../architecture/session-storage.md)
 
