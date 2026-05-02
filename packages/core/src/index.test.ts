@@ -3,6 +3,7 @@ import { DefaultContextAssembler } from "@arvinclaw/context";
 import { FakeModelProvider } from "@arvinclaw/models";
 import {
   AgentRuntime,
+  InMemoryRuntimeTraceStore,
   createRuntimeEvent,
   isTerminalRuntimeEvent,
   runtimeEventTypes,
@@ -76,6 +77,63 @@ describe("runtime event contracts", () => {
     expect(isTerminalRuntimeEvent(completed)).toBe(true);
     expect(isTerminalRuntimeEvent(failed)).toBe(true);
     expect(isTerminalRuntimeEvent(nonTerminal)).toBe(false);
+  });
+});
+
+describe("in-memory runtime trace store", () => {
+  test("stores runtime events and lists recent events in append order", async () => {
+    const store = new InMemoryRuntimeTraceStore();
+    const events = [
+      createRuntimeEvent({
+        type: "run_started",
+        eventId: "evt_1",
+        runId: "run_1",
+        timestamp: "2026-05-03T01:30:00.000Z",
+        userMessage: "Hello"
+      }),
+      createRuntimeEvent({
+        type: "context_assembled",
+        eventId: "evt_2",
+        runId: "run_1",
+        timestamp: "2026-05-03T01:30:01.000Z",
+        messageCount: 2,
+        systemInstructionIncluded: true
+      }),
+      createRuntimeEvent({
+        type: "run_completed",
+        eventId: "evt_3",
+        runId: "run_1",
+        timestamp: "2026-05-03T01:30:02.000Z"
+      })
+    ];
+
+    for (const event of events) {
+      await store.append(event);
+    }
+
+    expect(await store.listRecent()).toEqual(events);
+    expect(await store.listRecent({ limit: 2 })).toEqual(events.slice(1));
+  });
+
+  test("lists events by run id", async () => {
+    const store = new InMemoryRuntimeTraceStore();
+    const runOne = createRuntimeEvent({
+      type: "run_completed",
+      eventId: "evt_1",
+      runId: "run_1",
+      timestamp: "2026-05-03T01:31:00.000Z"
+    });
+    const runTwo = createRuntimeEvent({
+      type: "run_completed",
+      eventId: "evt_2",
+      runId: "run_2",
+      timestamp: "2026-05-03T01:31:01.000Z"
+    });
+
+    await store.append(runOne);
+    await store.append(runTwo);
+
+    expect(await store.listByRun("run_1")).toEqual([runOne]);
   });
 });
 

@@ -3,7 +3,7 @@
 ## Architecture Summary
 
 This directory owns the agent runtime orchestration layer.
-It coordinates context assembly, model provider calls, and structured runtime events.
+It coordinates context assembly, model provider calls, structured runtime events, and trace storage contracts.
 It must stay adapter-agnostic and vendor-agnostic.
 
 ## File Inventory
@@ -12,8 +12,8 @@ It must stay adapter-agnostic and vendor-agnostic.
 | --- | --- | --- |
 | `package.json` | Package manifest | Declares the core package and workspace dependencies. |
 | `tsconfig.json` | TypeScript config | Builds core with references to context and models. |
-| `src/index.ts` | Runtime core | Exports runtime event contracts and message-only `AgentRuntime`. |
-| `src/index.test.ts` | Runtime tests | Protects event vocabulary, terminal-event detection, and message-only run flow. |
+| `src/index.ts` | Runtime core | Exports runtime event contracts, in-memory trace store, and message-only `AgentRuntime`. |
+| `src/index.test.ts` | Runtime tests | Protects event vocabulary, terminal-event detection, trace storage, and message-only run flow. |
 
 ## Update Reminder
 

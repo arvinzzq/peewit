@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-Keep this package focused on runtime coordination and shared runtime contracts. It may orchestrate injected dependencies, but it should not read environment variables, render CLI output, or call vendor APIs directly.
+Keep this package focused on runtime coordination, shared runtime contracts, and trace storage interfaces. It may orchestrate injected dependencies, but it should not read environment variables, render CLI output, or call vendor APIs directly.
 
 ## When Files Change
 
@@ -10,7 +10,7 @@ Update local README and AGENTS files when runtime responsibilities or file inven
 
 ## Testing
 
-Runtime event order, failure events, and dependency injection behavior need unit tests. Use fake providers and fake assemblers; no real API keys.
+Runtime event order, trace storage, failure events, and dependency injection behavior need unit tests. Use fake providers and fake assemblers; no real API keys.
 
 ## Boundaries
 

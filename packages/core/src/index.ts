@@ -1,6 +1,6 @@
 /**
  * INPUT: ContextAssembler, ModelProvider, runtime metadata, and user turn input.
- * OUTPUT: AgentRuntime, runtime event contracts, and message-only run orchestration.
+ * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, and message-only run orchestration.
  * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -95,6 +95,33 @@ export function createRuntimeEvent<TEvent extends RuntimeEvent>(event: TEvent): 
 
 export function isTerminalRuntimeEvent(event: RuntimeEvent): event is RunCompletedEvent | RunFailedEvent {
   return event.type === "run_completed" || event.type === "run_failed";
+}
+
+export interface RuntimeTraceQuery {
+  limit?: number;
+}
+
+export interface RuntimeTraceStore {
+  append(event: RuntimeEvent): Promise<void>;
+  listRecent(query?: RuntimeTraceQuery): Promise<RuntimeEvent[]>;
+  listByRun(runId: string): Promise<RuntimeEvent[]>;
+}
+
+export class InMemoryRuntimeTraceStore implements RuntimeTraceStore {
+  readonly #events: RuntimeEvent[] = [];
+
+  async append(event: RuntimeEvent): Promise<void> {
+    this.#events.push(event);
+  }
+
+  async listRecent(query: RuntimeTraceQuery = {}): Promise<RuntimeEvent[]> {
+    const events = query.limit === undefined ? this.#events : this.#events.slice(-query.limit);
+    return [...events];
+  }
+
+  async listByRun(runId: string): Promise<RuntimeEvent[]> {
+    return this.#events.filter((event) => event.runId === runId);
+  }
 }
 
 export interface AgentRuntimeInput {
