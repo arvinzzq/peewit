@@ -9,6 +9,8 @@ Simplified Chinese version: [overview.zh-CN.md](./overview.zh-CN.md)
 
 ArvinClaw should evolve through usable product milestones, not isolated technical experiments.
 
+Reference systems: [Reference Systems](../architecture/reference-systems.md)
+
 Each phase should produce:
 
 - A user-visible capability

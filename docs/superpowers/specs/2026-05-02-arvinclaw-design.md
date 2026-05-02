@@ -9,6 +9,8 @@ ArvinClaw is intended to become a real, usable personal general-purpose agent pr
 
 The project should not be a toy demo. Each phase should produce something usable, and each important module should include documentation that explains its role in a general agent system.
 
+Reference systems: [docs/architecture/reference-systems.md](../../architecture/reference-systems.md)
+
 ## 2. Product Goals
 
 ArvinClaw should eventually support multiple user entry points:

@@ -11,6 +11,8 @@ ArvinClaw 旨在成为一个真实可用的个人通用 Agent 产品，同时也
 
 这个项目不应该是一个玩具 Demo。每个阶段都应该产出某种可使用的结果，并且每个重要模块都应该包含文档，解释它在通用 Agent 系统中的角色。
 
+参考系统：[docs/architecture/reference-systems.zh-CN.md](../../architecture/reference-systems.zh-CN.md)
+
 ## 2. 产品目标
 
 ArvinClaw 最终应该支持多个用户入口：

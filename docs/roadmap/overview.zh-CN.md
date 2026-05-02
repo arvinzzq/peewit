@@ -9,6 +9,8 @@ English version: [overview.md](./overview.md)
 
 ArvinClaw 应该通过可用的产品里程碑演进，而不是通过孤立的技术实验演进。
 
+参考系统：[Reference Systems](../architecture/reference-systems.zh-CN.md)
+
 每个阶段都应该产出：
 
 - 用户可见能力
