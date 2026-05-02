@@ -4,16 +4,16 @@
 
 这个目录拥有命令行入口。
 它围绕共享 runtime packages 适配终端输入和输出。
-它将 CLI-visible commands 接到 runtime dependencies，但不拥有 agent planning、prompt assembly、tools 或 permission policy。
+它将 CLI-visible commands 接到 runtime 和 config dependencies，但不拥有 agent planning、prompt assembly、tools 或 permission policy。
 
 ## File Inventory
 
 | File | Role | Purpose |
 | --- | --- | --- |
-| `package.json` | Package manifest | 声明 CLI package、executable name、build scripts 和 runtime package dependencies。 |
-| `tsconfig.json` | TypeScript config | 使用对 core、context 和 models 的 references 构建 CLI package。 |
-| `src/index.ts` | CLI adapter | 解析命令、运行 fake-provider chat smoke path、保存 in-process trace events，并渲染 `/trace`。 |
-| `src/index.test.ts` | CLI tests | 保护 help、version、chat placeholder、fake-provider chat、compact trace rendering、`/trace` 和 unknown-command behavior。 |
+| `package.json` | Package manifest | 声明 CLI package、executable name、build scripts 和 runtime/config package dependencies。 |
+| `tsconfig.json` | TypeScript config | 使用对 config、core、context 和 models 的 references 构建 CLI package。 |
+| `src/index.ts` | CLI adapter | 解析命令、运行 fake-provider chat smoke path、保存 in-process trace events，并渲染 `/trace` 和 `/config`。 |
+| `src/index.test.ts` | CLI tests | 保护 help、version、chat placeholder、fake-provider chat、compact trace rendering、`/trace`、`/config` 和 unknown-command behavior。 |
 
 ## Update Reminder
 

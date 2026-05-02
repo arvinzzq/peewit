@@ -10,7 +10,7 @@
 
 | File | Role | Purpose |
 | --- | --- | --- |
-| `package.json` | Package manifest | 声明 config package 和 build scripts。 |
+| `package.json` | Package manifest | 声明 config package、public exports 和 build scripts。 |
 | `tsconfig.json` | TypeScript config | 构建 config package。 |
 | `src/index.ts` | Config loader | 导出 config types、defaults、merge logic、validation 和 redaction。 |
 | `src/index.test.ts` | Config tests | 保护 defaults、precedence、env overrides、redaction 和 validation errors。 |

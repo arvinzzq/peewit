@@ -1,11 +1,12 @@
 /**
- * INPUT: CLI arguments, package version, runtime package, context assembler, and fake model provider.
- * OUTPUT: CLI result objects, assistant text, compact trace output, slash command output, and terminal stdout/stderr side effects.
+ * INPUT: CLI arguments, package version, config loader, runtime package, context assembler, and fake model provider.
+ * OUTPUT: CLI result objects, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
  * POS: CLI adapter layer; translates terminal commands without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
 import { fileURLToPath } from "node:url";
+import { loadConfig, redactedConfig, type RedactedConfigView } from "@arvinclaw/config";
 import { DefaultContextAssembler } from "@arvinclaw/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
 import { FakeModelProvider } from "@arvinclaw/models";
@@ -18,6 +19,10 @@ export interface CliResult {
   stderr: string;
 }
 
+export interface RunCliOptions {
+  env?: Record<string, string | undefined>;
+}
+
 const helpText = `Usage: arvinclaw <command>
 
 Commands:
@@ -28,7 +33,7 @@ Commands:
   --version   Show the CLI version
 `;
 
-export async function runCli(args: string[], packageVersion: string): Promise<CliResult> {
+export async function runCli(args: string[], packageVersion: string, options: RunCliOptions = {}): Promise<CliResult> {
   const [command, ...rest] = args;
 
   if (command === undefined || command === "--help" || command === "-h") {
@@ -49,7 +54,7 @@ export async function runCli(args: string[], packageVersion: string): Promise<Cl
 
   if (command === "chat") {
     if (rest[0] === "--fake") {
-      return runFakeChatTurn(parseFakeChatArgs(rest.slice(1)));
+      return runFakeChatTurn(parseFakeChatArgs(rest.slice(1)), options);
     }
 
     return {
@@ -82,7 +87,7 @@ function parseFakeChatArgs(args: string[]): ParsedFakeChatArgs {
   };
 }
 
-async function runFakeChatTurn(input: ParsedFakeChatArgs): Promise<CliResult> {
+async function runFakeChatTurn(input: ParsedFakeChatArgs, options: RunCliOptions): Promise<CliResult> {
   const { message, slashCommands } = input;
 
   if (message.trim() === "") {
@@ -93,7 +98,7 @@ async function runFakeChatTurn(input: ParsedFakeChatArgs): Promise<CliResult> {
     };
   }
 
-  const session = CliChatSession.createFake(`Fake response to: ${message}`);
+  const session = CliChatSession.createFake(`Fake response to: ${message}`, options);
   const turn = await session.sendMessage(message);
   const commandOutput = await renderSlashCommands(session, slashCommands);
   const assistantText = turn.assistantText;
@@ -113,6 +118,8 @@ async function renderSlashCommands(session: CliChatSession, slashCommands: strin
   for (const command of slashCommands) {
     if (command === "/trace") {
       rendered.push(["", "Recent Trace:", ...(await session.runSlashCommand(command))].join("\n"));
+    } else if (command === "/config") {
+      rendered.push(["", "Config:", ...(await session.runSlashCommand(command))].join("\n"));
     } else {
       rendered.push(["", `Unknown slash command: ${command}`].join("\n"));
     }
@@ -129,13 +136,21 @@ export interface CliChatTurnResult {
 export class CliChatSession {
   readonly #runtime: AgentRuntime;
   readonly #traceStore: RuntimeTraceStore;
+  readonly #config: RedactedConfigView;
 
-  constructor(runtime: AgentRuntime, traceStore: RuntimeTraceStore = new InMemoryRuntimeTraceStore()) {
+  constructor(
+    runtime: AgentRuntime,
+    config: RedactedConfigView = redactedConfig(loadConfig()),
+    traceStore: RuntimeTraceStore = new InMemoryRuntimeTraceStore()
+  ) {
     this.#runtime = runtime;
+    this.#config = config;
     this.#traceStore = traceStore;
   }
 
-  static createFake(responseContent = "Fake response to: Hello trace"): CliChatSession {
+  static createFake(responseContent = "Fake response to: Hello trace", options: RunCliOptions = {}): CliChatSession {
+    const config = redactedConfig(loadConfig(options.env ? { env: options.env } : {}));
+
     return new CliChatSession(
       new AgentRuntime({
         contextAssembler: new DefaultContextAssembler(),
@@ -151,7 +166,8 @@ export class CliChatSession {
           workspace: process.cwd(),
           currentDate: new Date().toISOString().slice(0, 10)
         }
-      })
+      }),
+      config
     );
   }
 
@@ -175,12 +191,27 @@ export class CliChatSession {
   }
 
   async runSlashCommand(command: string): Promise<string[]> {
-    if (command !== "/trace") {
-      return [`Unknown slash command: ${command}`];
+    if (command === "/trace") {
+      return renderCompactTrace(await this.#traceStore.listRecent());
     }
 
-    return renderCompactTrace(await this.#traceStore.listRecent());
+    if (command === "/config") {
+      return renderRedactedConfig(this.#config);
+    }
+
+    return [`Unknown slash command: ${command}`];
   }
+}
+
+export function renderRedactedConfig(config: RedactedConfigView): string[] {
+  return [
+    `Provider: ${config.model.provider}`,
+    `Model: ${config.model.model}`,
+    `Base URL: ${config.model.baseURL}`,
+    `Default mode: ${config.runtime.defaultMode}`,
+    `Trace verbosity: ${config.trace.verbosity}`,
+    `API key: ${config.secrets.apiKey}`
+  ];
 }
 
 export function renderCompactTrace(events: RuntimeEvent[]): string[] {
@@ -207,7 +238,7 @@ function traceEventLabel(event: RuntimeEvent): string {
 }
 
 async function main(): Promise<void> {
-  const result = await runCli(process.argv.slice(2), "0.0.0");
+  const result = await runCli(process.argv.slice(2), "0.0.0", { env: process.env });
   process.stdout.write(result.stdout);
   process.stderr.write(result.stderr);
   process.exitCode = result.exitCode;

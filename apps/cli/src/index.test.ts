@@ -49,6 +49,27 @@ describe("runCli", () => {
     expect(result.stdout).toContain("6. Completed run (run_completed)");
   });
 
+  test("runs slash config with redacted config after a fake-provider chat turn", async () => {
+    const result = await runCli(
+      ["chat", "--fake", "Hello runtime", "/config"],
+      "0.0.0",
+      {
+        env: {
+          ARVINCLAW_API_KEY: "secret-api-key"
+        }
+      }
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("Config:");
+    expect(result.stdout).toContain("Provider: openai-compatible");
+    expect(result.stdout).toContain("Model: gpt-4.1-mini");
+    expect(result.stdout).toContain("Default mode: confirm");
+    expect(result.stdout).toContain("API key: configured");
+    expect(result.stdout).not.toContain("secret-api-key");
+  });
+
   test("chat session can return recent trace through slash command", async () => {
     const session = CliChatSession.createFake();
 
@@ -61,6 +82,23 @@ describe("runCli", () => {
       "4. Completed model request (model_request_completed)",
       "5. Created assistant message (assistant_message_created)",
       "6. Completed run (run_completed)"
+    ]);
+  });
+
+  test("chat session can return redacted config through slash command", async () => {
+    const session = CliChatSession.createFake("Fake response", {
+      env: {
+        ARVINCLAW_API_KEY: "secret-api-key"
+      }
+    });
+
+    expect(await session.runSlashCommand("/config")).toEqual([
+      "Provider: openai-compatible",
+      "Model: gpt-4.1-mini",
+      "Base URL: https://api.openai.com/v1",
+      "Default mode: confirm",
+      "Trace verbosity: explainable",
+      "API key: configured"
     ]);
   });
 
