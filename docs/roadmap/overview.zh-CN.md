@@ -101,6 +101,8 @@ Roadmap 采用双轨方法：
 
 支持架构说明：[Model Provider](../architecture/model-provider.zh-CN.md)
 
+支持架构说明：[Execution Trace](../architecture/execution-trace.zh-CN.md)
+
 ### 验收标准
 
 - `arvinclaw chat` 启动交互式 session。

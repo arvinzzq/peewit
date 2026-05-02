@@ -304,6 +304,8 @@ The loop should support:
 
 The MVP should use an explainable execution trace by default.
 
+Detailed architecture note: [docs/architecture/execution-trace.md](../../architecture/execution-trace.md)
+
 The default trace should show:
 
 - How the agent understood the user's goal

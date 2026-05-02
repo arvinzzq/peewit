@@ -101,6 +101,8 @@ Primary architecture note: [Agent Loop](../architecture/agent-loop.md)
 
 Supporting architecture note: [Model Provider](../architecture/model-provider.md)
 
+Supporting architecture note: [Execution Trace](../architecture/execution-trace.md)
+
 ### Acceptance Criteria
 
 - `arvinclaw chat` starts an interactive session.

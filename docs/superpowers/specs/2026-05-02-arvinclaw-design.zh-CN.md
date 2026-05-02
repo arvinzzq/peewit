@@ -306,6 +306,8 @@ Loop 应支持：
 
 MVP 默认应使用可解释执行轨迹。
 
+详细架构说明：[docs/architecture/execution-trace.zh-CN.md](../../architecture/execution-trace.zh-CN.md)
+
 默认 trace 应展示：
 
 - Agent 如何理解用户目标
