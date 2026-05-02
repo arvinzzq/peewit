@@ -117,7 +117,7 @@ Trade-offs:
 
 - [OpenClaw implementation notes](../research/openclaw-implementation-notes.md)
 - [OpenClaw architecture map](../architecture/openclaw-architecture-map.md)
-- [Main design](../superpowers/specs/2026-05-02-arvinclaw-design.md)
+- [Main design](../product/arvinclaw-design.md)
 - [Agent loop](../architecture/agent-loop.md)
 - [Prompt assembly](../architecture/prompt-assembly.md)
 - [Session storage](../architecture/session-storage.md)

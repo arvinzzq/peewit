@@ -236,7 +236,7 @@ MVP prompt assembly should be considered successful when:
 
 ## 16. Related Documents
 
-- [Main design](../superpowers/specs/2026-05-02-arvinclaw-design.md)
+- [Main design](../product/arvinclaw-design.md)
 - [OpenClaw implementation notes](../research/openclaw-implementation-notes.md)
 - [OpenClaw architecture map](./openclaw-architecture-map.md)
 - [Context engine](./context-engine.md)

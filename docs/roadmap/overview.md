@@ -66,7 +66,7 @@ The user can inspect a clean project structure and understand the intended archi
 - `docs/roadmap/overview.md`
 - `docs/architecture/project-structure.md`
 - `docs/architecture/configuration-system.md`
-- Main design document under `docs/superpowers/specs/`
+- Main design document under `docs/product/`
 
 Primary architecture note: [Project Structure](../architecture/project-structure.md)
 

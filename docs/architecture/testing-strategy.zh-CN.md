@@ -188,7 +188,7 @@ Testing strategy 成功标准：
 
 ## 13. 相关文档
 
-- [Main design](../superpowers/specs/2026-05-02-arvinclaw-design.zh-CN.md)
+- [Main design](../product/arvinclaw-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)
 - [Project Structure](./project-structure.zh-CN.md)
 - [Runtime Composition](./runtime-composition.zh-CN.md)

@@ -249,7 +249,7 @@ MVP Permission System 成功标准：
 
 ## 16. 相关文档
 
-- [主设计](../superpowers/specs/2026-05-02-arvinclaw-design.zh-CN.md)
+- [主设计](../product/arvinclaw-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)
 - [Agent Loop](./agent-loop.zh-CN.md)
 - [Tool System](./tool-system.zh-CN.md)

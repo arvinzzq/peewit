@@ -15,7 +15,7 @@ ArvinClaw is intended to become a real personal general-purpose agent product an
 
 Recommended first reading path:
 
-1. [Main Design](./superpowers/specs/2026-05-02-arvinclaw-design.md)
+1. [Main Design](./product/arvinclaw-design.md)
 2. [Roadmap](./roadmap/overview.md)
 3. [Reference Systems](./architecture/reference-systems.md)
 4. [OpenClaw Architecture Map](./architecture/openclaw-architecture-map.md)
@@ -29,7 +29,7 @@ This order starts with product intent, then moves into architecture boundaries.
 
 | Area | Purpose |
 | --- | --- |
-| `superpowers/specs/` | Accepted product and design drafts |
+| `product/` | Accepted product and design drafts |
 | `roadmap/` | Product phases, phase goals, acceptance criteria, and non-goals |
 | `architecture/` | Module-level architecture explanations |
 | `research/` | External system research and source notes |

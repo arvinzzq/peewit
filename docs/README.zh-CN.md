@@ -15,7 +15,7 @@ ArvinClaw 旨在成为一个真实的个人通用 Agent 产品，同时也作为
 
 推荐的第一阅读路径：
 
-1. [Main Design](./superpowers/specs/2026-05-02-arvinclaw-design.zh-CN.md)
+1. [Main Design](./product/arvinclaw-design.zh-CN.md)
 2. [Roadmap](./roadmap/overview.zh-CN.md)
 3. [Reference Systems](./architecture/reference-systems.zh-CN.md)
 4. [OpenClaw Architecture Map](./architecture/openclaw-architecture-map.zh-CN.md)
@@ -29,7 +29,7 @@ ArvinClaw 旨在成为一个真实的个人通用 Agent 产品，同时也作为
 
 | 区域 | 目的 |
 | --- | --- |
-| `superpowers/specs/` | 已接受的产品和设计草案 |
+| `product/` | 已接受的产品和设计草案 |
 | `roadmap/` | 产品阶段、阶段目标、验收标准和非目标 |
 | `architecture/` | 模块级架构说明 |
 | `research/` | 外部系统调研和来源记录 |

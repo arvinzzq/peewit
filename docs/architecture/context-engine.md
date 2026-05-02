@@ -267,4 +267,4 @@ MVP context assembly should be considered successful when:
 - [Memory system](./memory-system.md)
 - [Agent loop](./agent-loop.md)
 - [OpenClaw implementation notes](../research/openclaw-implementation-notes.md)
-- [Main design](../superpowers/specs/2026-05-02-arvinclaw-design.md)
+- [Main design](../product/arvinclaw-design.md)

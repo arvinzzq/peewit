@@ -250,4 +250,4 @@ MVP run queue design is successful when:
 - [Execution trace](./execution-trace.md)
 - [Permission system](./permission-system.md)
 - [OpenClaw implementation notes](../research/openclaw-implementation-notes.md)
-- [Main design](../superpowers/specs/2026-05-02-arvinclaw-design.md)
+- [Main design](../product/arvinclaw-design.md)

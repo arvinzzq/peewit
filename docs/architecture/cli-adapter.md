@@ -313,7 +313,7 @@ The MVP CLI adapter is successful when:
 
 ## 20. Related Documents
 
-- [Main design](../superpowers/specs/2026-05-02-arvinclaw-design.md)
+- [Main design](../product/arvinclaw-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [Project Structure](./project-structure.md)
 - [Configuration System](./configuration-system.md)

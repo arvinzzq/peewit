@@ -267,4 +267,4 @@ MVP context assembly 成功标准：
 - [Memory System](./memory-system.zh-CN.md)
 - [Agent Loop](./agent-loop.zh-CN.md)
 - [OpenClaw Implementation Notes](../research/openclaw-implementation-notes.zh-CN.md)
-- [主设计](../superpowers/specs/2026-05-02-arvinclaw-design.zh-CN.md)
+- [主设计](../product/arvinclaw-design.zh-CN.md)

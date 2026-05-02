@@ -214,7 +214,7 @@ Reference systems 应该像影响 feature design 一样影响 test design。
 
 ## 13. 相关文档
 
-- [主设计](../superpowers/specs/2026-05-02-arvinclaw-design.zh-CN.md)
+- [主设计](../product/arvinclaw-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)
 - [OpenClaw Architecture Map](./openclaw-architecture-map.zh-CN.md)
 - [Memory System](./memory-system.zh-CN.md)

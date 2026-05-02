@@ -32,7 +32,7 @@ packages/
 docs/
   architecture/
   roadmap/
-  superpowers/specs/
+  product/
 skills/
 ```
 
@@ -228,7 +228,7 @@ Phase 0 完成标准：
 
 ## 9. 相关文档
 
-- [主设计](../superpowers/specs/2026-05-02-arvinclaw-design.zh-CN.md)
+- [主设计](../product/arvinclaw-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)
 - [CLI Adapter](./cli-adapter.zh-CN.md)
 - [Configuration System](./configuration-system.zh-CN.md)

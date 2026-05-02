@@ -250,4 +250,4 @@ MVP run queue design 成功标准：
 - [Execution Trace](./execution-trace.zh-CN.md)
 - [Permission System](./permission-system.zh-CN.md)
 - [OpenClaw Implementation Notes](../research/openclaw-implementation-notes.zh-CN.md)
-- [主设计](../superpowers/specs/2026-05-02-arvinclaw-design.zh-CN.md)
+- [主设计](../product/arvinclaw-design.zh-CN.md)

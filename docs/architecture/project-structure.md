@@ -32,7 +32,7 @@ packages/
 docs/
   architecture/
   roadmap/
-  superpowers/specs/
+  product/
 skills/
 ```
 
@@ -228,7 +228,7 @@ Phase 0 should be considered complete when:
 
 ## 9. Related Documents
 
-- [Main design](../superpowers/specs/2026-05-02-arvinclaw-design.md)
+- [Main design](../product/arvinclaw-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [CLI adapter](./cli-adapter.md)
 - [Configuration system](./configuration-system.md)

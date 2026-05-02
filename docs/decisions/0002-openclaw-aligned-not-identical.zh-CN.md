@@ -127,4 +127,4 @@ ArvinClaw 可以先实现一个简单 deterministic assembler，再引入 plugin
 - [OpenClaw Architecture Map](../architecture/openclaw-architecture-map.zh-CN.md)
 - [OpenClaw Implementation Notes](../research/openclaw-implementation-notes.zh-CN.md)
 - [Reference Systems](../architecture/reference-systems.zh-CN.md)
-- [主设计](../superpowers/specs/2026-05-02-arvinclaw-design.zh-CN.md)
+- [主设计](../product/arvinclaw-design.zh-CN.md)

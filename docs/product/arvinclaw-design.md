@@ -3,17 +3,19 @@
 Status: Draft
 Date: 2026-05-02
 
+Simplified Chinese version: [arvinclaw-design.zh-CN.md](./arvinclaw-design.zh-CN.md)
+
 ## 1. Project Intent
 
 ArvinClaw is intended to become a real, usable personal general-purpose agent product, while also serving as a learning project for understanding the architecture and implementation principles behind systems like OpenClaw.
 
 The project should not be a toy demo. Each phase should produce something usable, and each important module should include documentation that explains its role in a general agent system.
 
-Reference systems: [docs/architecture/reference-systems.md](../../architecture/reference-systems.md)
+Reference systems: [docs/architecture/reference-systems.md](../architecture/reference-systems.md)
 
-OpenClaw architecture map: [docs/architecture/openclaw-architecture-map.md](../../architecture/openclaw-architecture-map.md)
+OpenClaw architecture map: [docs/architecture/openclaw-architecture-map.md](../architecture/openclaw-architecture-map.md)
 
-Compatibility decision: [docs/decisions/0002-openclaw-aligned-not-identical.md](../../decisions/0002-openclaw-aligned-not-identical.md)
+Compatibility decision: [docs/decisions/0002-openclaw-aligned-not-identical.md](../decisions/0002-openclaw-aligned-not-identical.md)
 
 ## 2. Product Goals
 
@@ -58,21 +60,21 @@ Expected documentation areas include:
 - Runtime and execution tracing
 - Testing strategy
 
-Detailed architecture note for session storage: [docs/architecture/session-storage.md](../../architecture/session-storage.md)
+Detailed architecture note for session storage: [docs/architecture/session-storage.md](../architecture/session-storage.md)
 
-Detailed architecture note for memory system: [docs/architecture/memory-system.md](../../architecture/memory-system.md)
+Detailed architecture note for memory system: [docs/architecture/memory-system.md](../architecture/memory-system.md)
 
-Detailed architecture note for workspace files: [docs/architecture/workspace-files.md](../../architecture/workspace-files.md)
+Detailed architecture note for workspace files: [docs/architecture/workspace-files.md](../architecture/workspace-files.md)
 
-Detailed architecture note for CLI adapter: [docs/architecture/cli-adapter.md](../../architecture/cli-adapter.md)
+Detailed architecture note for CLI adapter: [docs/architecture/cli-adapter.md](../architecture/cli-adapter.md)
 
-Detailed architecture note for configuration system: [docs/architecture/configuration-system.md](../../architecture/configuration-system.md)
+Detailed architecture note for configuration system: [docs/architecture/configuration-system.md](../architecture/configuration-system.md)
 
-Detailed architecture note for runtime composition: [docs/architecture/runtime-composition.md](../../architecture/runtime-composition.md)
+Detailed architecture note for runtime composition: [docs/architecture/runtime-composition.md](../architecture/runtime-composition.md)
 
-Detailed architecture note for architecture contracts: [docs/architecture/contracts.md](../../architecture/contracts.md)
+Detailed architecture note for architecture contracts: [docs/architecture/contracts.md](../architecture/contracts.md)
 
-Detailed architecture note for testing strategy: [docs/architecture/testing-strategy.md](../../architecture/testing-strategy.md)
+Detailed architecture note for testing strategy: [docs/architecture/testing-strategy.md](../architecture/testing-strategy.md)
 
 MVP memory boundary:
 
@@ -115,13 +117,13 @@ Confirmed choices:
 
 The Agent Core must not depend on the CLI. CLI should be an adapter over the shared core.
 
-Detailed CLI adapter note: [docs/architecture/cli-adapter.md](../../architecture/cli-adapter.md)
+Detailed CLI adapter note: [docs/architecture/cli-adapter.md](../architecture/cli-adapter.md)
 
 ## 4.1 Repository Structure
 
 ArvinClaw should use a lightweight monorepo from the beginning.
 
-Detailed architecture note: [docs/architecture/project-structure.md](../../architecture/project-structure.md)
+Detailed architecture note: [docs/architecture/project-structure.md](../architecture/project-structure.md)
 
 The goal is to keep core agent capabilities separate from user entry points without introducing heavy release or publishing machinery too early.
 
@@ -142,7 +144,7 @@ packages/
 docs/
   architecture/
   roadmap/
-  superpowers/specs/
+  product/
 skills/
 ```
 
@@ -178,7 +180,7 @@ The system should expose an explainable execution trace, not the model's hidden 
 
 MVP tools:
 
-Detailed architecture note: [docs/architecture/tool-system.md](../../architecture/tool-system.md)
+Detailed architecture note: [docs/architecture/tool-system.md](../architecture/tool-system.md)
 
 - File system read
 - Directory listing
@@ -198,7 +200,7 @@ Initial permission policy:
 
 The MVP should use a risk-based permission model.
 
-Detailed architecture note: [docs/architecture/permission-system.md](../../architecture/permission-system.md)
+Detailed architecture note: [docs/architecture/permission-system.md](../architecture/permission-system.md)
 
 | Risk | Examples | Default Behavior |
 | --- | --- | --- |
@@ -243,7 +245,7 @@ Web tool results should be summarized in the execution trace and should preserve
 
 The MVP should include a lightweight local skill system.
 
-Detailed architecture note: [docs/architecture/skill-system.md](../../architecture/skill-system.md)
+Detailed architecture note: [docs/architecture/skill-system.md](../architecture/skill-system.md)
 
 A skill is a directory containing at least `SKILL.md`. The file should declare:
 
@@ -275,7 +277,7 @@ Initial built-in skills:
 
 The Agent Core should depend on a `ModelProvider` interface rather than a specific vendor SDK.
 
-Detailed architecture note: [docs/architecture/model-provider.md](../../architecture/model-provider.md)
+Detailed architecture note: [docs/architecture/model-provider.md](../architecture/model-provider.md)
 
 The MVP should implement only an OpenAI-compatible provider.
 
@@ -296,7 +298,7 @@ Future providers may include:
 
 ## 8.1 Configuration and Secrets
 
-Detailed architecture note: [docs/architecture/configuration-system.md](../../architecture/configuration-system.md)
+Detailed architecture note: [docs/architecture/configuration-system.md](../architecture/configuration-system.md)
 
 The MVP should use configuration files for non-sensitive settings and environment variables for secrets.
 
@@ -328,9 +330,9 @@ Future versions may support encrypted local secret storage or OS keychain integr
 
 The preferred direction is an OpenClaw-aligned loop:
 
-Detailed architecture note: [docs/architecture/agent-loop.md](../../architecture/agent-loop.md)
+Detailed architecture note: [docs/architecture/agent-loop.md](../architecture/agent-loop.md)
 
-Detailed architecture note for run queue: [docs/architecture/run-queue.md](../../architecture/run-queue.md)
+Detailed architecture note for run queue: [docs/architecture/run-queue.md](../architecture/run-queue.md)
 
 - Each run flows through intake, context assembly, model inference, tool execution, streaming/trace, and persistence.
 - Simple tasks can use a direct tool-calling loop.
@@ -354,9 +356,9 @@ The loop should support:
 
 ArvinClaw should treat context assembly as a first-class architecture module, following OpenClaw's separation between runtime orchestration and context construction.
 
-Detailed architecture note for prompt assembly: [docs/architecture/prompt-assembly.md](../../architecture/prompt-assembly.md)
+Detailed architecture note for prompt assembly: [docs/architecture/prompt-assembly.md](../architecture/prompt-assembly.md)
 
-Detailed architecture note for context engine: [docs/architecture/context-engine.md](../../architecture/context-engine.md)
+Detailed architecture note for context engine: [docs/architecture/context-engine.md](../architecture/context-engine.md)
 
 MVP context assembly should include:
 
@@ -384,7 +386,7 @@ Context assembly must be testable and trace-visible. The CLI should not assemble
 
 The MVP should use an explainable execution trace by default.
 
-Detailed architecture note: [docs/architecture/execution-trace.md](../../architecture/execution-trace.md)
+Detailed architecture note: [docs/architecture/execution-trace.md](../architecture/execution-trace.md)
 
 The default trace should show:
 
@@ -438,7 +440,7 @@ The CLI should make the execution trace visible enough for learning without expo
 
 The roadmap should evolve ArvinClaw from a small but usable CLI MVP into a full personal agent platform.
 
-Detailed roadmap: [docs/roadmap/overview.md](../../roadmap/overview.md)
+Detailed roadmap: [docs/roadmap/overview.md](../roadmap/overview.md)
 
 | Phase | Goal | Result |
 | --- | --- | --- |
@@ -472,9 +474,8 @@ Suggested documentation structure:
 
 ```text
 docs/
-  superpowers/
-    specs/
-      2026-05-02-arvinclaw-design.md
+  product/
+    arvinclaw-design.md
   architecture/
     agent-loop.md
     model-provider.md

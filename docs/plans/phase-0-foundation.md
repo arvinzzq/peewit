@@ -76,7 +76,7 @@ docs/
   plans/
   research/
   roadmap/
-  superpowers/specs/
+  product/
 skills/
 ```
 

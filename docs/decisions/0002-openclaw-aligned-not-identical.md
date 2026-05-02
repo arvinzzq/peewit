@@ -127,4 +127,4 @@ Trade-offs:
 - [OpenClaw architecture map](../architecture/openclaw-architecture-map.md)
 - [OpenClaw implementation notes](../research/openclaw-implementation-notes.md)
 - [Reference systems](../architecture/reference-systems.md)
-- [Main design](../superpowers/specs/2026-05-02-arvinclaw-design.md)
+- [Main design](../product/arvinclaw-design.md)

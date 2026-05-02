@@ -66,7 +66,7 @@ Roadmap 采用双轨方法：
 - `docs/roadmap/overview.md`
 - `docs/architecture/project-structure.md`
 - `docs/architecture/configuration-system.md`
-- `docs/superpowers/specs/` 下的主设计文档
+- `docs/product/` 下的主设计文档
 
 主要架构说明：[项目结构](../architecture/project-structure.zh-CN.md)
 
