@@ -13,6 +13,8 @@ ArvinClaw 旨在成为一个真实可用的个人通用 Agent 产品，同时也
 
 参考系统：[docs/architecture/reference-systems.zh-CN.md](../../architecture/reference-systems.zh-CN.md)
 
+OpenClaw 架构映射：[docs/architecture/openclaw-architecture-map.zh-CN.md](../../architecture/openclaw-architecture-map.zh-CN.md)
+
 ## 2. 产品目标
 
 ArvinClaw 最终应该支持多个用户入口：

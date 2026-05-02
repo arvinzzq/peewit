@@ -9,33 +9,20 @@ English version: [reference-systems.md](./reference-systems.md)
 
 ArvinClaw 应该学习已有 Agent 系统，但不能盲目复制。
 
-两个系统尤其值得参考：
+OpenClaw 是 primary reference system，因为 ArvinClaw 的目标就是从 0 到 1 实现一个 OpenClaw-like 的个人通用 Agent。
 
-- Claude Code：开发者 Agent 工作流、CLI 体验、项目记忆、权限、hooks、subagents 和测试纪律的强参考。
-- OpenClaw：个人通用 Agent workspace 设计、identity files、memory files、channels、tools 和长期 assistant behavior 的强参考。
+Claude Code 是 secondary reference system。它对 CLI 工作流、project memory、permissions、hooks、subagents 和 developer-agent 体验等工程实践很有帮助。
+
+参考优先级：
+
+- Primary：OpenClaw
+- Secondary：Claude Code
 
 核心规则：
 
-借鉴架构思想，而不是照搬产品约束。
+有意识地实现 OpenClaw-like 架构，同时使用 Claude Code 强化开发者工作流和工程纪律。
 
-## 2. 从 Claude Code 学什么
-
-Claude Code 有用，因为它展示了 Agent 如何深入代码库工作，同时让用户控制和项目约定保持可见。
-
-ArvinClaw 应研究这些 Claude Code 思路：
-
-- CLI-first developer workflow
-- 通过 `CLAUDE.md` 实现 project memory
-- User 和 project settings hierarchy
-- Permission allow/deny configuration
-- 围绕 tool use 和 lifecycle events 的 hooks
-- 拥有独立 context windows 和 tool permissions 的 subagents
-- Custom slash commands
-- 随时间扩展到 terminal、IDE、desktop 和 web 的 multi-surface usage
-
-这些想法尤其适用于 ArvinClaw 早期 CLI 和 developer-agent 阶段。
-
-## 3. 从 OpenClaw 学什么
+## 2. 从 OpenClaw 学什么
 
 OpenClaw 有用，因为它展示了个人 Agent 如何通过 agent workspace 维护 identity、memory、tools 和 long-running behavior。
 
@@ -50,8 +37,29 @@ ArvinClaw 应研究这些 OpenClaw 思路：
 - 通过 `MEMORY.md` 表达 long-term memory
 - Channels 和 multi-entry interaction
 - 多 surfaces 和 agents 的 gateway direction
+- Background tasks 和 heartbeat-style automation
+- Multi-agent 和 multi-workspace direction
 
-这些想法尤其适用于 ArvinClaw 的长期个人 Agent 平台方向。
+这些想法定义了 ArvinClaw 的长期形态。
+
+详细 OpenClaw 映射：[OpenClaw Architecture Map](./openclaw-architecture-map.zh-CN.md)
+
+## 3. 从 Claude Code 学什么
+
+Claude Code 有用，因为它展示了 Agent 如何深入代码库工作，同时让用户控制和项目约定保持可见。
+
+ArvinClaw 应研究这些 Claude Code 思路：
+
+- CLI-first developer workflow
+- 通过 `CLAUDE.md` 实现 project memory
+- User 和 project settings hierarchy
+- Permission allow/deny configuration
+- 围绕 tool use 和 lifecycle events 的 hooks
+- 拥有独立 context windows 和 tool permissions 的 subagents
+- Custom slash commands
+- 随时间扩展到 terminal、IDE、desktop 和 web 的 multi-surface usage
+
+这些想法尤其适用于 ArvinClaw 早期 CLI、developer-agent 和 engineering-quality 阶段。
 
 ## 4. 对比
 
@@ -69,7 +77,7 @@ ArvinClaw 应研究这些 OpenClaw 思路：
 
 ## 5. Prompt and Workspace File Plan
 
-ArvinClaw 应结合两个系统最强的想法。
+ArvinClaw 应从 OpenClaw 的 workspace model 出发，并用 Claude Code 的工程实践补强。
 
 建议 prompt files：
 
@@ -185,7 +193,7 @@ Reference systems 应该像影响 feature design 一样影响 test design。
 
 这份 reference plan 成功标准：
 
-- ArvinClaw 记录了它从 Claude Code 和 OpenClaw 借鉴哪些想法。
+- ArvinClaw 记录 OpenClaw 是 primary reference，Claude Code 是 secondary engineering reference。
 - 借鉴的想法被映射到 ArvinClaw phases。
 - MVP 范围仍小于任一完整参考系统。
 - Prompt files、memory、hooks 和 subagents 有分阶段计划。
@@ -206,6 +214,7 @@ Reference systems 应该像影响 feature design 一样影响 test design。
 
 - [主设计](../superpowers/specs/2026-05-02-arvinclaw-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)
+- [OpenClaw Architecture Map](./openclaw-architecture-map.zh-CN.md)
 - [Memory System](./memory-system.zh-CN.md)
 - [Session Storage](./session-storage.zh-CN.md)
 - [Permission System](./permission-system.zh-CN.md)

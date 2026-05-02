@@ -11,6 +11,8 @@ ArvinClaw should evolve through usable product milestones, not isolated technica
 
 Reference systems: [Reference Systems](../architecture/reference-systems.md)
 
+OpenClaw architecture map: [OpenClaw Architecture Map](../architecture/openclaw-architecture-map.md)
+
 Each phase should produce:
 
 - A user-visible capability

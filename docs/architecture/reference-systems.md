@@ -9,33 +9,20 @@ Simplified Chinese version: [reference-systems.zh-CN.md](./reference-systems.zh-
 
 ArvinClaw should learn from existing agent systems without copying them blindly.
 
-Two systems are especially useful references:
+OpenClaw is the primary reference system because ArvinClaw's target is to implement an OpenClaw-like personal general-purpose agent from zero to one.
 
-- Claude Code: strong reference for developer-agent workflows, CLI ergonomics, project memory, permissions, hooks, subagents, and testing discipline.
-- OpenClaw: strong reference for personal general-agent workspace design, identity files, memory files, channels, tools, and long-running assistant behavior.
+Claude Code is a secondary reference system. It is useful for engineering practices around CLI workflows, project memory, permissions, hooks, subagents, and developer-agent ergonomics.
+
+Reference priority:
+
+- Primary: OpenClaw
+- Secondary: Claude Code
 
 The core rule:
 
-Borrow architectural ideas, not product constraints.
+Implement OpenClaw-like architecture deliberately, while using Claude Code to strengthen developer workflow and engineering discipline.
 
-## 2. What to Learn from Claude Code
-
-Claude Code is useful because it shows how an agent can work deeply inside a codebase while keeping user control and project conventions visible.
-
-ArvinClaw should study these Claude Code ideas:
-
-- CLI-first developer workflow
-- Project memory through `CLAUDE.md`
-- User and project settings hierarchy
-- Permission allow/deny configuration
-- Hooks around tool use and lifecycle events
-- Subagents with separate context windows and tool permissions
-- Custom slash commands
-- Multi-surface usage over time: terminal, IDE, desktop, and web
-
-These ideas are especially relevant to ArvinClaw's early CLI and developer-agent phases.
-
-## 3. What to Learn from OpenClaw
+## 2. What to Learn from OpenClaw
 
 OpenClaw is useful because it shows how a personal agent can maintain identity, memory, tools, and long-running behavior through an agent workspace.
 
@@ -50,8 +37,29 @@ ArvinClaw should study these OpenClaw ideas:
 - Long-term memory through `MEMORY.md`
 - Channels and multi-entry interaction
 - Gateway direction for multiple surfaces and agents
+- Background tasks and heartbeat-style automation
+- Multi-agent and multi-workspace direction
 
-These ideas are especially relevant to ArvinClaw's long-term personal-agent platform direction.
+These ideas define the long-term shape of ArvinClaw.
+
+Detailed OpenClaw mapping: [OpenClaw Architecture Map](./openclaw-architecture-map.md)
+
+## 3. What to Learn from Claude Code
+
+Claude Code is useful because it shows how an agent can work deeply inside a codebase while keeping user control and project conventions visible.
+
+ArvinClaw should study these Claude Code ideas:
+
+- CLI-first developer workflow
+- Project memory through `CLAUDE.md`
+- User and project settings hierarchy
+- Permission allow/deny configuration
+- Hooks around tool use and lifecycle events
+- Subagents with separate context windows and tool permissions
+- Custom slash commands
+- Multi-surface usage over time: terminal, IDE, desktop, and web
+
+These ideas are especially relevant to ArvinClaw's early CLI, developer-agent, and engineering-quality phases.
 
 ## 4. Comparison
 
@@ -69,7 +77,7 @@ These ideas are especially relevant to ArvinClaw's long-term personal-agent plat
 
 ## 5. Prompt and Workspace File Plan
 
-ArvinClaw should combine the strongest ideas from both systems.
+ArvinClaw should start from OpenClaw's workspace model and supplement it with Claude Code's engineering practices.
 
 Proposed prompt files:
 
@@ -185,7 +193,7 @@ Reference systems should influence test design as much as feature design.
 
 This reference plan is successful when:
 
-- ArvinClaw documents which ideas it borrows from Claude Code and OpenClaw.
+- ArvinClaw documents OpenClaw as the primary reference and Claude Code as a secondary engineering reference.
 - Borrowed ideas are mapped to ArvinClaw phases.
 - MVP scope remains smaller than either full reference system.
 - Prompt files, memory, hooks, and subagents have staged plans.
@@ -206,6 +214,7 @@ This reference plan is successful when:
 
 - [Main design](../superpowers/specs/2026-05-02-arvinclaw-design.md)
 - [Roadmap](../roadmap/overview.md)
+- [OpenClaw architecture map](./openclaw-architecture-map.md)
 - [Memory system](./memory-system.md)
 - [Session storage](./session-storage.md)
 - [Permission system](./permission-system.md)

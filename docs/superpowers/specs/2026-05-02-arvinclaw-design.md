@@ -11,6 +11,8 @@ The project should not be a toy demo. Each phase should produce something usable
 
 Reference systems: [docs/architecture/reference-systems.md](../../architecture/reference-systems.md)
 
+OpenClaw architecture map: [docs/architecture/openclaw-architecture-map.md](../../architecture/openclaw-architecture-map.md)
+
 ## 2. Product Goals
 
 ArvinClaw should eventually support multiple user entry points:
