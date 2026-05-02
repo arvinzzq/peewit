@@ -9,6 +9,7 @@
     "packages/*"
   ],
   "scripts": {
+    "cli": "tsx apps/cli/src/index.ts",
     "typecheck": "tsc -b",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
