@@ -43,6 +43,7 @@ ArvinClaw 最终应该支持多个用户入口：
 预期文档领域包括：
 
 - Agent loop
+- CLI adapter
 - Run queue and session locking
 - Prompt assembly
 - Context engine
@@ -60,6 +61,8 @@ Session storage 详细架构说明：[docs/architecture/session-storage.zh-CN.md
 Memory system 详细架构说明：[docs/architecture/memory-system.zh-CN.md](../../architecture/memory-system.zh-CN.md)
 
 Workspace files 详细架构说明：[docs/architecture/workspace-files.zh-CN.md](../../architecture/workspace-files.zh-CN.md)
+
+CLI adapter 详细架构说明：[docs/architecture/cli-adapter.zh-CN.md](../../architecture/cli-adapter.zh-CN.md)
 
 MVP 记忆边界：
 
@@ -101,6 +104,8 @@ MVP 将是一个 TypeScript / Node.js CLI Agent。
 - OpenClaw 对齐：prompt assembly、context engine、run queue、session locking 和 workspace files 是核心架构概念，不是可选的后续润色。
 
 Agent Core 不能依赖 CLI。CLI 应该是共享核心之上的一个 adapter。
+
+CLI adapter 详细说明：[docs/architecture/cli-adapter.zh-CN.md](../../architecture/cli-adapter.zh-CN.md)
 
 ## 4.1 仓库结构
 

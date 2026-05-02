@@ -264,3 +264,4 @@ MVP Execution Trace 成功标准：
 - [Tool System](./tool-system.zh-CN.md)
 - [Permission System](./permission-system.zh-CN.md)
 - [项目结构](./project-structure.zh-CN.md)
+- [CLI Adapter](./cli-adapter.zh-CN.md)

@@ -102,12 +102,15 @@ Roadmap 采用双轨方法：
 - `docs/architecture/agent-loop.md`
 - `docs/architecture/model-provider.md`
 - `docs/architecture/execution-trace.md`
+- `docs/architecture/cli-adapter.md`
 
 主要架构说明：[Agent Loop](../architecture/agent-loop.zh-CN.md)
 
 支持架构说明：[Model Provider](../architecture/model-provider.zh-CN.md)
 
 支持架构说明：[Execution Trace](../architecture/execution-trace.zh-CN.md)
+
+支持架构说明：[CLI Adapter](../architecture/cli-adapter.zh-CN.md)
 
 ### 验收标准
 

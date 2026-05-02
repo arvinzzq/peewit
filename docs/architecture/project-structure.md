@@ -214,3 +214,4 @@ Phase 0 should be considered complete when:
 
 - [Main design](../superpowers/specs/2026-05-02-arvinclaw-design.md)
 - [Roadmap](../roadmap/overview.md)
+- [CLI adapter](./cli-adapter.md)

@@ -264,3 +264,4 @@ The MVP execution trace should be considered successful when:
 - [Tool system](./tool-system.md)
 - [Permission system](./permission-system.md)
 - [Project structure](./project-structure.md)
+- [CLI adapter](./cli-adapter.md)

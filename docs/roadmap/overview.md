@@ -102,12 +102,15 @@ The user can start `arvinclaw chat`, send a message, receive a model response, a
 - `docs/architecture/agent-loop.md`
 - `docs/architecture/model-provider.md`
 - `docs/architecture/execution-trace.md`
+- `docs/architecture/cli-adapter.md`
 
 Primary architecture note: [Agent Loop](../architecture/agent-loop.md)
 
 Supporting architecture note: [Model Provider](../architecture/model-provider.md)
 
 Supporting architecture note: [Execution Trace](../architecture/execution-trace.md)
+
+Supporting architecture note: [CLI Adapter](../architecture/cli-adapter.md)
 
 ### Acceptance Criteria
 

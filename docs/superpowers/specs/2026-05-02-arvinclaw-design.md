@@ -41,6 +41,7 @@ The project should explain agent architecture as it is built. Each core module s
 Expected documentation areas include:
 
 - Agent loop
+- CLI adapter
 - Run queue and session locking
 - Prompt assembly
 - Context engine
@@ -58,6 +59,8 @@ Detailed architecture note for session storage: [docs/architecture/session-stora
 Detailed architecture note for memory system: [docs/architecture/memory-system.md](../../architecture/memory-system.md)
 
 Detailed architecture note for workspace files: [docs/architecture/workspace-files.md](../../architecture/workspace-files.md)
+
+Detailed architecture note for CLI adapter: [docs/architecture/cli-adapter.md](../../architecture/cli-adapter.md)
 
 MVP memory boundary:
 
@@ -99,6 +102,8 @@ Confirmed choices:
 - OpenClaw alignment: prompt assembly, context engine, run queue, session locking, and workspace files are core architecture concepts, not optional later polish.
 
 The Agent Core must not depend on the CLI. CLI should be an adapter over the shared core.
+
+Detailed CLI adapter note: [docs/architecture/cli-adapter.md](../../architecture/cli-adapter.md)
 
 ## 4.1 Repository Structure
 

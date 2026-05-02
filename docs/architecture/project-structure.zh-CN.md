@@ -214,3 +214,4 @@ Phase 0 完成标准：
 
 - [主设计](../superpowers/specs/2026-05-02-arvinclaw-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)
+- [CLI Adapter](./cli-adapter.zh-CN.md)
