@@ -114,7 +114,28 @@ ArvinClaw 将使用轻量文件说明政策：
 - 如果 Agent instructions 变化，更新根 AGENTS 文件。
 - 在相关时更新 development workflow 或 decision documents。
 
-## 6. 自动检查
+## 6. 代码注释策略
+
+ArvinClaw 应使用注释解释 architecture intent、safety boundaries 和不直观的 trade-offs。注释不应重复清晰命名和测试已经说明的内容。
+
+为以下内容添加简短注释：
+
+- Runtime boundaries 和 event-stream decisions，例如为什么 `AgentRuntime.runTurn` 在 turn 推进时返回 runtime events。
+- Security、permission 和 redaction logic。
+- Prompt、memory 和 workspace loading order，尤其是围绕 `SOUL.md`、`USER.md`、`MEMORY.md` 和 daily memory files 的加载。
+- Persistence formats，例如为什么 JSONL session records 是 append-only 且 replayable 的。
+- 仅从代码很难推断的 compatibility 或 workaround logic。
+
+避免为以下内容添加注释：
+
+- 简单变量赋值。
+- 显而易见的 control flow。
+- 只是重复 function 或 variable name 的注释。
+- 应属于 architecture documents 而不是 source code 的大段 prose。
+
+推荐风格是在 decision point 前写短注释。注释应解释代码为什么这样设计，而不是逐行叙述代码做了什么。
+
+## 7. 自动检查
 
 文档检查应强制执行轻量政策：
 
@@ -133,7 +154,7 @@ ArvinClaw 将使用轻量文件说明政策：
 - lockfiles
 - generated files
 
-## 7. 后果
+## 8. 后果
 
 正向影响：
 
@@ -150,7 +171,7 @@ ArvinClaw 将使用轻量文件说明政策：
 
 这个政策刻意比“每个文件都写长注释”更轻。
 
-## 8. 相关文档
+## 9. 相关文档
 
 - [Documentation System](../architecture/documentation-system.zh-CN.md)
 - [Development Workflow](../architecture/dev-workflow.zh-CN.md)

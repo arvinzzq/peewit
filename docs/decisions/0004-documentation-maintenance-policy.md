@@ -114,7 +114,28 @@ When project workflow changes:
 - Update root AGENTS files if agent instructions change.
 - Update development workflow or decision documents when relevant.
 
-## 6. Automated Checks
+## 6. Code Comment Policy
+
+ArvinClaw should use comments to explain architecture intent, safety boundaries, and non-obvious trade-offs. Comments should not repeat what clear names and tests already explain.
+
+Add concise comments for:
+
+- Runtime boundaries and event-stream decisions, such as why `AgentRuntime.runTurn` returns runtime events while the turn advances.
+- Security, permission, and redaction logic.
+- Prompt, memory, and workspace loading order, especially around `SOUL.md`, `USER.md`, `MEMORY.md`, and daily memory files.
+- Persistence formats, such as why JSONL session records are append-only and replayable.
+- Compatibility or workaround logic that would be hard to infer from the code alone.
+
+Avoid comments for:
+
+- Simple variable assignments.
+- Obvious control flow.
+- Comments that merely restate a function or variable name.
+- Broad prose that belongs in architecture documents instead of source code.
+
+The preferred style is a short comment before the decision point. The comment should explain why the code is shaped that way, not narrate each line.
+
+## 7. Automated Checks
 
 Documentation checks should enforce the lightweight policy:
 
@@ -133,7 +154,7 @@ Checks should ignore:
 - lockfiles
 - generated files
 
-## 7. Consequences
+## 8. Consequences
 
 Positive:
 
@@ -150,7 +171,7 @@ Trade-offs:
 
 The policy is intentionally lighter than requiring long comments in every file.
 
-## 8. Related Documents
+## 9. Related Documents
 
 - [Documentation System](../architecture/documentation-system.md)
 - [Development Workflow](../architecture/dev-workflow.md)
