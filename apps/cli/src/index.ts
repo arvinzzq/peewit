@@ -1,7 +1,7 @@
 /**
- * INPUT: CLI arguments, package version, optional line reader/fetch implementation, config loader, runtime/session packages, context assembler, and model providers.
- * OUTPUT: CLI result objects, configured/fake interactive chat transcript, short-term session memory, latest-session resume behavior, persisted trace output, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
- * POS: CLI adapter layer; translates terminal commands without owning agent behavior.
+ * INPUT: CLI arguments, package version, optional line reader/fetch implementation, optional fake model outputs, config loader, runtime/session packages, context assembler, and model providers.
+ * OUTPUT: CLI result objects, configured/fake interactive chat transcript, approval prompts, short-term session memory, latest-session resume behavior, persisted trace output, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
+ * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
@@ -26,6 +26,7 @@ type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
 export interface RunCliOptions {
   env?: Record<string, string | undefined>;
+  fakeModelOutputs?: ModelOutput[];
   fetch?: FetchLike;
   readLine?: (prompt: string) => Promise<string | undefined>;
   sessionsDirectory?: string;
@@ -264,6 +265,10 @@ async function runInteractiveLoop(session: CliChatSession, title: string, option
     }
 
     const turn = await session.sendMessage(message);
+    const approvalLines = await renderApprovalPrompts(turn.events, options.readLine);
+    if (approvalLines.length > 0) {
+      emit(...approvalLines, "");
+    }
     emit(`Assistant: ${turn.assistantText}`, "");
   }
 
@@ -354,7 +359,9 @@ export class CliChatSession {
   ): CliChatSession {
     const config = redactedConfig(loadConfig(options.env ? { env: options.env } : {}));
     const provider =
-      typeof responseContent === "function"
+      options.fakeModelOutputs
+        ? new FakeModelProvider(options.fakeModelOutputs)
+        : typeof responseContent === "function"
         ? new MessageMappedFakeModelProvider(responseContent)
         : new FakeModelProvider([
             {
@@ -477,6 +484,35 @@ export class CliChatSession {
 
     await this.#sessionStore.createSession({ title: this.#sessionId });
   }
+}
+
+async function renderApprovalPrompts(
+  events: RuntimeEvent[],
+  readLine: RunCliOptions["readLine"]
+): Promise<string[]> {
+  const lines: string[] = [];
+
+  for (const event of events) {
+    if (event.type !== "tool_call_permission_evaluated" || event.decision.decision !== "ask") {
+      continue;
+    }
+
+    lines.push(
+      "Approval required:",
+      `Tool: ${event.toolName}`,
+      `Risk: ${event.decision.risk}`,
+      `Reason: ${event.decision.reason}`
+    );
+
+    const answer = (await readLine?.("Approve once? [y/N/details] "))?.trim().toLowerCase();
+    if (answer === "y" || answer === "yes") {
+      lines.push("Decision: approved once (tool execution is not wired yet).");
+    } else {
+      lines.push("Decision: denied");
+    }
+  }
+
+  return lines;
 }
 
 class MessageMappedFakeModelProvider implements ModelProvider {

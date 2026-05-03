@@ -695,6 +695,35 @@ describe("runCli", () => {
     expect(result.stdout).toContain("Goodbye.");
   });
 
+  test("prompts for approval when an interactive fake-provider turn requests an ask-level tool call", async () => {
+    const inputs = ["Read README", "n", "/exit"];
+    const result = await runCli(["chat", "--fake-interactive"], "0.0.0", {
+      fakeModelOutputs: [
+        {
+          type: "tool_calls",
+          calls: [
+            {
+              id: "call_1",
+              name: "read_file",
+              input: {
+                path: "README.md"
+              }
+            }
+          ]
+        }
+      ],
+      readLine: async () => inputs.shift()
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("Approval required:");
+    expect(result.stdout).toContain("Tool: read_file");
+    expect(result.stdout).toContain("Risk: medium");
+    expect(result.stdout).toContain("Reason: Medium and high-risk actions require approval in confirm mode.");
+    expect(result.stdout).toContain("Decision: denied");
+  });
+
   test("runs slash trace inside an interactive chat loop", async () => {
     const inputs = ["Hello trace", "/trace", "/exit"];
     const result = await runCli(["chat", "--fake-interactive"], "0.0.0", {
