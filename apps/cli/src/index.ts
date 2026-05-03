@@ -535,6 +535,8 @@ export function renderRedactedConfig(config: RedactedConfigView): string[] {
     `Base URL: ${config.model.baseURL}`,
     `Default mode: ${config.runtime.defaultMode}`,
     `Trace verbosity: ${config.trace.verbosity}`,
+    `Long-term memory files: ${config.memory.longTermFiles}`,
+    `Memory writes: ${config.memory.writes}`,
     `API key: ${config.secrets.apiKey}`
   ];
 }

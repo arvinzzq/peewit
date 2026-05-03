@@ -627,6 +627,8 @@ describe("runCli", () => {
       "Base URL: https://api.openai.com/v1",
       "Default mode: confirm",
       "Trace verbosity: explainable",
+      "Long-term memory files: disabled",
+      "Memory writes: disabled",
       "API key: configured"
     ]);
   });

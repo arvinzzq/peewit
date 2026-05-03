@@ -10,7 +10,7 @@ Update `README.md`, `README.zh-CN.md`, `AGENTS.md`, and `AGENTS.zh-CN.md` when f
 
 ## Testing
 
-CLI-visible behavior, session listing/resume, workspace prompt handoff, interactive input loops, durable message and trace handoff, short-term memory handoff, slash commands, trace rendering, config redaction, and missing API key handling need tests in `src/index.test.ts`. Use injected fake HTTP for configured-provider tests. Do not require a real model provider or API key in CLI unit tests.
+CLI-visible behavior, session listing/resume, workspace prompt handoff, interactive input loops, durable message and trace handoff, short-term memory handoff, slash commands, trace rendering, config redaction and memory policy display, and missing API key handling need tests in `src/index.test.ts`. Use injected fake HTTP for configured-provider tests. Do not require a real model provider or API key in CLI unit tests.
 
 ## Boundaries
 
