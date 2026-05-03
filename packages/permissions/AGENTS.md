@@ -10,7 +10,7 @@ Update README and AGENTS files when permission responsibilities or file inventor
 
 ## Testing
 
-Permission logic will need tests for risk levels, autonomy modes, allow/ask/deny decisions, and trace-safe explanations.
+Permission logic needs tests for risk levels, autonomy modes, allow/ask/deny decisions, blocked actions, and trace-safe explanations.
 
 ## Boundaries
 

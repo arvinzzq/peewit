@@ -10,7 +10,7 @@
 
 ## Testing
 
-Permission logic 将需要 risk levels、autonomy modes、allow/ask/deny decisions 和 trace-safe explanations 的测试。
+Permission logic 需要 risk levels、autonomy modes、allow/ask/deny decisions、blocked actions 和 trace-safe explanations 的测试。
 
 ## Boundaries
 

@@ -12,10 +12,10 @@ English version: [phase-2-tools-and-permissions.md](./phase-2-tools-and-permissi
 已完成：
 
 - Tool definition contracts 和 in-memory registry：`4ae3515`
+- Permission decision types 和 default policy：pending commit
 
 剩余：
 
-- Permission decision types and policy。
 - Runtime handling for model-requested tool calls。
 - CLI approval prompt flow。
 - Built-in file tools。
@@ -23,7 +23,7 @@ English version: [phase-2-tools-and-permissions.md](./phase-2-tools-and-permissi
 
 下一步建议切片：
 
-- 添加 permission decision types 和 default policy。
+- 使用 fake model output 把 tool-call handling 接入 `AgentRuntime`。
 
 ## 1. 目的
 

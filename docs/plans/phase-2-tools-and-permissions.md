@@ -12,10 +12,10 @@ Status: In Progress
 Completed:
 
 - Tool definition contracts and in-memory registry: `4ae3515`
+- Permission decision types and default policy: pending commit
 
 Remaining:
 
-- Permission decision types and policy.
 - Runtime handling for model-requested tool calls.
 - CLI approval prompt flow.
 - Built-in file tools.
@@ -23,7 +23,7 @@ Remaining:
 
 Next recommended slice:
 
-- Add permission decision types and default policy.
+- Wire tool-call handling into `AgentRuntime` using fake model output.
 
 ## 1. Purpose
 
