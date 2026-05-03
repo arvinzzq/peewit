@@ -90,6 +90,34 @@ describe("loadConfig", () => {
     expect(config.workspace.root).toBe("/workspace/arvinclaw");
   });
 
+  test("keeps long-term memory files disabled by default", () => {
+    const config = loadConfig();
+
+    expect(config.memory.longTermFiles).toBe("disabled");
+    expect(config.memory.writes).toBe("disabled");
+  });
+
+  test("supports read-only long-term memory file policy", () => {
+    const config = loadConfig({
+      env: {
+        ARVINCLAW_LONG_TERM_MEMORY: "read-only"
+      }
+    });
+
+    expect(config.memory.longTermFiles).toBe("read-only");
+    expect(config.memory.writes).toBe("disabled");
+  });
+
+  test("rejects invalid long-term memory policy values", () => {
+    expect(() =>
+      loadConfig({
+        env: {
+          ARVINCLAW_LONG_TERM_MEMORY: "write"
+        }
+      })
+    ).toThrow(ConfigValidationError);
+  });
+
   test("rejects invalid autonomy modes", () => {
     expect(() =>
       loadConfig({

@@ -3,7 +3,7 @@
 ## Architecture Summary
 
 This directory owns configuration loading and validation.
-It merges defaults, user config, project config, workspace/model environment overrides, and provider-specific shortcuts.
+It merges defaults, user config, project config, workspace/model/memory environment overrides, and provider-specific shortcuts.
 It keeps secrets redacted before configuration is shown in traces or CLI output.
 
 ## File Inventory
@@ -12,8 +12,8 @@ It keeps secrets redacted before configuration is shown in traces or CLI output.
 | --- | --- | --- |
 | `package.json` | Package manifest | Declares the config package, public exports, and build scripts. |
 | `tsconfig.json` | TypeScript config | Builds the config package. |
-| `src/index.ts` | Config loader | Exports config types, defaults, merge logic, workspace/model env handling, OpenRouter shortcut handling, validation, and redaction. |
-| `src/index.test.ts` | Config tests | Protects defaults, precedence, workspace/model env overrides, OpenRouter shortcut handling, redaction, and validation errors. |
+| `src/index.ts` | Config loader | Exports config types, defaults, merge logic, workspace/model/memory env handling, OpenRouter shortcut handling, validation, and redaction. |
+| `src/index.test.ts` | Config tests | Protects defaults, precedence, workspace/model/memory env overrides, OpenRouter shortcut handling, redaction, and validation errors. |
 
 ## Update Reminder
 

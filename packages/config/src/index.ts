@@ -1,6 +1,6 @@
 /**
- * INPUT: User config, project config, ArvinClaw env overrides, and provider-specific env shortcuts.
- * OUTPUT: EffectiveConfig, redacted config views, and validation errors.
+ * INPUT: User config, project config, ArvinClaw env overrides, memory policy settings, and provider-specific env shortcuts.
+ * OUTPUT: EffectiveConfig with memory policy, redacted config views, and validation errors.
  * POS: Configuration boundary; keeps config loading separate from runtime behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -14,6 +14,8 @@ const openRouterDefaults = {
 
 export type AutonomyMode = "observe" | "confirm" | "auto";
 export type TraceVerbosity = "explainable" | "debug";
+export type LongTermMemoryFilePolicy = "disabled" | "read-only";
+export type MemoryWritePolicy = "disabled";
 
 export interface EffectiveConfig {
   model: {
@@ -43,6 +45,10 @@ export interface EffectiveConfig {
   };
   sessions: {
     directory: string;
+  };
+  memory: {
+    longTermFiles: LongTermMemoryFilePolicy;
+    writes: MemoryWritePolicy;
   };
   secrets: {
     apiKey: string | undefined;
@@ -97,6 +103,10 @@ const defaultConfig: EffectiveConfig = {
   sessions: {
     directory: "~/.arvinclaw/sessions"
   },
+  memory: {
+    longTermFiles: "disabled",
+    writes: "disabled"
+  },
   secrets: {
     apiKey: undefined
   }
@@ -123,6 +133,7 @@ export function redactedConfig(config: EffectiveConfig): RedactedConfigView {
     tools: { ...config.tools },
     permissions: { ...config.permissions },
     sessions: { ...config.sessions },
+    memory: { ...config.memory },
     secrets: {
       apiKey: config.secrets.apiKey === undefined ? "missing" : "configured"
     }
@@ -138,6 +149,7 @@ function cloneConfig(config: EffectiveConfig): EffectiveConfig {
     tools: { ...config.tools },
     permissions: { ...config.permissions },
     sessions: { ...config.sessions },
+    memory: { ...config.memory },
     secrets: { ...config.secrets }
   };
 }
@@ -158,6 +170,7 @@ function applyConfig(config: EffectiveConfig, value: unknown): void {
   applyObject(config.tools, value.tools);
   applyObject(config.permissions, value.permissions);
   applyObject(config.sessions, value.sessions);
+  applyObject(config.memory, value.memory);
 }
 
 function applyObject(target: Record<string, unknown>, value: unknown): void {
@@ -195,6 +208,9 @@ function applyEnv(config: EffectiveConfig, env: Record<string, string | undefine
   if (env.ARVINCLAW_WORKSPACE_ROOT !== undefined) {
     config.workspace.root = env.ARVINCLAW_WORKSPACE_ROOT;
   }
+  if (env.ARVINCLAW_LONG_TERM_MEMORY !== undefined) {
+    config.memory.longTermFiles = env.ARVINCLAW_LONG_TERM_MEMORY as LongTermMemoryFilePolicy;
+  }
   if (env.ARVINCLAW_API_KEY !== undefined) {
     config.secrets.apiKey = env.ARVINCLAW_API_KEY;
   }
@@ -212,6 +228,18 @@ function validateConfig(config: EffectiveConfig): void {
       `Invalid trace.verbosity "${String(config.trace.verbosity)}". Expected explainable or debug.`
     );
   }
+
+  if (!isLongTermMemoryFilePolicy(config.memory.longTermFiles)) {
+    throw new ConfigValidationError(
+      `Invalid memory.longTermFiles "${String(config.memory.longTermFiles)}". Expected disabled or read-only.`
+    );
+  }
+
+  if (config.memory.writes !== "disabled") {
+    throw new ConfigValidationError(
+      `Invalid memory.writes "${String(config.memory.writes)}". Only disabled is supported.`
+    );
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -224,4 +252,8 @@ function isAutonomyMode(value: unknown): value is AutonomyMode {
 
 function isTraceVerbosity(value: unknown): value is TraceVerbosity {
   return value === "explainable" || value === "debug";
+}
+
+function isLongTermMemoryFilePolicy(value: unknown): value is LongTermMemoryFilePolicy {
+  return value === "disabled" || value === "read-only";
 }

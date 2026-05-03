@@ -3,7 +3,7 @@
 ## Architecture Summary
 
 这个目录拥有 configuration loading 和 validation。
-它合并 defaults、user config、project config、workspace/model environment overrides 和 provider-specific shortcuts。
+它合并 defaults、user config、project config、workspace/model/memory environment overrides 和 provider-specific shortcuts。
 它在 configuration 显示到 traces 或 CLI output 前保持 secrets redacted。
 
 ## File Inventory
@@ -12,8 +12,8 @@
 | --- | --- | --- |
 | `package.json` | Package manifest | 声明 config package、public exports 和 build scripts。 |
 | `tsconfig.json` | TypeScript config | 构建 config package。 |
-| `src/index.ts` | Config loader | 导出 config types、defaults、merge logic、workspace/model env handling、OpenRouter shortcut handling、validation 和 redaction。 |
-| `src/index.test.ts` | Config tests | 保护 defaults、precedence、workspace/model env overrides、OpenRouter shortcut handling、redaction 和 validation errors。 |
+| `src/index.ts` | Config loader | 导出 config types、defaults、merge logic、workspace/model/memory env handling、OpenRouter shortcut handling、validation 和 redaction。 |
+| `src/index.test.ts` | Config tests | 保护 defaults、precedence、workspace/model/memory env overrides、OpenRouter shortcut handling、redaction 和 validation errors。 |
 
 ## Update Reminder
 
