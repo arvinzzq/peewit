@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { CliChatSession, renderCompactTrace, runCli } from "./index.js";
@@ -187,6 +187,58 @@ describe("runCli", () => {
     }
   });
 
+  test("includes today and yesterday daily memory files when read-only memory is enabled", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-cli-workspace-"));
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const inputs = ["Use daily memory", "/exit"];
+    const requests: Array<{ body: string }> = [];
+
+    try {
+      await mkdir(join(workspace, "memory"));
+      await writeFile(join(workspace, "memory", `${today}.md`), "Today we are working on daily memory.");
+      await writeFile(join(workspace, "memory", `${yesterday}.md`), "Yesterday we finished read-only memory.");
+
+      const result = await runCli(["chat"], "0.0.0", {
+        env: {
+          ARVINCLAW_API_KEY: "secret-api-key",
+          ARVINCLAW_WORKSPACE_ROOT: workspace,
+          ARVINCLAW_LONG_TERM_MEMORY: "read-only"
+        },
+        sessionsDirectory: directory,
+        readLine: async () => inputs.shift(),
+        fetch: async (_url, init) => {
+          requests.push({
+            body: String(init?.body)
+          });
+
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { content: "Daily memory response" } }]
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json"
+              }
+            }
+          );
+        }
+      });
+
+      expect(result.exitCode).toBe(0);
+      const body = JSON.parse(requests[0]?.body ?? "{}");
+      expect(body.messages[0].content).toContain(`### memory/${today}.md`);
+      expect(body.messages[0].content).toContain("Today we are working on daily memory.");
+      expect(body.messages[0].content).toContain(`### memory/${yesterday}.md`);
+      expect(body.messages[0].content).toContain("Yesterday we finished read-only memory.");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+      await rm(workspace, { force: true, recursive: true });
+    }
+  });
+
   test("omits long-term memory files by default", async () => {
     const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
     const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-cli-workspace-"));
@@ -194,8 +246,12 @@ describe("runCli", () => {
     const requests: Array<{ body: string }> = [];
 
     try {
+      const today = new Date().toISOString().slice(0, 10);
+
       await writeFile(join(workspace, "USER.md"), "This should not be loaded by default.");
       await writeFile(join(workspace, "MEMORY.md"), "This should also stay out.");
+      await mkdir(join(workspace, "memory"));
+      await writeFile(join(workspace, "memory", `${today}.md`), "Daily memory should stay out.");
 
       const result = await runCli(["chat"], "0.0.0", {
         env: {
@@ -227,6 +283,7 @@ describe("runCli", () => {
       const body = JSON.parse(requests[0]?.body ?? "{}");
       expect(body.messages[0].content).not.toContain("### USER.md");
       expect(body.messages[0].content).not.toContain("### MEMORY.md");
+      expect(body.messages[0].content).not.toContain("### memory/");
       expect(body.messages[0].content).not.toContain("This should not be loaded by default.");
     } finally {
       await rm(directory, { force: true, recursive: true });

@@ -365,7 +365,7 @@ export class CliChatSession {
 
     return new CliChatSession(
       new AgentRuntime({
-        contextAssembler: createCliContextAssembler(config),
+        contextAssembler: createCliContextAssembler(config, new Date().toISOString().slice(0, 10)),
         modelProvider: provider,
         systemInstruction: "You are ArvinClaw, a CLI-first OpenClaw-like learning agent.",
         runtime: {
@@ -387,9 +387,11 @@ export class CliChatSession {
 
     const sessionId = sessionOptions.sessionId ?? createSessionId();
 
+    const currentDate = new Date().toISOString().slice(0, 10);
+
     return new CliChatSession(
       new AgentRuntime({
-        contextAssembler: createCliContextAssembler(config),
+        contextAssembler: createCliContextAssembler(config, currentDate),
         modelProvider: new OpenAICompatibleProvider({
           baseURL: config.model.baseURL,
           apiKey: config.secrets.apiKey,
@@ -402,7 +404,7 @@ export class CliChatSession {
         runtime: {
           mode: config.runtime.defaultMode,
           workspace: config.workspace.root,
-          currentDate: new Date().toISOString().slice(0, 10)
+          currentDate
         }
       }),
       redactedConfig(config),
@@ -508,16 +510,23 @@ function createConfiguredSessionStore(config: EffectiveConfig, options: RunCliOp
   });
 }
 
-function createCliContextAssembler(config: RedactedConfigView | EffectiveConfig): DefaultContextAssembler {
+function createCliContextAssembler(config: RedactedConfigView | EffectiveConfig, currentDate: string): DefaultContextAssembler {
   const workspacePromptFiles = ["AGENTS.md", "SOUL.md"];
 
   if (config.memory.longTermFiles === "read-only") {
-    workspacePromptFiles.push("USER.md", "MEMORY.md");
+    workspacePromptFiles.push("USER.md", "MEMORY.md", `memory/${currentDate}.md`, `memory/${previousIsoDate(currentDate)}.md`);
   }
 
   return new DefaultContextAssembler({
     workspacePromptFiles
   });
+}
+
+function previousIsoDate(currentDate: string): string {
+  const date = new Date(`${currentDate}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+
+  return date.toISOString().slice(0, 10);
 }
 
 function resolveSessionsDirectory(directory: string, env: Record<string, string | undefined> | undefined): string {

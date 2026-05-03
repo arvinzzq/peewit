@@ -87,7 +87,7 @@ ArvinClaw should design for a future `MEMORY.md`, but not implement full long-te
 Phase 5 adds an explicit policy switch for long-term memory files:
 
 - `disabled`: default; do not load `USER.md`, `MEMORY.md`, or daily memory files.
-- `read-only`: loads `USER.md` and `MEMORY.md` from the configured workspace root when present.
+- `read-only`: loads `USER.md`, `MEMORY.md`, today's daily memory file, and yesterday's daily memory file from the configured workspace root when present.
 
 Long-term memory writes remain disabled in both modes.
 
@@ -114,7 +114,7 @@ Proposed files:
 | `SOUL.md` | Agent personality, values, tone, and boundaries | Phase 1 optional, Phase 2 recommended |
 | `USER.md` | User profile, preferences, and durable user context | Read-only when policy is enabled |
 | `MEMORY.md` | Curated long-term memory | Read-only when policy is enabled |
-| `memory/YYYY-MM-DD.md` | Daily notes and recent observations | Deferred or Phase 5 |
+| `memory/YYYY-MM-DD.md` | Daily notes and recent observations | Today/yesterday read-only when policy is enabled |
 | `TOOLS.md` | Environment and tool notes | Deferred |
 
 MVP starts with `AGENTS.md`-style operational instructions, read-only `SOUL.md`, and session storage. `USER.md` and `MEMORY.md` require the long-term memory policy to be `read-only` before the context loader includes them.
@@ -184,7 +184,7 @@ They are useful for:
 - Short-term recall
 - Candidate facts for later long-term promotion
 
-ArvinClaw should defer daily memory files until session storage and trace are stable.
+Phase 5 loads only today's and yesterday's daily memory files in `read-only` mode. It does not scan all historical daily files and does not write daily notes.
 
 ## 12. Startup Context Loading
 
@@ -196,7 +196,7 @@ Base system instructions
   -> SOUL.md
   -> USER.md, if enabled
   -> MEMORY.md, if enabled
-  -> Recent daily memory, if enabled
+  -> Today's and yesterday's daily memory, if enabled
   -> Session resume context
   -> Selected skills
 ```
@@ -270,6 +270,7 @@ Required test areas:
 - Long-term memory disabled in MVP
 - Long-term memory policy validation and display
 - Read-only `USER.md` and `MEMORY.md` loading when the policy is enabled
+- Read-only today/yesterday daily memory loading when the policy is enabled
 - Read-only identity file policy
 - Memory write permission classification
 - Redaction before memory writes

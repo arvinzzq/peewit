@@ -24,10 +24,11 @@ Completed:
 - Workspace prompt loading for `AGENTS.md` and `SOUL.md`: `a2bca8e`, `719e805`, `15ce35c`
 - Long-term memory disabled/read-only policy and CLI visibility: `b737c68`, `db89088`
 - Read-only `USER.md` and `MEMORY.md` loading when enabled: `fafe13f`
+- Read-only today/yesterday daily memory loading when enabled: pending commit
 
 Remaining:
 
-- Daily memory files such as `memory/YYYY-MM-DD.md`.
+- Daily memory write policy and future daily note creation.
 
 Latest verification:
 
@@ -39,7 +40,7 @@ Latest verification:
 
 Next recommended slice:
 
-- Add daily memory file planning for `memory/YYYY-MM-DD.md`.
+- Define daily memory write policy before creating or updating `memory/YYYY-MM-DD.md`.
 
 ## 1. Purpose
 
@@ -105,7 +106,7 @@ If no session is specified, the CLI creates a generic `session_<id>` session. Se
 
 Configured CLI chat also loads `AGENTS.md` and read-only `SOUL.md` from the configured workspace root when those files exist. The workspace root can be set with `ARVINCLAW_WORKSPACE_ROOT`.
 
-Long-term memory files remain disabled by default. `ARVINCLAW_LONG_TERM_MEMORY=read-only` loads `USER.md` and `MEMORY.md` from the configured workspace root when present, while memory writes stay disabled.
+Long-term memory files remain disabled by default. `ARVINCLAW_LONG_TERM_MEMORY=read-only` loads `USER.md`, `MEMORY.md`, `memory/<today>.md`, and `memory/<yesterday>.md` from the configured workspace root when present, while memory writes stay disabled.
 
 ## 5. Durable Session Storage
 
@@ -160,6 +161,7 @@ Required tests:
 - Workspace prompt files are included in configured-provider context when present.
 - Long-term memory file access is policy-gated and visible through `/config`.
 - `USER.md` and `MEMORY.md` are included only in read-only long-term memory mode.
+- Today's and yesterday's daily memory files are included only in read-only long-term memory mode.
 
 ## 8. Acceptance Criteria
 
