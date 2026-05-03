@@ -5,6 +5,26 @@ Date: 2026-05-02
 
 Simplified Chinese version: [phase-2-tools-and-permissions.zh-CN.md](./phase-2-tools-and-permissions.zh-CN.md)
 
+## Progress
+
+Status: In Progress
+
+Completed:
+
+- Tool definition contracts and in-memory registry: pending commit
+
+Remaining:
+
+- Permission decision types and policy.
+- Runtime handling for model-requested tool calls.
+- CLI approval prompt flow.
+- Built-in file tools.
+- Tool lifecycle and permission trace events.
+
+Next recommended slice:
+
+- Add permission decision types and default policy.
+
 ## 1. Purpose
 
 Phase 2 gives ArvinClaw the first real external action capability.

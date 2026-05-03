@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-把 tool definitions、validation 和 execution wrappers 保持在这里。Tools 可以描述并运行 capabilities，但 permission decisions 必须留在这个 package 外部。
+把 tool definitions、registry behavior、validation 和 execution wrappers 保持在这里。Tools 可以描述并运行 capabilities，但 permission decisions 必须留在这个 package 外部。
 
 ## When Files Change
 
@@ -10,7 +10,7 @@
 
 ## Testing
 
-Tool logic 将需要 validation、workspace boundaries、result shapes、error normalization 和 permission metadata 的测试。
+Tool logic 需要 registry behavior、validation、workspace boundaries、result shapes、error normalization 和 permission metadata 的测试。
 
 ## Boundaries
 

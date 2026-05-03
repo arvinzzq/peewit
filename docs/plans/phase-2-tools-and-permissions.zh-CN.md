@@ -5,6 +5,26 @@
 
 English version: [phase-2-tools-and-permissions.md](./phase-2-tools-and-permissions.md)
 
+## Progress
+
+状态：In Progress
+
+已完成：
+
+- Tool definition contracts 和 in-memory registry：pending commit
+
+剩余：
+
+- Permission decision types and policy。
+- Runtime handling for model-requested tool calls。
+- CLI approval prompt flow。
+- Built-in file tools。
+- Tool lifecycle and permission trace events。
+
+下一步建议切片：
+
+- 添加 permission decision types 和 default policy。
+
 ## 1. 目的
 
 Phase 2 给 ArvinClaw 增加第一批真实外部动作能力。
