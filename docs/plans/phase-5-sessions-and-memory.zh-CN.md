@@ -20,7 +20,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 - Stores 和 CLI 中的 session listing：`08bc0ed`、`b3ecd92`
 - Session stores 中的 durable trace events：`0b10494`
 - CLI named-session trace persistence across process runs：`dd5a2a1`
-- 使用 `chat --resume` 的 CLI latest-session resume：pending commit
+- 使用 `chat --resume` 的 CLI latest-session resume：`325b8f2`
 
 剩余：
 

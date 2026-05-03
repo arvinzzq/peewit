@@ -20,7 +20,7 @@ Completed:
 - Session listing in stores and CLI: `08bc0ed`, `b3ecd92`
 - Durable trace events in session stores: `0b10494`
 - CLI named-session trace persistence across process runs: `dd5a2a1`
-- CLI latest-session resume with `chat --resume`: pending commit
+- CLI latest-session resume with `chat --resume`: `325b8f2`
 
 Remaining:
 
