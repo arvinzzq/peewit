@@ -21,7 +21,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 - Session stores 中的 durable trace events：`0b10494`
 - CLI named-session trace persistence across process runs：`dd5a2a1`
 - 使用 `chat --resume` 的 CLI latest-session resume：`325b8f2`
-- 针对 `AGENTS.md` 和 `SOUL.md` 的 workspace prompt loading：`a2bca8e`、`719e805`、pending commit
+- 针对 `AGENTS.md` 和 `SOUL.md` 的 workspace prompt loading：`a2bca8e`、`719e805`、`15ce35c`
 
 剩余：
 

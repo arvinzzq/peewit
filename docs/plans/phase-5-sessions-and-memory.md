@@ -21,7 +21,7 @@ Completed:
 - Durable trace events in session stores: `0b10494`
 - CLI named-session trace persistence across process runs: `dd5a2a1`
 - CLI latest-session resume with `chat --resume`: `325b8f2`
-- Workspace prompt loading for `AGENTS.md` and `SOUL.md`: `a2bca8e`, `719e805`, pending commit
+- Workspace prompt loading for `AGENTS.md` and `SOUL.md`: `a2bca8e`, `719e805`, `15ce35c`
 
 Remaining:
 
