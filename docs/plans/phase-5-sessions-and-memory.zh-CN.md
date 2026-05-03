@@ -19,7 +19,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 - 由 JSONL storage 支撑的 CLI named sessions：`e634f54`
 - Stores 和 CLI 中的 session listing：`08bc0ed`、`b3ecd92`
 - Session stores 中的 durable trace events：`0b10494`
-- CLI named-session trace persistence across process runs：pending commit
+- CLI named-session trace persistence across process runs：`dd5a2a1`
 
 剩余：
 

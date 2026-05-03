@@ -19,7 +19,7 @@ Completed:
 - CLI named sessions backed by JSONL storage: `e634f54`
 - Session listing in stores and CLI: `08bc0ed`, `b3ecd92`
 - Durable trace events in session stores: `0b10494`
-- CLI named-session trace persistence across process runs: pending commit
+- CLI named-session trace persistence across process runs: `dd5a2a1`
 
 Remaining:
 
