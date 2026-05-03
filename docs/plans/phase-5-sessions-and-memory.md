@@ -17,7 +17,7 @@ Completed:
 - CLI short-term memory within one interactive session: `2a22822`
 - Durable JSONL session storage behind `SessionStore`: `f311687`
 - CLI named sessions backed by JSONL storage: `e634f54`
-- Session listing in stores and CLI: in progress
+- Session listing in stores and CLI: `08bc0ed`, `b3ecd92`
 
 Remaining:
 

@@ -17,7 +17,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 - 同一个 interactive session 内的 CLI short-term memory：`2a22822`
 - `SessionStore` 后面的 durable JSONL session storage：`f311687`
 - 由 JSONL storage 支撑的 CLI named sessions：`e634f54`
-- Stores 和 CLI 中的 session listing：in progress
+- Stores 和 CLI 中的 session listing：`08bc0ed`、`b3ecd92`
 
 剩余：
 
