@@ -21,10 +21,10 @@ Completed:
 - Durable trace events in session stores: `0b10494`
 - CLI named-session trace persistence across process runs: `dd5a2a1`
 - CLI latest-session resume with `chat --resume`: `325b8f2`
+- Workspace prompt loading for `AGENTS.md` and `SOUL.md`: `a2bca8e`, `719e805`, pending commit
 
 Remaining:
 
-- Workspace prompt loading for `AGENTS.md` and `SOUL.md`.
 - Long-term memory files such as `USER.md`, `MEMORY.md`, and `memory/YYYY-MM-DD.md`.
 
 Latest verification:
@@ -37,7 +37,7 @@ Latest verification:
 
 Next recommended slice:
 
-- Add workspace prompt loading for `AGENTS.md` and `SOUL.md`.
+- Document and implement read-only long-term memory file policy before loading `USER.md` or `MEMORY.md`.
 
 ## 1. Purpose
 
@@ -101,6 +101,8 @@ pnpm run cli chat --resume
 
 If no session is specified, the CLI creates a generic `session_<id>` session. Session IDs are agent-level identifiers and should not encode the entry adapter such as CLI or Web UI. The default storage directory is `~/.arvinclaw/sessions`.
 
+Configured CLI chat also loads `AGENTS.md` and read-only `SOUL.md` from the configured workspace root when those files exist. The workspace root can be set with `ARVINCLAW_WORKSPACE_ROOT`.
+
 ## 5. Durable Session Storage
 
 The durable target is JSONL session storage similar to OpenClaw's replayable session direction.
@@ -151,6 +153,7 @@ Required tests:
 - Trace persistence in `SessionStore` and configured CLI chat.
 - `/trace` can replay persisted trace for a named session after process restart.
 - CLI `chat --resume` continues the most recently updated stored session.
+- Workspace prompt files are included in configured-provider context when present.
 
 ## 8. Acceptance Criteria
 

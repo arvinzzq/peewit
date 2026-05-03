@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-保持这个 package 专注于终端适配。它可以为 CLI commands 组装 runtime、config 和 durable session/message/trace dependencies，但 Agent 行为属于 `packages/core`，prompt/context 工作属于 `packages/context`，session persistence 属于 `packages/sessions`，provider normalization 属于 `packages/models`。
+保持这个 package 专注于终端适配。它可以为 CLI commands 组装 runtime、config、workspace-aware context assembly 和 durable session/message/trace dependencies，但 Agent 行为属于 `packages/core`，prompt/context 工作属于 `packages/context`，session persistence 属于 `packages/sessions`，provider normalization 属于 `packages/models`。
 
 ## When Files Change
 
@@ -10,7 +10,7 @@
 
 ## Testing
 
-CLI 可见行为、session listing/resume、interactive input loops、durable message and trace handoff、short-term memory handoff、slash commands、trace rendering、config redaction 和 missing API key handling 需要在 `src/index.test.ts` 中有测试。Configured-provider tests 使用注入的 fake HTTP。CLI 单元测试不能要求真实 model provider 或 API key。
+CLI 可见行为、session listing/resume、workspace prompt handoff、interactive input loops、durable message and trace handoff、short-term memory handoff、slash commands、trace rendering、config redaction 和 missing API key handling 需要在 `src/index.test.ts` 中有测试。Configured-provider tests 使用注入的 fake HTTP。CLI 单元测试不能要求真实 model provider 或 API key。
 
 ## Boundaries
 

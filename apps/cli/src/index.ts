@@ -365,7 +365,7 @@ export class CliChatSession {
 
     return new CliChatSession(
       new AgentRuntime({
-        contextAssembler: new DefaultContextAssembler(),
+        contextAssembler: createCliContextAssembler(),
         modelProvider: provider,
         systemInstruction: "You are ArvinClaw, a CLI-first OpenClaw-like learning agent.",
         runtime: {
@@ -389,7 +389,7 @@ export class CliChatSession {
 
     return new CliChatSession(
       new AgentRuntime({
-        contextAssembler: new DefaultContextAssembler(),
+        contextAssembler: createCliContextAssembler(),
         modelProvider: new OpenAICompatibleProvider({
           baseURL: config.model.baseURL,
           apiKey: config.secrets.apiKey,
@@ -505,6 +505,12 @@ function createConfiguredSessionStore(config: EffectiveConfig, options: RunCliOp
   return new JsonlSessionStore({
     directory,
     createSessionId: () => sessionId
+  });
+}
+
+function createCliContextAssembler(): DefaultContextAssembler {
+  return new DefaultContextAssembler({
+    workspacePromptFiles: ["AGENTS.md", "SOUL.md"]
   });
 }
 

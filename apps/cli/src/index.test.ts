@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { CliChatSession, renderCompactTrace, runCli } from "./index.js";
@@ -86,6 +86,55 @@ describe("runCli", () => {
       expect(requests[0]?.init?.body).toContain("\"model\":\"test-model\"");
     } finally {
       await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("includes workspace prompt files in configured-provider chat context", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-cli-workspace-"));
+    const inputs = ["Follow workspace guidance", "/exit"];
+    const requests: Array<{ body: string }> = [];
+
+    try {
+      await writeFile(join(workspace, "AGENTS.md"), "Always explain architectural intent.");
+      await writeFile(join(workspace, "SOUL.md"), "Be calm and direct.");
+
+      const result = await runCli(["chat"], "0.0.0", {
+        env: {
+          ARVINCLAW_API_KEY: "secret-api-key",
+          ARVINCLAW_WORKSPACE_ROOT: workspace
+        },
+        sessionsDirectory: directory,
+        readLine: async () => inputs.shift(),
+        fetch: async (_url, init) => {
+          requests.push({
+            body: String(init?.body)
+          });
+
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { content: "Workspace-aware response" } }]
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json"
+              }
+            }
+          );
+        }
+      });
+
+      expect(result.exitCode).toBe(0);
+      const body = JSON.parse(requests[0]?.body ?? "{}");
+      expect(body.messages[0].role).toBe("system");
+      expect(body.messages[0].content).toContain("### AGENTS.md");
+      expect(body.messages[0].content).toContain("Always explain architectural intent.");
+      expect(body.messages[0].content).toContain("### SOUL.md");
+      expect(body.messages[0].content).toContain("Be calm and direct.");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+      await rm(workspace, { force: true, recursive: true });
     }
   });
 

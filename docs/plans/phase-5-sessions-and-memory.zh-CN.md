@@ -21,10 +21,10 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 - Session stores 中的 durable trace events：`0b10494`
 - CLI named-session trace persistence across process runs：`dd5a2a1`
 - 使用 `chat --resume` 的 CLI latest-session resume：`325b8f2`
+- 针对 `AGENTS.md` 和 `SOUL.md` 的 workspace prompt loading：`a2bca8e`、`719e805`、pending commit
 
 剩余：
 
-- 针对 `AGENTS.md` 和 `SOUL.md` 的 workspace prompt loading。
 - `USER.md`、`MEMORY.md` 和 `memory/YYYY-MM-DD.md` 等 long-term memory files。
 
 最新验证：
@@ -37,7 +37,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 
 下一步建议切片：
 
-- 添加针对 `AGENTS.md` 和 `SOUL.md` 的 workspace prompt loading。
+- 在加载 `USER.md` 或 `MEMORY.md` 前，先记录并实现 read-only long-term memory file policy。
 
 ## 1. 目的
 
@@ -101,6 +101,8 @@ pnpm run cli chat --resume
 
 如果未指定 session，CLI 会创建一个通用的 `session_<id>` session。Session ID 是 agent-level identifier，不应该编码 CLI 或 Web UI 这样的 entry adapter。默认 storage directory 是 `~/.arvinclaw/sessions`。
 
+Configured CLI chat 也会在文件存在时，从 configured workspace root 加载 `AGENTS.md` 和 read-only `SOUL.md`。Workspace root 可以通过 `ARVINCLAW_WORKSPACE_ROOT` 设置。
+
 ## 5. Durable Session Storage
 
 Durable target 是类似 OpenClaw replayable session 方向的 JSONL session storage。
@@ -151,6 +153,7 @@ Agent 不能静默写入这些文件。Memory promotion 应该是 explicit 且 r
 - `SessionStore` 和 configured CLI chat 中的 trace persistence。
 - `/trace` 可以在 process restart 后 replay named session 的 persisted trace。
 - CLI `chat --resume` 会继续最近更新的 stored session。
+- Workspace prompt files 存在时会进入 configured-provider context。
 
 ## 8. 验收标准
 

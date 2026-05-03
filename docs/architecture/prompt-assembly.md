@@ -141,8 +141,7 @@ Workspace prompt files should be loaded through prompt assembly or context assem
 
 Planned loading stages:
 
-- MVP/Phase 1: no automatic long-term memory files; optional `AGENTS.md` loading can be added early.
-- Phase 1-2: read-only `SOUL.md`.
+- Phase 5 current: read `AGENTS.md` and read-only `SOUL.md` from the configured workspace root when present.
 - Phase 5: `USER.md`, `MEMORY.md`, and daily memory files after memory policy is ready.
 - Later: `TOOLS.md`, `HEARTBEAT.md`, `BOOTSTRAP.md`.
 

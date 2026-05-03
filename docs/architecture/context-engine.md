@@ -94,8 +94,8 @@ Potential context sources:
 | Trace summaries | Included | Recent explainable events |
 | Skill index | Included | Compact list, not full skill bodies |
 | Tool definitions | Included | Provider-neutral projection |
-| `AGENTS.md` | Early | Project instructions |
-| `SOUL.md` | Later | Read-only identity |
+| `AGENTS.md` | Included | Project instructions |
+| `SOUL.md` | Included | Read-only identity |
 | `USER.md` | Deferred | Needs privacy policy |
 | `MEMORY.md` | Deferred | Needs memory write policy |
 | Daily notes | Deferred | Needs memory system |
@@ -110,6 +110,7 @@ MVP order:
 ```text
 Base system instructions
   -> Runtime metadata
+  -> Workspace prompt files, if present
   -> Effective configuration
   -> Permission guidance
   -> Skill index
@@ -135,6 +136,8 @@ Base system instructions
 ```
 
 The exact order may evolve, but changes must be intentional and tested.
+
+Phase 5 implements the first workspace prompt loading slice. `AGENTS.md` and `SOUL.md` are read from the configured workspace root, skipped when absent, and appended to the system message as structured workspace prompt sections.
 
 ## 7. Context Budget
 
