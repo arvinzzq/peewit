@@ -1,11 +1,16 @@
 /**
- * INPUT: User config, project config, and environment variable overrides.
+ * INPUT: User config, project config, ArvinClaw env overrides, and provider-specific env shortcuts.
  * OUTPUT: EffectiveConfig, redacted config views, and validation errors.
  * POS: Configuration boundary; keeps config loading separate from runtime behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
 export const configPackageName = "@arvinclaw/config";
+
+const openRouterDefaults = {
+  baseURL: "https://openrouter.ai/api/v1",
+  model: "openai/gpt-4.1-mini"
+} as const;
 
 export type AutonomyMode = "observe" | "confirm" | "auto";
 export type TraceVerbosity = "explainable" | "debug";
@@ -172,6 +177,12 @@ function applyObject(target: Record<string, unknown>, value: unknown): void {
 }
 
 function applyEnv(config: EffectiveConfig, env: Record<string, string | undefined>): void {
+  if (env.OPENROUTER_API_KEY !== undefined) {
+    config.model.baseURL = openRouterDefaults.baseURL;
+    config.model.model = openRouterDefaults.model;
+    config.secrets.apiKey = env.OPENROUTER_API_KEY;
+  }
+
   if (env.ARVINCLAW_BASE_URL !== undefined) {
     config.model.baseURL = env.ARVINCLAW_BASE_URL;
   }

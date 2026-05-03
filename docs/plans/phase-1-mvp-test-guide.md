@@ -122,7 +122,19 @@ Expected result:
 - User messages are sent through the configured OpenAI-compatible provider.
 - Assistant responses are rendered in the terminal.
 
-If `ARVINCLAW_API_KEY` is missing:
+OpenRouter can be used with:
+
+```bash
+OPENROUTER_API_KEY=your_openrouter_key pnpm run cli chat
+```
+
+Expected result:
+
+- The CLI uses `https://openrouter.ai/api/v1`.
+- The default OpenRouter model is `openai/gpt-4.1-mini`.
+- Generic overrides such as `ARVINCLAW_BASE_URL` and `ARVINCLAW_MODEL` still take precedence when set.
+
+If both `ARVINCLAW_API_KEY` and `OPENROUTER_API_KEY` are missing:
 
 ```bash
 pnpm run cli chat

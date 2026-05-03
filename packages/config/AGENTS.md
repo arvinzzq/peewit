@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-Keep configuration precedence, validation, and redaction here. Other packages should receive effective configuration or configured dependencies instead of reading config themselves.
+Keep configuration precedence, provider-specific shortcuts, validation, and redaction here. Other packages should receive effective configuration or configured dependencies instead of reading config themselves.
 
 ## When Files Change
 
@@ -10,7 +10,7 @@ Update README and AGENTS files when config fields, precedence, or file inventory
 
 ## Testing
 
-Config changes need tests for defaults, override precedence, invalid values, and secret redaction.
+Config changes need tests for defaults, override precedence, provider-specific shortcuts, invalid values, and secret redaction.
 
 ## Boundaries
 

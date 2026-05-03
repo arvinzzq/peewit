@@ -27,6 +27,7 @@ describe("runCli", () => {
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("ARVINCLAW_API_KEY");
+    expect(result.stderr).toContain("OPENROUTER_API_KEY");
   });
 
   test("runs an interactive configured-provider chat loop", async () => {

@@ -165,6 +165,7 @@ Provider-specific 错误应归一化为少量类别：
 
 ```text
 ARVINCLAW_API_KEY
+OPENROUTER_API_KEY
 ```
 
 未来可支持 provider-specific key：

@@ -51,6 +51,35 @@ describe("loadConfig", () => {
     expect(JSON.stringify(redactedConfig(config))).not.toContain("sk-test-secret");
   });
 
+  test("supports OpenRouter API key as an OpenAI-compatible provider shortcut", () => {
+    const config = loadConfig({
+      env: {
+        OPENROUTER_API_KEY: "sk-or-test-secret"
+      }
+    });
+
+    expect(config.model.provider).toBe("openai-compatible");
+    expect(config.model.baseURL).toBe("https://openrouter.ai/api/v1");
+    expect(config.model.model).toBe("openai/gpt-4.1-mini");
+    expect(config.secrets.apiKey).toBe("sk-or-test-secret");
+    expect(JSON.stringify(redactedConfig(config))).not.toContain("sk-or-test-secret");
+  });
+
+  test("lets generic ArvinClaw model settings override OpenRouter defaults", () => {
+    const config = loadConfig({
+      env: {
+        OPENROUTER_API_KEY: "sk-or-test-secret",
+        ARVINCLAW_BASE_URL: "https://custom.example/v1",
+        ARVINCLAW_MODEL: "custom/model",
+        ARVINCLAW_API_KEY: "sk-custom-secret"
+      }
+    });
+
+    expect(config.model.baseURL).toBe("https://custom.example/v1");
+    expect(config.model.model).toBe("custom/model");
+    expect(config.secrets.apiKey).toBe("sk-custom-secret");
+  });
+
   test("rejects invalid autonomy modes", () => {
     expect(() =>
       loadConfig({

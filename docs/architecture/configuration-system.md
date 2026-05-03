@@ -111,10 +111,11 @@ Secrets must not be stored in workspace prompt files or committed project config
 MVP secret sources:
 
 - `ARVINCLAW_API_KEY`
-- Provider-specific keys later, such as `ARVINCLAW_OPENAI_API_KEY`
+- `OPENROUTER_API_KEY`, which selects the OpenRouter OpenAI-compatible endpoint unless generic ArvinClaw overrides are also set
 
 Future secret sources:
 
+- Provider-specific keys such as `ARVINCLAW_OPENAI_API_KEY`
 - Encrypted local secret file
 - OS keychain
 - Cloud secret provider for team deployments
@@ -139,7 +140,7 @@ Example:
 
 ```text
 Missing API key for provider "openai-compatible".
-Set ARVINCLAW_API_KEY or configure a supported secret source.
+Set ARVINCLAW_API_KEY, OPENROUTER_API_KEY, or configure a supported secret source.
 ```
 
 ## 8. Redaction

@@ -76,7 +76,7 @@ MVP should avoid a large command surface. Commands should appear when the underl
 Expected behavior:
 
 1. Load configuration.
-2. Require `ARVINCLAW_API_KEY` for the configured provider path.
+2. Require `ARVINCLAW_API_KEY` or `OPENROUTER_API_KEY` for the configured provider path.
 3. Create or resume a lightweight session.
 4. Create a run ID for each user turn.
 5. Send the user message to Agent Core.

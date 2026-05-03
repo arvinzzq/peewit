@@ -134,7 +134,7 @@ async function runInteractiveConfiguredChat(options: RunCliOptions): Promise<Cli
     return {
       exitCode: 1,
       stdout: "",
-      stderr: "Missing ARVINCLAW_API_KEY. Set it to start `arvinclaw chat`, or use `arvinclaw chat --fake-interactive` for local learning.\n"
+      stderr: "Missing ARVINCLAW_API_KEY or OPENROUTER_API_KEY. Set one to start `arvinclaw chat`, or use `arvinclaw chat --fake-interactive` for local learning.\n"
     };
   }
 

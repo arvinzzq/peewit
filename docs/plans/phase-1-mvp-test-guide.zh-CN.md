@@ -120,7 +120,19 @@ ARVINCLAW_API_KEY=your_api_key pnpm run cli chat
 - 用户消息通过 configured OpenAI-compatible provider 发送。
 - Assistant responses 在终端中渲染。
 
-如果缺少 `ARVINCLAW_API_KEY`：
+OpenRouter 可以这样使用：
+
+```bash
+OPENROUTER_API_KEY=your_openrouter_key pnpm run cli chat
+```
+
+预期结果：
+
+- CLI 使用 `https://openrouter.ai/api/v1`。
+- 默认 OpenRouter model 是 `openai/gpt-4.1-mini`。
+- 设置 `ARVINCLAW_BASE_URL` 和 `ARVINCLAW_MODEL` 这类 generic overrides 时，它们仍然优先。
+
+如果同时缺少 `ARVINCLAW_API_KEY` 和 `OPENROUTER_API_KEY`：
 
 ```bash
 pnpm run cli chat

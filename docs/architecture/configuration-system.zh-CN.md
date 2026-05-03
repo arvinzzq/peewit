@@ -111,10 +111,11 @@ Secrets 不能存进 workspace prompt files 或已提交 project config。
 MVP secret sources：
 
 - `ARVINCLAW_API_KEY`
-- 后续 provider-specific keys，例如 `ARVINCLAW_OPENAI_API_KEY`
+- `OPENROUTER_API_KEY`，除非同时设置 generic ArvinClaw overrides，否则它会选择 OpenRouter OpenAI-compatible endpoint
 
 未来 secret sources：
 
+- Provider-specific keys，例如 `ARVINCLAW_OPENAI_API_KEY`
 - 加密本地 secret file
 - OS keychain
 - 用于 team deployments 的 cloud secret provider
@@ -139,7 +140,7 @@ Configuration loading 应验证：
 
 ```text
 Missing API key for provider "openai-compatible".
-Set ARVINCLAW_API_KEY or configure a supported secret source.
+Set ARVINCLAW_API_KEY, OPENROUTER_API_KEY, or configure a supported secret source.
 ```
 
 ## 8. 脱敏

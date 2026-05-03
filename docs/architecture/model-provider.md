@@ -165,6 +165,7 @@ Secrets should not be stored in project config. API keys should come from enviro
 
 ```text
 ARVINCLAW_API_KEY
+OPENROUTER_API_KEY
 ```
 
 Future versions may support provider-specific keys:
