@@ -243,6 +243,58 @@ describe("runCli", () => {
     }
   });
 
+  test("persists configured chat trace across CLI runs", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+    const env = {
+      ARVINCLAW_API_KEY: "secret-api-key"
+    };
+
+    try {
+      const firstInputs = ["Trace me", "/exit"];
+      await runCli(["chat", "--session", "trace_session"], "0.0.0", {
+        env,
+        sessionsDirectory: directory,
+        readLine: async () => firstInputs.shift(),
+        fetch: async () =>
+          new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    content: "Trace response"
+                  }
+                }
+              ]
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json"
+              }
+            }
+          )
+      });
+
+      const secondInputs = ["/trace", "/exit"];
+      const secondResult = await runCli(["chat", "--session", "trace_session"], "0.0.0", {
+        env,
+        sessionsDirectory: directory,
+        readLine: async () => secondInputs.shift(),
+        fetch: async () => {
+          throw new Error("Trace-only run should not call the provider.");
+        }
+      });
+
+      expect(secondResult.exitCode).toBe(0);
+      expect(secondResult.stdout).toContain("Recent Trace:");
+      expect(secondResult.stdout).toContain("1. Received user message (run_started)");
+      expect(secondResult.stdout).toContain("6. Completed run (run_completed)");
+      await expect(readFile(join(directory, "trace_session.jsonl"), "utf8")).resolves.toContain("\"type\":\"trace\"");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
   test("expands the default sessions directory under HOME", async () => {
     const home = await mkdtemp(join(tmpdir(), "arvinclaw-cli-home-"));
     const inputs = ["Home session message", "/exit"];

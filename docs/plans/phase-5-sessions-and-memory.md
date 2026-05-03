@@ -18,10 +18,11 @@ Completed:
 - Durable JSONL session storage behind `SessionStore`: `f311687`
 - CLI named sessions backed by JSONL storage: `e634f54`
 - Session listing in stores and CLI: `08bc0ed`, `b3ecd92`
+- Durable trace events in session stores: `0b10494`
+- CLI named-session trace persistence across process runs: pending commit
 
 Remaining:
 
-- Trace persistence alongside message persistence.
 - Session resume command.
 - Workspace prompt loading for `AGENTS.md` and `SOUL.md`.
 - Long-term memory files such as `USER.md`, `MEMORY.md`, and `memory/YYYY-MM-DD.md`.
@@ -36,7 +37,7 @@ Latest verification:
 
 Next recommended slice:
 
-- Add trace persistence alongside message persistence.
+- Add an explicit session resume/latest-session command.
 
 ## 1. Purpose
 
@@ -113,7 +114,7 @@ Each line should be a structured record such as:
 
 The JSONL store is append-only so a session can be replayed in order and later extended with trace or tool records without rewriting history.
 
-Trace records can use the same file or a sibling trace file. The final choice should be documented before implementation.
+Trace records use the same JSONL file as messages. This keeps each named session replayable from one append-only file and makes `/trace` work after a CLI process restart.
 
 ## 6. Long-Term Memory
 
@@ -141,6 +142,8 @@ Required tests:
 - Unsafe session ID rejection before writing files.
 - CLI named sessions persist history across process runs.
 - Session listing shows stored sessions by recent update.
+- Trace persistence in `SessionStore` and configured CLI chat.
+- `/trace` can replay persisted trace for a named session after process restart.
 - Future resume command behavior.
 
 ## 8. Acceptance Criteria

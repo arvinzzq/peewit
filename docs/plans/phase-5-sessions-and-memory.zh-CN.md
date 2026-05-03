@@ -18,10 +18,11 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 - `SessionStore` 后面的 durable JSONL session storage：`f311687`
 - 由 JSONL storage 支撑的 CLI named sessions：`e634f54`
 - Stores 和 CLI 中的 session listing：`08bc0ed`、`b3ecd92`
+- Session stores 中的 durable trace events：`0b10494`
+- CLI named-session trace persistence across process runs：pending commit
 
 剩余：
 
-- Trace persistence alongside message persistence。
 - Session resume command。
 - 针对 `AGENTS.md` 和 `SOUL.md` 的 workspace prompt loading。
 - `USER.md`、`MEMORY.md` 和 `memory/YYYY-MM-DD.md` 等 long-term memory files。
@@ -36,7 +37,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 
 下一步建议切片：
 
-- 添加与 message persistence 并行的 trace persistence。
+- 添加明确的 session resume/latest-session command。
 
 ## 1. 目的
 
@@ -113,7 +114,7 @@ Durable target 是类似 OpenClaw replayable session 方向的 JSONL session sto
 
 JSONL store 是 append-only 的，这样 session 可以按顺序 replay，后续也可以加入 trace 或 tool records，而不需要重写历史。
 
-Trace records 可以使用同一个文件，也可以使用 sibling trace file。最终选择应在实现前写入文档。
+Trace records 使用与 messages 相同的 JSONL file。这样每个 named session 都能从一个 append-only file replay，并让 CLI process 重启后 `/trace` 仍然可用。
 
 ## 6. Long-Term Memory
 
@@ -141,6 +142,8 @@ Agent 不能静默写入这些文件。Memory promotion 应该是 explicit 且 r
 - 写入文件前拒绝 unsafe session ID。
 - CLI named sessions 可以跨 process runs 持久化 history。
 - Session listing 按最近更新时间展示 stored sessions。
+- `SessionStore` 和 configured CLI chat 中的 trace persistence。
+- `/trace` 可以在 process restart 后 replay named session 的 persisted trace。
 - 未来 resume command behavior。
 
 ## 8. 验收标准

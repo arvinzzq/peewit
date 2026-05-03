@@ -1,6 +1,6 @@
 /**
  * INPUT: CLI arguments, package version, optional line reader/fetch implementation, config loader, runtime/session packages, context assembler, and model providers.
- * OUTPUT: CLI result objects, configured/fake interactive chat transcript, short-term session memory, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
+ * OUTPUT: CLI result objects, configured/fake interactive chat transcript, short-term session memory, persisted trace output, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
  * POS: CLI adapter layer; translates terminal commands without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -393,6 +393,7 @@ export class CliChatSession {
 
     for await (const event of this.#runtime.runTurn({ sessionId: this.#sessionId, recentMessages, message })) {
       await this.#traceStore.append(event);
+      await this.#sessionStore.appendTraceEvent({ sessionId: this.#sessionId, event });
       events.push(event);
     }
 
@@ -424,7 +425,9 @@ export class CliChatSession {
 
   async runSlashCommand(command: string): Promise<string[]> {
     if (command === "/trace") {
-      return renderCompactTrace(await this.#traceStore.listRecent());
+      const traceEvents = await this.#sessionStore.listTraceEvents<RuntimeEvent>(this.#sessionId);
+
+      return renderCompactTrace(traceEvents.map((traceEvent) => traceEvent.event));
     }
 
     if (command === "/config") {

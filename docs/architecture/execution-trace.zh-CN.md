@@ -183,7 +183,7 @@ Trace records 最终应关联：
 - Tool call ID
 - Timestamp
 
-Phase 1 可以保持轻量，但形态应为未来 session replay 和 Web UI trace visualization 留空间。
+Phase 5 会把 runtime trace events 持久化到与 session messages 相同的 JSONL file 中。这样 trace replay 保持本地、append-only 且容易检查，同时仍为后续更丰富的 trace index 留空间。
 
 ## 12. CLI Rendering
 
@@ -193,6 +193,7 @@ MVP 行为：
 
 - 在 `chat` 期间 inline 展示重要 trace events。
 - 提供 `/trace` 展示最近 trace details。
+- 对 named sessions，CLI process 重启后 `/trace` 应加载持久化的 current-session trace。
 - 默认隐藏 debug-only details。
 - 清晰标记 permission prompts 和 tool results。
 
@@ -239,6 +240,7 @@ Execution trace 需要测试，因为它是用户观察 Agent 行为的主要窗
 - Debug details 默认隐藏
 - Error trace behavior
 - 增加 persistence 后的 session association
+- Current-session trace 的 persistence 和 replay
 - 每个新增 trace event type 的回归测试
 
 任何改变 Agent Loop、Tool System、Permission System、CLI rendering 或 session persistence 的迭代，都应更新 trace tests。
@@ -253,6 +255,7 @@ MVP Execution Trace 成功标准：
 - Errors 在 trace 中可见。
 - Secret-like content 被脱敏。
 - CLI 可以展示最近 trace details。
+- CLI 可以为 named session replay 持久化 trace details。
 - Trace data 足够结构化，可用于未来 Web UI rendering。
 - Trace behavior 被 unit 和 integration tests 覆盖。
 
