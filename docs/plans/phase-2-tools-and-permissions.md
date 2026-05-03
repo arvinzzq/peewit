@@ -17,16 +17,17 @@ Completed:
 - Runtime evaluates permission decisions for requested tool calls: `0a0f18b`
 - CLI renders approval prompts for `ask` permission decisions: `6c3b956`
 - Runtime approval resolver records approval request and resolution events: `7e81d92`
+- Executable tool contracts and built-in read-only file tools: `099e037`
 
 Remaining:
 
 - Runtime tool execution wiring after tool-call events.
-- Built-in file tools.
+- Guarded file write tool.
 - Tool lifecycle trace events.
 
 Next recommended slice:
 
-- Add executable tool contracts and built-in read-only file tools.
+- Wire runtime tool execution to the executable tool contracts.
 
 ## 1. Purpose
 
