@@ -1,4 +1,7 @@
 import { describe, expect, test } from "vitest";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { DefaultContextAssembler, type ContextAssembler } from "./index.js";
 
 describe("minimal context assembler", () => {
@@ -101,5 +104,77 @@ describe("minimal context assembler", () => {
       "conversation_history",
       "user_message"
     ]);
+  });
+
+  test("loads configured workspace prompt files into the system message", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-context-workspace-"));
+
+    try {
+      await writeFile(join(workspace, "AGENTS.md"), "Use project conventions.");
+      await writeFile(join(workspace, "SOUL.md"), "Stay steady and practical.");
+
+      const assembler = new DefaultContextAssembler({
+        workspacePromptFiles: ["AGENTS.md", "SOUL.md"]
+      });
+
+      const result = await assembler.assemble({
+        systemInstruction: "You are ArvinClaw.",
+        runtime: {
+          mode: "confirm",
+          workspace,
+          currentDate: "2026-05-03"
+        },
+        userMessage: "Follow the project guidance."
+      });
+
+      expect(result.modelInput.messages[0]).toEqual({
+        role: "system",
+        content: [
+          "You are ArvinClaw.",
+          "",
+          "Runtime:",
+          "- Mode: confirm",
+          `- Workspace: ${workspace}`,
+          "- Current date: 2026-05-03",
+          "",
+          "Workspace prompt files:",
+          "",
+          "### AGENTS.md",
+          "Use project conventions.",
+          "",
+          "### SOUL.md",
+          "Stay steady and practical."
+        ].join("\n")
+      });
+      expect(result.report.includedSections).toContain("workspace_prompt_files");
+      expect(result.report.omittedSections).not.toContain("workspace_prompt_files");
+    } finally {
+      await rm(workspace, { force: true, recursive: true });
+    }
+  });
+
+  test("omits missing configured workspace prompt files", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-context-workspace-"));
+
+    try {
+      const assembler = new DefaultContextAssembler({
+        workspacePromptFiles: ["AGENTS.md"]
+      });
+
+      const result = await assembler.assemble({
+        systemInstruction: "You are ArvinClaw.",
+        runtime: {
+          mode: "confirm",
+          workspace,
+          currentDate: "2026-05-03"
+        },
+        userMessage: "Hello."
+      });
+
+      expect(result.modelInput.messages[0]?.content).not.toContain("Workspace prompt files:");
+      expect(result.report.omittedSections).toContain("workspace_prompt_files");
+    } finally {
+      await rm(workspace, { force: true, recursive: true });
+    }
   });
 });

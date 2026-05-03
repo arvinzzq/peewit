@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-把 model-facing context selection 和 assembly 保持在这里。这个 package 应产生 provider-neutral model input，以及解释 included 或 omitted 内容的 reports；提供 short-term conversation history 时也应说明。
+把 model-facing context selection 和 assembly 保持在这里。这个 package 应产生 provider-neutral model input，以及解释 included 或 omitted 内容的 reports；提供 workspace prompt files 和 short-term conversation history 时也应说明。
 
 ## When Files Change
 
@@ -10,7 +10,7 @@
 
 ## Testing
 
-Context ordering、conversation history placement、included sections、omitted sections 和未来 redaction behavior 需要测试。不要依赖 CLI rendering 或 provider-specific formatting。
+Context ordering、workspace prompt loading、conversation history placement、included sections、omitted sections 和未来 redaction behavior 需要测试。不要依赖 CLI rendering 或 provider-specific formatting。
 
 ## Boundaries
 
