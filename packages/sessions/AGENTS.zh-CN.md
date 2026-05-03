@@ -10,7 +10,7 @@
 
 ## Testing
 
-Session logic 需要 create、append、load、ordering、defensive copies、write safety、unsafe session IDs 和 replay behavior 的测试。
+Session logic 需要 create、append、load、session listing、ordering、defensive copies、write safety、unsafe session IDs 和 replay behavior 的测试。
 
 ## Boundaries
 

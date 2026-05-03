@@ -5,7 +5,7 @@
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 export const sessionsPackageName = "@arvinclaw/sessions";
@@ -41,9 +41,14 @@ export interface ListSessionMessagesQuery {
   limit?: number;
 }
 
+export interface ListSessionsQuery {
+  limit?: number;
+}
+
 export interface SessionStore {
   createSession(input?: CreateSessionInput): Promise<SessionRecord>;
   getSession(sessionId: string): Promise<SessionRecord | undefined>;
+  listSessions(query?: ListSessionsQuery): Promise<SessionRecord[]>;
   appendMessage(input: AppendSessionMessageInput): Promise<SessionMessageRecord>;
   listMessages(sessionId: string, query?: ListSessionMessagesQuery): Promise<SessionMessageRecord[]>;
 }
@@ -86,6 +91,13 @@ export class InMemorySessionStore implements SessionStore {
     const session = this.#sessions.get(sessionId);
 
     return session === undefined ? undefined : { ...session };
+  }
+
+  async listSessions(query: ListSessionsQuery = {}): Promise<SessionRecord[]> {
+    const sessions = [...this.#sessions.values()].sort(compareSessionsByRecentUpdate);
+    const selectedSessions = query.limit === undefined ? sessions : sessions.slice(0, query.limit);
+
+    return selectedSessions.map((session) => ({ ...session }));
   }
 
   async appendMessage(input: AppendSessionMessageInput): Promise<SessionMessageRecord> {
@@ -173,6 +185,24 @@ export class JsonlSessionStore implements SessionStore {
     return replay.session === undefined ? undefined : { ...replay.session };
   }
 
+  async listSessions(query: ListSessionsQuery = {}): Promise<SessionRecord[]> {
+    const sessionIds = await this.#sessionIds();
+    const sessions: SessionRecord[] = [];
+
+    for (const sessionId of sessionIds) {
+      const session = await this.getSession(sessionId);
+
+      if (session !== undefined) {
+        sessions.push(session);
+      }
+    }
+
+    const sortedSessions = sessions.sort(compareSessionsByRecentUpdate);
+    const selectedSessions = query.limit === undefined ? sortedSessions : sortedSessions.slice(0, query.limit);
+
+    return selectedSessions.map((session) => ({ ...session }));
+  }
+
   async appendMessage(input: AppendSessionMessageInput): Promise<SessionMessageRecord> {
     const replay = await this.#replay(input.sessionId);
 
@@ -258,6 +288,23 @@ export class JsonlSessionStore implements SessionStore {
 
     return join(this.#directory, `${sessionId}.jsonl`);
   }
+
+  async #sessionIds(): Promise<string[]> {
+    try {
+      const entries = await readdir(this.#directory);
+
+      return entries
+        .filter((entry) => entry.endsWith(".jsonl"))
+        .map((entry) => entry.slice(0, -".jsonl".length))
+        .filter((sessionId) => /^[A-Za-z0-9_-]+$/.test(sessionId));
+    } catch (error) {
+      if (isNodeError(error) && error.code === "ENOENT") {
+        return [];
+      }
+
+      throw error;
+    }
+  }
 }
 
 function assertSafeSessionId(sessionId: string): void {
@@ -268,6 +315,10 @@ function assertSafeSessionId(sessionId: string): void {
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error;
+}
+
+function compareSessionsByRecentUpdate(left: SessionRecord, right: SessionRecord): number {
+  return right.updatedAt.localeCompare(left.updatedAt);
 }
 
 function randomId(prefix: string): () => string {

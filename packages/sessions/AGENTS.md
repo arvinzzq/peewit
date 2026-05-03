@@ -10,7 +10,7 @@ Update README and AGENTS files when persistence responsibilities or file invento
 
 ## Testing
 
-Session logic needs tests for create, append, load, ordering, defensive copies, write safety, unsafe session IDs, and replay behavior.
+Session logic needs tests for create, append, load, session listing, ordering, defensive copies, write safety, unsafe session IDs, and replay behavior.
 
 ## Boundaries
 

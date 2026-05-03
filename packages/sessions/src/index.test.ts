@@ -85,6 +85,38 @@ describe("in-memory session store", () => {
       expect.objectContaining({ content: "three" })
     ]);
   });
+
+  test("lists sessions by most recent update first", async () => {
+    const store = new InMemorySessionStore({
+      createSessionId: (() => {
+        let index = 0;
+        return () => `sess_${++index}`;
+      })(),
+      now: (() => {
+        let index = 0;
+        const timestamps = [
+          "2026-05-03T00:00:00.000Z",
+          "2026-05-03T00:00:01.000Z",
+          "2026-05-03T00:00:02.000Z"
+        ];
+
+        return () => timestamps[index++] ?? "2026-05-03T00:00:03.000Z";
+      })()
+    });
+
+    const first = await store.createSession({ title: "First session" });
+    const second = await store.createSession({ title: "Second session" });
+
+    await store.appendMessage({ sessionId: first.id, role: "user", content: "recent" });
+
+    await expect(store.listSessions()).resolves.toEqual([
+      expect.objectContaining({ id: "sess_1", updatedAt: "2026-05-03T00:00:02.000Z" }),
+      expect.objectContaining({ id: "sess_2", updatedAt: "2026-05-03T00:00:01.000Z" })
+    ]);
+    await expect(store.listSessions({ limit: 1 })).resolves.toEqual([
+      expect.objectContaining({ id: "sess_1" })
+    ]);
+  });
 });
 
 describe("jsonl session store", () => {
@@ -157,6 +189,46 @@ describe("jsonl session store", () => {
       });
 
       await expect(store.createSession()).rejects.toThrow("Unsafe session id");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("lists replayed JSONL sessions by most recent update first", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-sessions-"));
+
+    try {
+      const first = new JsonlSessionStore({
+        directory,
+        createSessionId: () => "sess_one",
+        createMessageId: () => "msg_one",
+        now: (() => {
+          let index = 0;
+          const timestamps = [
+            "2026-05-03T00:00:00.000Z",
+            "2026-05-03T00:00:03.000Z"
+          ];
+
+          return () => timestamps[index++] ?? "2026-05-03T00:00:04.000Z";
+        })()
+      });
+      const second = new JsonlSessionStore({
+        directory,
+        createSessionId: () => "sess_two",
+        createMessageId: () => "msg_two",
+        now: () => "2026-05-03T00:00:01.000Z"
+      });
+
+      const firstSession = await first.createSession({ title: "First" });
+      await second.createSession({ title: "Second" });
+      await first.appendMessage({ sessionId: firstSession.id, role: "user", content: "newest" });
+
+      const replayed = new JsonlSessionStore({ directory });
+
+      await expect(replayed.listSessions()).resolves.toEqual([
+        expect.objectContaining({ id: "sess_one", updatedAt: "2026-05-03T00:00:03.000Z" }),
+        expect.objectContaining({ id: "sess_two", updatedAt: "2026-05-03T00:00:01.000Z" })
+      ]);
     } finally {
       await rm(directory, { force: true, recursive: true });
     }
