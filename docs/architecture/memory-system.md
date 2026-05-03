@@ -87,7 +87,7 @@ ArvinClaw should design for a future `MEMORY.md`, but not implement full long-te
 Phase 5 adds an explicit policy switch for long-term memory files:
 
 - `disabled`: default; do not load `USER.md`, `MEMORY.md`, or daily memory files.
-- `read-only`: future-safe mode; permits read-only loading once the context loader supports those files.
+- `read-only`: loads `USER.md` and `MEMORY.md` from the configured workspace root when present.
 
 Long-term memory writes remain disabled in both modes.
 
@@ -112,12 +112,12 @@ Proposed files:
 | --- | --- | --- |
 | `AGENTS.md` | Operational rules and project instructions | Phase 0 or Phase 1 |
 | `SOUL.md` | Agent personality, values, tone, and boundaries | Phase 1 optional, Phase 2 recommended |
-| `USER.md` | User profile, preferences, and durable user context | Policy gated, loading deferred |
-| `MEMORY.md` | Curated long-term memory | Policy gated, loading deferred |
+| `USER.md` | User profile, preferences, and durable user context | Read-only when policy is enabled |
+| `MEMORY.md` | Curated long-term memory | Read-only when policy is enabled |
 | `memory/YYYY-MM-DD.md` | Daily notes and recent observations | Deferred or Phase 5 |
 | `TOOLS.md` | Environment and tool notes | Deferred |
 
-MVP starts with `AGENTS.md`-style operational instructions, read-only `SOUL.md`, and session storage. `USER.md` and `MEMORY.md` require the long-term memory policy to be `read-only` before any future loader can include them.
+MVP starts with `AGENTS.md`-style operational instructions, read-only `SOUL.md`, and session storage. `USER.md` and `MEMORY.md` require the long-term memory policy to be `read-only` before the context loader includes them.
 
 ## 8. `SOUL.md` Design
 
@@ -269,6 +269,7 @@ Required test areas:
 - Session memory reconstruction
 - Long-term memory disabled in MVP
 - Long-term memory policy validation and display
+- Read-only `USER.md` and `MEMORY.md` loading when the policy is enabled
 - Read-only identity file policy
 - Memory write permission classification
 - Redaction before memory writes

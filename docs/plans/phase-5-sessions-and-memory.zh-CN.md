@@ -23,10 +23,11 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 - 使用 `chat --resume` 的 CLI latest-session resume：`325b8f2`
 - 针对 `AGENTS.md` 和 `SOUL.md` 的 workspace prompt loading：`a2bca8e`、`719e805`、`15ce35c`
 - Long-term memory disabled/read-only policy and CLI visibility：`b737c68`、`db89088`
+- Policy enabled 时只读加载 `USER.md` 和 `MEMORY.md`：pending commit
 
 剩余：
 
-- `USER.md`、`MEMORY.md` 和 `memory/YYYY-MM-DD.md` 等 long-term memory files。
+- `memory/YYYY-MM-DD.md` 等 daily memory files。
 
 最新验证：
 
@@ -38,7 +39,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 
 下一步建议切片：
 
-- 当 long-term memory policy 为 `read-only` 时，加入 `USER.md` 和 `MEMORY.md` 的只读加载。
+- 为 `memory/YYYY-MM-DD.md` 增加 daily memory file planning。
 
 ## 1. 目的
 
@@ -104,7 +105,7 @@ pnpm run cli chat --resume
 
 Configured CLI chat 也会在文件存在时，从 configured workspace root 加载 `AGENTS.md` 和 read-only `SOUL.md`。Workspace root 可以通过 `ARVINCLAW_WORKSPACE_ROOT` 设置。
 
-Long-term memory files 默认保持 disabled。`ARVINCLAW_LONG_TERM_MEMORY=read-only` 会启用未来的只读路径，但 memory writes 仍保持 disabled。
+Long-term memory files 默认保持 disabled。`ARVINCLAW_LONG_TERM_MEMORY=read-only` 会在文件存在时，从 configured workspace root 加载 `USER.md` 和 `MEMORY.md`，但 memory writes 仍保持 disabled。
 
 ## 5. Durable Session Storage
 
@@ -158,6 +159,7 @@ Agent 不能静默写入这些文件。Memory promotion 应该是 explicit 且 r
 - CLI `chat --resume` 会继续最近更新的 stored session。
 - Workspace prompt files 存在时会进入 configured-provider context。
 - Long-term memory file access 由 policy gate 控制，并可通过 `/config` 查看。
+- `USER.md` 和 `MEMORY.md` 只会在 read-only long-term memory mode 中进入 context。
 
 ## 8. 验收标准
 

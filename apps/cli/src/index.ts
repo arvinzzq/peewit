@@ -365,7 +365,7 @@ export class CliChatSession {
 
     return new CliChatSession(
       new AgentRuntime({
-        contextAssembler: createCliContextAssembler(),
+        contextAssembler: createCliContextAssembler(config),
         modelProvider: provider,
         systemInstruction: "You are ArvinClaw, a CLI-first OpenClaw-like learning agent.",
         runtime: {
@@ -389,7 +389,7 @@ export class CliChatSession {
 
     return new CliChatSession(
       new AgentRuntime({
-        contextAssembler: createCliContextAssembler(),
+        contextAssembler: createCliContextAssembler(config),
         modelProvider: new OpenAICompatibleProvider({
           baseURL: config.model.baseURL,
           apiKey: config.secrets.apiKey,
@@ -508,9 +508,15 @@ function createConfiguredSessionStore(config: EffectiveConfig, options: RunCliOp
   });
 }
 
-function createCliContextAssembler(): DefaultContextAssembler {
+function createCliContextAssembler(config: RedactedConfigView | EffectiveConfig): DefaultContextAssembler {
+  const workspacePromptFiles = ["AGENTS.md", "SOUL.md"];
+
+  if (config.memory.longTermFiles === "read-only") {
+    workspacePromptFiles.push("USER.md", "MEMORY.md");
+  }
+
   return new DefaultContextAssembler({
-    workspacePromptFiles: ["AGENTS.md", "SOUL.md"]
+    workspacePromptFiles
   });
 }
 

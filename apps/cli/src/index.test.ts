@@ -138,6 +138,102 @@ describe("runCli", () => {
     }
   });
 
+  test("includes read-only long-term memory files when enabled", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-cli-workspace-"));
+    const inputs = ["Use long-term memory", "/exit"];
+    const requests: Array<{ body: string }> = [];
+
+    try {
+      await writeFile(join(workspace, "USER.md"), "User prefers concise architecture notes.");
+      await writeFile(join(workspace, "MEMORY.md"), "ArvinClaw Phase 5 is about memory.");
+
+      const result = await runCli(["chat"], "0.0.0", {
+        env: {
+          ARVINCLAW_API_KEY: "secret-api-key",
+          ARVINCLAW_WORKSPACE_ROOT: workspace,
+          ARVINCLAW_LONG_TERM_MEMORY: "read-only"
+        },
+        sessionsDirectory: directory,
+        readLine: async () => inputs.shift(),
+        fetch: async (_url, init) => {
+          requests.push({
+            body: String(init?.body)
+          });
+
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { content: "Memory-aware response" } }]
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json"
+              }
+            }
+          );
+        }
+      });
+
+      expect(result.exitCode).toBe(0);
+      const body = JSON.parse(requests[0]?.body ?? "{}");
+      expect(body.messages[0].content).toContain("### USER.md");
+      expect(body.messages[0].content).toContain("User prefers concise architecture notes.");
+      expect(body.messages[0].content).toContain("### MEMORY.md");
+      expect(body.messages[0].content).toContain("ArvinClaw Phase 5 is about memory.");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+      await rm(workspace, { force: true, recursive: true });
+    }
+  });
+
+  test("omits long-term memory files by default", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-cli-workspace-"));
+    const inputs = ["Do not use long-term memory", "/exit"];
+    const requests: Array<{ body: string }> = [];
+
+    try {
+      await writeFile(join(workspace, "USER.md"), "This should not be loaded by default.");
+      await writeFile(join(workspace, "MEMORY.md"), "This should also stay out.");
+
+      const result = await runCli(["chat"], "0.0.0", {
+        env: {
+          ARVINCLAW_API_KEY: "secret-api-key",
+          ARVINCLAW_WORKSPACE_ROOT: workspace
+        },
+        sessionsDirectory: directory,
+        readLine: async () => inputs.shift(),
+        fetch: async (_url, init) => {
+          requests.push({
+            body: String(init?.body)
+          });
+
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { content: "Default memory response" } }]
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json"
+              }
+            }
+          );
+        }
+      });
+
+      expect(result.exitCode).toBe(0);
+      const body = JSON.parse(requests[0]?.body ?? "{}");
+      expect(body.messages[0].content).not.toContain("### USER.md");
+      expect(body.messages[0].content).not.toContain("### MEMORY.md");
+      expect(body.messages[0].content).not.toContain("This should not be loaded by default.");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+      await rm(workspace, { force: true, recursive: true });
+    }
+  });
+
   test("sends recent session messages on later interactive turns", async () => {
     const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
     const inputs = ["First message", "Second message", "/exit"];
