@@ -24,7 +24,7 @@ Completed:
 - Workspace prompt loading for `AGENTS.md` and `SOUL.md`: `a2bca8e`, `719e805`, `15ce35c`
 - Long-term memory disabled/read-only policy and CLI visibility: `b737c68`, `db89088`
 - Read-only `USER.md` and `MEMORY.md` loading when enabled: `fafe13f`
-- Read-only today/yesterday daily memory loading when enabled: pending commit
+- Read-only today/yesterday daily memory loading when enabled: `7d38ccc`
 
 Remaining:
 

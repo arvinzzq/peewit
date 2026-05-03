@@ -24,7 +24,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 - 针对 `AGENTS.md` 和 `SOUL.md` 的 workspace prompt loading：`a2bca8e`、`719e805`、`15ce35c`
 - Long-term memory disabled/read-only policy and CLI visibility：`b737c68`、`db89088`
 - Policy enabled 时只读加载 `USER.md` 和 `MEMORY.md`：`fafe13f`
-- Policy enabled 时只读加载今天/昨天 daily memory：pending commit
+- Policy enabled 时只读加载今天/昨天 daily memory：`7d38ccc`
 
 剩余：
 
