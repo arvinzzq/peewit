@@ -10,7 +10,7 @@
 
 ## Testing
 
-CLI 可见行为、interactive input loops、durable session handoff、short-term memory handoff、slash commands、trace rendering、config redaction 和 missing API key handling 需要在 `src/index.test.ts` 中有测试。Configured-provider tests 使用注入的 fake HTTP。CLI 单元测试不能要求真实 model provider 或 API key。
+CLI 可见行为、session listing、interactive input loops、durable session handoff、short-term memory handoff、slash commands、trace rendering、config redaction 和 missing API key handling 需要在 `src/index.test.ts` 中有测试。Configured-provider tests 使用注入的 fake HTTP。CLI 单元测试不能要求真实 model provider 或 API key。
 
 ## Boundaries
 

@@ -284,6 +284,50 @@ describe("runCli", () => {
     }
   });
 
+  test("lists stored sessions from the configured session directory", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+
+    try {
+      const firstInputs = ["First list message", "/exit"];
+      await runCli(["chat", "--session", "first_session"], "0.0.0", {
+        env: {
+          ARVINCLAW_API_KEY: "secret-api-key"
+        },
+        sessionsDirectory: directory,
+        readLine: async () => firstInputs.shift(),
+        fetch: async () =>
+          new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    content: "First response"
+                  }
+                }
+              ]
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json"
+              }
+            }
+          )
+      });
+
+      const result = await runCli(["sessions"], "0.0.0", {
+        sessionsDirectory: directory
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("Sessions:");
+      expect(result.stdout).toContain("first_session");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
   test("runs an interactive fake-provider chat loop", async () => {
     const inputs = ["Hello interactive", "/exit"];
     const result = await runCli(["chat", "--fake-interactive"], "0.0.0", {

@@ -42,6 +42,7 @@ Commands:
               Run one message-only turn with a fake provider
   chat --fake-interactive
               Start an interactive chat session with a fake provider
+  sessions    List stored chat sessions
   --help      Show this help message
   --version   Show the CLI version
 `;
@@ -77,6 +78,10 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
     }
 
     return runInteractiveConfiguredChat(options, parsedChatArgs);
+  }
+
+  if (command === "sessions") {
+    return runListSessions(options);
   }
 
   return {
@@ -165,6 +170,26 @@ async function runInteractiveConfiguredChat(options: RunCliOptions, args: Parsed
     "ArvinClaw chat",
     options
   );
+}
+
+async function runListSessions(options: RunCliOptions): Promise<CliResult> {
+  const config = loadConfig(options.env ? { env: options.env } : {});
+  const store = createConfiguredSessionStore(config, options, createSessionId());
+  const sessions = await store.listSessions();
+
+  if (sessions.length === 0) {
+    return {
+      exitCode: 0,
+      stdout: "Sessions:\nNo sessions found.\n",
+      stderr: ""
+    };
+  }
+
+  return {
+    exitCode: 0,
+    stdout: ["Sessions:", ...sessions.map((session) => `${session.id}\t${session.updatedAt}${session.title ? `\t${session.title}` : ""}`)].join("\n") + "\n",
+    stderr: ""
+  };
 }
 
 async function runInteractiveLoop(session: CliChatSession, title: string, options: RunCliOptions): Promise<CliResult> {

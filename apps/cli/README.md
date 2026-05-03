@@ -12,8 +12,8 @@ It wires CLI-visible commands to runtime, config, and durable/short-term session
 | --- | --- | --- |
 | `package.json` | Package manifest | Declares the CLI package, executable name, build scripts, and runtime/config/session package dependencies. |
 | `tsconfig.json` | TypeScript config | Builds the CLI package with references to config, core, context, and models. |
-| `src/index.ts` | CLI adapter | Parses commands, runs configured and fake interactive chat loops, stores in-process traces and JSONL sessions, and renders `/help`, `/trace`, `/config`, and `/exit`. |
-| `src/index.test.ts` | CLI tests | Protects help, version, configured chat, durable session handoff, short-term memory handoff, fake-provider chat, compact trace rendering, `/trace`, `/config`, missing API key handling, and unknown-command behavior. |
+| `src/index.ts` | CLI adapter | Parses commands, lists stored sessions, runs configured and fake interactive chat loops, stores in-process traces and JSONL sessions, and renders `/help`, `/trace`, `/config`, and `/exit`. |
+| `src/index.test.ts` | CLI tests | Protects help, version, session listing, configured chat, durable session handoff, short-term memory handoff, fake-provider chat, compact trace rendering, `/trace`, `/config`, missing API key handling, and unknown-command behavior. |
 
 ## Update Reminder
 

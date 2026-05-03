@@ -54,6 +54,7 @@ CLI 应该像一个可用工具，而不只是 demo wrapper。
 | `arvinclaw chat --session <id>` | 开始或继续一个 JSONL-backed named chat session | Phase 5 |
 | `arvinclaw chat --fake-interactive` | 使用 fake provider 开始一个本地学习用交互 session | Phase 1 |
 | `arvinclaw chat --fake "<message>"` | 运行一次 fake-provider smoke path | Phase 1 |
+| `arvinclaw sessions` | 列出 stored JSONL chat sessions | Phase 5 |
 | `arvinclaw --version` | 显示版本 | Phase 0-1 |
 | `arvinclaw --help` | 显示可用命令 | Phase 0-1 |
 
@@ -62,7 +63,6 @@ CLI 应该像一个可用工具，而不只是 demo wrapper。
 | 命令 | 用途 | 阶段 |
 | --- | --- | --- |
 | `arvinclaw run "<goal>"` | 运行一次性 goal 后退出 | Phase 2-4 |
-| `arvinclaw sessions` | 列出本地 sessions | Phase 5 |
 | `arvinclaw resume <session>` | 恢复一个 session | Phase 5 |
 | `arvinclaw trace <session>` | 检查已存储 trace events | Phase 5 |
 | `arvinclaw skills` | 列出已加载 skills | Phase 3 |

@@ -17,10 +17,10 @@ Completed:
 - CLI short-term memory within one interactive session: `2a22822`
 - Durable JSONL session storage behind `SessionStore`: `f311687`
 - CLI named sessions backed by JSONL storage: `e634f54`
+- Session listing in stores and CLI: in progress
 
 Remaining:
 
-- Session listing commands.
 - Trace persistence alongside message persistence.
 - Session resume command.
 - Workspace prompt loading for `AGENTS.md` and `SOUL.md`.
@@ -36,7 +36,7 @@ Latest verification:
 
 Next recommended slice:
 
-- Add session listing and trace persistence.
+- Add trace persistence alongside message persistence.
 
 ## 1. Purpose
 
@@ -140,6 +140,7 @@ Required tests:
 - JSONL append/load behavior.
 - Unsafe session ID rejection before writing files.
 - CLI named sessions persist history across process runs.
+- Session listing shows stored sessions by recent update.
 - Future resume command behavior.
 
 ## 8. Acceptance Criteria

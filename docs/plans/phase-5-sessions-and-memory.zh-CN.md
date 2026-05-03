@@ -17,10 +17,10 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 - 同一个 interactive session 内的 CLI short-term memory：`2a22822`
 - `SessionStore` 后面的 durable JSONL session storage：`f311687`
 - 由 JSONL storage 支撑的 CLI named sessions：`e634f54`
+- Stores 和 CLI 中的 session listing：in progress
 
 剩余：
 
-- Session listing commands。
 - Trace persistence alongside message persistence。
 - Session resume command。
 - 针对 `AGENTS.md` 和 `SOUL.md` 的 workspace prompt loading。
@@ -36,7 +36,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 
 下一步建议切片：
 
-- 添加 session listing 和 trace persistence。
+- 添加与 message persistence 并行的 trace persistence。
 
 ## 1. 目的
 
@@ -140,6 +140,7 @@ Agent 不能静默写入这些文件。Memory promotion 应该是 explicit 且 r
 - JSONL append/load behavior。
 - 写入文件前拒绝 unsafe session ID。
 - CLI named sessions 可以跨 process runs 持久化 history。
+- Session listing 按最近更新时间展示 stored sessions。
 - 未来 resume command behavior。
 
 ## 8. 验收标准

@@ -54,6 +54,7 @@ Initial commands:
 | `arvinclaw chat --session <id>` | Start or continue a named JSONL-backed chat session | Phase 5 |
 | `arvinclaw chat --fake-interactive` | Start an interactive local learning session with a fake provider | Phase 1 |
 | `arvinclaw chat --fake "<message>"` | Run a one-turn fake-provider smoke path | Phase 1 |
+| `arvinclaw sessions` | List stored JSONL chat sessions | Phase 5 |
 | `arvinclaw --version` | Show version | Phase 0-1 |
 | `arvinclaw --help` | Show available commands | Phase 0-1 |
 
@@ -62,7 +63,6 @@ Early follow-up commands:
 | Command | Purpose | Phase |
 | --- | --- | --- |
 | `arvinclaw run "<goal>"` | Run a one-off goal and exit | Phase 2-4 |
-| `arvinclaw sessions` | List local sessions | Phase 5 |
 | `arvinclaw resume <session>` | Resume a session | Phase 5 |
 | `arvinclaw trace <session>` | Inspect stored trace events | Phase 5 |
 | `arvinclaw skills` | List loaded skills | Phase 3 |
