@@ -40,7 +40,7 @@ ArvinClaw should use four memory-related layers.
 | --- | --- | --- |
 | Active context | Included | Current model context for one turn or task |
 | Short-term memory | Included | Current session messages, tool observations, trace summaries, recent working state |
-| Long-term memory | Designed, deferred | Curated durable knowledge across sessions |
+| Long-term memory | Policy included, content loading deferred | Curated durable knowledge across sessions |
 | Identity and instruction files | Designed, partially included | Stable prompt files such as `SOUL.md`, `USER.md`, and `AGENTS.md` |
 
 ## 4. Active Context
@@ -84,6 +84,13 @@ Long-term memory stores durable facts, preferences, decisions, and project knowl
 
 ArvinClaw should design for a future `MEMORY.md`, but not implement full long-term memory writes in the first MVP.
 
+Phase 5 adds an explicit policy switch for long-term memory files:
+
+- `disabled`: default; do not load `USER.md`, `MEMORY.md`, or daily memory files.
+- `read-only`: future-safe mode; permits read-only loading once the context loader supports those files.
+
+Long-term memory writes remain disabled in both modes.
+
 Long-term memory needs strong policy because it can shape future behavior persistently.
 
 Before implementing it, ArvinClaw needs answers for:
@@ -105,12 +112,12 @@ Proposed files:
 | --- | --- | --- |
 | `AGENTS.md` | Operational rules and project instructions | Phase 0 or Phase 1 |
 | `SOUL.md` | Agent personality, values, tone, and boundaries | Phase 1 optional, Phase 2 recommended |
-| `USER.md` | User profile, preferences, and durable user context | Designed, deferred until long-term memory policy |
-| `MEMORY.md` | Curated long-term memory | Deferred |
+| `USER.md` | User profile, preferences, and durable user context | Policy gated, loading deferred |
+| `MEMORY.md` | Curated long-term memory | Policy gated, loading deferred |
 | `memory/YYYY-MM-DD.md` | Daily notes and recent observations | Deferred or Phase 5 |
 | `TOOLS.md` | Environment and tool notes | Deferred |
 
-MVP should start with `AGENTS.md`-style operational instructions and session storage. `SOUL.md` can be supported as a read-only prompt file once prompt assembly and security rules are clear.
+MVP starts with `AGENTS.md`-style operational instructions, read-only `SOUL.md`, and session storage. `USER.md` and `MEMORY.md` require the long-term memory policy to be `read-only` before any future loader can include them.
 
 ## 8. `SOUL.md` Design
 
@@ -214,6 +221,8 @@ MVP policy:
 - No automatic long-term memory writes.
 - Session storage writes are allowed as part of normal operation.
 - Prompt identity files are read-only by default.
+- Long-term memory files are not loaded unless the policy is explicitly switched from `disabled` to `read-only`.
+- Even in `read-only` mode, long-term memory writes remain disabled.
 
 Future policy:
 
@@ -259,6 +268,7 @@ Required test areas:
 - Missing prompt file behavior
 - Session memory reconstruction
 - Long-term memory disabled in MVP
+- Long-term memory policy validation and display
 - Read-only identity file policy
 - Memory write permission classification
 - Redaction before memory writes
@@ -273,6 +283,7 @@ The MVP memory boundary should be considered successful when:
 
 - Session memory is implemented through session storage.
 - Long-term memory is explicitly not auto-written.
+- Long-term memory file access has an explicit disabled/read-only policy.
 - The design supports future `SOUL.md`, `USER.md`, `MEMORY.md`, and daily memory files.
 - Prompt file loading is designed as an explicit context assembly step.
 - Identity and memory files cannot bypass permissions.

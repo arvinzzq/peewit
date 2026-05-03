@@ -22,6 +22,7 @@ Completed:
 - CLI named-session trace persistence across process runs: `dd5a2a1`
 - CLI latest-session resume with `chat --resume`: `325b8f2`
 - Workspace prompt loading for `AGENTS.md` and `SOUL.md`: `a2bca8e`, `719e805`, `15ce35c`
+- Long-term memory disabled/read-only policy and CLI visibility: `b737c68`, `db89088`
 
 Remaining:
 
@@ -37,7 +38,7 @@ Latest verification:
 
 Next recommended slice:
 
-- Document and implement read-only long-term memory file policy before loading `USER.md` or `MEMORY.md`.
+- Add read-only loading for `USER.md` and `MEMORY.md` when the long-term memory policy is `read-only`.
 
 ## 1. Purpose
 
@@ -103,6 +104,8 @@ If no session is specified, the CLI creates a generic `session_<id>` session. Se
 
 Configured CLI chat also loads `AGENTS.md` and read-only `SOUL.md` from the configured workspace root when those files exist. The workspace root can be set with `ARVINCLAW_WORKSPACE_ROOT`.
 
+Long-term memory files remain disabled by default. `ARVINCLAW_LONG_TERM_MEMORY=read-only` enables the future read-only path, while memory writes stay disabled.
+
 ## 5. Durable Session Storage
 
 The durable target is JSONL session storage similar to OpenClaw's replayable session direction.
@@ -154,6 +157,7 @@ Required tests:
 - `/trace` can replay persisted trace for a named session after process restart.
 - CLI `chat --resume` continues the most recently updated stored session.
 - Workspace prompt files are included in configured-provider context when present.
+- Long-term memory file access is policy-gated and visible through `/config`.
 
 ## 8. Acceptance Criteria
 

@@ -22,6 +22,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 - CLI named-session trace persistence across process runs：`dd5a2a1`
 - 使用 `chat --resume` 的 CLI latest-session resume：`325b8f2`
 - 针对 `AGENTS.md` 和 `SOUL.md` 的 workspace prompt loading：`a2bca8e`、`719e805`、`15ce35c`
+- Long-term memory disabled/read-only policy and CLI visibility：`b737c68`、`db89088`
 
 剩余：
 
@@ -37,7 +38,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 
 下一步建议切片：
 
-- 在加载 `USER.md` 或 `MEMORY.md` 前，先记录并实现 read-only long-term memory file policy。
+- 当 long-term memory policy 为 `read-only` 时，加入 `USER.md` 和 `MEMORY.md` 的只读加载。
 
 ## 1. 目的
 
@@ -103,6 +104,8 @@ pnpm run cli chat --resume
 
 Configured CLI chat 也会在文件存在时，从 configured workspace root 加载 `AGENTS.md` 和 read-only `SOUL.md`。Workspace root 可以通过 `ARVINCLAW_WORKSPACE_ROOT` 设置。
 
+Long-term memory files 默认保持 disabled。`ARVINCLAW_LONG_TERM_MEMORY=read-only` 会启用未来的只读路径，但 memory writes 仍保持 disabled。
+
 ## 5. Durable Session Storage
 
 Durable target 是类似 OpenClaw replayable session 方向的 JSONL session storage。
@@ -154,6 +157,7 @@ Agent 不能静默写入这些文件。Memory promotion 应该是 explicit 且 r
 - `/trace` 可以在 process restart 后 replay named session 的 persisted trace。
 - CLI `chat --resume` 会继续最近更新的 stored session。
 - Workspace prompt files 存在时会进入 configured-provider context。
+- Long-term memory file access 由 policy gate 控制，并可通过 `/config` 查看。
 
 ## 8. 验收标准
 
