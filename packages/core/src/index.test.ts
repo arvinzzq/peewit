@@ -222,6 +222,61 @@ describe("message-only AgentRuntime", () => {
       }
     });
   });
+
+  test("passes recent session messages into context assembly", async () => {
+    const modelProvider = new FakeModelProvider([
+      {
+        type: "message",
+        content: "Continuing from session memory."
+      }
+    ]);
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider,
+      systemInstruction: "You are ArvinClaw.",
+      createRunId: () => "run_memory",
+      createEventId: (() => {
+        let next = 0;
+        return () => `evt_memory_${++next}`;
+      })(),
+      now: () => "2026-05-03T01:22:00.000Z"
+    });
+
+    await collect(
+      runtime.runTurn({
+        message: "Continue.",
+        recentMessages: [
+          {
+            role: "user",
+            content: "Remember this detail."
+          },
+          {
+            role: "assistant",
+            content: "I will use it in the next turn."
+          }
+        ]
+      })
+    );
+
+    expect(modelProvider.requests[0]?.messages).toEqual([
+      {
+        role: "system",
+        content: "You are ArvinClaw."
+      },
+      {
+        role: "user",
+        content: "Remember this detail."
+      },
+      {
+        role: "assistant",
+        content: "I will use it in the next turn."
+      },
+      {
+        role: "user",
+        content: "Continue."
+      }
+    ]);
+  });
 });
 
 async function collect(events: AsyncIterable<RuntimeEvent>): Promise<RuntimeEvent[]> {

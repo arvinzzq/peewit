@@ -1,6 +1,6 @@
 /**
- * INPUT: ContextAssembler, ModelProvider, runtime metadata, and user turn input.
- * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, and message-only run orchestration.
+ * INPUT: ContextAssembler, ModelProvider, runtime metadata, user turn input, and optional recent conversation messages.
+ * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, and message-only run orchestration with short-term context.
  * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -9,7 +9,7 @@ import type {
   ContextAssembler,
   ContextRuntimeMetadata
 } from "@arvinclaw/context";
-import type { ModelProvider } from "@arvinclaw/models";
+import type { ModelMessage, ModelProvider } from "@arvinclaw/models";
 
 export const corePackageName = "@arvinclaw/core";
 
@@ -126,6 +126,7 @@ export class InMemoryRuntimeTraceStore implements RuntimeTraceStore {
 
 export interface AgentRuntimeInput {
   sessionId?: string;
+  recentMessages?: ModelMessage[];
   message: string;
 }
 
@@ -173,10 +174,12 @@ export class AgentRuntime {
         ? {
             systemInstruction: this.#systemInstruction,
             runtime: this.#runtime,
+            ...(input.recentMessages ? { recentMessages: input.recentMessages } : {}),
             userMessage: input.message
           }
         : {
             systemInstruction: this.#systemInstruction,
+            ...(input.recentMessages ? { recentMessages: input.recentMessages } : {}),
             userMessage: input.message
           }
     );
