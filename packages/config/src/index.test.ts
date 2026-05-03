@@ -80,6 +80,16 @@ describe("loadConfig", () => {
     expect(config.secrets.apiKey).toBe("sk-custom-secret");
   });
 
+  test("supports workspace root environment override", () => {
+    const config = loadConfig({
+      env: {
+        ARVINCLAW_WORKSPACE_ROOT: "/workspace/arvinclaw"
+      }
+    });
+
+    expect(config.workspace.root).toBe("/workspace/arvinclaw");
+  });
+
   test("rejects invalid autonomy modes", () => {
     expect(() =>
       loadConfig({

@@ -192,6 +192,9 @@ function applyEnv(config: EffectiveConfig, env: Record<string, string | undefine
   if (env.ARVINCLAW_DEFAULT_MODE !== undefined) {
     config.runtime.defaultMode = env.ARVINCLAW_DEFAULT_MODE as AutonomyMode;
   }
+  if (env.ARVINCLAW_WORKSPACE_ROOT !== undefined) {
+    config.workspace.root = env.ARVINCLAW_WORKSPACE_ROOT;
+  }
   if (env.ARVINCLAW_API_KEY !== undefined) {
     config.secrets.apiKey = env.ARVINCLAW_API_KEY;
   }
