@@ -117,6 +117,55 @@ describe("in-memory session store", () => {
       expect.objectContaining({ id: "sess_1" })
     ]);
   });
+
+  test("appends and lists recent trace events without exposing internal arrays", async () => {
+    const store = new InMemorySessionStore({
+      createSessionId: () => "sess_1",
+      now: (() => {
+        let index = 0;
+        const timestamps = [
+          "2026-05-03T00:00:00.000Z",
+          "2026-05-03T00:00:01.000Z",
+          "2026-05-03T00:00:02.000Z",
+          "2026-05-03T00:00:03.000Z"
+        ];
+
+        return () => timestamps[index++] ?? "2026-05-03T00:00:04.000Z";
+      })()
+    });
+
+    const session = await store.createSession();
+
+    await store.appendTraceEvent({
+      sessionId: session.id,
+      event: {
+        type: "run_started",
+        eventId: "evt_1",
+        runId: "run_1",
+        timestamp: "2026-05-03T00:00:01.000Z"
+      }
+    });
+    await store.appendTraceEvent({
+      sessionId: session.id,
+      event: {
+        type: "run_completed",
+        eventId: "evt_2",
+        runId: "run_1",
+        timestamp: "2026-05-03T00:00:02.000Z"
+      }
+    });
+
+    const recent = await store.listTraceEvents(session.id, { limit: 1 });
+    recent.pop();
+
+    await expect(store.listTraceEvents(session.id, { limit: 1 })).resolves.toEqual([
+      {
+        sessionId: "sess_1",
+        event: expect.objectContaining({ type: "run_completed" }),
+        createdAt: "2026-05-03T00:00:02.000Z"
+      }
+    ]);
+  });
 });
 
 describe("jsonl session store", () => {
@@ -229,6 +278,66 @@ describe("jsonl session store", () => {
         expect.objectContaining({ id: "sess_one", updatedAt: "2026-05-03T00:00:03.000Z" }),
         expect.objectContaining({ id: "sess_two", updatedAt: "2026-05-03T00:00:01.000Z" })
       ]);
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("persists trace events and replays them in order", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-sessions-"));
+
+    try {
+      const store = new JsonlSessionStore({
+        directory,
+        createSessionId: () => "sess_trace",
+        now: (() => {
+          let index = 0;
+          const timestamps = [
+            "2026-05-03T00:00:00.000Z",
+            "2026-05-03T00:00:01.000Z",
+            "2026-05-03T00:00:02.000Z"
+          ];
+
+          return () => timestamps[index++] ?? "2026-05-03T00:00:03.000Z";
+        })()
+      });
+
+      const session = await store.createSession({ title: "Trace session" });
+
+      await store.appendTraceEvent({
+        sessionId: session.id,
+        event: {
+          type: "run_started",
+          eventId: "evt_1",
+          runId: "run_1",
+          timestamp: "2026-05-03T00:00:01.000Z"
+        }
+      });
+      await store.appendTraceEvent({
+        sessionId: session.id,
+        event: {
+          type: "run_completed",
+          eventId: "evt_2",
+          runId: "run_1",
+          timestamp: "2026-05-03T00:00:02.000Z"
+        }
+      });
+
+      const replayed = new JsonlSessionStore({ directory });
+
+      await expect(replayed.listTraceEvents("sess_trace")).resolves.toEqual([
+        {
+          sessionId: "sess_trace",
+          event: expect.objectContaining({ type: "run_started", eventId: "evt_1" }),
+          createdAt: "2026-05-03T00:00:01.000Z"
+        },
+        {
+          sessionId: "sess_trace",
+          event: expect.objectContaining({ type: "run_completed", eventId: "evt_2" }),
+          createdAt: "2026-05-03T00:00:02.000Z"
+        }
+      ]);
+      await expect(readFile(join(directory, "sess_trace.jsonl"), "utf8")).resolves.toContain("\"type\":\"trace\"");
     } finally {
       await rm(directory, { force: true, recursive: true });
     }

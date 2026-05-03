@@ -1,6 +1,6 @@
 /**
- * INPUT: Session creation requests, conversation messages, persistence directories, and injectable ID/time providers.
- * OUTPUT: Session records, message records, session store contracts, in-memory storage, and JSONL session storage.
+ * INPUT: Session creation requests, conversation messages, runtime trace events, persistence directories, and injectable ID/time providers.
+ * OUTPUT: Session records, message/trace records, session store contracts, in-memory storage, and JSONL session storage.
  * POS: Session storage layer; owns replayable short-term conversation state.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -27,6 +27,12 @@ export interface SessionMessageRecord {
   createdAt: string;
 }
 
+export interface SessionTraceEventRecord<TEvent = unknown> {
+  sessionId: string;
+  event: TEvent;
+  createdAt: string;
+}
+
 export interface CreateSessionInput {
   title?: string;
 }
@@ -37,7 +43,16 @@ export interface AppendSessionMessageInput {
   content: string;
 }
 
+export interface AppendSessionTraceEventInput<TEvent = unknown> {
+  sessionId: string;
+  event: TEvent;
+}
+
 export interface ListSessionMessagesQuery {
+  limit?: number;
+}
+
+export interface ListSessionTraceEventsQuery {
   limit?: number;
 }
 
@@ -51,6 +66,8 @@ export interface SessionStore {
   listSessions(query?: ListSessionsQuery): Promise<SessionRecord[]>;
   appendMessage(input: AppendSessionMessageInput): Promise<SessionMessageRecord>;
   listMessages(sessionId: string, query?: ListSessionMessagesQuery): Promise<SessionMessageRecord[]>;
+  appendTraceEvent<TEvent>(input: AppendSessionTraceEventInput<TEvent>): Promise<SessionTraceEventRecord<TEvent>>;
+  listTraceEvents<TEvent = unknown>(sessionId: string, query?: ListSessionTraceEventsQuery): Promise<SessionTraceEventRecord<TEvent>[]>;
 }
 
 export interface InMemorySessionStoreDependencies {
@@ -62,6 +79,7 @@ export interface InMemorySessionStoreDependencies {
 export class InMemorySessionStore implements SessionStore {
   readonly #sessions = new Map<string, SessionRecord>();
   readonly #messages = new Map<string, SessionMessageRecord[]>();
+  readonly #traceEvents = new Map<string, Array<SessionTraceEventRecord<unknown>>>();
   readonly #createSessionId: () => string;
   readonly #createMessageId: () => string;
   readonly #now: () => string;
@@ -83,6 +101,7 @@ export class InMemorySessionStore implements SessionStore {
 
     this.#sessions.set(session.id, session);
     this.#messages.set(session.id, []);
+    this.#traceEvents.set(session.id, []);
 
     return { ...session };
   }
@@ -133,6 +152,41 @@ export class InMemorySessionStore implements SessionStore {
 
     return selectedMessages.map((message) => ({ ...message }));
   }
+
+  async appendTraceEvent<TEvent>(input: AppendSessionTraceEventInput<TEvent>): Promise<SessionTraceEventRecord<TEvent>> {
+    const session = this.#sessions.get(input.sessionId);
+
+    if (session === undefined) {
+      throw new Error(`Unknown session "${input.sessionId}".`);
+    }
+
+    const timestamp = this.#now();
+    const traceEvent: SessionTraceEventRecord<TEvent> = {
+      sessionId: input.sessionId,
+      event: input.event,
+      createdAt: timestamp
+    };
+    const traceEvents = this.#traceEvents.get(input.sessionId) ?? [];
+
+    traceEvents.push(traceEvent);
+    this.#traceEvents.set(input.sessionId, traceEvents);
+    this.#sessions.set(input.sessionId, {
+      ...session,
+      updatedAt: timestamp
+    });
+
+    return cloneTraceEventRecord(traceEvent);
+  }
+
+  async listTraceEvents<TEvent = unknown>(
+    sessionId: string,
+    query: ListSessionTraceEventsQuery = {}
+  ): Promise<SessionTraceEventRecord<TEvent>[]> {
+    const traceEvents = this.#traceEvents.get(sessionId) ?? [];
+    const selectedTraceEvents = query.limit === undefined ? traceEvents : traceEvents.slice(-query.limit);
+
+    return selectedTraceEvents.map((traceEvent) => cloneTraceEventRecord(traceEvent as SessionTraceEventRecord<TEvent>));
+  }
 }
 
 export interface JsonlSessionStoreDependencies extends InMemorySessionStoreDependencies {
@@ -147,6 +201,10 @@ type JsonlSessionRecord =
   | {
       type: "message";
       message: SessionMessageRecord;
+    }
+  | {
+      type: "trace";
+      traceEvent: SessionTraceEventRecord;
     };
 
 export class JsonlSessionStore implements SessionStore {
@@ -236,25 +294,61 @@ export class JsonlSessionStore implements SessionStore {
     return selectedMessages.map((message) => ({ ...message }));
   }
 
+  async appendTraceEvent<TEvent>(input: AppendSessionTraceEventInput<TEvent>): Promise<SessionTraceEventRecord<TEvent>> {
+    const replay = await this.#replay(input.sessionId);
+
+    if (replay.session === undefined) {
+      throw new Error(`Unknown session "${input.sessionId}".`);
+    }
+
+    const traceEvent: SessionTraceEventRecord<TEvent> = {
+      sessionId: input.sessionId,
+      event: input.event,
+      createdAt: this.#now()
+    };
+
+    await this.#append(input.sessionId, {
+      type: "trace",
+      traceEvent
+    });
+
+    return cloneTraceEventRecord(traceEvent);
+  }
+
+  async listTraceEvents<TEvent = unknown>(
+    sessionId: string,
+    query: ListSessionTraceEventsQuery = {}
+  ): Promise<SessionTraceEventRecord<TEvent>[]> {
+    const replay = await this.#replay(sessionId);
+    const selectedTraceEvents = query.limit === undefined ? replay.traceEvents : replay.traceEvents.slice(-query.limit);
+
+    return selectedTraceEvents.map((traceEvent) => cloneTraceEventRecord(traceEvent as SessionTraceEventRecord<TEvent>));
+  }
+
   async #append(sessionId: string, record: JsonlSessionRecord): Promise<void> {
     await mkdir(this.#directory, { recursive: true });
     await writeFile(this.#filePath(sessionId), `${JSON.stringify(record)}\n`, { flag: "a" });
   }
 
-  async #replay(sessionId: string): Promise<{ session?: SessionRecord; messages: SessionMessageRecord[] }> {
+  async #replay(sessionId: string): Promise<{
+    session?: SessionRecord;
+    messages: SessionMessageRecord[];
+    traceEvents: Array<SessionTraceEventRecord<unknown>>;
+  }> {
     let content = "";
 
     try {
       content = await readFile(this.#filePath(sessionId), "utf8");
     } catch (error) {
       if (isNodeError(error) && error.code === "ENOENT") {
-        return { messages: [] };
+        return { messages: [], traceEvents: [] };
       }
 
       throw error;
     }
 
     const messages: SessionMessageRecord[] = [];
+    const traceEvents: Array<SessionTraceEventRecord<unknown>> = [];
     let session: SessionRecord | undefined;
 
     for (const line of content.split("\n")) {
@@ -266,7 +360,7 @@ export class JsonlSessionStore implements SessionStore {
 
       if (record.type === "session") {
         session = record.session;
-      } else {
+      } else if (record.type === "message") {
         messages.push(record.message);
         if (session && record.message.createdAt > session.updatedAt) {
           session = {
@@ -274,12 +368,21 @@ export class JsonlSessionStore implements SessionStore {
             updatedAt: record.message.createdAt
           };
         }
+      } else {
+        traceEvents.push(record.traceEvent);
+        if (session && record.traceEvent.createdAt > session.updatedAt) {
+          session = {
+            ...session,
+            updatedAt: record.traceEvent.createdAt
+          };
+        }
       }
     }
 
     return {
       ...(session === undefined ? {} : { session }),
-      messages
+      messages,
+      traceEvents
     };
   }
 
@@ -319,6 +422,13 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 
 function compareSessionsByRecentUpdate(left: SessionRecord, right: SessionRecord): number {
   return right.updatedAt.localeCompare(left.updatedAt);
+}
+
+function cloneTraceEventRecord<TEvent>(traceEvent: SessionTraceEventRecord<TEvent>): SessionTraceEventRecord<TEvent> {
+  return {
+    ...traceEvent,
+    event: structuredClone(traceEvent.event)
+  };
 }
 
 function randomId(prefix: string): () => string {

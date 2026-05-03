@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-Keep short-term conversation records, durable JSONL session storage, and future trace persistence here. Runtime code should depend on a session interface instead of knowing storage details.
+Keep short-term conversation records, durable JSONL session storage, and durable trace persistence here. Runtime code should depend on a session interface instead of knowing storage details.
 
 ## When Files Change
 
@@ -10,7 +10,7 @@ Update README and AGENTS files when persistence responsibilities or file invento
 
 ## Testing
 
-Session logic needs tests for create, append, load, session listing, ordering, defensive copies, write safety, unsafe session IDs, and replay behavior.
+Session logic needs tests for create, append, load, session listing, message and trace ordering, defensive copies, write safety, unsafe session IDs, and replay behavior.
 
 ## Boundaries
 
