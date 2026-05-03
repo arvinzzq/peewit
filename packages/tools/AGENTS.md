@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-Keep tool definitions, registry behavior, validation, and execution wrappers here. Tools can describe and run capabilities, but permission decisions must remain outside this package.
+Keep tool definitions, registry behavior, validation, normalized results, workspace-bound file tools, and execution wrappers here. Tools can describe and run capabilities, but permission decisions must remain outside this package.
 
 ## When Files Change
 
@@ -10,7 +10,7 @@ Update README and AGENTS files when tool responsibilities or file inventory chan
 
 ## Testing
 
-Tool logic needs tests for registry behavior, validation, workspace boundaries, result shapes, error normalization, and permission metadata.
+Tool logic needs tests for registry behavior, executable tool contracts, validation, workspace boundaries, result shapes, error normalization, and permission metadata.
 
 ## Boundaries
 
