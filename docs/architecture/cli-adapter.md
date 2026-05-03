@@ -52,6 +52,7 @@ Initial commands:
 | --- | --- | --- |
 | `arvinclaw chat` | Start an interactive chat session using configured provider settings | Phase 1 |
 | `arvinclaw chat --session <id>` | Start or continue a named JSONL-backed chat session | Phase 5 |
+| `arvinclaw chat --resume` | Continue the most recently updated JSONL-backed chat session | Phase 5 |
 | `arvinclaw chat --fake-interactive` | Start an interactive local learning session with a fake provider | Phase 1 |
 | `arvinclaw chat --fake "<message>"` | Run a one-turn fake-provider smoke path | Phase 1 |
 | `arvinclaw sessions` | List stored JSONL chat sessions | Phase 5 |
@@ -63,7 +64,6 @@ Early follow-up commands:
 | Command | Purpose | Phase |
 | --- | --- | --- |
 | `arvinclaw run "<goal>"` | Run a one-off goal and exit | Phase 2-4 |
-| `arvinclaw resume <session>` | Resume a session | Phase 5 |
 | `arvinclaw trace <session>` | Inspect stored trace events | Phase 5 |
 | `arvinclaw skills` | List loaded skills | Phase 3 |
 | `arvinclaw config` | Inspect effective configuration | Phase 1-2 |
@@ -86,7 +86,7 @@ Expected behavior:
 8. Ask for permission when the core reports an approval request.
 9. Persist session and trace data when storage exists.
 
-Configured chat stores messages in JSONL session files under `~/.arvinclaw/sessions` by default. Named sessions use `--session <id>` and must use safe session IDs. Default session IDs use a generic `session_<id>` shape because sessions belong to the agent, not to a specific adapter.
+Configured chat stores messages in JSONL session files under `~/.arvinclaw/sessions` by default. Named sessions use `--session <id>` and must use safe session IDs. `--resume` selects the most recently updated stored session and continues it. Default session IDs use a generic `session_<id>` shape because sessions belong to the agent, not to a specific adapter.
 
 The CLI should not know how the prompt was assembled. It can display a summary or report produced by the context package.
 
@@ -294,6 +294,7 @@ Required test areas:
 
 - Command parsing
 - `chat` startup flow
+- Session listing and resume behavior
 - Slash command handling
 - Permission prompt rendering and decision forwarding
 - Trace rendering from structured events

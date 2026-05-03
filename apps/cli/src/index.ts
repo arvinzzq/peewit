@@ -1,6 +1,6 @@
 /**
  * INPUT: CLI arguments, package version, optional line reader/fetch implementation, config loader, runtime/session packages, context assembler, and model providers.
- * OUTPUT: CLI result objects, configured/fake interactive chat transcript, short-term session memory, persisted trace output, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
+ * OUTPUT: CLI result objects, configured/fake interactive chat transcript, short-term session memory, latest-session resume behavior, persisted trace output, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
  * POS: CLI adapter layer; translates terminal commands without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -38,6 +38,8 @@ Commands:
   chat        Start an interactive chat session
   chat --session <id>
               Start or continue a named interactive chat session
+  chat --resume
+              Continue the most recently updated stored chat session
   chat --fake <message>
               Run one message-only turn with a fake provider
   chat --fake-interactive
@@ -98,6 +100,7 @@ interface ParsedFakeChatArgs {
 
 interface ParsedChatArgs {
   fakeInteractive: boolean;
+  resume: boolean;
   sessionId?: string;
 }
 
@@ -106,6 +109,7 @@ function parseChatArgs(args: string[]): ParsedChatArgs {
 
   return {
     fakeInteractive: args.includes("--fake-interactive"),
+    resume: args.includes("--resume"),
     ...(sessionIndex === -1 || args[sessionIndex + 1] === undefined ? {} : { sessionId: args[sessionIndex + 1] })
   };
 }
@@ -165,9 +169,29 @@ async function runInteractiveConfiguredChat(options: RunCliOptions, args: Parsed
     };
   }
 
+  if (args.resume && args.sessionId !== undefined) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: "Use either `chat --resume` or `chat --session <id>`, not both.\n"
+    };
+  }
+
+  const resumedSessionId = args.resume ? await findMostRecentSessionId(config, options) : undefined;
+
+  if (args.resume && resumedSessionId === undefined) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: "No stored sessions to resume. Start one with `arvinclaw chat` or `arvinclaw chat --session <id>`.\n"
+    };
+  }
+
+  const sessionId = args.sessionId ?? resumedSessionId;
+
   return runInteractiveLoop(
-    CliChatSession.createConfigured(config, options, args.sessionId === undefined ? {} : { sessionId: args.sessionId }),
-    "ArvinClaw chat",
+    CliChatSession.createConfigured(config, options, sessionId === undefined ? {} : { sessionId }),
+    resumedSessionId === undefined ? "ArvinClaw chat" : `ArvinClaw chat\nResumed session: ${resumedSessionId}`,
     options
   );
 }
@@ -190,6 +214,13 @@ async function runListSessions(options: RunCliOptions): Promise<CliResult> {
     stdout: ["Sessions:", ...sessions.map((session) => `${session.id}\t${session.updatedAt}${session.title ? `\t${session.title}` : ""}`)].join("\n") + "\n",
     stderr: ""
   };
+}
+
+async function findMostRecentSessionId(config: EffectiveConfig, options: RunCliOptions): Promise<string | undefined> {
+  const store = createConfiguredSessionStore(config, options, createSessionId());
+  const [session] = await store.listSessions({ limit: 1 });
+
+  return session?.id;
 }
 
 async function runInteractiveLoop(session: CliChatSession, title: string, options: RunCliOptions): Promise<CliResult> {

@@ -295,6 +295,106 @@ describe("runCli", () => {
     }
   });
 
+  test("resumes the most recently updated configured chat session", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+    const env = {
+      ARVINCLAW_API_KEY: "secret-api-key"
+    };
+
+    try {
+      const olderInputs = ["Older message", "/exit"];
+      await runCli(["chat", "--session", "older_session"], "0.0.0", {
+        env,
+        sessionsDirectory: directory,
+        readLine: async () => olderInputs.shift(),
+        fetch: async () =>
+          new Response(
+            JSON.stringify({
+              choices: [{ message: { content: "Older response" } }]
+            }),
+            {
+              status: 200,
+              headers: { "content-type": "application/json" }
+            }
+          )
+      });
+
+      const newerInputs = ["Newer message", "/exit"];
+      await runCli(["chat", "--session", "newer_session"], "0.0.0", {
+        env,
+        sessionsDirectory: directory,
+        readLine: async () => newerInputs.shift(),
+        fetch: async () =>
+          new Response(
+            JSON.stringify({
+              choices: [{ message: { content: "Newer response" } }]
+            }),
+            {
+              status: 200,
+              headers: { "content-type": "application/json" }
+            }
+          )
+      });
+
+      const requests: Array<{ body: string }> = [];
+      const resumedInputs = ["Resumed message", "/exit"];
+      const result = await runCli(["chat", "--resume"], "0.0.0", {
+        env,
+        sessionsDirectory: directory,
+        readLine: async () => resumedInputs.shift(),
+        fetch: async (_url, init) => {
+          requests.push({ body: String(init?.body) });
+
+          return new Response(
+            JSON.stringify({
+              choices: [{ message: { content: "Resume response" } }]
+            }),
+            {
+              status: 200,
+              headers: { "content-type": "application/json" }
+            }
+          );
+        }
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Resumed session: newer_session");
+      expect(JSON.parse(requests[0]?.body ?? "{}")).toMatchObject({
+        messages: [
+          { role: "system" },
+          { role: "user", content: "Newer message" },
+          { role: "assistant", content: "Newer response" },
+          { role: "user", content: "Resumed message" }
+        ]
+      });
+      await expect(readFile(join(directory, "newer_session.jsonl"), "utf8")).resolves.toContain("Resumed message");
+      await expect(readFile(join(directory, "older_session.jsonl"), "utf8")).resolves.not.toContain("Resumed message");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("reports when chat resume has no stored sessions", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+
+    try {
+      const inputs = ["/exit"];
+      const result = await runCli(["chat", "--resume"], "0.0.0", {
+        env: {
+          ARVINCLAW_API_KEY: "secret-api-key"
+        },
+        sessionsDirectory: directory,
+        readLine: async () => inputs.shift()
+      });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("No stored sessions to resume");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
   test("expands the default sessions directory under HOME", async () => {
     const home = await mkdtemp(join(tmpdir(), "arvinclaw-cli-home-"));
     const inputs = ["Home session message", "/exit"];

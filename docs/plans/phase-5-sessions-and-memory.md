@@ -20,10 +20,10 @@ Completed:
 - Session listing in stores and CLI: `08bc0ed`, `b3ecd92`
 - Durable trace events in session stores: `0b10494`
 - CLI named-session trace persistence across process runs: `dd5a2a1`
+- CLI latest-session resume with `chat --resume`: pending commit
 
 Remaining:
 
-- Session resume command.
 - Workspace prompt loading for `AGENTS.md` and `SOUL.md`.
 - Long-term memory files such as `USER.md`, `MEMORY.md`, and `memory/YYYY-MM-DD.md`.
 
@@ -37,7 +37,7 @@ Latest verification:
 
 Next recommended slice:
 
-- Add an explicit session resume/latest-session command.
+- Add workspace prompt loading for `AGENTS.md` and `SOUL.md`.
 
 ## 1. Purpose
 
@@ -93,6 +93,12 @@ Configured CLI chat now uses durable JSONL storage. Named sessions can be select
 pnpm run cli chat --session my_session
 ```
 
+The most recently updated stored session can be resumed with:
+
+```bash
+pnpm run cli chat --resume
+```
+
 If no session is specified, the CLI creates a generic `session_<id>` session. Session IDs are agent-level identifiers and should not encode the entry adapter such as CLI or Web UI. The default storage directory is `~/.arvinclaw/sessions`.
 
 ## 5. Durable Session Storage
@@ -144,14 +150,14 @@ Required tests:
 - Session listing shows stored sessions by recent update.
 - Trace persistence in `SessionStore` and configured CLI chat.
 - `/trace` can replay persisted trace for a named session after process restart.
-- Future resume command behavior.
+- CLI `chat --resume` continues the most recently updated stored session.
 
 ## 8. Acceptance Criteria
 
 This phase is complete when:
 
 - Sessions persist across process runs.
-- CLI can resume a stored session.
+- CLI can resume the latest stored session.
 - Recent session history is included in context.
 - Trace and message history can be inspected.
 - Long-term memory write policy is documented before any writes are implemented.
