@@ -15,7 +15,7 @@ Completed:
 - Context assembly support for recent session messages: `827a08d`
 - Runtime handoff for recent messages: `3e0447a`
 - CLI short-term memory within one interactive session: `2a22822`
-- Durable JSONL session storage behind `SessionStore`: in progress
+- Durable JSONL session storage behind `SessionStore`: `f311687`
 
 Remaining:
 

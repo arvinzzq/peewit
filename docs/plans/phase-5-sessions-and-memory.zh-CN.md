@@ -15,7 +15,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 - Context assembly 支持 recent session messages：`827a08d`
 - Runtime handoff for recent messages：`3e0447a`
 - 同一个 interactive session 内的 CLI short-term memory：`2a22822`
-- `SessionStore` 后面的 durable JSONL session storage：in progress
+- `SessionStore` 后面的 durable JSONL session storage：`f311687`
 
 剩余：
 
