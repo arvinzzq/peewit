@@ -1,13 +1,17 @@
 # Phase 5 Sessions and Memory Plan
 
-Status: In Progress
+Status: Paused After Early Foundation
 Date: 2026-05-03
 
 Simplified Chinese version: [phase-5-sessions-and-memory.zh-CN.md](./phase-5-sessions-and-memory.zh-CN.md)
 
 ## Progress
 
-Status: In Progress
+Status: Paused After Early Foundation
+
+Roadmap note:
+
+Phase 5 was advanced early to provide session, trace, workspace prompt, and read-only memory foundations. Further memory expansion is paused until Phase 2 tools/permissions and later planning/autonomy support are in place.
 
 Completed:
 
@@ -38,7 +42,7 @@ Latest verification:
 - `pnpm vitest run packages/core/src/index.test.ts`
 - `pnpm vitest run apps/cli/src/index.test.ts`
 
-Next recommended slice:
+Next recommended slice when Phase 5 resumes:
 
 - Define daily memory write policy before creating or updating `memory/YYYY-MM-DD.md`.
 

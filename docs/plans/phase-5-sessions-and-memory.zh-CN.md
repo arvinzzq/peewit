@@ -1,13 +1,17 @@
 # Phase 5 Sessions and Memory Plan
 
-状态：In Progress
+状态：Paused After Early Foundation
 日期：2026-05-03
 
 English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.md)
 
 ## Progress
 
-状态：In Progress
+状态：Paused After Early Foundation
+
+Roadmap note：
+
+Phase 5 已提前推进，用于提供 session、trace、workspace prompt 和 read-only memory foundations。后续 memory 扩展会暂停，等 Phase 2 tools/permissions 以及后续 planning/autonomy 支撑就绪后再继续。
 
 已完成：
 
@@ -38,7 +42,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 - `pnpm vitest run packages/core/src/index.test.ts`
 - `pnpm vitest run apps/cli/src/index.test.ts`
 
-下一步建议切片：
+Phase 5 恢复时的下一步建议切片：
 
 - 在创建或更新 `memory/YYYY-MM-DD.md` 前定义 daily memory write policy。
 
