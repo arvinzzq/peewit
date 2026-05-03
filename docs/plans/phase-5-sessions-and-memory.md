@@ -23,7 +23,7 @@ Completed:
 - CLI latest-session resume with `chat --resume`: `325b8f2`
 - Workspace prompt loading for `AGENTS.md` and `SOUL.md`: `a2bca8e`, `719e805`, `15ce35c`
 - Long-term memory disabled/read-only policy and CLI visibility: `b737c68`, `db89088`
-- Read-only `USER.md` and `MEMORY.md` loading when enabled: pending commit
+- Read-only `USER.md` and `MEMORY.md` loading when enabled: `fafe13f`
 
 Remaining:
 

@@ -23,7 +23,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 - 使用 `chat --resume` 的 CLI latest-session resume：`325b8f2`
 - 针对 `AGENTS.md` 和 `SOUL.md` 的 workspace prompt loading：`a2bca8e`、`719e805`、`15ce35c`
 - Long-term memory disabled/read-only policy and CLI visibility：`b737c68`、`db89088`
-- Policy enabled 时只读加载 `USER.md` 和 `MEMORY.md`：pending commit
+- Policy enabled 时只读加载 `USER.md` 和 `MEMORY.md`：`fafe13f`
 
 剩余：
 
