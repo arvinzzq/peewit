@@ -16,7 +16,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 - Runtime handoff for recent messages：`3e0447a`
 - 同一个 interactive session 内的 CLI short-term memory：`2a22822`
 - `SessionStore` 后面的 durable JSONL session storage：`f311687`
-- 由 JSONL storage 支撑的 CLI named sessions：in progress
+- 由 JSONL storage 支撑的 CLI named sessions：`e634f54`
 
 剩余：
 
