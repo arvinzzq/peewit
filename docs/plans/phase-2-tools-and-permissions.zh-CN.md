@@ -15,17 +15,18 @@ English version: [phase-2-tools-and-permissions.md](./phase-2-tools-and-permissi
 - Permission decision types 和 default policy：`6ccb737`
 - Runtime emits model-requested tool-call events：`0055ee8`
 - Runtime evaluates permission decisions for requested tool calls：`0a0f18b`
+- CLI renders approval prompts for `ask` permission decisions：`6c3b956`
 
 剩余：
 
 - Tool-call events 后的 runtime tool execution wiring。
-- CLI approval prompt flow。
+- 将 CLI approval decisions 回传到 runtime tool execution。
 - Built-in file tools。
 - Tool lifecycle trace events。
 
 下一步建议切片：
 
-- 为返回 `ask` 的 permission decisions 添加 CLI approval prompt flow。
+- 将 approval decisions 接入 runtime tool execution。
 
 ## 1. 目的
 

@@ -15,17 +15,18 @@ Completed:
 - Permission decision types and default policy: `6ccb737`
 - Runtime emits model-requested tool-call events: `0055ee8`
 - Runtime evaluates permission decisions for requested tool calls: `0a0f18b`
+- CLI renders approval prompts for `ask` permission decisions: `6c3b956`
 
 Remaining:
 
 - Runtime tool execution wiring after tool-call events.
-- CLI approval prompt flow.
+- Returning approval decisions from CLI into runtime tool execution.
 - Built-in file tools.
 - Tool lifecycle trace events.
 
 Next recommended slice:
 
-- Add CLI approval prompt flow for permission decisions that return `ask`.
+- Wire approval decisions into runtime tool execution.
 
 ## 1. Purpose
 
