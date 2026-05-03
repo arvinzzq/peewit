@@ -13,17 +13,18 @@ Completed:
 
 - Tool definition contracts and in-memory registry: `4ae3515`
 - Permission decision types and default policy: `6ccb737`
+- Runtime emits model-requested tool-call events: pending commit
 
 Remaining:
 
-- Runtime handling for model-requested tool calls.
+- Runtime tool execution wiring after tool-call events.
 - CLI approval prompt flow.
 - Built-in file tools.
 - Tool lifecycle and permission trace events.
 
 Next recommended slice:
 
-- Wire tool-call handling into `AgentRuntime` using fake model output.
+- Wire permission evaluation into runtime tool-call handling.
 
 ## 1. Purpose
 

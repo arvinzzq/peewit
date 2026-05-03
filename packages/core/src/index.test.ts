@@ -17,6 +17,7 @@ describe("runtime event contracts", () => {
       "context_assembled",
       "model_request_started",
       "model_request_completed",
+      "tool_call_requested",
       "assistant_message_created",
       "run_completed",
       "run_failed"
@@ -276,6 +277,61 @@ describe("message-only AgentRuntime", () => {
         content: "Continue."
       }
     ]);
+  });
+
+  test("emits tool call request events when the model requests tools", async () => {
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([
+        {
+          type: "tool_calls",
+          calls: [
+            {
+              id: "call_1",
+              name: "read_file",
+              input: {
+                path: "README.md"
+              }
+            }
+          ]
+        }
+      ]),
+      systemInstruction: "You are ArvinClaw.",
+      createRunId: () => "run_tool",
+      createEventId: (() => {
+        let next = 0;
+        return () => `evt_tool_${++next}`;
+      })(),
+      now: () => "2026-05-03T01:23:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ sessionId: "session_1", message: "Read README." }));
+
+    expect(events.map((event) => event.type)).toEqual([
+      "run_started",
+      "context_assembled",
+      "model_request_started",
+      "model_request_completed",
+      "tool_call_requested",
+      "run_failed"
+    ]);
+    expect(events[4]).toMatchObject({
+      type: "tool_call_requested",
+      call: {
+        id: "call_1",
+        name: "read_file",
+        input: {
+          path: "README.md"
+        }
+      }
+    });
+    expect(events[5]).toMatchObject({
+      type: "run_failed",
+      error: {
+        message: "Tool execution is not wired yet.",
+        recoverable: false
+      }
+    });
   });
 });
 

@@ -13,17 +13,18 @@ English version: [phase-2-tools-and-permissions.md](./phase-2-tools-and-permissi
 
 - Tool definition contracts 和 in-memory registry：`4ae3515`
 - Permission decision types 和 default policy：`6ccb737`
+- Runtime emits model-requested tool-call events：pending commit
 
 剩余：
 
-- Runtime handling for model-requested tool calls。
+- Tool-call events 后的 runtime tool execution wiring。
 - CLI approval prompt flow。
 - Built-in file tools。
 - Tool lifecycle and permission trace events。
 
 下一步建议切片：
 
-- 使用 fake model output 把 tool-call handling 接入 `AgentRuntime`。
+- 把 permission evaluation 接入 runtime tool-call handling。
 
 ## 1. 目的
 

@@ -570,6 +570,8 @@ function traceEventLabel(event: RuntimeEvent): string {
       return "Started model request";
     case "model_request_completed":
       return "Completed model request";
+    case "tool_call_requested":
+      return "Requested tool call";
     case "assistant_message_created":
       return "Created assistant message";
     case "run_completed":

@@ -1,7 +1,7 @@
 /**
- * INPUT: ContextAssembler, ModelProvider, runtime metadata, user turn input, and optional recent conversation messages.
- * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, and message-only run orchestration with short-term context.
- * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
+ * INPUT: ContextAssembler, ModelProvider, runtime metadata, user turn input, optional recent conversation messages, and model-requested tool calls.
+ * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, message orchestration, and tool-call request events.
+ * POS: Core runtime layer; coordinates a turn without owning adapters, tool execution, or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
@@ -9,7 +9,7 @@ import type {
   ContextAssembler,
   ContextRuntimeMetadata
 } from "@arvinclaw/context";
-import type { ModelMessage, ModelProvider } from "@arvinclaw/models";
+import type { ModelMessage, ModelProvider, ModelToolCall } from "@arvinclaw/models";
 
 export const corePackageName = "@arvinclaw/core";
 
@@ -18,6 +18,7 @@ export const runtimeEventTypes = [
   "context_assembled",
   "model_request_started",
   "model_request_completed",
+  "tool_call_requested",
   "assistant_message_created",
   "run_completed",
   "run_failed"
@@ -62,6 +63,11 @@ export interface AssistantMessageCreatedEvent extends RuntimeEventBase {
   };
 }
 
+export interface ToolCallRequestedEvent extends RuntimeEventBase {
+  type: "tool_call_requested";
+  call: ModelToolCall;
+}
+
 export interface RunCompletedEvent extends RuntimeEventBase {
   type: "run_completed";
 }
@@ -79,6 +85,7 @@ export type RuntimeEvent =
   | ContextAssembledEvent
   | ModelRequestStartedEvent
   | ModelRequestCompletedEvent
+  | ToolCallRequestedEvent
   | AssistantMessageCreatedEvent
   | RunCompletedEvent
   | RunFailedEvent;
@@ -218,11 +225,19 @@ export class AgentRuntime {
     }
 
     if (output.type === "tool_calls") {
+      for (const call of output.calls) {
+        yield this.#event({
+          ...base,
+          type: "tool_call_requested",
+          call
+        });
+      }
+
       yield this.#event({
         ...base,
         type: "run_failed",
         error: {
-          message: "Tool calls are not supported until Phase 2.",
+          message: "Tool execution is not wired yet.",
           recoverable: false
         }
       });

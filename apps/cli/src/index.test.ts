@@ -797,13 +797,30 @@ describe("runCli", () => {
           userMessage: "Hello"
         },
         {
+          type: "tool_call_requested",
+          eventId: "evt_tool",
+          runId: "run_1",
+          timestamp: "2026-05-03T01:40:00.500Z",
+          call: {
+            id: "call_1",
+            name: "read_file",
+            input: {
+              path: "README.md"
+            }
+          }
+        },
+        {
           type: "run_completed",
           eventId: "evt_2",
           runId: "run_1",
           timestamp: "2026-05-03T01:40:01.000Z"
         }
       ])
-    ).toEqual(["1. Received user message (run_started)", "2. Completed run (run_completed)"]);
+    ).toEqual([
+      "1. Received user message (run_started)",
+      "2. Requested tool call (tool_call_requested)",
+      "3. Completed run (run_completed)"
+    ]);
   });
 
   test("reports unknown commands without crashing", async () => {
