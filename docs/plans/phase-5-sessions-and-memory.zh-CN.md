@@ -15,10 +15,10 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 - Context assembly 支持 recent session messages：`827a08d`
 - Runtime handoff for recent messages：`3e0447a`
 - 同一个 interactive session 内的 CLI short-term memory：`2a22822`
+- `SessionStore` 后面的 durable JSONL session storage：in progress
 
 剩余：
 
-- Durable JSONL session storage。
 - Stable session ID selection and display。
 - Trace persistence alongside message persistence。
 - Session resume and session listing commands。
@@ -35,7 +35,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 
 下一步建议切片：
 
-- 在现有 `SessionStore` interface 后面添加 durable JSONL session storage。
+- 将 CLI session creation 接到 durable JSONL storage 和 stable session IDs。
 
 ## 1. 目的
 
@@ -85,7 +85,7 @@ CLI interactive session
   -> after the turn, append user and assistant messages to the session
 ```
 
-这里有意先使用 in-memory。Durable storage 应在同一 interface 后面添加。
+第一版 CLI 切片使用 in-memory storage。Durable storage 现在已经存在于同一 interface 后面，下一步应接入 CLI session selection。
 
 ## 5. Durable Session Storage
 
@@ -103,6 +103,8 @@ Durable target 是类似 OpenClaw replayable session 方向的 JSONL session sto
 ```json
 {"type":"message","id":"msg_1","sessionId":"sess_1","role":"user","content":"Hello","createdAt":"..."}
 ```
+
+JSONL store 是 append-only 的，这样 session 可以按顺序 replay，后续也可以加入 trace 或 tool records，而不需要重写历史。
 
 Trace records 可以使用同一个文件，也可以使用 sibling trace file。最终选择应在实现前写入文档。
 
@@ -128,7 +130,8 @@ Agent 不能静默写入这些文件。Memory promotion 应该是 explicit 且 r
 - 带 recent messages 的 context assembly order。
 - Runtime pass-through of recent messages。
 - CLI second-turn provider request includes first-turn history。
-- 未来 JSONL append/load behavior。
+- JSONL append/load behavior。
+- 写入文件前拒绝 unsafe session ID。
 - 未来 resume command behavior。
 
 ## 8. 验收标准

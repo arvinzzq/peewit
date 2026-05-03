@@ -15,10 +15,10 @@ Completed:
 - Context assembly support for recent session messages: `827a08d`
 - Runtime handoff for recent messages: `3e0447a`
 - CLI short-term memory within one interactive session: `2a22822`
+- Durable JSONL session storage behind `SessionStore`: in progress
 
 Remaining:
 
-- Durable JSONL session storage.
 - Stable session ID selection and display.
 - Trace persistence alongside message persistence.
 - Session resume and session listing commands.
@@ -35,7 +35,7 @@ Latest verification:
 
 Next recommended slice:
 
-- Add durable JSONL session storage behind the existing `SessionStore` interface.
+- Wire CLI session creation to durable JSONL storage and stable session IDs.
 
 ## 1. Purpose
 
@@ -85,7 +85,7 @@ CLI interactive session
   -> after the turn, append user and assistant messages to the session
 ```
 
-This is intentionally in-memory first. Durable storage should be added behind the same interface.
+The first CLI slice uses in-memory storage. Durable storage now exists behind the same interface and should be wired into CLI session selection next.
 
 ## 5. Durable Session Storage
 
@@ -103,6 +103,8 @@ Each line should be a structured record such as:
 ```json
 {"type":"message","id":"msg_1","sessionId":"sess_1","role":"user","content":"Hello","createdAt":"..."}
 ```
+
+The JSONL store is append-only so a session can be replayed in order and later extended with trace or tool records without rewriting history.
 
 Trace records can use the same file or a sibling trace file. The final choice should be documented before implementation.
 
@@ -128,7 +130,8 @@ Required tests:
 - Context assembly order with recent messages.
 - Runtime pass-through of recent messages.
 - CLI second-turn provider request includes first-turn history.
-- Future JSONL append/load behavior.
+- JSONL append/load behavior.
+- Unsafe session ID rejection before writing files.
 - Future resume command behavior.
 
 ## 8. Acceptance Criteria
