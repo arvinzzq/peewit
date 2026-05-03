@@ -37,7 +37,7 @@ The roadmap follows a dual-track approach:
 | Phase 2 | Not Started | Tools and permissions | Agent can inspect files, run approved commands, and read web content | Tool Registry, PermissionPolicy |
 | Phase 3 | Not Started | Lightweight skills | Agent can load local `SKILL.md` instructions | Skill loader, skill precedence, prompt assembly |
 | Phase 4 | Not Started | Planning and autonomy | Agent can plan tasks and run in `observe`, `confirm`, or `auto` mode | Planner, task state, execution modes |
-| Phase 5 | Not Started | Sessions and memory | Agent remembers sessions and can use local knowledge | Session store, trace store, memory interfaces |
+| Phase 5 | In Progress | Sessions and memory | Agent remembers sessions and can use local knowledge | Session store, trace store, memory interfaces |
 | Phase 6 | Not Started | Web UI | User can chat, inspect traces, and approve actions in a browser | UI adapter, API boundary, trace visualization |
 | Phase 7 | Not Started | Multi-entry adapters | CLI, Web, desktop, and message entries share one Agent Core | Adapter interface, gateway direction |
 | Phase 8 | Not Started | Background automation | Agent can run scheduled and event-triggered tasks | Scheduler, daemon, task queue |
@@ -279,6 +279,7 @@ The agent can preserve session history, show previous traces, and begin using lo
 - `docs/architecture/session-storage.md`
 - `docs/architecture/memory-system.md`
 - `docs/architecture/local-knowledge.md`
+- `docs/plans/phase-5-sessions-and-memory.md`
 
 `local-knowledge.md` is planned and has not been created yet.
 
@@ -286,11 +287,14 @@ Primary architecture note: [Session Storage](../architecture/session-storage.md)
 
 Supporting architecture note: [Memory System](../architecture/memory-system.md)
 
+Implementation plan: [Phase 5 Sessions and Memory](../plans/phase-5-sessions-and-memory.md)
+
 ### Acceptance Criteria
 
 - Sessions can be saved and resumed.
 - Traces can be inspected after a session ends.
 - Memory is separated from raw chat history.
+- The agent can use recent session history in context.
 - The first memory implementation can be replaced later.
 
 ### Non-Goals

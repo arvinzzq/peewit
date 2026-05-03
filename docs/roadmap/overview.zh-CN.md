@@ -37,7 +37,7 @@ Roadmap 采用双轨方法：
 | Phase 2 | Not Started | 工具与权限 | Agent 可以检查文件、运行已批准命令，并读取 Web 内容 | Tool Registry、PermissionPolicy |
 | Phase 3 | Not Started | 轻量 skills | Agent 可以加载本地 `SKILL.md` 指令 | Skill loader、skill 优先级、prompt assembly |
 | Phase 4 | Not Started | 规划与自主 | Agent 可以规划任务，并在 `observe`、`confirm` 或 `auto` 模式运行 | Planner、任务状态、执行模式 |
-| Phase 5 | Not Started | 会话与记忆 | Agent 可以记住会话，并使用本地知识 | Session store、trace store、memory interfaces |
+| Phase 5 | In Progress | 会话与记忆 | Agent 可以记住会话，并使用本地知识 | Session store、trace store、memory interfaces |
 | Phase 6 | Not Started | Web UI | 用户可以在浏览器中聊天、检查 trace、批准动作 | UI adapter、API boundary、trace visualization |
 | Phase 7 | Not Started | 多入口 adapters | CLI、Web、桌面和消息入口共享一个 Agent Core | Adapter interface、gateway direction |
 | Phase 8 | Not Started | 后台自动化 | Agent 可以运行定时和事件触发任务 | Scheduler、daemon、task queue |
@@ -279,6 +279,7 @@ Agent 可以保存 session history，展示之前的 traces，并开始跨任务
 - `docs/architecture/session-storage.md`
 - `docs/architecture/memory-system.md`
 - `docs/architecture/local-knowledge.md`
+- `docs/plans/phase-5-sessions-and-memory.md`
 
 `local-knowledge.md` 是 planned document，目前尚未创建。
 
@@ -286,11 +287,14 @@ Agent 可以保存 session history，展示之前的 traces，并开始跨任务
 
 支持架构说明：[Memory System](../architecture/memory-system.zh-CN.md)
 
+实施计划：[Phase 5 Sessions and Memory](../plans/phase-5-sessions-and-memory.zh-CN.md)
+
 ### 验收标准
 
 - Sessions 可以保存和恢复。
 - Traces 可以在 session 结束后检查。
 - Memory 与原始 chat history 分离。
+- Agent 可以在 context 中使用 recent session history。
 - 第一版 memory implementation 未来可以被替换。
 
 ### 非目标
