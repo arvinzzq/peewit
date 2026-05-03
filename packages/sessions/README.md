@@ -10,7 +10,7 @@ It keeps persistence separate from runtime orchestration and UI rendering.
 
 | File | Role | Purpose |
 | --- | --- | --- |
-| `package.json` | Package manifest | Declares the sessions package and build scripts. |
+| `package.json` | Package manifest | Declares the sessions package, package exports, and build scripts. |
 | `tsconfig.json` | TypeScript config | Builds the sessions package. |
 | `src/index.ts` | Session store | Exports session/message contracts and in-memory short-term session storage. |
 | `src/index.test.ts` | Session tests | Protects session creation, message ordering, recent-message queries, and defensive copies. |

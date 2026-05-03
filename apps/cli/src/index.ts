@@ -1,6 +1,6 @@
 /**
- * INPUT: CLI arguments, package version, optional line reader/fetch implementation, config loader, runtime package, context assembler, and model providers.
- * OUTPUT: CLI result objects, configured/fake interactive chat transcript, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
+ * INPUT: CLI arguments, package version, optional line reader/fetch implementation, config loader, runtime/session packages, context assembler, and model providers.
+ * OUTPUT: CLI result objects, configured/fake interactive chat transcript, short-term session memory, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
  * POS: CLI adapter layer; translates terminal commands without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -11,6 +11,7 @@ import { loadConfig, redactedConfig, type EffectiveConfig, type RedactedConfigVi
 import { DefaultContextAssembler } from "@arvinclaw/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
 import { FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
+import { InMemorySessionStore, type SessionStore } from "@arvinclaw/sessions";
 
 export const cliPackageName = "@arvinclaw/cli";
 
@@ -239,16 +240,25 @@ export interface CliChatTurnResult {
 export class CliChatSession {
   readonly #runtime: AgentRuntime;
   readonly #traceStore: RuntimeTraceStore;
+  readonly #sessionStore: SessionStore;
+  readonly #sessionId: string;
   readonly #config: RedactedConfigView;
+  readonly #recentMessageLimit: number;
 
   constructor(
     runtime: AgentRuntime,
     config: RedactedConfigView = redactedConfig(loadConfig()),
-    traceStore: RuntimeTraceStore = new InMemoryRuntimeTraceStore()
+    traceStore: RuntimeTraceStore = new InMemoryRuntimeTraceStore(),
+    sessionId = "cli_session",
+    sessionStore: SessionStore = new InMemorySessionStore({ createSessionId: () => sessionId }),
+    recentMessageLimit = 12
   ) {
     this.#runtime = runtime;
     this.#config = config;
     this.#traceStore = traceStore;
+    this.#sessionStore = sessionStore;
+    this.#sessionId = sessionId;
+    this.#recentMessageLimit = recentMessageLimit;
   }
 
   static createFake(responseContent: string | ((message: string) => string) = "Fake response to: Hello trace", options: RunCliOptions = {}): CliChatSession {
@@ -307,19 +317,41 @@ export class CliChatSession {
 
   async sendMessage(message: string): Promise<CliChatTurnResult> {
     const events: RuntimeEvent[] = [];
+    await this.#ensureSession();
+    const recentMessages = (await this.#sessionStore.listMessages(this.#sessionId, { limit: this.#recentMessageLimit })).map(
+      (sessionMessage) => ({
+        role: sessionMessage.role,
+        content: sessionMessage.content
+      })
+    );
 
-    for await (const event of this.#runtime.runTurn({ message })) {
+    for await (const event of this.#runtime.runTurn({ sessionId: this.#sessionId, recentMessages, message })) {
       await this.#traceStore.append(event);
       events.push(event);
     }
 
     const assistantMessage = events.find((event) => event.type === "assistant_message_created");
+    const assistantText =
+      assistantMessage?.type === "assistant_message_created"
+        ? assistantMessage.message.content
+        : "No assistant message was produced.";
+
+    await this.#sessionStore.appendMessage({
+      sessionId: this.#sessionId,
+      role: "user",
+      content: message
+    });
+
+    if (assistantMessage?.type === "assistant_message_created") {
+      await this.#sessionStore.appendMessage({
+        sessionId: this.#sessionId,
+        role: "assistant",
+        content: assistantText
+      });
+    }
 
     return {
-      assistantText:
-        assistantMessage?.type === "assistant_message_created"
-          ? assistantMessage.message.content
-          : "No assistant message was produced.",
+      assistantText,
       events
     };
   }
@@ -334,6 +366,14 @@ export class CliChatSession {
     }
 
     return [`Unknown slash command: ${command}`];
+  }
+
+  async #ensureSession(): Promise<void> {
+    if ((await this.#sessionStore.getSession(this.#sessionId)) !== undefined) {
+      return;
+    }
+
+    await this.#sessionStore.createSession({ title: this.#sessionId });
   }
 }
 

@@ -78,6 +78,64 @@ describe("runCli", () => {
     expect(requests[0]?.init?.body).toContain("\"model\":\"test-model\"");
   });
 
+  test("sends recent session messages on later interactive turns", async () => {
+    const inputs = ["First message", "Second message", "/exit"];
+    const requests: Array<{ body: string }> = [];
+    const result = await runCli(["chat"], "0.0.0", {
+      env: {
+        ARVINCLAW_API_KEY: "secret-api-key"
+      },
+      readLine: async () => inputs.shift(),
+      fetch: async (_url, init) => {
+        requests.push({
+          body: String(init?.body)
+        });
+
+        return new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: `Response ${requests.length}`
+                }
+              }
+            ]
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json"
+            }
+          }
+        );
+      }
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Assistant: Response 1");
+    expect(result.stdout).toContain("Assistant: Response 2");
+    expect(requests).toHaveLength(2);
+    expect(JSON.parse(requests[1]?.body ?? "{}")).toMatchObject({
+      messages: [
+        {
+          role: "system"
+        },
+        {
+          role: "user",
+          content: "First message"
+        },
+        {
+          role: "assistant",
+          content: "Response 1"
+        },
+        {
+          role: "user",
+          content: "Second message"
+        }
+      ]
+    });
+  });
+
   test("runs an interactive fake-provider chat loop", async () => {
     const inputs = ["Hello interactive", "/exit"];
     const result = await runCli(["chat", "--fake-interactive"], "0.0.0", {

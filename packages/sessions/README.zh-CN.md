@@ -10,7 +10,7 @@
 
 | File | Role | Purpose |
 | --- | --- | --- |
-| `package.json` | Package manifest | 声明 sessions package 和 build scripts。 |
+| `package.json` | Package manifest | 声明 sessions package、package exports 和 build scripts。 |
 | `tsconfig.json` | TypeScript config | 构建 sessions package。 |
 | `src/index.ts` | Session store | 导出 session/message contracts 和 in-memory short-term session storage。 |
 | `src/index.test.ts` | Session tests | 保护 session creation、message ordering、recent-message queries 和 defensive copies。 |
