@@ -86,7 +86,7 @@ Expected behavior:
 8. Ask for permission when the core reports an approval request.
 9. Persist session and trace data when storage exists.
 
-Configured chat stores messages in JSONL session files under `~/.arvinclaw/sessions` by default. Named sessions use `--session <id>` and must use safe session IDs.
+Configured chat stores messages in JSONL session files under `~/.arvinclaw/sessions` by default. Named sessions use `--session <id>` and must use safe session IDs. Default session IDs use a generic `session_<id>` shape because sessions belong to the agent, not to a specific adapter.
 
 The CLI should not know how the prompt was assembled. It can display a summary or report produced by the context package.
 

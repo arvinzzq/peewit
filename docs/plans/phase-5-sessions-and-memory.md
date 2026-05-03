@@ -92,7 +92,7 @@ Configured CLI chat now uses durable JSONL storage. Named sessions can be select
 pnpm run cli chat --session my_session
 ```
 
-The default configured session ID is `cli_session`, and the default storage directory is `~/.arvinclaw/sessions`.
+If no session is specified, the CLI creates a generic `session_<id>` session. Session IDs are agent-level identifiers and should not encode the entry adapter such as CLI or Web UI. The default storage directory is `~/.arvinclaw/sessions`.
 
 ## 5. Durable Session Storage
 

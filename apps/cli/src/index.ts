@@ -93,7 +93,7 @@ interface ParsedFakeChatArgs {
 
 interface ParsedChatArgs {
   fakeInteractive: boolean;
-  sessionId: string;
+  sessionId?: string;
 }
 
 function parseChatArgs(args: string[]): ParsedChatArgs {
@@ -101,7 +101,7 @@ function parseChatArgs(args: string[]): ParsedChatArgs {
 
   return {
     fakeInteractive: args.includes("--fake-interactive"),
-    sessionId: sessionIndex === -1 ? "cli_session" : args[sessionIndex + 1] ?? "cli_session"
+    ...(sessionIndex === -1 || args[sessionIndex + 1] === undefined ? {} : { sessionId: args[sessionIndex + 1] })
   };
 }
 
@@ -143,7 +143,7 @@ async function runFakeChatTurn(input: ParsedFakeChatArgs, options: RunCliOptions
 
 async function runInteractiveFakeChat(options: RunCliOptions, args: ParsedChatArgs): Promise<CliResult> {
   const session = CliChatSession.createFake((message) => `Fake response to: ${message}`, options, {
-    sessionId: args.sessionId
+    ...(args.sessionId === undefined ? {} : { sessionId: args.sessionId })
   });
 
   return runInteractiveLoop(session, "ArvinClaw chat (fake provider)", options);
@@ -160,7 +160,11 @@ async function runInteractiveConfiguredChat(options: RunCliOptions, args: Parsed
     };
   }
 
-  return runInteractiveLoop(CliChatSession.createConfigured(config, options, { sessionId: args.sessionId }), "ArvinClaw chat", options);
+  return runInteractiveLoop(
+    CliChatSession.createConfigured(config, options, args.sessionId === undefined ? {} : { sessionId: args.sessionId }),
+    "ArvinClaw chat",
+    options
+  );
 }
 
 async function runInteractiveLoop(session: CliChatSession, title: string, options: RunCliOptions): Promise<CliResult> {
@@ -275,7 +279,7 @@ export class CliChatSession {
     runtime: AgentRuntime,
     config: RedactedConfigView = redactedConfig(loadConfig()),
     traceStore: RuntimeTraceStore = new InMemoryRuntimeTraceStore(),
-    sessionId = "cli_session",
+    sessionId = createSessionId(),
     sessionStore: SessionStore = new InMemorySessionStore({ createSessionId: () => sessionId }),
     recentMessageLimit = 12
   ) {
@@ -316,7 +320,7 @@ export class CliChatSession {
       }),
       config,
       new InMemoryRuntimeTraceStore(),
-      sessionOptions.sessionId ?? "cli_session"
+      sessionOptions.sessionId ?? createSessionId()
     );
   }
 
@@ -325,7 +329,7 @@ export class CliChatSession {
       throw new Error("Configured chat requires an API key.");
     }
 
-    const sessionId = sessionOptions.sessionId ?? "cli_session";
+    const sessionId = sessionOptions.sessionId ?? createSessionId();
 
     return new CliChatSession(
       new AgentRuntime({
@@ -453,6 +457,10 @@ function resolveSessionsDirectory(directory: string, env: Record<string, string 
   const home = env?.HOME ?? process.env.HOME;
 
   return home === undefined ? directory : join(home, directory.slice(2));
+}
+
+function createSessionId(): string {
+  return `session_${crypto.randomUUID()}`;
 }
 
 export function renderRedactedConfig(config: RedactedConfigView): string[] {

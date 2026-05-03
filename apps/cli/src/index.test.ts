@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { CliChatSession, renderCompactTrace, runCli } from "./index.js";
@@ -275,7 +275,10 @@ describe("runCli", () => {
       });
 
       expect(result.exitCode).toBe(0);
-      await expect(readFile(join(home, ".arvinclaw", "sessions", "cli_session.jsonl"), "utf8")).resolves.toContain("Home session message");
+      const files = await readdir(join(home, ".arvinclaw", "sessions"));
+      expect(files).toHaveLength(1);
+      expect(files[0]).toMatch(/^session_[A-Za-z0-9_-]+\.jsonl$/);
+      await expect(readFile(join(home, ".arvinclaw", "sessions", files[0] ?? ""), "utf8")).resolves.toContain("Home session message");
     } finally {
       await rm(home, { force: true, recursive: true });
     }
