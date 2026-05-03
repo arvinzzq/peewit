@@ -12,7 +12,7 @@ Status: In Progress
 Completed:
 
 - Tool definition contracts and in-memory registry: `4ae3515`
-- Permission decision types and default policy: pending commit
+- Permission decision types and default policy: `6ccb737`
 
 Remaining:
 
