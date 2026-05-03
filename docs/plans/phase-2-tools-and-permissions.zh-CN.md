@@ -11,7 +11,7 @@ English version: [phase-2-tools-and-permissions.md](./phase-2-tools-and-permissi
 
 已完成：
 
-- Tool definition contracts 和 in-memory registry：pending commit
+- Tool definition contracts 和 in-memory registry：`4ae3515`
 
 剩余：
 

@@ -11,7 +11,7 @@ Status: In Progress
 
 Completed:
 
-- Tool definition contracts and in-memory registry: pending commit
+- Tool definition contracts and in-memory registry: `4ae3515`
 
 Remaining:
 
