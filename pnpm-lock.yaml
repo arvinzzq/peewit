@@ -35,6 +35,9 @@ importers:
       '@arvinclaw/models':
         specifier: workspace:*
         version: link:../../packages/models
+      '@arvinclaw/sessions':
+        specifier: workspace:*
+        version: link:../../packages/sessions
 
   packages/config: {}
 
@@ -52,6 +55,9 @@ importers:
       '@arvinclaw/models':
         specifier: workspace:*
         version: link:../models
+      '@arvinclaw/permissions':
+        specifier: workspace:*
+        version: link:../permissions
 
   packages/models: {}
 

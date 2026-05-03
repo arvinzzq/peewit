@@ -810,6 +810,19 @@ describe("runCli", () => {
           }
         },
         {
+          type: "tool_call_permission_evaluated",
+          eventId: "evt_permission",
+          runId: "run_1",
+          timestamp: "2026-05-03T01:40:00.600Z",
+          callId: "call_1",
+          toolName: "read_file",
+          decision: {
+            decision: "ask",
+            risk: "medium",
+            reason: "Medium and high-risk actions require approval in confirm mode."
+          }
+        },
+        {
           type: "run_completed",
           eventId: "evt_2",
           runId: "run_1",
@@ -819,7 +832,8 @@ describe("runCli", () => {
     ).toEqual([
       "1. Received user message (run_started)",
       "2. Requested tool call (tool_call_requested)",
-      "3. Completed run (run_completed)"
+      "3. Evaluated tool permission (tool_call_permission_evaluated)",
+      "4. Completed run (run_completed)"
     ]);
   });
 

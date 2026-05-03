@@ -1,6 +1,6 @@
 /**
- * INPUT: ContextAssembler, ModelProvider, runtime metadata, user turn input, optional recent conversation messages, and model-requested tool calls.
- * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, message orchestration, and tool-call request events.
+ * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, runtime metadata, user turn input, optional recent conversation messages, and model-requested tool calls.
+ * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, message orchestration, tool-call request events, and permission evaluation events.
  * POS: Core runtime layer; coordinates a turn without owning adapters, tool execution, or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -10,6 +10,13 @@ import type {
   ContextRuntimeMetadata
 } from "@arvinclaw/context";
 import type { ModelMessage, ModelProvider, ModelToolCall } from "@arvinclaw/models";
+import {
+  DefaultPermissionPolicy,
+  type AutonomyMode,
+  type PermissionDecision,
+  type PermissionPolicy,
+  type PermissionRiskLevel
+} from "@arvinclaw/permissions";
 
 export const corePackageName = "@arvinclaw/core";
 
@@ -19,6 +26,7 @@ export const runtimeEventTypes = [
   "model_request_started",
   "model_request_completed",
   "tool_call_requested",
+  "tool_call_permission_evaluated",
   "assistant_message_created",
   "run_completed",
   "run_failed"
@@ -68,6 +76,13 @@ export interface ToolCallRequestedEvent extends RuntimeEventBase {
   call: ModelToolCall;
 }
 
+export interface ToolCallPermissionEvaluatedEvent extends RuntimeEventBase {
+  type: "tool_call_permission_evaluated";
+  callId: string;
+  toolName: string;
+  decision: PermissionDecision;
+}
+
 export interface RunCompletedEvent extends RuntimeEventBase {
   type: "run_completed";
 }
@@ -86,6 +101,7 @@ export type RuntimeEvent =
   | ModelRequestStartedEvent
   | ModelRequestCompletedEvent
   | ToolCallRequestedEvent
+  | ToolCallPermissionEvaluatedEvent
   | AssistantMessageCreatedEvent
   | RunCompletedEvent
   | RunFailedEvent;
@@ -140,6 +156,7 @@ export interface AgentRuntimeInput {
 export interface AgentRuntimeDependencies {
   contextAssembler: ContextAssembler;
   modelProvider: ModelProvider;
+  permissionPolicy?: PermissionPolicy;
   systemInstruction: string;
   runtime?: ContextRuntimeMetadata;
   createRunId?: () => string;
@@ -150,6 +167,7 @@ export interface AgentRuntimeDependencies {
 export class AgentRuntime {
   readonly #contextAssembler: ContextAssembler;
   readonly #modelProvider: ModelProvider;
+  readonly #permissionPolicy: PermissionPolicy;
   readonly #systemInstruction: string;
   readonly #runtime: ContextRuntimeMetadata | undefined;
   readonly #createRunId: () => string;
@@ -159,6 +177,7 @@ export class AgentRuntime {
   constructor(dependencies: AgentRuntimeDependencies) {
     this.#contextAssembler = dependencies.contextAssembler;
     this.#modelProvider = dependencies.modelProvider;
+    this.#permissionPolicy = dependencies.permissionPolicy ?? new DefaultPermissionPolicy();
     this.#systemInstruction = dependencies.systemInstruction;
     this.#runtime = dependencies.runtime;
     this.#createRunId = dependencies.createRunId ?? randomId("run");
@@ -231,6 +250,19 @@ export class AgentRuntime {
           type: "tool_call_requested",
           call
         });
+
+        const decision = this.#permissionPolicy.evaluate({
+          mode: normalizeAutonomyMode(this.#runtime?.mode),
+          action: createToolPermissionAction(call)
+        });
+
+        yield this.#event({
+          ...base,
+          type: "tool_call_permission_evaluated",
+          callId: call.id,
+          toolName: call.name,
+          decision
+        });
       }
 
       yield this.#event({
@@ -270,4 +302,22 @@ export class AgentRuntime {
 
 function randomId(prefix: string): () => string {
   return () => `${prefix}_${crypto.randomUUID()}`;
+}
+
+function createToolPermissionAction(call: ModelToolCall): {
+  kind: "tool";
+  name: string;
+  summary: string;
+  risk: PermissionRiskLevel;
+} {
+  return {
+    kind: "tool",
+    name: call.name,
+    summary: `Model requested tool ${call.name}.`,
+    risk: "medium"
+  };
+}
+
+function normalizeAutonomyMode(mode: string | undefined): AutonomyMode {
+  return mode === "observe" || mode === "auto" ? mode : "confirm";
 }

@@ -572,6 +572,8 @@ function traceEventLabel(event: RuntimeEvent): string {
       return "Completed model request";
     case "tool_call_requested":
       return "Requested tool call";
+    case "tool_call_permission_evaluated":
+      return "Evaluated tool permission";
     case "assistant_message_created":
       return "Created assistant message";
     case "run_completed":
