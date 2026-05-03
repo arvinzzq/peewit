@@ -16,17 +16,17 @@ English version: [phase-2-tools-and-permissions.md](./phase-2-tools-and-permissi
 - Runtime emits model-requested tool-call events：`0055ee8`
 - Runtime evaluates permission decisions for requested tool calls：`0a0f18b`
 - CLI renders approval prompts for `ask` permission decisions：`6c3b956`
+- Runtime approval resolver records approval request and resolution events：`7e81d92`
 
 剩余：
 
 - Tool-call events 后的 runtime tool execution wiring。
-- 将 CLI approval decisions 回传到 runtime tool execution。
 - Built-in file tools。
 - Tool lifecycle trace events。
 
 下一步建议切片：
 
-- 将 approval decisions 接入 runtime tool execution。
+- 添加 executable tool contracts 和 built-in read-only file tools。
 
 ## 1. 目的
 

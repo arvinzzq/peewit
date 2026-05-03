@@ -16,17 +16,17 @@ Completed:
 - Runtime emits model-requested tool-call events: `0055ee8`
 - Runtime evaluates permission decisions for requested tool calls: `0a0f18b`
 - CLI renders approval prompts for `ask` permission decisions: `6c3b956`
+- Runtime approval resolver records approval request and resolution events: `7e81d92`
 
 Remaining:
 
 - Runtime tool execution wiring after tool-call events.
-- Returning approval decisions from CLI into runtime tool execution.
 - Built-in file tools.
 - Tool lifecycle trace events.
 
 Next recommended slice:
 
-- Wire approval decisions into runtime tool execution.
+- Add executable tool contracts and built-in read-only file tools.
 
 ## 1. Purpose
 
