@@ -13,7 +13,7 @@ Completed:
 
 - Tool definition contracts and in-memory registry: `4ae3515`
 - Permission decision types and default policy: `6ccb737`
-- Runtime emits model-requested tool-call events: pending commit
+- Runtime emits model-requested tool-call events: `0055ee8`
 
 Remaining:
 

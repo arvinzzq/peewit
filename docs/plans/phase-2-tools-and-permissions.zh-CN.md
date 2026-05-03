@@ -13,7 +13,7 @@ English version: [phase-2-tools-and-permissions.md](./phase-2-tools-and-permissi
 
 - Tool definition contracts 和 in-memory registry：`4ae3515`
 - Permission decision types 和 default policy：`6ccb737`
-- Runtime emits model-requested tool-call events：pending commit
+- Runtime emits model-requested tool-call events：`0055ee8`
 
 剩余：
 
