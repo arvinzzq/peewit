@@ -14,17 +14,18 @@ English version: [phase-2-tools-and-permissions.md](./phase-2-tools-and-permissi
 - Tool definition contracts 和 in-memory registry：`4ae3515`
 - Permission decision types 和 default policy：`6ccb737`
 - Runtime emits model-requested tool-call events：`0055ee8`
+- Runtime evaluates permission decisions for requested tool calls：`0a0f18b`
 
 剩余：
 
 - Tool-call events 后的 runtime tool execution wiring。
 - CLI approval prompt flow。
 - Built-in file tools。
-- Tool lifecycle and permission trace events。
+- Tool lifecycle trace events。
 
 下一步建议切片：
 
-- 把 permission evaluation 接入 runtime tool-call handling。
+- 为返回 `ask` 的 permission decisions 添加 CLI approval prompt flow。
 
 ## 1. 目的
 
@@ -212,7 +213,7 @@ Phase 2 应增加 trace events，例如：
 
 - `tool_call_requested`
 - `tool_input_validated`
-- `permission_evaluated`
+- `tool_call_permission_evaluated`
 - `approval_requested`
 - `approval_resolved`
 - `tool_started`

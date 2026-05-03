@@ -85,7 +85,7 @@ Trace 应总结有风险或很大的内容，并尽量保留 references。
 - `plan_created`
 - `plan_updated`
 - `tool_selected`
-- `permission_evaluated`
+- `tool_call_permission_evaluated`
 - `approval_requested`
 - `approval_resolved`
 - `tool_started`

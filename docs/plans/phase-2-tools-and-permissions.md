@@ -14,17 +14,18 @@ Completed:
 - Tool definition contracts and in-memory registry: `4ae3515`
 - Permission decision types and default policy: `6ccb737`
 - Runtime emits model-requested tool-call events: `0055ee8`
+- Runtime evaluates permission decisions for requested tool calls: `0a0f18b`
 
 Remaining:
 
 - Runtime tool execution wiring after tool-call events.
 - CLI approval prompt flow.
 - Built-in file tools.
-- Tool lifecycle and permission trace events.
+- Tool lifecycle trace events.
 
 Next recommended slice:
 
-- Wire permission evaluation into runtime tool-call handling.
+- Add CLI approval prompt flow for permission decisions that return `ask`.
 
 ## 1. Purpose
 
@@ -212,7 +213,7 @@ Phase 2 should add trace events such as:
 
 - `tool_call_requested`
 - `tool_input_validated`
-- `permission_evaluated`
+- `tool_call_permission_evaluated`
 - `approval_requested`
 - `approval_resolved`
 - `tool_started`

@@ -85,7 +85,7 @@ The implementation plan should refine exact event types, but MVP trace events ma
 - `plan_created`
 - `plan_updated`
 - `tool_selected`
-- `permission_evaluated`
+- `tool_call_permission_evaluated`
 - `approval_requested`
 - `approval_resolved`
 - `tool_started`
