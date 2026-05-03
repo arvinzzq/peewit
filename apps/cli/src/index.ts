@@ -6,12 +6,13 @@
  * Update this header and the parent directory docs when responsibilities change.
  */
 import { createInterface } from "node:readline";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, redactedConfig, type EffectiveConfig, type RedactedConfigView } from "@arvinclaw/config";
 import { DefaultContextAssembler } from "@arvinclaw/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
 import { FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
-import { InMemorySessionStore, type SessionStore } from "@arvinclaw/sessions";
+import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
 
 export const cliPackageName = "@arvinclaw/cli";
 
@@ -27,6 +28,7 @@ export interface RunCliOptions {
   env?: Record<string, string | undefined>;
   fetch?: FetchLike;
   readLine?: (prompt: string) => Promise<string | undefined>;
+  sessionsDirectory?: string;
   write?: (text: string) => void;
 }
 
@@ -34,6 +36,8 @@ const helpText = `Usage: arvinclaw <command>
 
 Commands:
   chat        Start an interactive chat session
+  chat --session <id>
+              Start or continue a named interactive chat session
   chat --fake <message>
               Run one message-only turn with a fake provider
   chat --fake-interactive
@@ -62,15 +66,17 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
   }
 
   if (command === "chat") {
+    const parsedChatArgs = parseChatArgs(rest);
+
     if (rest[0] === "--fake") {
       return runFakeChatTurn(parseFakeChatArgs(rest.slice(1)), options);
     }
 
-    if (rest[0] === "--fake-interactive") {
-      return runInteractiveFakeChat(options);
+    if (parsedChatArgs.fakeInteractive) {
+      return runInteractiveFakeChat(options, parsedChatArgs);
     }
 
-    return runInteractiveConfiguredChat(options);
+    return runInteractiveConfiguredChat(options, parsedChatArgs);
   }
 
   return {
@@ -83,6 +89,20 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
 interface ParsedFakeChatArgs {
   message: string;
   slashCommands: string[];
+}
+
+interface ParsedChatArgs {
+  fakeInteractive: boolean;
+  sessionId: string;
+}
+
+function parseChatArgs(args: string[]): ParsedChatArgs {
+  const sessionIndex = args.indexOf("--session");
+
+  return {
+    fakeInteractive: args.includes("--fake-interactive"),
+    sessionId: sessionIndex === -1 ? "cli_session" : args[sessionIndex + 1] ?? "cli_session"
+  };
 }
 
 function parseFakeChatArgs(args: string[]): ParsedFakeChatArgs {
@@ -121,13 +141,15 @@ async function runFakeChatTurn(input: ParsedFakeChatArgs, options: RunCliOptions
   };
 }
 
-async function runInteractiveFakeChat(options: RunCliOptions): Promise<CliResult> {
-  const session = CliChatSession.createFake((message) => `Fake response to: ${message}`, options);
+async function runInteractiveFakeChat(options: RunCliOptions, args: ParsedChatArgs): Promise<CliResult> {
+  const session = CliChatSession.createFake((message) => `Fake response to: ${message}`, options, {
+    sessionId: args.sessionId
+  });
 
   return runInteractiveLoop(session, "ArvinClaw chat (fake provider)", options);
 }
 
-async function runInteractiveConfiguredChat(options: RunCliOptions): Promise<CliResult> {
+async function runInteractiveConfiguredChat(options: RunCliOptions, args: ParsedChatArgs): Promise<CliResult> {
   const config = loadConfig(options.env ? { env: options.env } : {});
 
   if (config.secrets.apiKey === undefined) {
@@ -138,7 +160,7 @@ async function runInteractiveConfiguredChat(options: RunCliOptions): Promise<Cli
     };
   }
 
-  return runInteractiveLoop(CliChatSession.createConfigured(config, options), "ArvinClaw chat", options);
+  return runInteractiveLoop(CliChatSession.createConfigured(config, options, { sessionId: args.sessionId }), "ArvinClaw chat", options);
 }
 
 async function runInteractiveLoop(session: CliChatSession, title: string, options: RunCliOptions): Promise<CliResult> {
@@ -237,6 +259,10 @@ export interface CliChatTurnResult {
   events: RuntimeEvent[];
 }
 
+interface CreateChatSessionOptions {
+  sessionId?: string;
+}
+
 export class CliChatSession {
   readonly #runtime: AgentRuntime;
   readonly #traceStore: RuntimeTraceStore;
@@ -261,7 +287,11 @@ export class CliChatSession {
     this.#recentMessageLimit = recentMessageLimit;
   }
 
-  static createFake(responseContent: string | ((message: string) => string) = "Fake response to: Hello trace", options: RunCliOptions = {}): CliChatSession {
+  static createFake(
+    responseContent: string | ((message: string) => string) = "Fake response to: Hello trace",
+    options: RunCliOptions = {},
+    sessionOptions: CreateChatSessionOptions = {}
+  ): CliChatSession {
     const config = redactedConfig(loadConfig(options.env ? { env: options.env } : {}));
     const provider =
       typeof responseContent === "function"
@@ -284,14 +314,18 @@ export class CliChatSession {
           currentDate: new Date().toISOString().slice(0, 10)
         }
       }),
-      config
+      config,
+      new InMemoryRuntimeTraceStore(),
+      sessionOptions.sessionId ?? "cli_session"
     );
   }
 
-  static createConfigured(config: EffectiveConfig, options: RunCliOptions = {}): CliChatSession {
+  static createConfigured(config: EffectiveConfig, options: RunCliOptions = {}, sessionOptions: CreateChatSessionOptions = {}): CliChatSession {
     if (config.secrets.apiKey === undefined) {
       throw new Error("Configured chat requires an API key.");
     }
+
+    const sessionId = sessionOptions.sessionId ?? "cli_session";
 
     return new CliChatSession(
       new AgentRuntime({
@@ -311,7 +345,10 @@ export class CliChatSession {
           currentDate: new Date().toISOString().slice(0, 10)
         }
       }),
-      redactedConfig(config)
+      redactedConfig(config),
+      new InMemoryRuntimeTraceStore(),
+      sessionId,
+      createConfiguredSessionStore(config, options, sessionId)
     );
   }
 
@@ -395,6 +432,27 @@ class MessageMappedFakeModelProvider implements ModelProvider {
       content: this.#mapMessage(lastUserMessage)
     };
   }
+}
+
+function createConfiguredSessionStore(config: EffectiveConfig, options: RunCliOptions, sessionId: string): SessionStore {
+  const directory = resolveSessionsDirectory(options.sessionsDirectory ?? config.sessions.directory, options.env);
+
+  // The configured CLI path uses JSONL so named sessions can be replayed across
+  // process runs; tests can still inject a temp directory to avoid user files.
+  return new JsonlSessionStore({
+    directory,
+    createSessionId: () => sessionId
+  });
+}
+
+function resolveSessionsDirectory(directory: string, env: Record<string, string | undefined> | undefined): string {
+  if (!directory.startsWith("~/")) {
+    return directory;
+  }
+
+  const home = env?.HOME ?? process.env.HOME;
+
+  return home === undefined ? directory : join(home, directory.slice(2));
 }
 
 export function renderRedactedConfig(config: RedactedConfigView): string[] {

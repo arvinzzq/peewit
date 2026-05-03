@@ -51,6 +51,7 @@ Initial commands:
 | Command | Purpose | Phase |
 | --- | --- | --- |
 | `arvinclaw chat` | Start an interactive chat session using configured provider settings | Phase 1 |
+| `arvinclaw chat --session <id>` | Start or continue a named JSONL-backed chat session | Phase 5 |
 | `arvinclaw chat --fake-interactive` | Start an interactive local learning session with a fake provider | Phase 1 |
 | `arvinclaw chat --fake "<message>"` | Run a one-turn fake-provider smoke path | Phase 1 |
 | `arvinclaw --version` | Show version | Phase 0-1 |
@@ -84,6 +85,8 @@ Expected behavior:
 7. Render trace events as they arrive.
 8. Ask for permission when the core reports an approval request.
 9. Persist session and trace data when storage exists.
+
+Configured chat stores messages in JSONL session files under `~/.arvinclaw/sessions` by default. Named sessions use `--session <id>` and must use safe session IDs.
 
 The CLI should not know how the prompt was assembled. It can display a summary or report produced by the context package.
 

@@ -1,4 +1,7 @@
 import { describe, expect, test } from "vitest";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { CliChatSession, renderCompactTrace, runCli } from "./index.js";
 
 describe("runCli", () => {
@@ -31,110 +34,251 @@ describe("runCli", () => {
   });
 
   test("runs an interactive configured-provider chat loop", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
     const inputs = ["Hello configured", "/exit"];
     const requests: Array<{ url: string; init?: RequestInit }> = [];
-    const result = await runCli(["chat"], "0.0.0", {
-      env: {
-        ARVINCLAW_API_KEY: "secret-api-key",
-        ARVINCLAW_BASE_URL: "https://provider.example/v1",
-        ARVINCLAW_MODEL: "test-model"
-      },
-      readLine: async () => inputs.shift(),
-      fetch: async (url, init) => {
-        requests.push({
-          url,
-          ...(init ? { init } : {})
-        });
 
-        return new Response(
-          JSON.stringify({
-            choices: [
-              {
-                message: {
-                  content: "Configured provider response"
+    try {
+      const result = await runCli(["chat"], "0.0.0", {
+        env: {
+          ARVINCLAW_API_KEY: "secret-api-key",
+          ARVINCLAW_BASE_URL: "https://provider.example/v1",
+          ARVINCLAW_MODEL: "test-model"
+        },
+        sessionsDirectory: directory,
+        readLine: async () => inputs.shift(),
+        fetch: async (url, init) => {
+          requests.push({
+            url,
+            ...(init ? { init } : {})
+          });
+
+          return new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    content: "Configured provider response"
+                  }
                 }
+              ]
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json"
               }
-            ]
-          }),
-          {
-            status: 200,
-            headers: {
-              "content-type": "application/json"
             }
-          }
-        );
-      }
-    });
+          );
+        }
+      });
 
-    expect(result.exitCode).toBe(0);
-    expect(result.stderr).toBe("");
-    expect(result.stdout).toContain("ArvinClaw chat");
-    expect(result.stdout).toContain("Assistant: Configured provider response");
-    expect(result.stdout).toContain("Goodbye.");
-    expect(requests).toHaveLength(1);
-    expect(requests[0]?.url).toBe("https://provider.example/v1/chat/completions");
-    expect(requests[0]?.init?.headers).toMatchObject({
-      authorization: "Bearer secret-api-key"
-    });
-    expect(requests[0]?.init?.body).toContain("\"model\":\"test-model\"");
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("ArvinClaw chat");
+      expect(result.stdout).toContain("Assistant: Configured provider response");
+      expect(result.stdout).toContain("Goodbye.");
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe("https://provider.example/v1/chat/completions");
+      expect(requests[0]?.init?.headers).toMatchObject({
+        authorization: "Bearer secret-api-key"
+      });
+      expect(requests[0]?.init?.body).toContain("\"model\":\"test-model\"");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
   });
 
   test("sends recent session messages on later interactive turns", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
     const inputs = ["First message", "Second message", "/exit"];
     const requests: Array<{ body: string }> = [];
-    const result = await runCli(["chat"], "0.0.0", {
-      env: {
-        ARVINCLAW_API_KEY: "secret-api-key"
-      },
-      readLine: async () => inputs.shift(),
-      fetch: async (_url, init) => {
-        requests.push({
-          body: String(init?.body)
-        });
 
-        return new Response(
-          JSON.stringify({
-            choices: [
-              {
-                message: {
-                  content: `Response ${requests.length}`
+    try {
+      const result = await runCli(["chat"], "0.0.0", {
+        env: {
+          ARVINCLAW_API_KEY: "secret-api-key"
+        },
+        sessionsDirectory: directory,
+        readLine: async () => inputs.shift(),
+        fetch: async (_url, init) => {
+          requests.push({
+            body: String(init?.body)
+          });
+
+          return new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    content: `Response ${requests.length}`
+                  }
                 }
+              ]
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json"
               }
-            ]
-          }),
-          {
-            status: 200,
-            headers: {
-              "content-type": "application/json"
             }
-          }
-        );
-      }
-    });
-
-    expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("Assistant: Response 1");
-    expect(result.stdout).toContain("Assistant: Response 2");
-    expect(requests).toHaveLength(2);
-    expect(JSON.parse(requests[1]?.body ?? "{}")).toMatchObject({
-      messages: [
-        {
-          role: "system"
-        },
-        {
-          role: "user",
-          content: "First message"
-        },
-        {
-          role: "assistant",
-          content: "Response 1"
-        },
-        {
-          role: "user",
-          content: "Second message"
+          );
         }
-      ]
-    });
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Assistant: Response 1");
+      expect(result.stdout).toContain("Assistant: Response 2");
+      expect(requests).toHaveLength(2);
+      expect(JSON.parse(requests[1]?.body ?? "{}")).toMatchObject({
+        messages: [
+          {
+            role: "system"
+          },
+          {
+            role: "user",
+            content: "First message"
+          },
+          {
+            role: "assistant",
+            content: "Response 1"
+          },
+          {
+            role: "user",
+            content: "Second message"
+          }
+        ]
+      });
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("persists configured chat messages across CLI runs", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+    const env = {
+      ARVINCLAW_API_KEY: "secret-api-key"
+    };
+
+    try {
+      const firstInputs = ["First durable message", "/exit"];
+      await runCli(["chat", "--session", "durable_session"], "0.0.0", {
+        env,
+        sessionsDirectory: directory,
+        readLine: async () => firstInputs.shift(),
+        fetch: async () =>
+          new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    content: "Durable response 1"
+                  }
+                }
+              ]
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json"
+              }
+            }
+          )
+      });
+
+      const requests: Array<{ body: string }> = [];
+      const secondInputs = ["Second durable message", "/exit"];
+      const secondResult = await runCli(["chat", "--session", "durable_session"], "0.0.0", {
+        env,
+        sessionsDirectory: directory,
+        readLine: async () => secondInputs.shift(),
+        fetch: async (_url, init) => {
+          requests.push({
+            body: String(init?.body)
+          });
+
+          return new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    content: "Durable response 2"
+                  }
+                }
+              ]
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json"
+              }
+            }
+          );
+        }
+      });
+
+      expect(secondResult.exitCode).toBe(0);
+      expect(JSON.parse(requests[0]?.body ?? "{}")).toMatchObject({
+        messages: [
+          {
+            role: "system"
+          },
+          {
+            role: "user",
+            content: "First durable message"
+          },
+          {
+            role: "assistant",
+            content: "Durable response 1"
+          },
+          {
+            role: "user",
+            content: "Second durable message"
+          }
+        ]
+      });
+      await expect(readFile(join(directory, "durable_session.jsonl"), "utf8")).resolves.toContain("First durable message");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("expands the default sessions directory under HOME", async () => {
+    const home = await mkdtemp(join(tmpdir(), "arvinclaw-cli-home-"));
+    const inputs = ["Home session message", "/exit"];
+
+    try {
+      const result = await runCli(["chat"], "0.0.0", {
+        env: {
+          ARVINCLAW_API_KEY: "secret-api-key",
+          HOME: home
+        },
+        readLine: async () => inputs.shift(),
+        fetch: async () =>
+          new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    content: "Home session response"
+                  }
+                }
+              ]
+            }),
+            {
+              status: 200,
+              headers: {
+                "content-type": "application/json"
+              }
+            }
+          )
+      });
+
+      expect(result.exitCode).toBe(0);
+      await expect(readFile(join(home, ".arvinclaw", "sessions", "cli_session.jsonl"), "utf8")).resolves.toContain("Home session message");
+    } finally {
+      await rm(home, { force: true, recursive: true });
+    }
   });
 
   test("runs an interactive fake-provider chat loop", async () => {

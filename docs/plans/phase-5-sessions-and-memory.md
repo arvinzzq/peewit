@@ -16,12 +16,13 @@ Completed:
 - Runtime handoff for recent messages: `3e0447a`
 - CLI short-term memory within one interactive session: `2a22822`
 - Durable JSONL session storage behind `SessionStore`: `f311687`
+- CLI named sessions backed by JSONL storage: in progress
 
 Remaining:
 
-- Stable session ID selection and display.
+- Session listing commands.
 - Trace persistence alongside message persistence.
-- Session resume and session listing commands.
+- Session resume command.
 - Workspace prompt loading for `AGENTS.md` and `SOUL.md`.
 - Long-term memory files such as `USER.md`, `MEMORY.md`, and `memory/YYYY-MM-DD.md`.
 
@@ -35,7 +36,7 @@ Latest verification:
 
 Next recommended slice:
 
-- Wire CLI session creation to durable JSONL storage and stable session IDs.
+- Add session listing and trace persistence.
 
 ## 1. Purpose
 
@@ -85,7 +86,13 @@ CLI interactive session
   -> after the turn, append user and assistant messages to the session
 ```
 
-The first CLI slice uses in-memory storage. Durable storage now exists behind the same interface and should be wired into CLI session selection next.
+Configured CLI chat now uses durable JSONL storage. Named sessions can be selected with:
+
+```bash
+pnpm run cli chat --session my_session
+```
+
+The default configured session ID is `cli_session`, and the default storage directory is `~/.arvinclaw/sessions`.
 
 ## 5. Durable Session Storage
 
@@ -132,6 +139,7 @@ Required tests:
 - CLI second-turn provider request includes first-turn history.
 - JSONL append/load behavior.
 - Unsafe session ID rejection before writing files.
+- CLI named sessions persist history across process runs.
 - Future resume command behavior.
 
 ## 8. Acceptance Criteria

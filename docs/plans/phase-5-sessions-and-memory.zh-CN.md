@@ -16,12 +16,13 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 - Runtime handoff for recent messages：`3e0447a`
 - 同一个 interactive session 内的 CLI short-term memory：`2a22822`
 - `SessionStore` 后面的 durable JSONL session storage：`f311687`
+- 由 JSONL storage 支撑的 CLI named sessions：in progress
 
 剩余：
 
-- Stable session ID selection and display。
+- Session listing commands。
 - Trace persistence alongside message persistence。
-- Session resume and session listing commands。
+- Session resume command。
 - 针对 `AGENTS.md` 和 `SOUL.md` 的 workspace prompt loading。
 - `USER.md`、`MEMORY.md` 和 `memory/YYYY-MM-DD.md` 等 long-term memory files。
 
@@ -35,7 +36,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 
 下一步建议切片：
 
-- 将 CLI session creation 接到 durable JSONL storage 和 stable session IDs。
+- 添加 session listing 和 trace persistence。
 
 ## 1. 目的
 
@@ -85,7 +86,13 @@ CLI interactive session
   -> after the turn, append user and assistant messages to the session
 ```
 
-第一版 CLI 切片使用 in-memory storage。Durable storage 现在已经存在于同一 interface 后面，下一步应接入 CLI session selection。
+Configured CLI chat 现在使用 durable JSONL storage。Named sessions 可以这样选择：
+
+```bash
+pnpm run cli chat --session my_session
+```
+
+默认 configured session ID 是 `cli_session`，默认 storage directory 是 `~/.arvinclaw/sessions`。
 
 ## 5. Durable Session Storage
 
@@ -132,6 +139,7 @@ Agent 不能静默写入这些文件。Memory promotion 应该是 explicit 且 r
 - CLI second-turn provider request includes first-turn history。
 - JSONL append/load behavior。
 - 写入文件前拒绝 unsafe session ID。
+- CLI named sessions 可以跨 process runs 持久化 history。
 - 未来 resume command behavior。
 
 ## 8. 验收标准
