@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-保持这个 package 专注于 runtime coordination、short-term context handoff、model-requested tool-call events、permission evaluation events、共享 runtime contracts 和 trace storage interfaces。它可以编排注入依赖，但不应该读取环境变量、渲染 CLI output、执行 tools、收集 approval UI 或直接调用厂商 API。
+保持这个 package 专注于 runtime coordination、short-term context handoff、model-requested tool-call events、permission evaluation events、approval resolution events、共享 runtime contracts 和 trace storage interfaces。它可以编排注入依赖，但不应该读取环境变量、渲染 CLI output、执行 tools、收集 approval UI 或直接调用厂商 API。
 
 ## When Files Change
 
@@ -10,7 +10,7 @@
 
 ## Testing
 
-Runtime event order、trace storage、short-term context handoff、tool-call request events、permission evaluation events、failure events 和 dependency injection behavior 需要单元测试。使用 fake providers、fake assemblers 和注入的 fake permission policies；不要使用真实 API keys。
+Runtime event order、trace storage、short-term context handoff、tool-call request events、permission evaluation events、approval resolution events、failure events 和 dependency injection behavior 需要单元测试。使用 fake providers、fake assemblers、注入的 fake permission policies 和注入的 fake approval resolvers；不要使用真实 API keys。
 
 ## Boundaries
 

@@ -19,6 +19,8 @@ describe("runtime event contracts", () => {
       "model_request_completed",
       "tool_call_requested",
       "tool_call_permission_evaluated",
+      "approval_requested",
+      "approval_resolved",
       "assistant_message_created",
       "run_completed",
       "run_failed"
@@ -315,6 +317,8 @@ describe("message-only AgentRuntime", () => {
       "model_request_completed",
       "tool_call_requested",
       "tool_call_permission_evaluated",
+      "approval_requested",
+      "approval_resolved",
       "run_failed"
     ]);
     expect(events[4]).toMatchObject({
@@ -338,9 +342,28 @@ describe("message-only AgentRuntime", () => {
       }
     });
     expect(events[6]).toMatchObject({
+      type: "approval_requested",
+      callId: "call_1",
+      toolName: "read_file",
+      decision: {
+        decision: "ask",
+        risk: "medium",
+        reason: "Medium and high-risk actions require approval in confirm mode."
+      }
+    });
+    expect(events[7]).toMatchObject({
+      type: "approval_resolved",
+      callId: "call_1",
+      toolName: "read_file",
+      resolution: {
+        approved: false,
+        reason: "No approval resolver was configured."
+      }
+    });
+    expect(events[8]).toMatchObject({
       type: "run_failed",
       error: {
-        message: "Tool execution is not wired yet.",
+        message: "Tool call read_file was denied.",
         recoverable: false
       }
     });
@@ -409,6 +432,89 @@ describe("message-only AgentRuntime", () => {
         decision: "deny",
         risk: "medium",
         reason: "Custom policy denied this tool."
+      }
+    });
+  });
+
+  test("uses the configured approval resolver for ask-level tool calls", async () => {
+    const approvalRequests: unknown[] = [];
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([
+        {
+          type: "tool_calls",
+          calls: [
+            {
+              id: "call_approve",
+              name: "read_file",
+              input: {
+                path: "README.md"
+              }
+            }
+          ]
+        }
+      ]),
+      approvalResolver: {
+        resolve(request) {
+          approvalRequests.push(request);
+          return Promise.resolve({
+            approved: true,
+            reason: "Approved by test."
+          });
+        }
+      },
+      systemInstruction: "You are ArvinClaw.",
+      createRunId: () => "run_approval",
+      createEventId: (() => {
+        let next = 0;
+        return () => `evt_approval_${++next}`;
+      })(),
+      now: () => "2026-05-03T01:25:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Read README." }));
+
+    expect(approvalRequests).toEqual([
+      {
+        call: {
+          id: "call_approve",
+          name: "read_file",
+          input: {
+            path: "README.md"
+          }
+        },
+        decision: {
+          decision: "ask",
+          risk: "medium",
+          reason: "Medium and high-risk actions require approval in confirm mode."
+        }
+      }
+    ]);
+    expect(events.map((event) => event.type)).toEqual([
+      "run_started",
+      "context_assembled",
+      "model_request_started",
+      "model_request_completed",
+      "tool_call_requested",
+      "tool_call_permission_evaluated",
+      "approval_requested",
+      "approval_resolved",
+      "run_failed"
+    ]);
+    expect(events[7]).toMatchObject({
+      type: "approval_resolved",
+      callId: "call_approve",
+      toolName: "read_file",
+      resolution: {
+        approved: true,
+        reason: "Approved by test."
+      }
+    });
+    expect(events[8]).toMatchObject({
+      type: "run_failed",
+      error: {
+        message: "Tool execution is not wired yet.",
+        recoverable: false
       }
     });
   });

@@ -1,6 +1,6 @@
 /**
- * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, runtime metadata, user turn input, optional recent conversation messages, and model-requested tool calls.
- * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, message orchestration, tool-call request events, and permission evaluation events.
+ * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, optional ApprovalResolver, runtime metadata, user turn input, optional recent conversation messages, and model-requested tool calls.
+ * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, message orchestration, tool-call request events, permission evaluation events, and approval resolution events.
  * POS: Core runtime layer; coordinates a turn without owning adapters, tool execution, or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -27,6 +27,8 @@ export const runtimeEventTypes = [
   "model_request_completed",
   "tool_call_requested",
   "tool_call_permission_evaluated",
+  "approval_requested",
+  "approval_resolved",
   "assistant_message_created",
   "run_completed",
   "run_failed"
@@ -83,6 +85,25 @@ export interface ToolCallPermissionEvaluatedEvent extends RuntimeEventBase {
   decision: PermissionDecision;
 }
 
+export interface ApprovalRequestedEvent extends RuntimeEventBase {
+  type: "approval_requested";
+  callId: string;
+  toolName: string;
+  decision: PermissionDecision;
+}
+
+export interface ApprovalResolution {
+  approved: boolean;
+  reason: string;
+}
+
+export interface ApprovalResolvedEvent extends RuntimeEventBase {
+  type: "approval_resolved";
+  callId: string;
+  toolName: string;
+  resolution: ApprovalResolution;
+}
+
 export interface RunCompletedEvent extends RuntimeEventBase {
   type: "run_completed";
 }
@@ -102,6 +123,8 @@ export type RuntimeEvent =
   | ModelRequestCompletedEvent
   | ToolCallRequestedEvent
   | ToolCallPermissionEvaluatedEvent
+  | ApprovalRequestedEvent
+  | ApprovalResolvedEvent
   | AssistantMessageCreatedEvent
   | RunCompletedEvent
   | RunFailedEvent;
@@ -153,10 +176,20 @@ export interface AgentRuntimeInput {
   message: string;
 }
 
+export interface ApprovalRequest {
+  call: ModelToolCall;
+  decision: PermissionDecision;
+}
+
+export interface ApprovalResolver {
+  resolve(request: ApprovalRequest): Promise<ApprovalResolution>;
+}
+
 export interface AgentRuntimeDependencies {
   contextAssembler: ContextAssembler;
   modelProvider: ModelProvider;
   permissionPolicy?: PermissionPolicy;
+  approvalResolver?: ApprovalResolver;
   systemInstruction: string;
   runtime?: ContextRuntimeMetadata;
   createRunId?: () => string;
@@ -168,6 +201,7 @@ export class AgentRuntime {
   readonly #contextAssembler: ContextAssembler;
   readonly #modelProvider: ModelProvider;
   readonly #permissionPolicy: PermissionPolicy;
+  readonly #approvalResolver: ApprovalResolver | undefined;
   readonly #systemInstruction: string;
   readonly #runtime: ContextRuntimeMetadata | undefined;
   readonly #createRunId: () => string;
@@ -178,6 +212,7 @@ export class AgentRuntime {
     this.#contextAssembler = dependencies.contextAssembler;
     this.#modelProvider = dependencies.modelProvider;
     this.#permissionPolicy = dependencies.permissionPolicy ?? new DefaultPermissionPolicy();
+    this.#approvalResolver = dependencies.approvalResolver;
     this.#systemInstruction = dependencies.systemInstruction;
     this.#runtime = dependencies.runtime;
     this.#createRunId = dependencies.createRunId ?? randomId("run");
@@ -263,6 +298,56 @@ export class AgentRuntime {
           toolName: call.name,
           decision
         });
+
+        if (decision.decision === "deny") {
+          yield this.#event({
+            ...base,
+            type: "run_failed",
+            error: {
+              message: `Tool call ${call.name} was denied.`,
+              recoverable: false
+            }
+          });
+          return;
+        }
+
+        if (decision.decision === "ask") {
+          yield this.#event({
+            ...base,
+            type: "approval_requested",
+            callId: call.id,
+            toolName: call.name,
+            decision
+          });
+
+          const resolution =
+            this.#approvalResolver === undefined
+              ? {
+                  approved: false,
+                  reason: "No approval resolver was configured."
+                }
+              : await this.#approvalResolver.resolve({ call, decision });
+
+          yield this.#event({
+            ...base,
+            type: "approval_resolved",
+            callId: call.id,
+            toolName: call.name,
+            resolution
+          });
+
+          if (!resolution.approved) {
+            yield this.#event({
+              ...base,
+              type: "run_failed",
+              error: {
+                message: `Tool call ${call.name} was denied.`,
+                recoverable: false
+              }
+            });
+            return;
+          }
+        }
       }
 
       yield this.#event({

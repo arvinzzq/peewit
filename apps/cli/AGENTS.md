@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-Keep this package focused on terminal adaptation. It may compose runtime, config, workspace-aware and memory-policy-aware context assembly including daily memory, ask the user for approval when runtime permission events require it, and durable session/message/trace dependencies for CLI commands, but agent behavior belongs in `packages/core`, prompt/context work belongs in `packages/context`, session persistence belongs in `packages/sessions`, and provider normalization belongs in `packages/models`.
+Keep this package focused on terminal adaptation. It may compose runtime, config, workspace-aware and memory-policy-aware context assembly including daily memory, ask the user for approval through the runtime approval resolver, and durable session/message/trace dependencies for CLI commands, but agent behavior belongs in `packages/core`, prompt/context work belongs in `packages/context`, session persistence belongs in `packages/sessions`, and provider normalization belongs in `packages/models`.
 
 ## When Files Change
 

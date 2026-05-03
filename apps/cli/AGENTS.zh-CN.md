@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-保持这个 package 专注于终端适配。它可以为 CLI commands 组装 runtime、config、包含 daily memory 的 workspace-aware and memory-policy-aware context assembly，在 runtime permission events 需要时询问用户 approval，以及 durable session/message/trace dependencies，但 Agent 行为属于 `packages/core`，prompt/context 工作属于 `packages/context`，session persistence 属于 `packages/sessions`，provider normalization 属于 `packages/models`。
+保持这个 package 专注于终端适配。它可以为 CLI commands 组装 runtime、config、包含 daily memory 的 workspace-aware and memory-policy-aware context assembly，通过 runtime approval resolver 询问用户 approval，以及 durable session/message/trace dependencies，但 Agent 行为属于 `packages/core`，prompt/context 工作属于 `packages/context`，session persistence 属于 `packages/sessions`，provider normalization 属于 `packages/models`。
 
 ## When Files Change
 

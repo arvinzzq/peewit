@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, redactedConfig, type EffectiveConfig, type RedactedConfigView } from "@arvinclaw/config";
 import { DefaultContextAssembler } from "@arvinclaw/context";
-import { AgentRuntime, InMemoryRuntimeTraceStore, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
+import { AgentRuntime, InMemoryRuntimeTraceStore, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
 import { FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
 
@@ -265,9 +265,8 @@ async function runInteractiveLoop(session: CliChatSession, title: string, option
     }
 
     const turn = await session.sendMessage(message);
-    const approvalLines = await renderApprovalPrompts(turn.events, options.readLine);
-    if (approvalLines.length > 0) {
-      emit(...approvalLines, "");
+    if (turn.approvalLines.length > 0) {
+      emit(...turn.approvalLines, "");
     }
     emit(`Assistant: ${turn.assistantText}`, "");
   }
@@ -321,6 +320,7 @@ function renderInteractiveHelp(): string[] {
 
 export interface CliChatTurnResult {
   assistantText: string;
+  approvalLines: string[];
   events: RuntimeEvent[];
 }
 
@@ -335,6 +335,7 @@ export class CliChatSession {
   readonly #sessionId: string;
   readonly #config: RedactedConfigView;
   readonly #recentMessageLimit: number;
+  readonly #approvalPromptLog: string[];
 
   constructor(
     runtime: AgentRuntime,
@@ -342,7 +343,8 @@ export class CliChatSession {
     traceStore: RuntimeTraceStore = new InMemoryRuntimeTraceStore(),
     sessionId = createSessionId(),
     sessionStore: SessionStore = new InMemorySessionStore({ createSessionId: () => sessionId }),
-    recentMessageLimit = 12
+    recentMessageLimit = 12,
+    approvalPromptLog: string[] = []
   ) {
     this.#runtime = runtime;
     this.#config = config;
@@ -350,6 +352,7 @@ export class CliChatSession {
     this.#sessionStore = sessionStore;
     this.#sessionId = sessionId;
     this.#recentMessageLimit = recentMessageLimit;
+    this.#approvalPromptLog = approvalPromptLog;
   }
 
   static createFake(
@@ -358,6 +361,7 @@ export class CliChatSession {
     sessionOptions: CreateChatSessionOptions = {}
   ): CliChatSession {
     const config = redactedConfig(loadConfig(options.env ? { env: options.env } : {}));
+    const approvalPromptLog: string[] = [];
     const provider =
       options.fakeModelOutputs
         ? new FakeModelProvider(options.fakeModelOutputs)
@@ -379,11 +383,15 @@ export class CliChatSession {
           mode: "confirm",
           workspace: process.cwd(),
           currentDate: new Date().toISOString().slice(0, 10)
-        }
+        },
+        approvalResolver: createCliApprovalResolver(options, approvalPromptLog)
       }),
       config,
       new InMemoryRuntimeTraceStore(),
-      sessionOptions.sessionId ?? createSessionId()
+      sessionOptions.sessionId ?? createSessionId(),
+      undefined,
+      12,
+      approvalPromptLog
     );
   }
 
@@ -395,6 +403,7 @@ export class CliChatSession {
     const sessionId = sessionOptions.sessionId ?? createSessionId();
 
     const currentDate = new Date().toISOString().slice(0, 10);
+    const approvalPromptLog: string[] = [];
 
     return new CliChatSession(
       new AgentRuntime({
@@ -412,17 +421,21 @@ export class CliChatSession {
           mode: config.runtime.defaultMode,
           workspace: config.workspace.root,
           currentDate
-        }
+        },
+        approvalResolver: createCliApprovalResolver(options, approvalPromptLog)
       }),
       redactedConfig(config),
       new InMemoryRuntimeTraceStore(),
       sessionId,
-      createConfiguredSessionStore(config, options, sessionId)
+      createConfiguredSessionStore(config, options, sessionId),
+      12,
+      approvalPromptLog
     );
   }
 
   async sendMessage(message: string): Promise<CliChatTurnResult> {
     const events: RuntimeEvent[] = [];
+    const approvalStartIndex = this.#approvalPromptLog.length;
     await this.#ensureSession();
     const recentMessages = (await this.#sessionStore.listMessages(this.#sessionId, { limit: this.#recentMessageLimit })).map(
       (sessionMessage) => ({
@@ -459,6 +472,7 @@ export class CliChatSession {
 
     return {
       assistantText,
+      approvalLines: this.#approvalPromptLog.slice(approvalStartIndex),
       events
     };
   }
@@ -486,33 +500,32 @@ export class CliChatSession {
   }
 }
 
-async function renderApprovalPrompts(
-  events: RuntimeEvent[],
-  readLine: RunCliOptions["readLine"]
-): Promise<string[]> {
-  const lines: string[] = [];
+function createCliApprovalResolver(options: RunCliOptions, approvalPromptLog: string[]): ApprovalResolver {
+  return {
+    async resolve(request) {
+      approvalPromptLog.push(
+        "Approval required:",
+        `Tool: ${request.call.name}`,
+        `Risk: ${request.decision.risk}`,
+        `Reason: ${request.decision.reason}`
+      );
 
-  for (const event of events) {
-    if (event.type !== "tool_call_permission_evaluated" || event.decision.decision !== "ask") {
-      continue;
+      const answer = (await options.readLine?.("Approve once? [y/N/details] "))?.trim().toLowerCase();
+      if (answer === "y" || answer === "yes") {
+        approvalPromptLog.push("Decision: approved once (tool execution is not wired yet).");
+        return {
+          approved: true,
+          reason: "Approved once from CLI prompt."
+        };
+      }
+
+      approvalPromptLog.push("Decision: denied");
+      return {
+        approved: false,
+        reason: "Denied from CLI prompt."
+      };
     }
-
-    lines.push(
-      "Approval required:",
-      `Tool: ${event.toolName}`,
-      `Risk: ${event.decision.risk}`,
-      `Reason: ${event.decision.reason}`
-    );
-
-    const answer = (await readLine?.("Approve once? [y/N/details] "))?.trim().toLowerCase();
-    if (answer === "y" || answer === "yes") {
-      lines.push("Decision: approved once (tool execution is not wired yet).");
-    } else {
-      lines.push("Decision: denied");
-    }
-  }
-
-  return lines;
+  };
 }
 
 class MessageMappedFakeModelProvider implements ModelProvider {
@@ -610,6 +623,10 @@ function traceEventLabel(event: RuntimeEvent): string {
       return "Requested tool call";
     case "tool_call_permission_evaluated":
       return "Evaluated tool permission";
+    case "approval_requested":
+      return "Requested approval";
+    case "approval_resolved":
+      return "Resolved approval";
     case "assistant_message_created":
       return "Created assistant message";
     case "run_completed":
