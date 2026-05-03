@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-Keep model-facing context selection and assembly here. This package should produce provider-neutral model input and reports that explain what was included or omitted.
+Keep model-facing context selection and assembly here. This package should produce provider-neutral model input and reports that explain what was included or omitted, including short-term conversation history when provided.
 
 ## When Files Change
 
@@ -10,7 +10,7 @@ Update README and AGENTS files when context sources, ordering, or file inventory
 
 ## Testing
 
-Context ordering, included sections, omitted sections, and future redaction behavior need tests. Do not rely on CLI rendering or provider-specific formatting.
+Context ordering, conversation history placement, included sections, omitted sections, and future redaction behavior need tests. Do not rely on CLI rendering or provider-specific formatting.
 
 ## Boundaries
 

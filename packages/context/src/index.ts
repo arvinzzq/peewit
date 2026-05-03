@@ -1,11 +1,11 @@
 /**
- * INPUT: Model message types plus system instructions, runtime metadata, and user messages.
- * OUTPUT: Provider-neutral model input and a context assembly report.
+ * INPUT: Model message types plus system instructions, runtime metadata, recent conversation messages, and user messages.
+ * OUTPUT: Provider-neutral model input with optional short-term conversation history and a context assembly report.
  * POS: Context assembly layer; decides what the model sees before provider formatting.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
-import type { ModelInput } from "@arvinclaw/models";
+import type { ModelInput, ModelMessage } from "@arvinclaw/models";
 
 export const contextPackageName = "@arvinclaw/context";
 
@@ -18,6 +18,7 @@ export interface ContextRuntimeMetadata {
 export interface ContextAssemblyInput {
   systemInstruction: string;
   runtime?: ContextRuntimeMetadata;
+  recentMessages?: ModelMessage[];
   userMessage: string;
 }
 
@@ -54,6 +55,12 @@ export class DefaultContextAssembler implements ContextAssembler {
       omittedSections.push("runtime_metadata");
     }
 
+    const recentMessages = input.recentMessages ?? [];
+
+    if (recentMessages.length > 0) {
+      includedSections.push("conversation_history");
+    }
+
     includedSections.push("user_message");
 
     return {
@@ -63,6 +70,7 @@ export class DefaultContextAssembler implements ContextAssembler {
             role: "system",
             content: systemContent.join("\n")
           },
+          ...recentMessages.map((message) => ({ ...message })),
           {
             role: "user",
             content: input.userMessage

@@ -59,4 +59,47 @@ describe("minimal context assembler", () => {
     ]);
     expect(result.report.omittedSections).toEqual(["runtime_metadata"]);
   });
+
+  test("includes recent conversation messages before the current user message", async () => {
+    const assembler = new DefaultContextAssembler();
+
+    const result = await assembler.assemble({
+      systemInstruction: "You are ArvinClaw.",
+      recentMessages: [
+        {
+          role: "user",
+          content: "What did we discuss?"
+        },
+        {
+          role: "assistant",
+          content: "We discussed session memory."
+        }
+      ],
+      userMessage: "Continue from there."
+    });
+
+    expect(result.modelInput.messages).toEqual([
+      {
+        role: "system",
+        content: "You are ArvinClaw."
+      },
+      {
+        role: "user",
+        content: "What did we discuss?"
+      },
+      {
+        role: "assistant",
+        content: "We discussed session memory."
+      },
+      {
+        role: "user",
+        content: "Continue from there."
+      }
+    ]);
+    expect(result.report.includedSections).toEqual([
+      "system_instruction",
+      "conversation_history",
+      "user_message"
+    ]);
+  });
 });
