@@ -3,7 +3,7 @@
 ## Architecture Summary
 
 This directory reserves the session persistence boundary.
-It will store conversations, turns, traces, and future replay data.
+It stores short-term conversation records and prepares for durable traces and future replay data.
 It keeps persistence separate from runtime orchestration and UI rendering.
 
 ## File Inventory
@@ -12,7 +12,8 @@ It keeps persistence separate from runtime orchestration and UI rendering.
 | --- | --- | --- |
 | `package.json` | Package manifest | Declares the sessions package and build scripts. |
 | `tsconfig.json` | TypeScript config | Builds the sessions package. |
-| `src/index.ts` | Package boundary | Exports the current package marker and future session API surface. |
+| `src/index.ts` | Session store | Exports session/message contracts and in-memory short-term session storage. |
+| `src/index.test.ts` | Session tests | Protects session creation, message ordering, recent-message queries, and defensive copies. |
 
 ## Update Reminder
 
