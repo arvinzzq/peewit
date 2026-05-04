@@ -12,6 +12,7 @@ ArvinClaw 是一个从 0 到 1 构建的 OpenClaw-like 个人通用 Agent。
 - 当目录结构或职责变化时，更新本地 module README 和 AGENTS 文件。
 - 当文件 inputs、outputs 或 architecture position 变化时，更新必需源码文件头。
 - 对微小 implementation-only edits，不要更新全局文档，除非 workflow 或 architecture 变化。
+- **代码和文档在同一 commit 中移动。** feature 或 refactor commit 必须包含对应的 README、AGENTS 和源码文件头更新——不允许事后单独的补文档 commit。独立的 `docs:` commit 只用于纯文档变更（研究笔记、架构文档、计划）且在实现之前。
 
 ## Testing Rules
 

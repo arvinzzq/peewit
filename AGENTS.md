@@ -12,6 +12,7 @@ Every implementation change should keep module boundaries, tests, and bilingual 
 - Update local module README and AGENTS files when directory structure or responsibility changes.
 - Update required source headers when a file's inputs, outputs, or architecture position changes.
 - Do not update global docs for tiny implementation-only edits unless workflow or architecture changes.
+- **Code and docs move together in the same commit.** A feature or refactor commit must include its README, AGENTS, and source header updates — never a separate catch-up commit after. A standalone `docs:` commit is only for pure documentation changes (research notes, architecture docs, plans) that precede implementation.
 
 ## Testing Rules
 
