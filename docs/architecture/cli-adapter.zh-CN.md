@@ -102,13 +102,13 @@ MVP slash 命令：
 | `/exit` | 结束 session |
 | `/trace` | 显示近期 explainable trace events |
 | `/config` | 显示脱敏后的 effective configuration |
+| `/skills` | 列出已加载 skills，包括来源和触发条件 |
 | `/clear` | 清空终端显示，而不是清空 session history |
 
 未来 slash 命令：
 
 | Slash 命令 | 用途 |
 | --- | --- |
-| `/skills` | 显示已加载 skills |
 | `/context` | 显示 context assembly summary |
 | `/session` | 显示当前 session metadata |
 | `/mode observe|confirm|auto` | 支持 autonomy mode 后切换模式 |
@@ -245,7 +245,31 @@ CLI 应让可恢复错误容易理解。
 
 Streaming 不应改变 package boundaries。
 
-## 15. Cancellation
+## 15. CLI 渲染框架
+
+MVP CLI 使用原生 Node.js stdout（`process.stdout.write`）和 readline 处理所有输出和输入。这对于 non-streaming、逐行 turn 输出已经足够，并且无需 UI 框架依赖。
+
+当流式模型输出和更丰富的终端 UI 成为必要时，计划的渲染升级方案是 **Ink**（[npmjs.com/package/ink](https://www.npmjs.com/package/ink)）。
+
+Ink 是一个基于 React 的终端 UI 框架，允许组件在原地渲染和重新渲染。它适合 ArvinClaw 的原因：
+
+- Streaming token 输出需要就地更新同一终端区域，而不是不断追加新行。
+- Tool 进度指示器（spinner、步骤计数）在多步 run 期间需要实时更新。
+- Permission prompts 可以更丰富：以块的形式展示风险说明、输入预览和审批控件。
+- Trace 面板可以随 events 到达而更新，而不是逐行追加。
+- OpenClaw 本身就使用 Ink，采用它可以保持架构对齐。
+
+升级路径仅限于 CLI adapter 层。Agent Core、context assembly、tools、permissions 和 session packages 不变。Adapter 将 stdout 调用替换为 Ink 组件渲染。
+
+此次迁移应在 streaming output 加入时（Phase 6）进行，先于任何 Web UI 工作，因为 streaming 本来就会迫使终端渲染架构演进。
+
+Ink 的采用推迟到：
+
+- `ModelProvider.generate()` 支持 streaming 变体。
+- Event stream 包含 token delta events，CLI 可以增量显示。
+- Approval prompt 需要超出单行文本 prompt 的能力。
+
+## 16. Cancellation
 
 CLI 最终应支持取消 active run。
 
@@ -257,7 +281,7 @@ MVP cancellation 可以是 best-effort：
 
 Run queue 拥有 run state。CLI 只发送 cancellation request。
 
-## 16. 与 Agent Core 的关系
+## 17. 与 Agent Core 的关系
 
 CLI 将 user input 和 local decisions 发送给 Agent Core。
 
@@ -271,7 +295,7 @@ CLI 接收：
 
 CLI 不能代表模型直接调用 tools。
 
-## 17. 与 Web UI 的关系
+## 18. 与 Web UI 的关系
 
 CLI 是第一个 adapter。它应该证明 adapter boundary。
 
@@ -286,7 +310,7 @@ Web UI 后续需要的一切，都应该已经有非视觉等价物：
 
 如果某个行为无法在不依赖终端假设的情况下表达，它很可能属于 adapter layer。
 
-## 18. 测试要求
+## 19. 测试要求
 
 CLI adapter tests 应聚焦用户可见工作流和边界。
 
@@ -306,7 +330,7 @@ CLI adapter tests 应聚焦用户可见工作流和边界。
 
 任何改变 Agent Core events、permission prompts、trace events、session handling 或 context reports 的迭代，都应更新 CLI adapter tests。
 
-## 19. 验收标准
+## 20. 验收标准
 
 MVP CLI adapter 成功标准：
 
@@ -318,7 +342,7 @@ MVP CLI adapter 成功标准：
 - CLI 不拥有 prompt assembly、tool selection、provider logic、permission policy 或 session persistence rules。
 - CLI behavior 有聚焦测试覆盖。
 
-## 20. 相关文档
+## 21. 相关文档
 
 - [Main design](../product/arvinclaw-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)

@@ -35,10 +35,10 @@ Roadmap 采用双轨方法：
 | Phase 0 | Complete | 项目基础 | 带文档说明的 TypeScript workspace 和 CLI shell | Monorepo、配置、context package、文档布局 |
 | Phase 1 | Complete | MVP agent loop | CLI chat 可以调用模型并产生可追踪响应 | Agent Core、context assembly、ModelProvider、基础 loop |
 | Phase 2 | Complete | 工具与权限 | Agent 可以检查文件、运行已批准命令，并读取 Web 内容 | Tool Registry、PermissionPolicy |
-| Phase 3 | Not Started | Context assembly 与 skills | Agent 有包含工具、skills 和权限指导的结构化 context；可加载 `SKILL.md`；Claude 可直接使用 | Context section 架构、Anthropic provider、skill loader |
+| Phase 3 | Complete | Context assembly 与 skills | Agent 有包含工具、skills 和权限指导的结构化 context；可加载 `SKILL.md`；Claude 可直接使用 | Context section 架构、Anthropic provider、skill loader |
 | Phase 4 | Not Started | 规划与自主 | Agent 可以规划任务，并在 `observe`、`confirm` 或 `auto` 模式运行 | Planner、任务状态、执行模式 |
 | Phase 5 | In Progress | 会话与记忆 | Agent 可以记住会话，并使用本地知识 | Session store、trace store、memory interfaces |
-| Phase 6 | Not Started | Web UI | 用户可以在浏览器中聊天、检查 trace、批准动作 | UI adapter、API boundary、trace visualization |
+| Phase 6 | Not Started | Streaming 与 Web UI | 用户可以在终端看到 streaming token 输出，并通过浏览器界面聊天、检查 trace、批准动作 | Streaming provider、Ink CLI 渲染升级、UI adapter、trace visualization |
 | Phase 7 | Not Started | 多入口 adapters | CLI、Web、桌面和消息入口共享一个 Agent Core | Adapter interface、gateway direction |
 | Phase 8 | Not Started | 后台自动化 | Agent 可以运行定时和事件触发任务 | Scheduler、daemon、task queue |
 | Phase 9 | Not Started | Plugin 和 skill 生态 | 用户可以安装、启用、禁用和审查能力 | Plugin metadata、permission declarations、versioning |
@@ -315,19 +315,24 @@ Agent 可以保存 session history，展示之前的 traces，并开始跨任务
 - 暂不做 multi-user account system。
 - 暂不做复杂 personal data graph。
 
-## 9. Phase 6：Web UI
+## 9. Phase 6：Streaming 与 Web UI
 
 ### 用户结果
 
-用户可以通过 browser-based interface 使用 ArvinClaw，包含 chat、trace inspection 和 permission approval controls。
+用户可以在终端看到模型响应逐 token 流式输出，也可以通过 browser-based interface 使用 ArvinClaw，包含 chat、trace inspection 和 permission approval controls。
 
 ### 新增架构
 
+- Streaming `ModelProvider` 变体（token delta events）
+- CLI 渲染升级至 **Ink**（基于 React 的终端 UI）：实时 streaming 输出、tool 进度指示器、更丰富的 permission prompts
 - Web app
 - Agent Core 之上的 API layer
-- Streaming response channel
 - Trace visualization
 - Permission approval UI
+
+### CLI 渲染说明
+
+Phase 6 是 CLI 渲染架构需要演进的时机。当前的纯 stdout 输出适合 non-streaming turns，但无法支持实时 streaming 或原地 UI 更新。计划的升级是采用 **Ink** 作为 CLI 渲染框架。Ink 是基于 React 的终端 UI 库 — 与 OpenClaw 使用的相同 — 允许组件原地渲染和重新渲染。升级完全在 CLI adapter 层内完成，Agent Core 和其他所有 packages 不受影响。完整说明和采用条件参见 [CLI Adapter](../architecture/cli-adapter.zh-CN.md) 第 15 节。
 
 ### 学习文档
 
@@ -336,6 +341,8 @@ Agent 可以保存 session history，展示之前的 traces，并开始跨任务
 
 ### 验收标准
 
+- 模型响应在 CLI 中逐 token 流式输出。
+- CLI 使用 Ink 组件处理 streaming 输出、进度和 approval prompts。
 - Web UI 可以使用与 CLI 相同的 Agent Core。
 - Tool calls 和 permission prompts 在 UI 中可见。
 - CLI 和 Web UI 共享 session 和 trace 概念。

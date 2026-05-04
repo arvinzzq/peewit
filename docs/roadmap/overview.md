@@ -35,7 +35,7 @@ The roadmap follows a dual-track approach:
 | Phase 0 | Complete | Project foundation | A documented TypeScript workspace with CLI shell | Monorepo, config, context package, documentation layout |
 | Phase 1 | Complete | MVP agent loop | CLI chat can call a model and produce traceable responses | Agent Core, context assembly, ModelProvider, basic loop |
 | Phase 2 | Complete | Tools and permissions | Agent can inspect files, run approved commands, and read web content | Tool Registry, PermissionPolicy |
-| Phase 3 | Not Started | Context assembly and skills | Agent has structured context with tools, skills, and permission guidance; can load `SKILL.md`; Claude available directly | Context section architecture, Anthropic provider, skill loader |
+| Phase 3 | Complete | Context assembly and skills | Agent has structured context with tools, skills, and permission guidance; can load `SKILL.md`; Claude available directly | Context section architecture, Anthropic provider, skill loader |
 | Phase 4 | Not Started | Planning and autonomy | Agent can plan tasks and run in `observe`, `confirm`, or `auto` mode | Planner, task state, execution modes |
 | Phase 5 | In Progress | Sessions and memory | Agent remembers sessions and can use local knowledge | Session store, trace store, memory interfaces |
 | Phase 6 | Not Started | Web UI | User can chat, inspect traces, and approve actions in a browser | UI adapter, API boundary, trace visualization |
@@ -317,17 +317,18 @@ Implementation plan: [Phase 5 Sessions and Memory](../plans/phase-5-sessions-and
 - No multi-user account system.
 - No complex personal data graph.
 
-## 9. Phase 6: Web UI
+## 9. Phase 6: Streaming and Web UI
 
 ### User Result
 
-The user can use ArvinClaw through a browser-based interface with chat, trace inspection, and permission approval controls.
+The user can see model responses stream token by token in the terminal, and can also use ArvinClaw through a browser-based interface with chat, trace inspection, and permission approval controls.
 
 ### Architecture Added
 
+- Streaming `ModelProvider` variant (token delta events)
+- CLI rendering upgrade to **Ink** (React-based terminal UI): live streaming output, tool progress indicators, richer permission prompts
 - Web app
 - API layer over Agent Core
-- Streaming response channel
 - Trace visualization
 - Permission approval UI
 
@@ -336,8 +337,14 @@ The user can use ArvinClaw through a browser-based interface with chat, trace in
 - `docs/architecture/ui-adapters.md`
 - `docs/architecture/trace-visualization.md`
 
+### CLI Rendering Note
+
+Phase 6 is when the CLI rendering architecture needs to evolve. The current plain stdout output works for non-streaming turns but cannot support live streaming or in-place UI updates. The planned upgrade is to adopt **Ink** as the CLI rendering framework. Ink is a React-based terminal UI library — the same one OpenClaw uses — that lets components re-render in-place. The upgrade stays entirely within the CLI adapter layer; Agent Core and all other packages are unaffected. See [CLI Adapter](../architecture/cli-adapter.md) Section 15 for the full rationale and adoption criteria.
+
 ### Acceptance Criteria
 
+- Model responses stream token by token in the CLI.
+- The CLI uses Ink components for streaming output, progress, and approval prompts.
 - Web UI can use the same Agent Core as CLI.
 - Tool calls and permission prompts are visible in the UI.
 - CLI and Web UI share session and trace concepts.
