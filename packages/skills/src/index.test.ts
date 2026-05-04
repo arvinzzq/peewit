@@ -6,8 +6,7 @@ describe("parseSKILLMd", () => {
     const content = [
       "---",
       "name: research",
-      "description: Web research skill.",
-      "when: When you need to search the web.",
+      "description: Use when investigating external information or comparing sources.",
       "---",
       "",
       "Search and compare sources."
@@ -15,27 +14,25 @@ describe("parseSKILLMd", () => {
 
     expect(parseSKILLMd(content)).toEqual({
       name: "research",
-      description: "Web research skill.",
-      when: "When you need to search the web.",
+      description: "Use when investigating external information or comparing sources.",
       body: "Search and compare sources."
     });
   });
 
   test("returns null when frontmatter opening delimiter is missing", () => {
-    const content = "name: research\ndescription: skill\nwhen: always\n";
+    const content = "name: research\ndescription: skill\n";
     expect(parseSKILLMd(content)).toBeNull();
   });
 
   test("returns null when closing delimiter is missing", () => {
-    const content = "---\nname: research\ndescription: skill\nwhen: always\n";
+    const content = "---\nname: research\ndescription: skill\n";
     expect(parseSKILLMd(content)).toBeNull();
   });
 
   test("returns null when required fields are missing", () => {
     const missing = [
-      "---\ndescription: skill\nwhen: always\n---\nbody",
-      "---\nname: research\nwhen: always\n---\nbody",
-      "---\nname: research\ndescription: skill\n---\nbody"
+      "---\ndescription: skill\n---\nbody",
+      "---\nname: research\n---\nbody"
     ];
     for (const content of missing) {
       expect(parseSKILLMd(content)).toBeNull();
@@ -43,10 +40,19 @@ describe("parseSKILLMd", () => {
   });
 
   test("handles empty body gracefully", () => {
-    const content = "---\nname: research\ndescription: skill\nwhen: always\n---\n";
+    const content = "---\nname: research\ndescription: skill\n---\n";
     const result = parseSKILLMd(content);
     expect(result).not.toBeNull();
     expect(result?.body).toBe("");
+  });
+
+  test("ignores unknown frontmatter fields", () => {
+    const content = "---\nname: research\ndescription: skill\nwhen: legacy field\nauthor: test\n---\nbody";
+    const result = parseSKILLMd(content);
+    expect(result).not.toBeNull();
+    expect(result?.name).toBe("research");
+    expect(result?.description).toBe("skill");
+    expect(result?.body).toBe("body");
   });
 });
 
@@ -67,8 +73,7 @@ describe("SkillLoader", () => {
       "/ws/skills/my-skill/SKILL.md": [
         "---",
         "name: my-skill",
-        "description: A custom skill.",
-        "when: For custom tasks.",
+        "description: A custom skill for specific project tasks.",
         "---",
         "Do the custom task."
       ].join("\n")
@@ -87,8 +92,7 @@ describe("SkillLoader", () => {
     const mySkill = skills.find((s) => s.name === "my-skill");
     expect(mySkill).toMatchObject({
       name: "my-skill",
-      description: "A custom skill.",
-      when: "For custom tasks.",
+      description: "A custom skill for specific project tasks.",
       source: "workspace"
     });
   });
@@ -100,7 +104,7 @@ describe("SkillLoader", () => {
       readDir: async (p) => (p === "/ws/skills" ? ["research"] : []),
       readFile: async (p) =>
         p === "/ws/skills/research/SKILL.md"
-          ? "---\nname: research\ndescription: Project-specific research.\nwhen: Always use this.\n---\nCustom body."
+          ? "---\nname: research\ndescription: Project-specific research.\n---\nCustom body."
           : (() => { throw Object.assign(new Error(), { code: "ENOENT" }); })()
     });
 
@@ -122,11 +126,11 @@ describe("SkillLoader", () => {
       },
       readFile: async (p) => {
         if (p === "/ws/skills/research/SKILL.md")
-          return "---\nname: research\ndescription: Workspace version.\nwhen: Use this.\n---\n";
+          return "---\nname: research\ndescription: Workspace version.\n---\n";
         if (p === "/user/skills/research/SKILL.md")
-          return "---\nname: research\ndescription: User version.\nwhen: Use this.\n---\n";
+          return "---\nname: research\ndescription: User version.\n---\n";
         if (p === "/user/skills/custom-user/SKILL.md")
-          return "---\nname: custom-user\ndescription: User custom.\nwhen: Always.\n---\n";
+          return "---\nname: custom-user\ndescription: User custom skill.\n---\n";
         throw Object.assign(new Error(), { code: "ENOENT" });
       }
     });
@@ -161,7 +165,7 @@ describe("SkillLoader", () => {
       readDir: async (p) => (p === "/ws/skills" ? ["bad-skill", "good-skill"] : []),
       readFile: async (p) => {
         if (p.includes("bad-skill")) throw new Error("Permission denied.");
-        return "---\nname: good-skill\ndescription: OK.\nwhen: Always.\n---\n";
+        return "---\nname: good-skill\ndescription: A working skill.\n---\n";
       }
     });
 
@@ -174,16 +178,14 @@ describe("toSkillSummary", () => {
   test("extracts summary fields from a skill definition", () => {
     const skill: SkillDefinition = {
       name: "research",
-      description: "Web research.",
-      when: "For web searches.",
+      description: "Use when investigating external information or comparing sources.",
       body: "Long body text...",
       source: "built-in"
     };
 
     expect(toSkillSummary(skill)).toEqual({
       name: "research",
-      description: "Web research.",
-      when: "For web searches.",
+      description: "Use when investigating external information or comparing sources.",
       source: "built-in"
     });
   });

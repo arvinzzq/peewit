@@ -1,6 +1,6 @@
 /**
  * INPUT: SKILL.md files from workspace, user, and built-in skill directories.
- * OUTPUT: SkillDefinition list with name, description, when, body, and source; SkillSummary for context injection; SkillLoader with precedence and injectable file system ops.
+ * OUTPUT: SkillDefinition list with name, description, body, and source; SkillSummary for context injection; SkillLoader with precedence and injectable file system ops.
  * POS: Skill system layer; discovers and parses skills for prompt integration.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -16,7 +16,6 @@ export type SkillSource = "built-in" | "user" | "workspace";
 export interface SkillDefinition {
   name: string;
   description: string;
-  when: string;
   body: string;
   source: SkillSource;
 }
@@ -24,7 +23,6 @@ export interface SkillDefinition {
 export interface SkillSummary {
   name: string;
   description: string;
-  when: string;
   source: SkillSource;
 }
 
@@ -38,22 +36,19 @@ export interface SkillLoaderOptions {
 const BUILTIN_SKILLS: SkillDefinition[] = [
   {
     name: "research",
-    description: "Web research with source comparison and citation-aware summaries.",
-    when: "When you need to find, verify, or compare information from external sources.",
+    description: "Use when investigating external information, comparing sources, or summarizing findings. Guides web search, source reading, source comparison, and citation-aware output.",
     body: "Search for relevant sources, read and compare at least two, and summarize findings with source links. Prefer primary sources. Flag conflicting evidence.",
     source: "built-in"
   },
   {
     name: "project-inspector",
-    description: "Project structure inspection, technology detection, and module summaries.",
-    when: "When you need to understand a codebase, identify technologies, or summarize module responsibilities.",
+    description: "Use when understanding a codebase, identifying technologies, or summarizing module responsibilities. Guides project structure inspection and technology detection.",
     body: "Read README, list top-level directories, inspect package files, and summarize each module's role. Identify entry points and dependency boundaries.",
     source: "built-in"
   },
   {
     name: "safe-shell",
-    description: "Safe shell command guidance with risk assessment.",
-    when: "When you plan to run shell commands, especially destructive or irreversible ones.",
+    description: "Use when planning to run shell commands, especially destructive or irreversible ones. Guides shell command risk assessment and command purpose explanation.",
     body: "State the purpose before running. Prefer read-only commands. Avoid rm -rf, force flags, or piped untrusted input. Confirm intent before destructive operations.",
     source: "built-in"
   }
@@ -127,7 +122,7 @@ export class SkillLoader {
 
 export function parseSKILLMd(
   content: string
-): { name: string; description: string; when: string; body: string } | null {
+): { name: string; description: string; body: string } | null {
   const lines = content.split("\n");
 
   if (lines[0]?.trim() !== "---") return null;
@@ -147,14 +142,14 @@ export function parseSKILLMd(
     if (key.length > 0) fields[key] = value;
   }
 
-  const { name, description, when } = fields;
-  if (!name || !description || !when) return null;
+  const { name, description } = fields;
+  if (!name || !description) return null;
 
-  return { name, description, when, body };
+  return { name, description, body };
 }
 
 export function toSkillSummary(skill: SkillDefinition): SkillSummary {
-  return { name: skill.name, description: skill.description, when: skill.when, source: skill.source };
+  return { name: skill.name, description: skill.description, source: skill.source };
 }
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
