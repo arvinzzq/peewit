@@ -1,6 +1,6 @@
 /**
- * INPUT: Provider-neutral model messages, request options, and optional fetch implementation.
- * OUTPUT: ModelProvider contracts, fake provider, and OpenAI-compatible provider.
+ * INPUT: Provider-neutral model messages, tool definitions, request options, and optional fetch implementation.
+ * OUTPUT: ModelProvider contracts, ModelToolDefinition, tool_calls response parsing, fake provider, and OpenAI-compatible provider.
  * POS: Model provider layer; isolates Agent Core from vendor-specific APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -9,9 +9,30 @@ export const modelsPackageName = "@arvinclaw/models";
 
 export type ModelMessageRole = "system" | "user" | "assistant" | "tool";
 
+export interface ModelToolCall {
+  id: string;
+  name: string;
+  input: unknown;
+}
+
 export interface ModelMessage {
   role: ModelMessageRole;
-  content: string;
+  content: string | null;
+  toolCallId?: string;
+  toolCalls?: ModelToolCall[];
+}
+
+export interface ModelToolDefinition {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: "object";
+      properties?: Record<string, unknown>;
+      required?: string[];
+    };
+  };
 }
 
 export interface ModelRequestOptions {
@@ -22,6 +43,7 @@ export interface ModelRequestOptions {
 
 export interface ModelInput {
   messages: ModelMessage[];
+  tools?: ModelToolDefinition[];
   options?: ModelRequestOptions;
 }
 
@@ -29,12 +51,6 @@ export interface ModelUsage {
   inputTokens?: number;
   outputTokens?: number;
   totalTokens?: number;
-}
-
-export interface ModelToolCall {
-  id: string;
-  name: string;
-  input: unknown;
 }
 
 export interface ModelMessageOutput {
@@ -82,10 +98,23 @@ export interface OpenAICompatibleProviderConfig {
   fetch?: FetchLike;
 }
 
+interface OpenAIToolCallFunction {
+  name: string;
+  arguments: string;
+}
+
+interface OpenAIToolCall {
+  id: string;
+  type: "function";
+  function: OpenAIToolCallFunction;
+}
+
 interface OpenAIChatCompletionResponse {
   choices?: Array<{
+    finish_reason?: string | null;
     message?: {
       content?: string | null;
+      tool_calls?: OpenAIToolCall[];
     };
   }>;
   usage?: {
@@ -130,14 +159,27 @@ export class OpenAICompatibleProvider implements ModelProvider {
       }
 
       const data = (await response.json()) as OpenAIChatCompletionResponse;
-      const content = data.choices?.[0]?.message?.content ?? "";
+      const choice = data.choices?.[0];
+      const finishReason = choice?.finish_reason;
+      const message = choice?.message;
+      const rawToolCalls = message?.tool_calls;
+
+      if (finishReason === "tool_calls" && rawToolCalls !== undefined && rawToolCalls.length > 0) {
+        return {
+          type: "tool_calls",
+          calls: rawToolCalls.map((tc) => ({
+            id: tc.id,
+            name: tc.function.name,
+            input: parseToolCallArguments(tc.function.arguments)
+          })),
+          ...(data.usage ? { usage: this.#usage(data.usage) } : {})
+        };
+      }
 
       return {
         type: "message",
-        content,
-        ...(data.usage
-          ? { usage: this.#usage(data.usage) }
-          : {})
+        content: message?.content ?? "",
+        ...(data.usage ? { usage: this.#usage(data.usage) } : {})
       };
     } catch {
       return {
@@ -159,10 +201,36 @@ export class OpenAICompatibleProvider implements ModelProvider {
   #body(input: ModelInput): Record<string, unknown> {
     return {
       model: this.#model,
-      messages: input.messages,
+      messages: input.messages.map((m) => this.#formatMessage(m)),
+      ...(input.tools !== undefined && input.tools.length > 0 ? { tools: input.tools } : {}),
       ...(this.#temperature === undefined ? {} : { temperature: this.#temperature }),
       ...(this.#maxTokens === undefined ? {} : { max_tokens: this.#maxTokens })
     };
+  }
+
+  #formatMessage(message: ModelMessage): Record<string, unknown> {
+    if (message.role === "tool") {
+      return {
+        role: "tool",
+        tool_call_id: message.toolCallId ?? "",
+        content: message.content ?? ""
+      };
+    }
+    if (message.role === "assistant" && message.toolCalls !== undefined && message.toolCalls.length > 0) {
+      return {
+        role: "assistant",
+        content: message.content,
+        tool_calls: message.toolCalls.map((call) => ({
+          id: call.id,
+          type: "function",
+          function: {
+            name: call.name,
+            arguments: typeof call.input === "string" ? call.input : JSON.stringify(call.input)
+          }
+        }))
+      };
+    }
+    return { role: message.role, content: message.content };
   }
 
   #errorCategory(status: number): ModelErrorCategory {
@@ -188,6 +256,14 @@ export class OpenAICompatibleProvider implements ModelProvider {
       ...(usage.completion_tokens === undefined ? {} : { outputTokens: usage.completion_tokens }),
       ...(usage.total_tokens === undefined ? {} : { totalTokens: usage.total_tokens })
     };
+  }
+}
+
+function parseToolCallArguments(args: string): unknown {
+  try {
+    return JSON.parse(args);
+  } catch {
+    return args;
   }
 }
 

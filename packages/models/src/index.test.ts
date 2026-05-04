@@ -136,6 +136,112 @@ describe("OpenAI-compatible provider", () => {
     });
   });
 
+  test("sends tool definitions in request body when tools are provided", async () => {
+    const requests: Array<{ body: unknown }> = [];
+    const provider = new OpenAICompatibleProvider({
+      baseURL: "https://api.example.test/v1",
+      apiKey: "secret-key",
+      model: "example-model",
+      fetch: async (_url, init) => {
+        requests.push({ body: JSON.parse(String(init?.body)) });
+        return new Response(
+          JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: "ok" } }] }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+    });
+
+    await provider.generate({
+      messages: [{ role: "user", content: "Read a file." }],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "read_file",
+            description: "Read a workspace file.",
+            parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] }
+          }
+        }
+      ]
+    });
+
+    expect(requests[0]?.body).toMatchObject({
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "read_file",
+            description: "Read a workspace file."
+          }
+        }
+      ]
+    });
+  });
+
+  test("parses tool_calls response as ModelToolCallsOutput", async () => {
+    const provider = new OpenAICompatibleProvider({
+      baseURL: "https://api.example.test/v1",
+      apiKey: "secret-key",
+      model: "example-model",
+      fetch: async () =>
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                finish_reason: "tool_calls",
+                message: {
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: "call_abc",
+                      type: "function",
+                      function: { name: "read_file", arguments: "{\"path\":\"README.md\"}" }
+                    }
+                  ]
+                }
+              }
+            ]
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+    });
+
+    const output = await provider.generate({ messages: [{ role: "user", content: "Read the file." }] });
+
+    expect(output).toMatchObject({
+      type: "tool_calls",
+      calls: [{ id: "call_abc", name: "read_file", input: { path: "README.md" } }]
+    });
+  });
+
+  test("formats tool result messages with tool_call_id in request body", async () => {
+    const requests: Array<{ body: unknown }> = [];
+    const provider = new OpenAICompatibleProvider({
+      baseURL: "https://api.example.test/v1",
+      apiKey: "secret-key",
+      model: "example-model",
+      fetch: async (_url, init) => {
+        requests.push({ body: JSON.parse(String(init?.body)) });
+        return new Response(
+          JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: "Done." } }] }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+    });
+
+    await provider.generate({
+      messages: [
+        { role: "user", content: "Read a file." },
+        { role: "assistant", content: null, toolCalls: [{ id: "call_1", name: "read_file", input: { path: "README.md" } }] },
+        { role: "tool", toolCallId: "call_1", content: "{\"ok\":true}" }
+      ]
+    });
+
+    const sentMessages = (requests[0]?.body as { messages: unknown[] }).messages;
+    expect(sentMessages[1]).toMatchObject({ role: "assistant", content: null, tool_calls: [{ id: "call_1" }] });
+    expect(sentMessages[2]).toMatchObject({ role: "tool", tool_call_id: "call_1", content: "{\"ok\":true}" });
+  });
+
   test("normalizes authentication failures without exposing the API key", async () => {
     const provider = new OpenAICompatibleProvider({
       baseURL: "https://api.example.test/v1",
