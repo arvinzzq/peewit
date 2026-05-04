@@ -1,6 +1,6 @@
 /**
  * INPUT: Provider-neutral model messages, tool definitions, request options, optional fetch implementation, and optional injectable Anthropic client.
- * OUTPUT: ModelProvider contracts, ModelToolDefinition, tool_calls response parsing, fake provider, OpenAI-compatible provider, and Anthropic provider.
+ * OUTPUT: ModelProvider contracts, StreamingModelProvider contracts, StreamEvent types, ModelToolDefinition, tool_calls response parsing, fake provider, fake streaming provider, OpenAI-compatible provider (with streaming), and Anthropic provider (with streaming).
  * POS: Model provider layer; isolates Agent Core from vendor-specific APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -89,6 +89,27 @@ export interface ModelProvider {
   generate(input: ModelInput): Promise<ModelOutput>;
 }
 
+// ─── Streaming ────────────────────────────────────────────────────────────────
+
+export type StreamEvent =
+  | { type: "token_delta"; delta: string }
+  | { type: "tool_calls"; calls: ModelToolCall[]; usage?: ModelUsage }
+  | { type: "message_done"; content: string; usage?: ModelUsage }
+  | { type: "error"; category: ModelErrorCategory; message: string; recoverable: boolean };
+
+export interface StreamingModelProvider extends ModelProvider {
+  generateStream(input: ModelInput): AsyncIterable<StreamEvent>;
+}
+
+export function isStreamingProvider(provider: ModelProvider): provider is StreamingModelProvider {
+  return (
+    "generateStream" in provider &&
+    typeof (provider as { generateStream: unknown }).generateStream === "function"
+  );
+}
+
+// ─── OpenAI-compatible Provider ───────────────────────────────────────────────
+
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
 export interface OpenAICompatibleProviderConfig {
@@ -126,7 +147,30 @@ interface OpenAIChatCompletionResponse {
   };
 }
 
-export class OpenAICompatibleProvider implements ModelProvider {
+interface OpenAIStreamChunk {
+  choices?: Array<{
+    finish_reason?: string | null;
+    delta?: {
+      content?: string;
+      tool_calls?: Array<{
+        index: number;
+        id?: string;
+        type?: "function";
+        function?: {
+          name?: string;
+          arguments?: string;
+        };
+      }>;
+    };
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+}
+
+export class OpenAICompatibleProvider implements StreamingModelProvider {
   readonly #baseURL: string;
   readonly #apiKey: string | undefined;
   readonly #model: string;
@@ -190,6 +234,93 @@ export class OpenAICompatibleProvider implements ModelProvider {
         message: "Provider network request failed.",
         recoverable: true
       };
+    }
+  }
+
+  async *generateStream(input: ModelInput): AsyncIterable<StreamEvent> {
+    try {
+      const response = await this.#fetch(`${this.#baseURL}/chat/completions`, {
+        method: "POST",
+        headers: this.#headers(),
+        body: JSON.stringify({ ...this.#body(input), stream: true })
+      });
+
+      if (!response.ok) {
+        yield {
+          type: "error",
+          category: this.#errorCategory(response.status),
+          message: `Provider request failed with status ${response.status}.`,
+          recoverable: response.status === 408 || response.status === 409 || response.status === 429 || response.status >= 500
+        };
+        return;
+      }
+
+      if (response.body === null) {
+        yield { type: "error", category: "network", message: "No response body for streaming request.", recoverable: true };
+        return;
+      }
+
+      const toolAccumulators = new Map<number, { id: string; name: string; arguments: string }>();
+      let textContent = "";
+      let usage: ModelUsage | undefined;
+      let finishReason: string | null = null;
+
+      for await (const data of parseSSEStream(response.body)) {
+        if (data === "[DONE]") break;
+
+        let chunk: OpenAIStreamChunk;
+        try {
+          chunk = JSON.parse(data) as OpenAIStreamChunk;
+        } catch {
+          continue;
+        }
+
+        const choice = chunk.choices?.[0];
+        if (choice !== undefined) {
+          if (choice.finish_reason !== null && choice.finish_reason !== undefined) {
+            finishReason = choice.finish_reason;
+          }
+
+          const delta = choice.delta;
+          if (delta !== undefined) {
+            if (delta.content) {
+              textContent += delta.content;
+              yield { type: "token_delta", delta: delta.content };
+            }
+
+            if (delta.tool_calls) {
+              for (const tc of delta.tool_calls) {
+                if (!toolAccumulators.has(tc.index)) {
+                  toolAccumulators.set(tc.index, { id: "", name: "", arguments: "" });
+                }
+                const acc = toolAccumulators.get(tc.index)!;
+                if (tc.id) acc.id = tc.id;
+                if (tc.function?.name) acc.name = tc.function.name;
+                if (tc.function?.arguments) acc.arguments += tc.function.arguments;
+              }
+            }
+          }
+        }
+
+        if (chunk.usage) {
+          usage = this.#usage(chunk.usage);
+        }
+      }
+
+      if (finishReason === "tool_calls" && toolAccumulators.size > 0) {
+        const calls = Array.from(toolAccumulators.entries())
+          .sort(([a], [b]) => a - b)
+          .map(([, acc]) => ({
+            id: acc.id,
+            name: acc.name,
+            input: parseToolCallArguments(acc.arguments)
+          }));
+        yield { type: "tool_calls", calls, ...(usage !== undefined ? { usage } : {}) };
+      } else {
+        yield { type: "message_done", content: textContent, ...(usage !== undefined ? { usage } : {}) };
+      }
+    } catch {
+      yield { type: "error", category: "network", message: "Provider network request failed.", recoverable: true };
     }
   }
 
@@ -261,6 +392,38 @@ export class OpenAICompatibleProvider implements ModelProvider {
   }
 }
 
+async function* parseSSEStream(body: ReadableStream<Uint8Array>): AsyncIterable<string> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("data: ")) {
+          yield trimmed.slice(6);
+        }
+      }
+    }
+
+    buffer += decoder.decode();
+    for (const line of buffer.split("\n")) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("data: ")) {
+        yield trimmed.slice(6);
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 function parseToolCallArguments(args: string): unknown {
   try {
     return JSON.parse(args);
@@ -290,6 +453,48 @@ export class FakeModelProvider implements ModelProvider {
         recoverable: false
       }
     );
+  }
+}
+
+export class FakeStreamingProvider implements StreamingModelProvider {
+  readonly requests: ModelInput[] = [];
+
+  readonly #tokenSequences: Array<string[] | ModelToolCall[]>;
+
+  constructor(tokenSequences: Array<string[] | ModelToolCall[]>) {
+    this.#tokenSequences = [...tokenSequences];
+  }
+
+  async generate(input: ModelInput): Promise<ModelOutput> {
+    this.requests.push(input);
+    const seq = this.#tokenSequences.shift();
+    if (seq === undefined) {
+      return { type: "error", category: "unknown", message: "FakeStreamingProvider has no queued sequence.", recoverable: false };
+    }
+    if (seq.length > 0 && typeof seq[0] === "object" && seq[0] !== null && "name" in seq[0]) {
+      return { type: "tool_calls", calls: seq as ModelToolCall[] };
+    }
+    return { type: "message", content: (seq as string[]).join("") };
+  }
+
+  async *generateStream(input: ModelInput): AsyncIterable<StreamEvent> {
+    this.requests.push(input);
+    const seq = this.#tokenSequences.shift();
+    if (seq === undefined) {
+      yield { type: "error", category: "unknown", message: "FakeStreamingProvider has no queued sequence.", recoverable: false };
+      return;
+    }
+
+    if (seq.length > 0 && typeof seq[0] === "object" && seq[0] !== null && "name" in seq[0]) {
+      yield { type: "tool_calls", calls: seq as ModelToolCall[] };
+      return;
+    }
+
+    const tokens = seq as string[];
+    for (const token of tokens) {
+      yield { type: "token_delta", delta: token };
+    }
+    yield { type: "message_done", content: tokens.join("") };
   }
 }
 
@@ -326,16 +531,35 @@ interface AnthropicAPIResponse {
 
 type AnthropicSystemBlock = { type: "text"; text: string; cache_control?: { type: "ephemeral" } };
 
+type AnthropicBaseParams = {
+  model: string;
+  max_tokens: number;
+  system?: AnthropicSystemBlock[];
+  messages: AnthropicAPIParam[];
+  tools?: AnthropicAPIToolDef[];
+  temperature?: number;
+};
+
+// Minimal streaming event types compatible with the Anthropic SDK's RawMessageStreamEvent.
+type AnthropicRawStreamEvent =
+  | { type: "message_start"; message: { usage: { input_tokens: number; output_tokens: number } } }
+  | { type: "message_delta"; delta: { stop_reason: string | null }; usage: { output_tokens: number } }
+  | { type: "message_stop" }
+  | { type: "content_block_start"; index: number; content_block: { type: string; id?: string; name?: string } }
+  | { type: "content_block_delta"; index: number; delta: { type: "text_delta"; text: string } | { type: "input_json_delta"; partial_json: string } }
+  | { type: "content_block_stop"; index: number }
+  | { type: "ping" };
+
 interface AnthropicClientLike {
   messages: {
-    create(params: {
-      model: string;
-      max_tokens: number;
-      system?: AnthropicSystemBlock[];
-      messages: AnthropicAPIParam[];
-      tools?: AnthropicAPIToolDef[];
-      temperature?: number;
-    }): Promise<AnthropicAPIResponse>;
+    create(params: AnthropicBaseParams): Promise<AnthropicAPIResponse>;
+  };
+}
+
+// Injectable stream client for testing the Anthropic streaming path.
+export interface AnthropicStreamClientLike {
+  messages: {
+    stream(params: AnthropicBaseParams): Promise<AsyncIterable<AnthropicRawStreamEvent>>;
   };
 }
 
@@ -345,10 +569,12 @@ export interface AnthropicProviderConfig {
   maxTokens?: number;
   temperature?: number;
   client?: AnthropicClientLike;
+  streamClient?: AnthropicStreamClientLike;
 }
 
-export class AnthropicProvider implements ModelProvider {
+export class AnthropicProvider implements StreamingModelProvider {
   readonly #client: AnthropicClientLike;
+  readonly #streamClient: AnthropicStreamClientLike | undefined;
   readonly #model: string;
   readonly #maxTokens: number;
   readonly #temperature: number | undefined;
@@ -357,7 +583,20 @@ export class AnthropicProvider implements ModelProvider {
     this.#model = config.model;
     this.#maxTokens = config.maxTokens ?? 4096;
     this.#temperature = config.temperature;
-    this.#client = config.client ?? (new Anthropic({ apiKey: config.apiKey }) as unknown as AnthropicClientLike);
+
+    if (config.client !== undefined || config.streamClient !== undefined) {
+      this.#client = config.client ?? { messages: { create: async () => { throw new Error("No client provided."); } } };
+      this.#streamClient = config.streamClient;
+    } else {
+      const sdk = new Anthropic({ apiKey: config.apiKey });
+      this.#client = sdk as unknown as AnthropicClientLike;
+      this.#streamClient = {
+        messages: {
+          stream: (params) =>
+            sdk.messages.create({ ...params, stream: true }) as unknown as Promise<AsyncIterable<AnthropicRawStreamEvent>>
+        }
+      };
+    }
   }
 
   async generate(input: ModelInput): Promise<ModelOutput> {
@@ -398,6 +637,94 @@ export class AnthropicProvider implements ModelProvider {
       };
     } catch (error) {
       return normalizeAnthropicError(error);
+    }
+  }
+
+  async *generateStream(input: ModelInput): AsyncIterable<StreamEvent> {
+    if (this.#streamClient === undefined) {
+      // Fallback: wrap the non-streaming response as a single stream event.
+      const output = await this.generate(input);
+      if (output.type === "message") {
+        yield { type: "token_delta", delta: output.content };
+        yield { type: "message_done", content: output.content, ...(output.usage ? { usage: output.usage } : {}) };
+      } else if (output.type === "tool_calls") {
+        yield { type: "tool_calls", calls: output.calls, ...(output.usage ? { usage: output.usage } : {}) };
+      } else {
+        yield { type: "error", category: output.category, message: output.message, recoverable: output.recoverable };
+      }
+      return;
+    }
+
+    try {
+      const { system, messages } = translateMessagesToAnthropic(input.messages);
+
+      const systemBlocks: AnthropicSystemBlock[] | undefined =
+        system !== undefined
+          ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }]
+          : undefined;
+
+      const params: AnthropicBaseParams = {
+        model: this.#model,
+        max_tokens: this.#maxTokens,
+        ...(systemBlocks !== undefined ? { system: systemBlocks } : {}),
+        messages,
+        ...(input.tools !== undefined && input.tools.length > 0
+          ? { tools: translateToolsToAnthropic(input.tools) }
+          : {}),
+        ...(this.#temperature !== undefined ? { temperature: this.#temperature } : {})
+      };
+
+      const stream = await this.#streamClient.messages.stream(params);
+
+      let textContent = "";
+      let inputTokens = 0;
+      let outputTokens = 0;
+      let stopReason: string | null = null;
+      const toolBlocks = new Map<number, { id: string; name: string; inputJson: string }>();
+
+      for await (const event of stream) {
+        if (event.type === "message_start") {
+          inputTokens = event.message.usage.input_tokens;
+        } else if (event.type === "content_block_start") {
+          if (event.content_block.type === "tool_use") {
+            toolBlocks.set(event.index, {
+              id: event.content_block.id ?? "",
+              name: event.content_block.name ?? "",
+              inputJson: ""
+            });
+          }
+        } else if (event.type === "content_block_delta") {
+          if (event.delta.type === "text_delta") {
+            textContent += event.delta.text;
+            yield { type: "token_delta", delta: event.delta.text };
+          } else if (event.delta.type === "input_json_delta") {
+            const block = toolBlocks.get(event.index);
+            if (block !== undefined) {
+              block.inputJson += event.delta.partial_json;
+            }
+          }
+        } else if (event.type === "message_delta") {
+          outputTokens = event.usage.output_tokens;
+          stopReason = event.delta.stop_reason;
+        }
+      }
+
+      const usage: ModelUsage = { inputTokens, outputTokens };
+
+      if (stopReason === "tool_use" && toolBlocks.size > 0) {
+        const calls = Array.from(toolBlocks.entries())
+          .sort(([a], [b]) => a - b)
+          .map(([, block]) => ({
+            id: block.id,
+            name: block.name,
+            input: parseToolCallArguments(block.inputJson)
+          }));
+        yield { type: "tool_calls", calls, usage };
+      } else {
+        yield { type: "message_done", content: textContent, usage };
+      }
+    } catch (error) {
+      yield normalizeAnthropicError(error) as StreamEvent & { type: "error" };
     }
   }
 }

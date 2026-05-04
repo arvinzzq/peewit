@@ -12,8 +12,8 @@ It lets Agent Core call models without depending on vendor SDK details.
 | --- | --- | --- |
 | `package.json` | Package manifest | Declares public package exports and build scripts. |
 | `tsconfig.json` | TypeScript config | Builds the models package. |
-| `src/index.ts` | Provider layer | Exports model message types, ModelToolDefinition, ModelInput with tools, ModelOutput union, fake provider, OpenAI-compatible provider with tool schema sending and tool_calls response parsing, and Anthropic provider with message format translation and tool_use/tool_result block handling. |
-| `src/index.test.ts` | Provider tests | Protects fake provider behavior, OpenAI-compatible normalization, tool definition request body, tool_calls response parsing, tool/assistant message formatting, and Anthropic provider message translation, tool definition translation, tool_use response parsing, and error normalization. |
+| `src/index.ts` | Provider layer | Exports model message types, ModelToolDefinition, ModelInput, ModelOutput union, StreamEvent union, StreamingModelProvider interface, isStreamingProvider type guard, FakeModelProvider, FakeStreamingProvider, OpenAI-compatible provider (generate + generateStream with SSE parsing), and Anthropic provider (generate + generateStream with injectable streamClient). |
+| `src/index.test.ts` | Provider tests | Protects fake provider behavior, isStreamingProvider detection, FakeStreamingProvider streaming, OpenAI SSE streaming (text and tool_calls), Anthropic streaming (text, tool_calls, and non-streaming fallback), plus all existing generate() tests. |
 
 ## Update Reminder
 

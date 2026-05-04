@@ -2,10 +2,14 @@ import { describe, expect, test } from "vitest";
 import {
   AnthropicProvider,
   FakeModelProvider,
+  FakeStreamingProvider,
   OpenAICompatibleProvider,
+  isStreamingProvider,
+  type AnthropicStreamClientLike,
   type ModelInput,
   type ModelOutput,
-  type ModelProvider
+  type ModelProvider,
+  type StreamEvent
 } from "./index.js";
 
 describe("model provider contract", () => {
@@ -515,5 +519,242 @@ describe("AnthropicProvider", () => {
       message: "Provider network request failed.",
       recoverable: true
     });
+  });
+});
+
+// ─── isStreamingProvider ──────────────────────────────────────────────────────
+
+describe("isStreamingProvider", () => {
+  test("returns true for FakeStreamingProvider", () => {
+    const provider = new FakeStreamingProvider([["Hello"]]);
+    expect(isStreamingProvider(provider)).toBe(true);
+  });
+
+  test("returns true for OpenAICompatibleProvider", () => {
+    const provider = new OpenAICompatibleProvider({ baseURL: "https://example.test/v1", model: "m", fetch: async () => new Response("") });
+    expect(isStreamingProvider(provider)).toBe(true);
+  });
+
+  test("returns true for AnthropicProvider", () => {
+    const provider = new AnthropicProvider({ model: "m", client: { messages: { create: async () => ({ content: [], stop_reason: null, usage: { input_tokens: 0, output_tokens: 0 } }) } } });
+    expect(isStreamingProvider(provider)).toBe(true);
+  });
+
+  test("returns false for FakeModelProvider", () => {
+    const provider = new FakeModelProvider([]);
+    expect(isStreamingProvider(provider)).toBe(false);
+  });
+});
+
+// ─── FakeStreamingProvider ────────────────────────────────────────────────────
+
+describe("FakeStreamingProvider", () => {
+  test("streams token deltas and message_done for text sequences", async () => {
+    const provider = new FakeStreamingProvider([["Hello", " ", "world"]]);
+    const events: StreamEvent[] = [];
+
+    for await (const event of provider.generateStream({ messages: [{ role: "user", content: "Hi." }] })) {
+      events.push(event);
+    }
+
+    expect(events).toEqual<StreamEvent[]>([
+      { type: "token_delta", delta: "Hello" },
+      { type: "token_delta", delta: " " },
+      { type: "token_delta", delta: "world" },
+      { type: "message_done", content: "Hello world" }
+    ]);
+  });
+
+  test("emits tool_calls event for tool call sequences", async () => {
+    const provider = new FakeStreamingProvider([[{ id: "tc_1", name: "read_file", input: { path: "a.txt" } }]]);
+    const events: StreamEvent[] = [];
+
+    for await (const event of provider.generateStream({ messages: [{ role: "user", content: "Read." }] })) {
+      events.push(event);
+    }
+
+    expect(events).toMatchObject([
+      { type: "tool_calls", calls: [{ id: "tc_1", name: "read_file", input: { path: "a.txt" } }] }
+    ]);
+  });
+
+  test("emits error when no sequences queued", async () => {
+    const provider = new FakeStreamingProvider([]);
+    const events: StreamEvent[] = [];
+
+    for await (const event of provider.generateStream({ messages: [] })) {
+      events.push(event);
+    }
+
+    expect(events[0]).toMatchObject({ type: "error" });
+  });
+});
+
+// ─── OpenAI streaming ─────────────────────────────────────────────────────────
+
+function makeSseResponse(lines: string[]): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const line of lines) {
+        controller.enqueue(encoder.encode(line));
+      }
+      controller.close();
+    }
+  });
+  return new Response(stream, { status: 200, headers: { "content-type": "text/event-stream" } });
+}
+
+describe("OpenAICompatibleProvider streaming", () => {
+  test("emits token_delta events and message_done for text response", async () => {
+    const provider = new OpenAICompatibleProvider({
+      baseURL: "https://api.example.test/v1",
+      apiKey: "key",
+      model: "m",
+      fetch: async () =>
+        makeSseResponse([
+          'data: {"choices":[{"delta":{"content":"Hello"},"finish_reason":null}]}\n',
+          'data: {"choices":[{"delta":{"content":" world"},"finish_reason":"stop"}]}\n',
+          "data: [DONE]\n"
+        ])
+    });
+
+    const events: StreamEvent[] = [];
+    for await (const event of provider.generateStream({ messages: [{ role: "user", content: "Hi." }] })) {
+      events.push(event);
+    }
+
+    expect(events).toMatchObject([
+      { type: "token_delta", delta: "Hello" },
+      { type: "token_delta", delta: " world" },
+      { type: "message_done", content: "Hello world" }
+    ]);
+  });
+
+  test("emits tool_calls event for tool_calls finish reason", async () => {
+    const provider = new OpenAICompatibleProvider({
+      baseURL: "https://api.example.test/v1",
+      apiKey: "key",
+      model: "m",
+      fetch: async () =>
+        makeSseResponse([
+          'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"read_file","arguments":""}}]},"finish_reason":null}]}\n',
+          'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\\"path\\":\\"a.txt\\"}"}}]},"finish_reason":"tool_calls"}]}\n',
+          "data: [DONE]\n"
+        ])
+    });
+
+    const events: StreamEvent[] = [];
+    for await (const event of provider.generateStream({ messages: [{ role: "user", content: "Read." }] })) {
+      events.push(event);
+    }
+
+    expect(events).toMatchObject([
+      { type: "tool_calls", calls: [{ id: "call_1", name: "read_file", input: { path: "a.txt" } }] }
+    ]);
+  });
+
+  test("emits error event for non-OK HTTP status", async () => {
+    const provider = new OpenAICompatibleProvider({
+      baseURL: "https://api.example.test/v1",
+      model: "m",
+      fetch: async () => new Response("Unauthorized", { status: 401 })
+    });
+
+    const events: StreamEvent[] = [];
+    for await (const event of provider.generateStream({ messages: [] })) {
+      events.push(event);
+    }
+
+    expect(events[0]).toMatchObject({ type: "error", category: "authentication" });
+  });
+});
+
+// ─── Anthropic streaming ──────────────────────────────────────────────────────
+
+function fakeAnthropicStreamClient(events: Array<{
+  type: string;
+  [key: string]: unknown;
+}>): AnthropicStreamClientLike {
+  return {
+    messages: {
+      stream: async () =>
+        (async function* () {
+          for (const event of events) {
+            yield event as Parameters<typeof fakeAnthropicStreamClient>[0][number];
+          }
+        })() as unknown as AsyncIterable<never>
+    }
+  };
+}
+
+describe("AnthropicProvider streaming", () => {
+  test("emits token_delta events and message_done for text response", async () => {
+    const provider = new AnthropicProvider({
+      model: "claude-opus-4-7",
+      streamClient: fakeAnthropicStreamClient([
+        { type: "message_start", message: { usage: { input_tokens: 10, output_tokens: 0 } } },
+        { type: "content_block_start", index: 0, content_block: { type: "text" } },
+        { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "Hello" } },
+        { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: " Anthropic" } },
+        { type: "content_block_stop", index: 0 },
+        { type: "message_delta", delta: { stop_reason: "end_turn" }, usage: { output_tokens: 5 } },
+        { type: "message_stop" }
+      ])
+    });
+
+    const events: StreamEvent[] = [];
+    for await (const event of provider.generateStream({ messages: [{ role: "user", content: "Hi." }] })) {
+      events.push(event);
+    }
+
+    expect(events).toMatchObject([
+      { type: "token_delta", delta: "Hello" },
+      { type: "token_delta", delta: " Anthropic" },
+      { type: "message_done", content: "Hello Anthropic", usage: { inputTokens: 10, outputTokens: 5 } }
+    ]);
+  });
+
+  test("emits tool_calls for tool_use stop reason", async () => {
+    const provider = new AnthropicProvider({
+      model: "claude-opus-4-7",
+      streamClient: fakeAnthropicStreamClient([
+        { type: "message_start", message: { usage: { input_tokens: 20, output_tokens: 0 } } },
+        { type: "content_block_start", index: 0, content_block: { type: "tool_use", id: "toolu_1", name: "read_file" } },
+        { type: "content_block_delta", index: 0, delta: { type: "input_json_delta", partial_json: '{"path"' } },
+        { type: "content_block_delta", index: 0, delta: { type: "input_json_delta", partial_json: ':"a.txt"}' } },
+        { type: "content_block_stop", index: 0 },
+        { type: "message_delta", delta: { stop_reason: "tool_use" }, usage: { output_tokens: 10 } },
+        { type: "message_stop" }
+      ])
+    });
+
+    const events: StreamEvent[] = [];
+    for await (const event of provider.generateStream({ messages: [{ role: "user", content: "Read." }] })) {
+      events.push(event);
+    }
+
+    expect(events).toMatchObject([
+      { type: "tool_calls", calls: [{ id: "toolu_1", name: "read_file", input: { path: "a.txt" } }] }
+    ]);
+  });
+
+  test("falls back to non-streaming when streamClient is not provided", async () => {
+    const provider = new AnthropicProvider({
+      model: "claude-opus-4-7",
+      client: fakeAnthropicClient(
+        { content: [{ type: "text", text: "Fallback text." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 3 } }
+      )
+    });
+
+    const events: StreamEvent[] = [];
+    for await (const event of provider.generateStream({ messages: [{ role: "user", content: "Hi." }] })) {
+      events.push(event);
+    }
+
+    expect(events).toMatchObject([
+      { type: "token_delta", delta: "Fallback text." },
+      { type: "message_done", content: "Fallback text." }
+    ]);
   });
 });

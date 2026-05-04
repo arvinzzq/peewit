@@ -12,8 +12,8 @@
 | --- | --- | --- |
 | `package.json` | Package manifest | 声明 public package exports 和 build scripts。 |
 | `tsconfig.json` | TypeScript config | 构建 models package。 |
-| `src/index.ts` | Provider layer | 导出 model message types、ModelToolDefinition、含 tools 的 ModelInput、ModelOutput union、fake provider、支持 tool schema 发送和 tool_calls 响应解析的 OpenAI-compatible provider，以及处理消息格式翻译和 tool_use/tool_result blocks 的 Anthropic provider。 |
-| `src/index.test.ts` | Provider tests | 保护 fake provider behavior、OpenAI-compatible normalization、tool definition request body、tool_calls 响应解析、tool/assistant 消息格式化，以及 Anthropic provider 消息翻译、tool definition 翻译、tool_use 响应解析和错误归一化。 |
+| `src/index.ts` | Provider layer | 导出 model message types、ModelToolDefinition、ModelInput、ModelOutput union、StreamEvent union、StreamingModelProvider 接口、isStreamingProvider 类型守卫、FakeModelProvider、FakeStreamingProvider、支持 generate + generateStream（SSE 解析）的 OpenAI-compatible provider，以及支持 generate + generateStream（可注入 streamClient）的 Anthropic provider。 |
+| `src/index.test.ts` | Provider tests | 保护 fake provider behavior、isStreamingProvider 检测、FakeStreamingProvider 流式、OpenAI SSE 流式（文本和 tool_calls）、Anthropic 流式（文本、tool_calls 和非流式回退），以及所有已有的 generate() 测试。 |
 
 ## Update Reminder
 
