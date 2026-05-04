@@ -15,7 +15,7 @@ import {
 } from "./index.js";
 
 describe("runtime event contracts", () => {
-  test("declares the Phase 1 message-only event vocabulary", () => {
+  test("declares the runtime event vocabulary", () => {
     expect(runtimeEventTypes).toEqual([
       "run_started",
       "context_assembled",
@@ -612,16 +612,19 @@ describe("message-only AgentRuntime", () => {
       }
     });
     expect(modelProvider.requests).toHaveLength(2);
+    // Second request includes: original messages + assistant tool_calls message + tool result message
+    expect(modelProvider.requests[1]?.messages.at(-2)).toMatchObject({
+      role: "assistant",
+      content: null,
+      toolCalls: [{ id: "call_read", name: "read_file" }]
+    });
     expect(modelProvider.requests[1]?.messages.at(-1)).toEqual({
       role: "tool",
+      toolCallId: "call_read",
       content: JSON.stringify({
-        toolCallId: "call_read",
-        toolName: "read_file",
-        result: {
-          ok: true,
-          content: "Tool observation content.",
-          summary: "Read file README.md."
-        }
+        ok: true,
+        content: "Tool observation content.",
+        summary: "Read file README.md."
       })
     });
     expect(events[10]).toMatchObject({
@@ -630,6 +633,97 @@ describe("message-only AgentRuntime", () => {
         content: "I read the file."
       }
     });
+  });
+
+  test("passes registered tool definitions to the model provider", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-core-tools-"));
+    await writeFile(join(workspace, "README.md"), "Hello.");
+    const modelProvider = new FakeModelProvider([{ type: "message", content: "Done." }]);
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider,
+      tools: [createReadFileTool()],
+      systemInstruction: "You are ArvinClaw.",
+      runtime: { mode: "confirm", workspace, currentDate: "2026-05-03" },
+      createRunId: () => "run_tool_defs",
+      createEventId: (() => { let n = 0; return () => `evt_td_${++n}`; })(),
+      now: () => "2026-05-03T01:27:00.000Z"
+    });
+
+    await collect(runtime.runTurn({ message: "Hello." }));
+
+    expect(modelProvider.requests[0]?.tools).toMatchObject([
+      { type: "function", function: { name: "read_file" } }
+    ]);
+  });
+
+  test("loops for multiple tool-calling rounds until model returns a message", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-core-tools-"));
+    await writeFile(join(workspace, "a.txt"), "first");
+    await writeFile(join(workspace, "b.txt"), "second");
+    const modelProvider = new FakeModelProvider([
+      {
+        type: "tool_calls",
+        calls: [{ id: "call_a", name: "read_file", input: { path: "a.txt" } }]
+      },
+      {
+        type: "tool_calls",
+        calls: [{ id: "call_b", name: "read_file", input: { path: "b.txt" } }]
+      },
+      { type: "message", content: "Read both files." }
+    ]);
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider,
+      tools: [createReadFileTool()],
+      systemInstruction: "You are ArvinClaw.",
+      runtime: { mode: "confirm", workspace, currentDate: "2026-05-03" },
+      createRunId: () => "run_multi",
+      createEventId: (() => { let n = 0; return () => `evt_multi_${++n}`; })(),
+      now: () => "2026-05-03T01:28:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Read both files." }));
+
+    expect(modelProvider.requests).toHaveLength(3);
+    expect(events.filter((e) => e.type === "tool_started")).toHaveLength(2);
+    expect(events.filter((e) => e.type === "tool_completed")).toHaveLength(2);
+    expect(events.at(-1)?.type).toBe("run_completed");
+    expect(events.find((e) => e.type === "assistant_message_created")).toMatchObject({
+      type: "assistant_message_created",
+      message: { content: "Read both files." }
+    });
+  });
+
+  test("stops with run_failed when maxSteps is exceeded", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-core-tools-"));
+    await writeFile(join(workspace, "file.txt"), "content");
+    // Provide infinite tool_calls outputs by giving more than maxSteps
+    const modelProvider = new FakeModelProvider(
+      Array.from({ length: 5 }, (_, i) => ({
+        type: "tool_calls" as const,
+        calls: [{ id: `call_${i}`, name: "read_file", input: { path: "file.txt" } }]
+      }))
+    );
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider,
+      tools: [createReadFileTool()],
+      maxSteps: 2,
+      systemInstruction: "You are ArvinClaw.",
+      runtime: { mode: "confirm", workspace, currentDate: "2026-05-03" },
+      createRunId: () => "run_limit",
+      createEventId: (() => { let n = 0; return () => `evt_limit_${++n}`; })(),
+      now: () => "2026-05-03T01:29:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Loop forever." }));
+
+    expect(events.at(-1)).toMatchObject({
+      type: "run_failed",
+      error: { message: expect.stringContaining("step limit") }
+    });
+    expect(modelProvider.requests).toHaveLength(2);
   });
 });
 

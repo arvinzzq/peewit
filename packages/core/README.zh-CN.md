@@ -12,8 +12,8 @@
 | --- | --- | --- |
 | `package.json` | Package manifest | 声明 core package 以及 context、models、permissions 和 tools 等 workspace dependencies。 |
 | `tsconfig.json` | TypeScript config | 使用对 context、models、permissions 和 tools 的 references 构建 core。 |
-| `src/index.ts` | Runtime core | 导出 runtime event contracts、in-memory trace store、message/tool run flow、tool-call request events、permission evaluation events、approval resolver contracts 和 tool lifecycle events。 |
-| `src/index.test.ts` | Runtime tests | 保护 event vocabulary、terminal-event detection、trace storage、recent-message context flow、message run flow、tool-call request behavior、runtime permission policy injection、approval resolver behavior、tool execution 和 tool observation handoff。 |
+| `src/index.ts` | Runtime core | 导出 runtime event contracts、in-memory trace store、真正的 agent loop（while 循环含 maxSteps）、tool definition projection、tool-call request events、permission evaluation events、approval resolver contracts 和 tool lifecycle events。 |
+| `src/index.test.ts` | Runtime tests | 保护 event vocabulary、terminal-event detection、trace storage、recent-message context flow、message run flow、tool-call request behavior、runtime permission policy injection、approval resolver behavior、tool execution、multi-round tool-calling loop、tool definition handoff 和 step-limit enforcement。 |
 
 ## Update Reminder
 

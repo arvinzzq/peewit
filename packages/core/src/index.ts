@@ -1,6 +1,6 @@
 /**
- * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, optional ApprovalResolver, executable tools, runtime metadata, user turn input, optional recent conversation messages, and model-requested tool calls.
- * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, message/tool orchestration, tool-call request events, permission evaluation events, approval resolution events, and tool lifecycle events.
+ * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, optional ApprovalResolver, executable tools, maxSteps, runtime metadata, user turn input, optional recent conversation messages, and model-requested tool calls.
+ * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, real tool-calling agent loop, tool-call request events, permission evaluation events, approval resolution events, and tool lifecycle events.
  * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -9,7 +9,7 @@ import type {
   ContextAssembler,
   ContextRuntimeMetadata
 } from "@arvinclaw/context";
-import type { ModelMessage, ModelProvider, ModelToolCall } from "@arvinclaw/models";
+import type { ModelMessage, ModelProvider, ModelToolCall, ModelToolDefinition } from "@arvinclaw/models";
 import {
   DefaultPermissionPolicy,
   type AutonomyMode,
@@ -220,6 +220,7 @@ export interface AgentRuntimeDependencies {
   permissionPolicy?: PermissionPolicy;
   approvalResolver?: ApprovalResolver;
   tools?: ExecutableTool[];
+  maxSteps?: number;
   systemInstruction: string;
   runtime?: ContextRuntimeMetadata;
   createRunId?: () => string;
@@ -227,12 +228,15 @@ export interface AgentRuntimeDependencies {
   now?: () => string;
 }
 
+const DEFAULT_MAX_STEPS = 12;
+
 export class AgentRuntime {
   readonly #contextAssembler: ContextAssembler;
   readonly #modelProvider: ModelProvider;
   readonly #permissionPolicy: PermissionPolicy;
   readonly #approvalResolver: ApprovalResolver | undefined;
   readonly #tools: Map<string, ExecutableTool>;
+  readonly #maxSteps: number;
   readonly #systemInstruction: string;
   readonly #runtime: ContextRuntimeMetadata | undefined;
   readonly #createRunId: () => string;
@@ -245,6 +249,7 @@ export class AgentRuntime {
     this.#permissionPolicy = dependencies.permissionPolicy ?? new DefaultPermissionPolicy();
     this.#approvalResolver = dependencies.approvalResolver;
     this.#tools = new Map((dependencies.tools ?? []).map((tool) => [tool.name, tool]));
+    this.#maxSteps = dependencies.maxSteps ?? DEFAULT_MAX_STEPS;
     this.#systemInstruction = dependencies.systemInstruction;
     this.#runtime = dependencies.runtime;
     this.#createRunId = dependencies.createRunId ?? randomId("run");
@@ -256,11 +261,7 @@ export class AgentRuntime {
     const runId = this.#createRunId();
     const base = input.sessionId ? { runId, sessionId: input.sessionId } : { runId };
 
-    yield this.#event({
-      ...base,
-      type: "run_started",
-      userMessage: input.message
-    });
+    yield this.#event({ ...base, type: "run_started", userMessage: input.message });
 
     const assembled = await this.#contextAssembler.assemble(
       this.#runtime
@@ -284,41 +285,42 @@ export class AgentRuntime {
       systemInstructionIncluded: assembled.report.includedSections.includes("system_instruction")
     });
 
-    yield this.#event({
-      ...base,
-      type: "model_request_started",
-      provider: "configured"
-    });
+    const toolDefinitions = this.#buildToolDefinitions();
+    let messages: ModelMessage[] = assembled.modelInput.messages;
+    let steps = 0;
 
-    const output = await this.#modelProvider.generate(assembled.modelInput);
+    while (steps < this.#maxSteps) {
+      yield this.#event({ ...base, type: "model_request_started", provider: "configured" });
 
-    yield this.#event({
-      ...base,
-      type: "model_request_completed",
-      provider: "configured"
-    });
-
-    if (output.type === "error") {
-      yield this.#event({
-        ...base,
-        type: "run_failed",
-        error: {
-          message: output.message,
-          recoverable: output.recoverable
-        }
+      const output = await this.#modelProvider.generate({
+        messages,
+        ...(toolDefinitions.length > 0 ? { tools: toolDefinitions } : {}),
+        ...(assembled.modelInput.options !== undefined ? { options: assembled.modelInput.options } : {})
       });
-      return;
-    }
 
-    if (output.type === "tool_calls") {
-      const toolMessages: ModelMessage[] = [];
+      yield this.#event({ ...base, type: "model_request_completed", provider: "configured" });
+
+      steps++;
+
+      if (output.type === "error") {
+        yield this.#event({ ...base, type: "run_failed", error: { message: output.message, recoverable: output.recoverable } });
+        return;
+      }
+
+      if (output.type === "message") {
+        yield this.#event({ ...base, type: "assistant_message_created", message: { role: "assistant", content: output.content } });
+        yield this.#event({ ...base, type: "run_completed" });
+        return;
+      }
+
+      // type === "tool_calls": add assistant tool_calls message and execute each tool
+      messages = [...messages, { role: "assistant", content: null, toolCalls: output.calls }];
+
+      const toolResultMessages: ModelMessage[] = [];
+      let runFailed = false;
 
       for (const call of output.calls) {
-        yield this.#event({
-          ...base,
-          type: "tool_call_requested",
-          call
-        });
+        yield this.#event({ ...base, type: "tool_call_requested", call });
 
         const tool = this.#tools.get(call.name);
         const decision = this.#permissionPolicy.evaluate({
@@ -326,187 +328,66 @@ export class AgentRuntime {
           action: createToolPermissionAction(call, tool?.risk ?? "medium")
         });
 
-        yield this.#event({
-          ...base,
-          type: "tool_call_permission_evaluated",
-          callId: call.id,
-          toolName: call.name,
-          decision
-        });
+        yield this.#event({ ...base, type: "tool_call_permission_evaluated", callId: call.id, toolName: call.name, decision });
 
         if (decision.decision === "deny") {
-          yield this.#event({
-            ...base,
-            type: "run_failed",
-            error: {
-              message: `Tool call ${call.name} was denied.`,
-              recoverable: false
-            }
-          });
-          return;
+          yield this.#event({ ...base, type: "run_failed", error: { message: `Tool call ${call.name} was denied.`, recoverable: false } });
+          runFailed = true;
+          break;
         }
 
         if (decision.decision === "ask") {
-          yield this.#event({
-            ...base,
-            type: "approval_requested",
-            callId: call.id,
-            toolName: call.name,
-            decision
-          });
+          yield this.#event({ ...base, type: "approval_requested", callId: call.id, toolName: call.name, decision });
 
           const resolution =
             this.#approvalResolver === undefined
-              ? {
-                  approved: false,
-                  reason: "No approval resolver was configured."
-                }
+              ? { approved: false, reason: "No approval resolver was configured." }
               : await this.#approvalResolver.resolve({ call, decision });
 
-          yield this.#event({
-            ...base,
-            type: "approval_resolved",
-            callId: call.id,
-            toolName: call.name,
-            resolution
-          });
+          yield this.#event({ ...base, type: "approval_resolved", callId: call.id, toolName: call.name, resolution });
 
           if (!resolution.approved) {
-            yield this.#event({
-              ...base,
-              type: "run_failed",
-              error: {
-                message: `Tool call ${call.name} was denied.`,
-                recoverable: false
-              }
-            });
-            return;
+            yield this.#event({ ...base, type: "run_failed", error: { message: `Tool call ${call.name} was denied.`, recoverable: false } });
+            runFailed = true;
+            break;
           }
         }
 
         if (tool === undefined) {
-          yield this.#event({
-            ...base,
-            type: "tool_failed",
-            callId: call.id,
-            toolName: call.name,
-            error: {
-              message: `Tool ${call.name} is not registered.`
-            }
-          });
-
-          yield this.#event({
-            ...base,
-            type: "run_failed",
-            error: {
-              message: `Tool ${call.name} is not registered.`,
-              recoverable: false
-            }
-          });
-          return;
+          yield this.#event({ ...base, type: "tool_failed", callId: call.id, toolName: call.name, error: { message: `Tool ${call.name} is not registered.` } });
+          yield this.#event({ ...base, type: "run_failed", error: { message: `Tool ${call.name} is not registered.`, recoverable: false } });
+          runFailed = true;
+          break;
         }
 
-        yield this.#event({
-          ...base,
-          type: "tool_started",
-          callId: call.id,
-          toolName: call.name
-        });
+        yield this.#event({ ...base, type: "tool_started", callId: call.id, toolName: call.name });
 
         const result = await tool.execute(call.input, {
           workspaceRoot: this.#runtime?.workspace ?? process.cwd()
         });
 
-        yield this.#event({
-          ...base,
-          type: "tool_completed",
-          callId: call.id,
-          toolName: call.name,
-          result
-        });
+        yield this.#event({ ...base, type: "tool_completed", callId: call.id, toolName: call.name, result });
 
-        toolMessages.push({
-          role: "tool",
-          content: JSON.stringify({
-            toolCallId: call.id,
-            toolName: call.name,
-            result
-          })
-        });
+        toolResultMessages.push({ role: "tool", toolCallId: call.id, content: JSON.stringify(result) });
       }
 
-      const followUpInput = {
-        ...assembled.modelInput,
-        messages: [...assembled.modelInput.messages, ...toolMessages]
-      };
+      if (runFailed) return;
 
-      yield this.#event({
-        ...base,
-        type: "model_request_started",
-        provider: "configured"
-      });
-
-      const followUpOutput = await this.#modelProvider.generate(followUpInput);
-
-      yield this.#event({
-        ...base,
-        type: "model_request_completed",
-        provider: "configured"
-      });
-
-      if (followUpOutput.type === "error") {
-        yield this.#event({
-          ...base,
-          type: "run_failed",
-          error: {
-            message: followUpOutput.message,
-            recoverable: followUpOutput.recoverable
-          }
-        });
-        return;
-      }
-
-      if (followUpOutput.type === "tool_calls") {
-        yield this.#event({
-          ...base,
-          type: "run_failed",
-          error: {
-            message: "Multiple tool-call rounds are not wired yet.",
-            recoverable: false
-          }
-        });
-        return;
-      }
-
-      yield this.#event({
-        ...base,
-        type: "assistant_message_created",
-        message: {
-          role: "assistant",
-          content: followUpOutput.content
-        }
-      });
-
-      yield this.#event({
-        ...base,
-        type: "run_completed"
-      });
-      return;
+      messages = [...messages, ...toolResultMessages];
     }
 
-    yield this.#event({
-      ...base,
-      type: "assistant_message_created",
-      message: {
-        role: "assistant",
-        content: output.content
-      }
-    });
+    yield this.#event({ ...base, type: "run_failed", error: { message: `Agent loop reached the step limit of ${this.#maxSteps}.`, recoverable: false } });
+  }
 
-    yield this.#event({
-      ...base,
-      type: "run_completed"
-    });
+  #buildToolDefinitions(): ModelToolDefinition[] {
+    return [...this.#tools.values()].map((tool) => ({
+      type: "function",
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.inputSchema
+      }
+    }));
   }
 
   #event<TEvent extends RuntimeEventInput>(event: TEvent): RuntimeEvent {
