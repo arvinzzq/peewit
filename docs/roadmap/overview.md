@@ -38,7 +38,7 @@ The roadmap follows a dual-track approach:
 | Phase 3 | Complete | Context assembly and skills | Agent has structured context with tools, skills, and permission guidance; can load `SKILL.md`; Claude available directly | Context section architecture, Anthropic provider, skill loader |
 | Phase 4 | Complete | In-turn task tracking | Agent tracks complex task progress transparently and avoids planning stalls | `update_todos` tool, planning stall detection |
 | Phase 5 | Complete | Sessions and memory | Agent remembers sessions and can use local knowledge | Session store, trace store, memory interfaces |
-| Phase 6 | Not Started | Web UI | User can chat, inspect traces, and approve actions in a browser | UI adapter, API boundary, trace visualization |
+| Phase 6 | In Progress | Streaming and Web UI | Token-by-token streaming in CLI; browser-based chat with trace and approvals | Streaming ModelProvider, Ink CLI, Web adapter, SSE |
 | Phase 7 | Not Started | Multi-entry adapters | CLI, Web, desktop, and message entries share one Agent Core | Adapter interface, gateway direction |
 | Phase 8 | Not Started | Background automation | Agent can run scheduled and event-triggered tasks | Scheduler, daemon, task queue |
 | Phase 9 | Not Started | Plugin and skill ecosystem | User can install, enable, disable, and review capabilities | Plugin metadata, permission declarations, versioning |

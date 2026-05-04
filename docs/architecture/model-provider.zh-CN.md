@@ -116,14 +116,49 @@ interface ModelToolCall {
 
 ## 7. Streaming
 
-MVP 可以不做完整 streaming，但 provider 接口应预留空间。
+Phase 6 以可选扩展的形式在 `ModelProvider` 上添加了流式支持。
 
-未来应支持两种模式：
+### 接口
 
-- 非流式：provider 返回完整 `ModelOutput`。
-- 流式：provider 发出文本 delta、tool call delta、usage update 和最终完成事件。
+```ts
+export type StreamEvent =
+  | { type: "token_delta"; delta: string }
+  | { type: "tool_calls"; calls: ModelToolCall[]; usage?: ModelUsage }
+  | { type: "message_done"; content: string; usage?: ModelUsage }
+  | { type: "error"; category: ModelErrorCategory; message: string; recoverable: boolean };
 
-Agent Core 应把 streaming 视为交付细节。执行工具前仍需要形成完整决策点。
+export interface StreamingModelProvider extends ModelProvider {
+  generateStream(input: ModelInput): AsyncIterable<StreamEvent>;
+}
+
+export function isStreamingProvider(provider: ModelProvider): provider is StreamingModelProvider;
+```
+
+`StreamingModelProvider` 扩展了 `ModelProvider`，因此流式 Provider 可以直接替换非流式 Provider。非流式 Provider 继续正常工作。
+
+### 事件序列
+
+流式响应发出：
+
+1. 零个或多个 `token_delta` 事件——每个携带一个文本片段。
+2. `message_done`（文本响应完成）或 `tool_calls`（模型请求工具）之一。
+3. 发生故障时可选发出 `error`。
+
+### Agent Core 行为
+
+`AgentRuntime` 使用 `isStreamingProvider()` 检测 Provider 是否实现了 `StreamingModelProvider`。若是：
+
+- 调用 `generateStream()` 而非 `generate()`。
+- 将每个 `token_delta` 转发为 `token_delta` 运行时事件。
+- 在 `message_done` 或 `tool_calls` 到达前等待，再做工具派发决策。
+
+流式是交付细节。Agent Loop 的决策节点（执行工具还是生成最终消息）保持不变。
+
+### Provider 实现
+
+- `OpenAICompatibleProvider` — 使用 `stream: true`，从 `response.body` 解析 SSE 数据块。
+- `AnthropicProvider` — 使用 Anthropic SDK 流式接口，将 `content_block_delta` 转换为 `token_delta`。
+- `FakeStreamingProvider` — 测试替身，发出可配置的 Token 序列。
 
 ## 8. 错误归一化
 

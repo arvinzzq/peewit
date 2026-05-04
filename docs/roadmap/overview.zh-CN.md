@@ -38,7 +38,7 @@ Roadmap 采用双轨方法：
 | Phase 3 | Complete | Context assembly 与 skills | Agent 有包含工具、skills 和权限指导的结构化 context；可加载 `SKILL.md`；Claude 可直接使用 | Context section 架构、Anthropic provider、skill loader |
 | Phase 4 | Complete | In-turn 任务追踪 | Agent 在执行过程中透明地追踪复杂任务进度，避免规划停滞 | `update_todos` tool、规划停滞检测 |
 | Phase 5 | Complete | 会话与记忆 | Agent 可以记住会话，并使用本地知识 | Session store、trace store、memory interfaces |
-| Phase 6 | Not Started | Streaming 与 Web UI | 用户可以在终端看到 streaming token 输出，并通过浏览器界面聊天、检查 trace、批准动作 | Streaming provider、Ink CLI 渲染升级、UI adapter、trace visualization |
+| Phase 6 | In Progress | Streaming 与 Web UI | CLI 逐 Token 流式输出；浏览器端聊天含 trace 和审批 | Streaming ModelProvider、Ink CLI、Web adapter、SSE |
 | Phase 7 | Not Started | 多入口 adapters | CLI、Web、桌面和消息入口共享一个 Agent Core | Adapter interface、gateway direction |
 | Phase 8 | Not Started | 后台自动化 | Agent 可以运行定时和事件触发任务 | Scheduler、daemon、task queue |
 | Phase 9 | Not Started | Plugin 和 skill 生态 | 用户可以安装、启用、禁用和审查能力 | Plugin metadata、permission declarations、versioning |
