@@ -694,7 +694,7 @@ export function renderPlanProgress(events: RuntimeEvent[]): string[] {
 
 export function renderSkillIndex(skills: SkillDefinition[]): string[] {
   if (skills.length === 0) return ["No skills loaded."];
-  return skills.map((s) => `[${s.source}] ${s.name}: ${s.when}`);
+  return skills.map((s) => `[${s.source}] ${s.name}: ${s.description}`);
 }
 
 export function renderRedactedConfig(config: RedactedConfigView): string[] {

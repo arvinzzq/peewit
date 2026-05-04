@@ -28,7 +28,6 @@ export interface ContextToolSummary {
 export interface ContextSkillSummary {
   name: string;
   description: string;
-  when: string;
 }
 
 export interface ContextAssemblyInput {
@@ -81,17 +80,14 @@ export class DefaultContextAssembler implements ContextAssembler {
     const systemParts: string[] = [];
 
     // identity: who ArvinClaw is
-    systemParts.push(input.systemInstruction);
+    systemParts.push(`<identity>\n${input.systemInstruction}\n</identity>`);
     sectionReports.push({ name: "identity", included: true });
 
     // runtime: current mode, workspace, date
     if (input.runtime) {
       systemParts.push(
         "",
-        "Runtime:",
-        `- Mode: ${input.runtime.mode}`,
-        `- Workspace: ${input.runtime.workspace}`,
-        `- Current date: ${input.runtime.currentDate}`
+        `<runtime>\n- Mode: ${input.runtime.mode}\n- Workspace: ${input.runtime.workspace}\n- Date: ${input.runtime.currentDate}\n</runtime>`
       );
       sectionReports.push({ name: "runtime", included: true });
     } else {
@@ -100,7 +96,8 @@ export class DefaultContextAssembler implements ContextAssembler {
 
     // tooling: available tools with name, description, risk level
     if (input.tools !== undefined && input.tools.length > 0) {
-      systemParts.push("", "Tools:", ...input.tools.map((t) => `- ${t.name} [${t.risk}]: ${t.description}`));
+      const toolLines = input.tools.map((t) => `- ${t.name} [${t.risk}]: ${t.description}`).join("\n");
+      systemParts.push("", `<tooling>\n${toolLines}\n</tooling>`);
       sectionReports.push({ name: "tooling", included: true });
     } else {
       sectionReports.push({ name: "tooling", included: false, reason: "No tools registered." });
@@ -108,15 +105,16 @@ export class DefaultContextAssembler implements ContextAssembler {
 
     // safety: permission policy guidance
     if (input.permissionGuidance !== undefined && input.permissionGuidance.length > 0) {
-      systemParts.push("", "Permissions:", input.permissionGuidance);
+      systemParts.push("", `<safety>\n${input.permissionGuidance}\n</safety>`);
       sectionReports.push({ name: "safety", included: true });
     } else {
       sectionReports.push({ name: "safety", included: false, reason: "No permission guidance provided." });
     }
 
-    // skills: compact skill index (name + when to use)
+    // skills: compact skill index (name + description as routing trigger)
     if (input.skillIndex !== undefined && input.skillIndex.length > 0) {
-      systemParts.push("", "Skills:", ...input.skillIndex.map((s) => `- ${s.name}: ${s.when}`));
+      const skillLines = input.skillIndex.map((s) => `- ${s.name}: ${s.description}`).join("\n");
+      systemParts.push("", `<skills>\n${skillLines}\n</skills>`);
       sectionReports.push({ name: "skills", included: true });
     } else {
       sectionReports.push({ name: "skills", included: false, reason: "No skills loaded." });
@@ -125,7 +123,7 @@ export class DefaultContextAssembler implements ContextAssembler {
     // workspace: AGENTS.md, SOUL.md, and other prompt files
     const workspaceContent = await this.#loadWorkspacePromptSections(input.runtime?.workspace);
     if (workspaceContent.length > 0) {
-      systemParts.push("", "Workspace prompt files:", ...workspaceContent);
+      systemParts.push("", `<workspace>${workspaceContent.join("\n")}\n</workspace>`);
       sectionReports.push({ name: "workspace", included: true });
     } else if (this.#workspacePromptFiles.length > 0) {
       sectionReports.push({ name: "workspace", included: false, reason: "No workspace prompt files found." });

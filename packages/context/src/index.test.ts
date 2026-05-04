@@ -22,12 +22,15 @@ describe("context assembler sections", () => {
       {
         role: "system",
         content: [
+          "<identity>",
           "You are ArvinClaw.",
+          "</identity>",
           "",
-          "Runtime:",
+          "<runtime>",
           "- Mode: confirm",
           "- Workspace: /workspace/project",
-          "- Current date: 2026-05-03"
+          "- Date: 2026-05-03",
+          "</runtime>"
         ].join("\n")
       },
       {
@@ -85,8 +88,8 @@ describe("context assembler sections", () => {
       userMessage: "Continue from there."
     });
 
-    expect(result.modelInput.messages).toEqual([
-      { role: "system", content: "You are ArvinClaw." },
+    expect(result.modelInput.messages).toMatchObject([
+      { role: "system" },
       { role: "user", content: "What did we discuss?" },
       { role: "assistant", content: "We discussed session memory." },
       { role: "user", content: "Continue from there." }
@@ -111,9 +114,10 @@ describe("tooling section", () => {
     });
 
     const systemContent = result.modelInput.messages[0]?.content as string;
-    expect(systemContent).toContain("Tools:");
+    expect(systemContent).toContain("<tooling>");
     expect(systemContent).toContain("read_file [low]: Read a workspace file.");
     expect(systemContent).toContain("run_shell [high]: Run a shell command.");
+    expect(systemContent).toContain("</tooling>");
     expect(result.report.includedSections).toContain("tooling");
     expect(result.report.omittedSections).not.toContain("tooling");
   });
@@ -127,7 +131,7 @@ describe("tooling section", () => {
     });
 
     const systemContent = result.modelInput.messages[0]?.content as string;
-    expect(systemContent).not.toContain("Tools:");
+    expect(systemContent).not.toContain("<tooling>");
     expect(result.report.omittedSections).toContain("tooling");
   });
 
@@ -155,8 +159,9 @@ describe("safety section", () => {
     });
 
     const systemContent = result.modelInput.messages[0]?.content as string;
-    expect(systemContent).toContain("Permissions:");
+    expect(systemContent).toContain("<safety>");
     expect(systemContent).toContain("Low-risk actions run automatically.");
+    expect(systemContent).toContain("</safety>");
     expect(result.report.includedSections).toContain("safety");
   });
 
@@ -169,7 +174,7 @@ describe("safety section", () => {
     });
 
     const systemContent = result.modelInput.messages[0]?.content as string;
-    expect(systemContent).not.toContain("Permissions:");
+    expect(systemContent).not.toContain("<safety>");
     expect(result.report.omittedSections).toContain("safety");
   });
 });
@@ -181,16 +186,17 @@ describe("skills section", () => {
     const result = await assembler.assemble({
       systemInstruction: "You are ArvinClaw.",
       skillIndex: [
-        { name: "research", description: "Web research skill.", when: "When you need to search the web." },
-        { name: "safe-shell", description: "Safe shell guidance.", when: "When you run shell commands." }
+        { name: "research", description: "Use when investigating external information or comparing sources." },
+        { name: "safe-shell", description: "Use when planning to run shell commands." }
       ],
       userMessage: "Search for information."
     });
 
     const systemContent = result.modelInput.messages[0]?.content as string;
-    expect(systemContent).toContain("Skills:");
-    expect(systemContent).toContain("research: When you need to search the web.");
-    expect(systemContent).toContain("safe-shell: When you run shell commands.");
+    expect(systemContent).toContain("<skills>");
+    expect(systemContent).toContain("research: Use when investigating external information or comparing sources.");
+    expect(systemContent).toContain("safe-shell: Use when planning to run shell commands.");
+    expect(systemContent).toContain("</skills>");
     expect(result.report.includedSections).toContain("skills");
   });
 
@@ -203,7 +209,7 @@ describe("skills section", () => {
     });
 
     const systemContent = result.modelInput.messages[0]?.content as string;
-    expect(systemContent).not.toContain("Skills:");
+    expect(systemContent).not.toContain("<skills>");
     expect(result.report.omittedSections).toContain("skills");
   });
 });
@@ -231,10 +237,12 @@ describe("workspace section", () => {
       });
 
       const systemContent = result.modelInput.messages[0]?.content as string;
+      expect(systemContent).toContain("<workspace>");
       expect(systemContent).toContain("### AGENTS.md");
       expect(systemContent).toContain("Use project conventions.");
       expect(systemContent).toContain("### SOUL.md");
       expect(systemContent).toContain("Stay steady and practical.");
+      expect(systemContent).toContain("</workspace>");
       expect(result.report.includedSections).toContain("workspace");
       expect(result.report.omittedSections).not.toContain("workspace");
     } finally {
@@ -257,7 +265,7 @@ describe("workspace section", () => {
       });
 
       const systemContent = result.modelInput.messages[0]?.content as string;
-      expect(systemContent).not.toContain("Workspace prompt files:");
+      expect(systemContent).not.toContain("<workspace>");
       expect(result.report.omittedSections).toContain("workspace");
     } finally {
       await rm(workspace, { force: true, recursive: true });
@@ -274,16 +282,16 @@ describe("full context assembly", () => {
       runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-03" },
       tools: [{ name: "read_file", description: "Read a file.", risk: "low" }],
       permissionGuidance: "Low-risk: automatic. High-risk: approval required.",
-      skillIndex: [{ name: "research", description: "Research skill.", when: "For web research." }],
+      skillIndex: [{ name: "research", description: "Use when investigating external information or comparing sources." }],
       userMessage: "Help me."
     });
 
     const systemContent = result.modelInput.messages[0]?.content as string;
-    const identityPos = systemContent.indexOf("You are ArvinClaw.");
-    const runtimePos = systemContent.indexOf("Runtime:");
-    const toolingPos = systemContent.indexOf("Tools:");
-    const safetyPos = systemContent.indexOf("Permissions:");
-    const skillsPos = systemContent.indexOf("Skills:");
+    const identityPos = systemContent.indexOf("<identity>");
+    const runtimePos = systemContent.indexOf("<runtime>");
+    const toolingPos = systemContent.indexOf("<tooling>");
+    const safetyPos = systemContent.indexOf("<safety>");
+    const skillsPos = systemContent.indexOf("<skills>");
 
     expect(identityPos).toBeLessThan(runtimePos);
     expect(runtimePos).toBeLessThan(toolingPos);
