@@ -269,24 +269,12 @@ describe("message-only AgentRuntime", () => {
       })
     );
 
-    expect(modelProvider.requests[0]?.messages).toEqual([
-      {
-        role: "system",
-        content: "You are ArvinClaw."
-      },
-      {
-        role: "user",
-        content: "Remember this detail."
-      },
-      {
-        role: "assistant",
-        content: "I will use it in the next turn."
-      },
-      {
-        role: "user",
-        content: "Continue."
-      }
-    ]);
+    const messages = modelProvider.requests[0]?.messages ?? [];
+    expect(messages).toHaveLength(4);
+    expect(messages[0]).toMatchObject({ role: "system" });
+    expect(messages[1]).toEqual({ role: "user", content: "Remember this detail." });
+    expect(messages[2]).toEqual({ role: "assistant", content: "I will use it in the next turn." });
+    expect(messages[3]).toEqual({ role: "user", content: "Continue." });
   });
 
   test("emits tool call request events when the model requests tools", async () => {

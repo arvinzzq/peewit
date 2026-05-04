@@ -3,8 +3,9 @@
 ## Architecture Summary
 
 This directory owns provider-neutral context assembly.
-It decides what model messages are built from system instructions, runtime metadata, workspace prompt files, recent conversation history, and user input.
-It prepares the future path for memory, skills, tools, redaction, and compaction.
+It assembles model input from named sections in a deterministic order: identity, runtime, tooling, safety, skills, workspace, conversation_history, and user_message.
+It accepts tool summaries, skill index, and permission guidance from callers without importing those packages.
+It produces a per-section assembly report so callers can inspect what was included or omitted and why.
 
 ## File Inventory
 
@@ -12,8 +13,8 @@ It prepares the future path for memory, skills, tools, redaction, and compaction
 | --- | --- | --- |
 | `package.json` | Package manifest | Declares context package exports and dependency on models. |
 | `tsconfig.json` | TypeScript config | Builds context with a reference to models. |
-| `src/index.ts` | Context assembler | Exports context assembly contracts and default assembler with optional workspace prompt file loading. |
-| `src/index.test.ts` | Context tests | Protects deterministic message ordering, workspace prompt loading, short-term conversation history, and assembly reports. |
+| `src/index.ts` | Context assembler | Exports context assembly contracts, section-based assembler with named sections, tool summary and skill index inputs, permission guidance, and optional workspace prompt file loading. |
+| `src/index.test.ts` | Context tests | Protects section ordering, section inclusion and omission, tooling section format, safety section format, skills section format, workspace prompt loading, short-term conversation history, and assembly reports. |
 
 ## Update Reminder
 

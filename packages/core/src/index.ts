@@ -7,7 +7,8 @@
  */
 import type {
   ContextAssembler,
-  ContextRuntimeMetadata
+  ContextRuntimeMetadata,
+  ContextToolSummary
 } from "@arvinclaw/context";
 import type { ModelMessage, ModelProvider, ModelToolCall, ModelToolDefinition } from "@arvinclaw/models";
 import {
@@ -230,6 +231,9 @@ export interface AgentRuntimeDependencies {
 
 const DEFAULT_MAX_STEPS = 12;
 
+const DEFAULT_PERMISSION_GUIDANCE =
+  "Low-risk actions run automatically. Medium and high-risk actions require approval. Blocked actions are never permitted.";
+
 export class AgentRuntime {
   readonly #contextAssembler: ContextAssembler;
   readonly #modelProvider: ModelProvider;
@@ -263,26 +267,21 @@ export class AgentRuntime {
 
     yield this.#event({ ...base, type: "run_started", userMessage: input.message });
 
-    const assembled = await this.#contextAssembler.assemble(
-      this.#runtime
-        ? {
-            systemInstruction: this.#systemInstruction,
-            runtime: this.#runtime,
-            ...(input.recentMessages ? { recentMessages: input.recentMessages } : {}),
-            userMessage: input.message
-          }
-        : {
-            systemInstruction: this.#systemInstruction,
-            ...(input.recentMessages ? { recentMessages: input.recentMessages } : {}),
-            userMessage: input.message
-          }
-    );
+    const contextToolSummaries = this.#buildContextToolSummaries();
+    const assembled = await this.#contextAssembler.assemble({
+      systemInstruction: this.#systemInstruction,
+      ...(this.#runtime ? { runtime: this.#runtime } : {}),
+      ...(contextToolSummaries.length > 0 ? { tools: contextToolSummaries } : {}),
+      permissionGuidance: DEFAULT_PERMISSION_GUIDANCE,
+      ...(input.recentMessages ? { recentMessages: input.recentMessages } : {}),
+      userMessage: input.message
+    });
 
     yield this.#event({
       ...base,
       type: "context_assembled",
       messageCount: assembled.modelInput.messages.length,
-      systemInstructionIncluded: assembled.report.includedSections.includes("system_instruction")
+      systemInstructionIncluded: assembled.report.includedSections.includes("identity")
     });
 
     const toolDefinitions = this.#buildToolDefinitions();
@@ -377,6 +376,14 @@ export class AgentRuntime {
     }
 
     yield this.#event({ ...base, type: "run_failed", error: { message: `Agent loop reached the step limit of ${this.#maxSteps}.`, recoverable: false } });
+  }
+
+  #buildContextToolSummaries(): ContextToolSummary[] {
+    return [...this.#tools.values()].map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      risk: tool.risk
+    }));
   }
 
   #buildToolDefinitions(): ModelToolDefinition[] {

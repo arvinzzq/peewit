@@ -1,6 +1,6 @@
 /**
- * INPUT: Model message types plus system instructions, runtime metadata, workspace prompt files, recent conversation messages, and user messages.
- * OUTPUT: Provider-neutral model input with optional workspace instructions, short-term conversation history, and a context assembly report.
+ * INPUT: System instructions, runtime metadata, tool summaries, skill index, permission guidance, workspace prompt files, recent conversation messages, and user messages.
+ * OUTPUT: Provider-neutral model input assembled from named sections, conversation history, and a per-section context assembly report.
  * POS: Context assembly layer; decides what the model sees before provider formatting.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -17,16 +17,40 @@ export interface ContextRuntimeMetadata {
   currentDate: string;
 }
 
+export type ContextToolRiskLevel = "low" | "medium" | "high" | "blocked";
+
+export interface ContextToolSummary {
+  name: string;
+  description: string;
+  risk: ContextToolRiskLevel;
+}
+
+export interface ContextSkillSummary {
+  name: string;
+  description: string;
+  when: string;
+}
+
 export interface ContextAssemblyInput {
   systemInstruction: string;
   runtime?: ContextRuntimeMetadata;
+  tools?: ContextToolSummary[];
+  skillIndex?: ContextSkillSummary[];
+  permissionGuidance?: string;
   recentMessages?: ModelMessage[];
   userMessage: string;
+}
+
+export interface ContextSectionReport {
+  name: string;
+  included: boolean;
+  reason?: string;
 }
 
 export interface ContextAssemblyReport {
   includedSections: string[];
   omittedSections: string[];
+  sections: ContextSectionReport[];
 }
 
 export interface ContextAssemblyResult {
@@ -53,58 +77,81 @@ export class DefaultContextAssembler implements ContextAssembler {
   }
 
   async assemble(input: ContextAssemblyInput): Promise<ContextAssemblyResult> {
-    const includedSections = ["system_instruction"];
-    const omittedSections: string[] = [];
-    const systemContent = [input.systemInstruction];
+    const sectionReports: ContextSectionReport[] = [];
+    const systemParts: string[] = [];
 
+    // identity: who ArvinClaw is
+    systemParts.push(input.systemInstruction);
+    sectionReports.push({ name: "identity", included: true });
+
+    // runtime: current mode, workspace, date
     if (input.runtime) {
-      includedSections.push("runtime_metadata");
-      systemContent.push(
+      systemParts.push(
         "",
         "Runtime:",
         `- Mode: ${input.runtime.mode}`,
         `- Workspace: ${input.runtime.workspace}`,
         `- Current date: ${input.runtime.currentDate}`
       );
+      sectionReports.push({ name: "runtime", included: true });
     } else {
-      omittedSections.push("runtime_metadata");
+      sectionReports.push({ name: "runtime", included: false, reason: "No runtime metadata provided." });
     }
 
-    const workspacePromptSections = await this.#loadWorkspacePromptSections(input.runtime?.workspace);
+    // tooling: available tools with name, description, risk level
+    if (input.tools !== undefined && input.tools.length > 0) {
+      systemParts.push("", "Tools:", ...input.tools.map((t) => `- ${t.name} [${t.risk}]: ${t.description}`));
+      sectionReports.push({ name: "tooling", included: true });
+    } else {
+      sectionReports.push({ name: "tooling", included: false, reason: "No tools registered." });
+    }
 
-    if (workspacePromptSections.length > 0) {
-      includedSections.push("workspace_prompt_files");
-      systemContent.push("", "Workspace prompt files:", ...workspacePromptSections);
+    // safety: permission policy guidance
+    if (input.permissionGuidance !== undefined && input.permissionGuidance.length > 0) {
+      systemParts.push("", "Permissions:", input.permissionGuidance);
+      sectionReports.push({ name: "safety", included: true });
+    } else {
+      sectionReports.push({ name: "safety", included: false, reason: "No permission guidance provided." });
+    }
+
+    // skills: compact skill index (name + when to use)
+    if (input.skillIndex !== undefined && input.skillIndex.length > 0) {
+      systemParts.push("", "Skills:", ...input.skillIndex.map((s) => `- ${s.name}: ${s.when}`));
+      sectionReports.push({ name: "skills", included: true });
+    } else {
+      sectionReports.push({ name: "skills", included: false, reason: "No skills loaded." });
+    }
+
+    // workspace: AGENTS.md, SOUL.md, and other prompt files
+    const workspaceContent = await this.#loadWorkspacePromptSections(input.runtime?.workspace);
+    if (workspaceContent.length > 0) {
+      systemParts.push("", "Workspace prompt files:", ...workspaceContent);
+      sectionReports.push({ name: "workspace", included: true });
     } else if (this.#workspacePromptFiles.length > 0) {
-      omittedSections.push("workspace_prompt_files");
+      sectionReports.push({ name: "workspace", included: false, reason: "No workspace prompt files found." });
     }
 
+    // conversation history
     const recentMessages = input.recentMessages ?? [];
-
     if (recentMessages.length > 0) {
-      includedSections.push("conversation_history");
+      sectionReports.push({ name: "conversation_history", included: true });
     }
 
-    includedSections.push("user_message");
+    // user message is always present
+    sectionReports.push({ name: "user_message", included: true });
+
+    const includedSections = sectionReports.filter((s) => s.included).map((s) => s.name);
+    const omittedSections = sectionReports.filter((s) => !s.included).map((s) => s.name);
 
     return {
       modelInput: {
         messages: [
-          {
-            role: "system",
-            content: systemContent.join("\n")
-          },
+          { role: "system", content: systemParts.join("\n") },
           ...recentMessages.map((message) => ({ ...message })),
-          {
-            role: "user",
-            content: input.userMessage
-          }
+          { role: "user", content: input.userMessage }
         ]
       },
-      report: {
-        includedSections,
-        omittedSections
-      }
+      report: { includedSections, omittedSections, sections: sectionReports }
     };
   }
 

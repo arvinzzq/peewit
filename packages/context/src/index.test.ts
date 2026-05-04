@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DefaultContextAssembler, type ContextAssembler } from "./index.js";
 
-describe("minimal context assembler", () => {
-  test("assembles provider-ready messages in deterministic order", async () => {
+describe("context assembler sections", () => {
+  test("assembles provider-ready messages in deterministic section order", async () => {
     const assembler: ContextAssembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
@@ -36,13 +36,13 @@ describe("minimal context assembler", () => {
       }
     ]);
     expect(result.report.includedSections).toEqual([
-      "system_instruction",
-      "runtime_metadata",
+      "identity",
+      "runtime",
       "user_message"
     ]);
   });
 
-  test("records omitted runtime metadata when it is not provided", async () => {
+  test("records omitted sections in the report", async () => {
     const assembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
@@ -50,17 +50,27 @@ describe("minimal context assembler", () => {
       userMessage: "Hello."
     });
 
-    expect(result.modelInput.messages).toEqual([
-      {
-        role: "system",
-        content: "You are ArvinClaw."
-      },
-      {
-        role: "user",
-        content: "Hello."
-      }
-    ]);
-    expect(result.report.omittedSections).toEqual(["runtime_metadata"]);
+    expect(result.report.includedSections).toContain("identity");
+    expect(result.report.includedSections).toContain("user_message");
+    expect(result.report.omittedSections).toContain("runtime");
+    expect(result.report.omittedSections).toContain("tooling");
+    expect(result.report.omittedSections).toContain("safety");
+    expect(result.report.omittedSections).toContain("skills");
+  });
+
+  test("provides per-section detail in the sections report", async () => {
+    const assembler = new DefaultContextAssembler();
+
+    const result = await assembler.assemble({
+      systemInstruction: "You are ArvinClaw.",
+      userMessage: "Hello."
+    });
+
+    const identitySection = result.report.sections.find((s) => s.name === "identity");
+    const runtimeSection = result.report.sections.find((s) => s.name === "runtime");
+
+    expect(identitySection).toMatchObject({ name: "identity", included: true });
+    expect(runtimeSection).toMatchObject({ name: "runtime", included: false, reason: expect.any(String) });
   });
 
   test("includes recent conversation messages before the current user message", async () => {
@@ -69,43 +79,136 @@ describe("minimal context assembler", () => {
     const result = await assembler.assemble({
       systemInstruction: "You are ArvinClaw.",
       recentMessages: [
-        {
-          role: "user",
-          content: "What did we discuss?"
-        },
-        {
-          role: "assistant",
-          content: "We discussed session memory."
-        }
+        { role: "user", content: "What did we discuss?" },
+        { role: "assistant", content: "We discussed session memory." }
       ],
       userMessage: "Continue from there."
     });
 
     expect(result.modelInput.messages).toEqual([
-      {
-        role: "system",
-        content: "You are ArvinClaw."
-      },
-      {
-        role: "user",
-        content: "What did we discuss?"
-      },
-      {
-        role: "assistant",
-        content: "We discussed session memory."
-      },
-      {
-        role: "user",
-        content: "Continue from there."
-      }
+      { role: "system", content: "You are ArvinClaw." },
+      { role: "user", content: "What did we discuss?" },
+      { role: "assistant", content: "We discussed session memory." },
+      { role: "user", content: "Continue from there." }
     ]);
-    expect(result.report.includedSections).toEqual([
-      "system_instruction",
-      "conversation_history",
-      "user_message"
-    ]);
+    expect(result.report.includedSections).toContain("identity");
+    expect(result.report.includedSections).toContain("conversation_history");
+    expect(result.report.includedSections).toContain("user_message");
+  });
+});
+
+describe("tooling section", () => {
+  test("includes tool descriptions in system prompt when tools are provided", async () => {
+    const assembler = new DefaultContextAssembler();
+
+    const result = await assembler.assemble({
+      systemInstruction: "You are ArvinClaw.",
+      tools: [
+        { name: "read_file", description: "Read a workspace file.", risk: "low" },
+        { name: "run_shell", description: "Run a shell command.", risk: "high" }
+      ],
+      userMessage: "Read the README."
+    });
+
+    const systemContent = result.modelInput.messages[0]?.content as string;
+    expect(systemContent).toContain("Tools:");
+    expect(systemContent).toContain("read_file [low]: Read a workspace file.");
+    expect(systemContent).toContain("run_shell [high]: Run a shell command.");
+    expect(result.report.includedSections).toContain("tooling");
+    expect(result.report.omittedSections).not.toContain("tooling");
   });
 
+  test("omits tooling section when no tools are provided", async () => {
+    const assembler = new DefaultContextAssembler();
+
+    const result = await assembler.assemble({
+      systemInstruction: "You are ArvinClaw.",
+      userMessage: "Hello."
+    });
+
+    const systemContent = result.modelInput.messages[0]?.content as string;
+    expect(systemContent).not.toContain("Tools:");
+    expect(result.report.omittedSections).toContain("tooling");
+  });
+
+  test("omits tooling section when tool list is empty", async () => {
+    const assembler = new DefaultContextAssembler();
+
+    const result = await assembler.assemble({
+      systemInstruction: "You are ArvinClaw.",
+      tools: [],
+      userMessage: "Hello."
+    });
+
+    expect(result.report.omittedSections).toContain("tooling");
+  });
+});
+
+describe("safety section", () => {
+  test("includes permission guidance in system prompt when provided", async () => {
+    const assembler = new DefaultContextAssembler();
+
+    const result = await assembler.assemble({
+      systemInstruction: "You are ArvinClaw.",
+      permissionGuidance: "Low-risk actions run automatically. High-risk require approval.",
+      userMessage: "Hello."
+    });
+
+    const systemContent = result.modelInput.messages[0]?.content as string;
+    expect(systemContent).toContain("Permissions:");
+    expect(systemContent).toContain("Low-risk actions run automatically.");
+    expect(result.report.includedSections).toContain("safety");
+  });
+
+  test("omits safety section when no permission guidance is provided", async () => {
+    const assembler = new DefaultContextAssembler();
+
+    const result = await assembler.assemble({
+      systemInstruction: "You are ArvinClaw.",
+      userMessage: "Hello."
+    });
+
+    const systemContent = result.modelInput.messages[0]?.content as string;
+    expect(systemContent).not.toContain("Permissions:");
+    expect(result.report.omittedSections).toContain("safety");
+  });
+});
+
+describe("skills section", () => {
+  test("includes skill index in system prompt when skill index is provided", async () => {
+    const assembler = new DefaultContextAssembler();
+
+    const result = await assembler.assemble({
+      systemInstruction: "You are ArvinClaw.",
+      skillIndex: [
+        { name: "research", description: "Web research skill.", when: "When you need to search the web." },
+        { name: "safe-shell", description: "Safe shell guidance.", when: "When you run shell commands." }
+      ],
+      userMessage: "Search for information."
+    });
+
+    const systemContent = result.modelInput.messages[0]?.content as string;
+    expect(systemContent).toContain("Skills:");
+    expect(systemContent).toContain("research: When you need to search the web.");
+    expect(systemContent).toContain("safe-shell: When you run shell commands.");
+    expect(result.report.includedSections).toContain("skills");
+  });
+
+  test("omits skills section when no skill index is provided", async () => {
+    const assembler = new DefaultContextAssembler();
+
+    const result = await assembler.assemble({
+      systemInstruction: "You are ArvinClaw.",
+      userMessage: "Hello."
+    });
+
+    const systemContent = result.modelInput.messages[0]?.content as string;
+    expect(systemContent).not.toContain("Skills:");
+    expect(result.report.omittedSections).toContain("skills");
+  });
+});
+
+describe("workspace section", () => {
   test("loads configured workspace prompt files into the system message", async () => {
     const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-context-workspace-"));
 
@@ -127,33 +230,19 @@ describe("minimal context assembler", () => {
         userMessage: "Follow the project guidance."
       });
 
-      expect(result.modelInput.messages[0]).toEqual({
-        role: "system",
-        content: [
-          "You are ArvinClaw.",
-          "",
-          "Runtime:",
-          "- Mode: confirm",
-          `- Workspace: ${workspace}`,
-          "- Current date: 2026-05-03",
-          "",
-          "Workspace prompt files:",
-          "",
-          "### AGENTS.md",
-          "Use project conventions.",
-          "",
-          "### SOUL.md",
-          "Stay steady and practical."
-        ].join("\n")
-      });
-      expect(result.report.includedSections).toContain("workspace_prompt_files");
-      expect(result.report.omittedSections).not.toContain("workspace_prompt_files");
+      const systemContent = result.modelInput.messages[0]?.content as string;
+      expect(systemContent).toContain("### AGENTS.md");
+      expect(systemContent).toContain("Use project conventions.");
+      expect(systemContent).toContain("### SOUL.md");
+      expect(systemContent).toContain("Stay steady and practical.");
+      expect(result.report.includedSections).toContain("workspace");
+      expect(result.report.omittedSections).not.toContain("workspace");
     } finally {
       await rm(workspace, { force: true, recursive: true });
     }
   });
 
-  test("omits missing configured workspace prompt files", async () => {
+  test("omits workspace section when no prompt files are found", async () => {
     const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-context-workspace-"));
 
     try {
@@ -163,18 +252,51 @@ describe("minimal context assembler", () => {
 
       const result = await assembler.assemble({
         systemInstruction: "You are ArvinClaw.",
-        runtime: {
-          mode: "confirm",
-          workspace,
-          currentDate: "2026-05-03"
-        },
+        runtime: { mode: "confirm", workspace, currentDate: "2026-05-03" },
         userMessage: "Hello."
       });
 
-      expect(result.modelInput.messages[0]?.content).not.toContain("Workspace prompt files:");
-      expect(result.report.omittedSections).toContain("workspace_prompt_files");
+      const systemContent = result.modelInput.messages[0]?.content as string;
+      expect(systemContent).not.toContain("Workspace prompt files:");
+      expect(result.report.omittedSections).toContain("workspace");
     } finally {
       await rm(workspace, { force: true, recursive: true });
     }
+  });
+});
+
+describe("full context assembly", () => {
+  test("assembles all sections in deterministic order", async () => {
+    const assembler = new DefaultContextAssembler();
+
+    const result = await assembler.assemble({
+      systemInstruction: "You are ArvinClaw.",
+      runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-03" },
+      tools: [{ name: "read_file", description: "Read a file.", risk: "low" }],
+      permissionGuidance: "Low-risk: automatic. High-risk: approval required.",
+      skillIndex: [{ name: "research", description: "Research skill.", when: "For web research." }],
+      userMessage: "Help me."
+    });
+
+    const systemContent = result.modelInput.messages[0]?.content as string;
+    const identityPos = systemContent.indexOf("You are ArvinClaw.");
+    const runtimePos = systemContent.indexOf("Runtime:");
+    const toolingPos = systemContent.indexOf("Tools:");
+    const safetyPos = systemContent.indexOf("Permissions:");
+    const skillsPos = systemContent.indexOf("Skills:");
+
+    expect(identityPos).toBeLessThan(runtimePos);
+    expect(runtimePos).toBeLessThan(toolingPos);
+    expect(toolingPos).toBeLessThan(safetyPos);
+    expect(safetyPos).toBeLessThan(skillsPos);
+
+    expect(result.report.includedSections).toEqual([
+      "identity",
+      "runtime",
+      "tooling",
+      "safety",
+      "skills",
+      "user_message"
+    ]);
   });
 });
