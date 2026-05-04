@@ -5,11 +5,13 @@ import { tmpdir } from "node:os";
 import {
   createListDirectoryTool,
   createReadFileTool,
+  createReadWebPageTool,
   createShellTool,
   createWriteFileTool,
   InMemoryToolRegistry,
   ToolRegistryError,
-  type ToolDefinition
+  type ToolDefinition,
+  type WebFetchLike
 } from "./index.js";
 
 describe("tool registry", () => {
@@ -610,6 +612,140 @@ describe("shell tool", () => {
       error: {
         code: "invalid_input",
         message: "Tool input must include a string command."
+      }
+    });
+  });
+});
+
+describe("read_web_page tool", () => {
+  function makeFetch(status: number, body: string): WebFetchLike {
+    return async () => new Response(body, { status, headers: { "content-type": "text/html" } });
+  }
+
+  function makeFailingFetch(): WebFetchLike {
+    return async () => {
+      throw new Error("Network failure");
+    };
+  }
+
+  const context = { workspaceRoot: "/tmp" };
+
+  test("has low risk", () => {
+    const tool = createReadWebPageTool(makeFetch(200, ""));
+
+    expect(tool.risk).toBe("low");
+  });
+
+  test("returns text content extracted from HTML", async () => {
+    const html = "<html><body><h1>Hello world</h1><p>Test content.</p></body></html>";
+    const tool = createReadWebPageTool(makeFetch(200, html));
+
+    const result = await tool.execute({ url: "https://example.com/page" }, context);
+
+    expect(result).toMatchObject({
+      ok: true,
+      url: "https://example.com/page",
+      content: expect.stringContaining("Hello world"),
+      summary: expect.stringContaining("example.com")
+    });
+  });
+
+  test("strips script and style blocks from content", async () => {
+    const html =
+      "<html><head><style>body{color:red}</style></head>" +
+      "<body><script>alert(1)</script><p>Clean text.</p></body></html>";
+    const tool = createReadWebPageTool(makeFetch(200, html));
+
+    const result = await tool.execute({ url: "https://example.com" }, context);
+
+    expect(result).toMatchObject({ ok: true });
+    if (result.ok && "content" in result) {
+      expect(result.content).not.toContain("alert(1)");
+      expect(result.content).not.toContain("color:red");
+      expect(result.content).toContain("Clean text.");
+    }
+  });
+
+  test("truncates large content", async () => {
+    const longBody = "a".repeat(10_000);
+    const html = `<html><body><p>${longBody}</p></body></html>`;
+    const tool = createReadWebPageTool(makeFetch(200, html));
+
+    const result = await tool.execute({ url: "https://example.com" }, context);
+
+    expect(result).toMatchObject({ ok: true });
+    if (result.ok && "content" in result) {
+      expect(result.content).toContain("[truncated");
+      expect(result.content.length).toBeLessThan(longBody.length);
+    }
+  });
+
+  test("returns http_error for non-ok HTTP responses", async () => {
+    const tool = createReadWebPageTool(makeFetch(404, "Not Found"));
+
+    const result = await tool.execute({ url: "https://example.com/missing" }, context);
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "http_error",
+        message: "Page request failed with status 404."
+      }
+    });
+  });
+
+  test("returns network_error when fetch throws", async () => {
+    const tool = createReadWebPageTool(makeFailingFetch());
+
+    const result = await tool.execute({ url: "https://example.com" }, context);
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "network_error",
+        message: "Web page request failed."
+      }
+    });
+  });
+
+  test("rejects input with missing url field", async () => {
+    const tool = createReadWebPageTool(makeFetch(200, ""));
+
+    const result = await tool.execute({}, context);
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "invalid_input",
+        message: "Tool input must include a string url."
+      }
+    });
+  });
+
+  test("rejects non-http urls", async () => {
+    const tool = createReadWebPageTool(makeFetch(200, ""));
+
+    const result = await tool.execute({ url: "file:///etc/passwd" }, context);
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "invalid_input",
+        message: "Tool url must use http or https."
+      }
+    });
+  });
+
+  test("rejects invalid url strings", async () => {
+    const tool = createReadWebPageTool(makeFetch(200, ""));
+
+    const result = await tool.execute({ url: "not a url" }, context);
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "invalid_input",
+        message: "Tool url must use http or https."
       }
     });
   });

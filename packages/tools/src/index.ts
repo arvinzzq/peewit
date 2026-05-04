@@ -1,6 +1,6 @@
 /**
  * INPUT: Tool definitions, input schemas, risk metadata, registration requests, tool execution input, and workspace file system access.
- * OUTPUT: Tool contracts, registry lookup/listing behavior, executable read-only file tools, guarded write_file tool, guarded shell tool, normalized tool results, and registry errors.
+ * OUTPUT: Tool contracts, registry lookup/listing behavior, executable read-only file tools, guarded write_file tool, guarded shell tool, read_web_page tool, normalized tool results, and registry errors.
  * POS: Tool system layer; exposes capabilities without making permission decisions.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -71,7 +71,22 @@ export interface ShellToolResult {
   summary: string;
 }
 
-export type ToolExecutionResult = ReadFileToolResult | ListDirectoryToolResult | WriteFileToolResult | ShellToolResult | ToolExecutionFailure;
+export interface ReadWebPageToolResult {
+  ok: true;
+  url: string;
+  content: string;
+  summary: string;
+}
+
+export type ToolExecutionResult =
+  | ReadFileToolResult
+  | ListDirectoryToolResult
+  | WriteFileToolResult
+  | ShellToolResult
+  | ReadWebPageToolResult
+  | ToolExecutionFailure;
+
+export type WebFetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
 export interface ExecutableTool extends ToolDefinition {
   execute(input: unknown, context: ToolExecutionContext): Promise<ToolExecutionResult>;
@@ -436,6 +451,101 @@ export function createWriteFileTool(): ExecutableTool {
         };
       } catch (error) {
         return fileSystemError(error);
+      }
+    }
+  };
+}
+
+const WEB_PAGE_MAX_CHARS = 8_000;
+
+function parseHttpUrl(url: string): URL | undefined {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function extractTextFromHtml(html: string): string {
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncateWebContent(content: string): string {
+  if (content.length <= WEB_PAGE_MAX_CHARS) return content;
+  return `${content.slice(0, WEB_PAGE_MAX_CHARS)}\n[truncated ${content.length - WEB_PAGE_MAX_CHARS} characters]`;
+}
+
+function getUrlInput(input: unknown): string | undefined {
+  if (typeof input !== "object" || input === null) return undefined;
+  const url = (input as { url?: unknown }).url;
+  return typeof url === "string" ? url : undefined;
+}
+
+export function createReadWebPageTool(fetchFn: WebFetchLike = fetch): ExecutableTool {
+  return {
+    name: "read_web_page",
+    description: "Read a public web page and return its text content.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string" }
+      },
+      required: ["url"]
+    },
+    risk: "low",
+    async execute(input, _context) {
+      const url = getUrlInput(input);
+      if (url === undefined) {
+        return inputError("Tool input must include a string url.");
+      }
+
+      const parsed = parseHttpUrl(url);
+      if (parsed === undefined) {
+        return inputError("Tool url must use http or https.");
+      }
+
+      try {
+        const response = await fetchFn(url);
+
+        if (!response.ok) {
+          return {
+            ok: false,
+            error: {
+              code: "http_error",
+              message: `Page request failed with status ${response.status}.`
+            }
+          };
+        }
+
+        const html = await response.text();
+        const content = truncateWebContent(extractTextFromHtml(html));
+
+        return {
+          ok: true,
+          url,
+          content,
+          summary: `Read web page ${parsed.hostname}.`
+        };
+      } catch {
+        return {
+          ok: false,
+          error: {
+            code: "network_error",
+            message: "Web page request failed."
+          }
+        };
       }
     }
   };
