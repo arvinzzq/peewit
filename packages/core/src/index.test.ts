@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { DefaultContextAssembler } from "@arvinclaw/context";
 import { FakeModelProvider } from "@arvinclaw/models";
+import type { Plan, PlannerContext } from "@arvinclaw/planner";
 import { createReadFileTool } from "@arvinclaw/tools";
 import {
   AgentRuntime,
@@ -19,6 +20,13 @@ describe("runtime event contracts", () => {
     expect(runtimeEventTypes).toEqual([
       "run_started",
       "context_assembled",
+      "plan_created",
+      "plan_approval_requested",
+      "plan_approval_resolved",
+      "plan_step_started",
+      "plan_step_completed",
+      "plan_step_failed",
+      "plan_completed",
       "model_request_started",
       "model_request_completed",
       "tool_call_requested",
@@ -775,6 +783,162 @@ describe("message-only AgentRuntime", () => {
       error: { message: expect.stringContaining("step limit") }
     });
     expect(modelProvider.requests).toHaveLength(2);
+  });
+});
+
+describe("AgentRuntime with planner", () => {
+  function fakePlanner(steps: string[]): { createPlan: (goal: string, ctx: PlannerContext) => Promise<Plan> } {
+    return {
+      createPlan: async (goal) => ({
+        id: "plan_test",
+        goal,
+        steps: steps.map((desc, i) => ({ id: `step_${i + 1}`, description: desc, status: "pending" as const })),
+        createdAt: "2026-05-04T10:00:00.000Z"
+      })
+    };
+  }
+
+  test("emits plan_created and step events when planner is provided", async () => {
+    const modelProvider = new FakeModelProvider([
+      { type: "message", content: "Step 1 done." },
+      { type: "message", content: "Step 2 done." }
+    ]);
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider,
+      planner: fakePlanner(["Read the README", "Write a summary"]),
+      systemInstruction: "You are ArvinClaw.",
+      createRunId: () => "run_plan",
+      createEventId: (() => { let n = 0; return () => `evt_p_${++n}`; })(),
+      now: () => "2026-05-04T10:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Summarize the project." }));
+
+    const types = events.map((e) => e.type);
+    expect(types).toContain("plan_created");
+    expect(types).toContain("plan_step_started");
+    expect(types).toContain("plan_step_completed");
+    expect(types).toContain("plan_completed");
+    expect(types.at(-1)).toBe("run_completed");
+    expect(types.filter((t) => t === "plan_step_started")).toHaveLength(2);
+    expect(types.filter((t) => t === "plan_step_completed")).toHaveLength(2);
+    expect(modelProvider.requests).toHaveLength(2);
+  });
+
+  test("each step runs as a separate model call with step description as user message", async () => {
+    const modelProvider = new FakeModelProvider([
+      { type: "message", content: "Done." },
+      { type: "message", content: "Done." }
+    ]);
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider,
+      planner: fakePlanner(["List files", "Read README"]),
+      systemInstruction: "You are ArvinClaw.",
+      createRunId: () => "run_step_msg",
+      createEventId: (() => { let n = 0; return () => `evt_sm_${++n}`; })(),
+      now: () => "2026-05-04T10:00:00.000Z"
+    });
+
+    await collect(runtime.runTurn({ message: "Inspect the project." }));
+
+    expect(modelProvider.requests[0]?.messages.at(-1)?.content).toContain("List files");
+    expect(modelProvider.requests[1]?.messages.at(-1)?.content).toContain("Read README");
+  });
+
+  test("records plan_step_failed when a step's model returns an error and continues", async () => {
+    const modelProvider = new FakeModelProvider([
+      { type: "error", category: "network", message: "Step 1 failed.", recoverable: false },
+      { type: "message", content: "Step 2 done." }
+    ]);
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider,
+      planner: fakePlanner(["Failing step", "Succeeding step"]),
+      systemInstruction: "You are ArvinClaw.",
+      createRunId: () => "run_step_fail",
+      createEventId: (() => { let n = 0; return () => `evt_sf_${++n}`; })(),
+      now: () => "2026-05-04T10:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Do two steps." }));
+
+    const types = events.map((e) => e.type);
+    expect(types).toContain("plan_step_failed");
+    expect(types).toContain("plan_step_completed");
+    expect(types.at(-1)).toBe("run_completed");
+  });
+
+  test("requests plan approval in observe mode when planApprovalResolver is configured", async () => {
+    const resolvedRequests: unknown[] = [];
+    const modelProvider = new FakeModelProvider([{ type: "message", content: "Done." }]);
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider,
+      planner: fakePlanner(["One step"]),
+      planApprovalResolver: {
+        resolvePlan: async (req) => {
+          resolvedRequests.push(req.plan.id);
+          return { approved: true, reason: "Approved." };
+        }
+      },
+      systemInstruction: "You are ArvinClaw.",
+      runtime: { mode: "observe", workspace: "/workspace", currentDate: "2026-05-04" },
+      createRunId: () => "run_obs",
+      createEventId: (() => { let n = 0; return () => `evt_ob_${++n}`; })(),
+      now: () => "2026-05-04T10:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Do the task." }));
+
+    const types = events.map((e) => e.type);
+    expect(types).toContain("plan_approval_requested");
+    expect(types).toContain("plan_approval_resolved");
+    expect(resolvedRequests).toEqual(["plan_test"]);
+    expect(types.at(-1)).toBe("run_completed");
+  });
+
+  test("emits run_failed when plan approval is denied in observe mode", async () => {
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([]),
+      planner: fakePlanner(["One step"]),
+      planApprovalResolver: {
+        resolvePlan: async () => ({ approved: false, reason: "Not approved." })
+      },
+      systemInstruction: "You are ArvinClaw.",
+      runtime: { mode: "observe", workspace: "/workspace", currentDate: "2026-05-04" },
+      createRunId: () => "run_deny_plan",
+      createEventId: (() => { let n = 0; return () => `evt_dp_${++n}`; })(),
+      now: () => "2026-05-04T10:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Do the task." }));
+
+    expect(events.at(-1)).toMatchObject({ type: "run_failed", error: { message: "Plan was not approved." } });
+  });
+
+  test("does not request plan approval in confirm mode", async () => {
+    const modelProvider = new FakeModelProvider([{ type: "message", content: "Done." }]);
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider,
+      planner: fakePlanner(["One step"]),
+      planApprovalResolver: {
+        resolvePlan: async () => ({ approved: true, reason: "Approved." })
+      },
+      systemInstruction: "You are ArvinClaw.",
+      runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-04" },
+      createRunId: () => "run_confirm",
+      createEventId: (() => { let n = 0; return () => `evt_cf_${++n}`; })(),
+      now: () => "2026-05-04T10:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Do the task." }));
+
+    expect(events.map((e) => e.type)).not.toContain("plan_approval_requested");
+    expect(events.at(-1)?.type).toBe("run_completed");
   });
 });
 

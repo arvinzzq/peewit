@@ -1,17 +1,18 @@
 /**
- * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, optional ApprovalResolver, executable tools, maxSteps, runtime metadata, user turn input, optional recent conversation messages, and model-requested tool calls.
- * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, real tool-calling agent loop, tool-call request events, permission evaluation events, approval resolution events, and tool lifecycle events.
+ * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, optional ApprovalResolver, optional Planner, optional PlanApprovalResolver, executable tools, maxSteps, runtime metadata, user turn input, and optional recent conversation messages.
+ * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, plan events, plan step execution loop, tool-call request events, permission evaluation events, approval resolution events, and tool lifecycle events.
  * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
 import type {
   ContextAssembler,
+  ContextAssemblyResult,
   ContextRuntimeMetadata,
   ContextSkillSummary,
   ContextToolSummary
 } from "@arvinclaw/context";
-import type { ModelMessage, ModelProvider, ModelToolCall, ModelToolDefinition } from "@arvinclaw/models";
+import type { ModelMessage, ModelProvider, ModelRequestOptions, ModelToolCall, ModelToolDefinition } from "@arvinclaw/models";
 import {
   DefaultPermissionPolicy,
   type AutonomyMode,
@@ -19,6 +20,7 @@ import {
   type PermissionPolicy,
   type PermissionRiskLevel
 } from "@arvinclaw/permissions";
+import type { Plan, PlanStep, Planner, PlannerContext } from "@arvinclaw/planner";
 import type { ExecutableTool, ToolExecutionResult } from "@arvinclaw/tools";
 
 export const corePackageName = "@arvinclaw/core";
@@ -26,6 +28,13 @@ export const corePackageName = "@arvinclaw/core";
 export const runtimeEventTypes = [
   "run_started",
   "context_assembled",
+  "plan_created",
+  "plan_approval_requested",
+  "plan_approval_resolved",
+  "plan_step_started",
+  "plan_step_completed",
+  "plan_step_failed",
+  "plan_completed",
   "model_request_started",
   "model_request_completed",
   "tool_call_requested",
@@ -59,6 +68,49 @@ export interface ContextAssembledEvent extends RuntimeEventBase {
   type: "context_assembled";
   messageCount: number;
   systemInstructionIncluded: boolean;
+}
+
+export interface PlanCreatedEvent extends RuntimeEventBase {
+  type: "plan_created";
+  plan: Plan;
+}
+
+export interface PlanApprovalRequestedEvent extends RuntimeEventBase {
+  type: "plan_approval_requested";
+  plan: Plan;
+}
+
+export interface PlanApprovalResolvedEvent extends RuntimeEventBase {
+  type: "plan_approval_resolved";
+  planId: string;
+  approved: boolean;
+  reason: string;
+}
+
+export interface PlanStepStartedEvent extends RuntimeEventBase {
+  type: "plan_step_started";
+  planId: string;
+  step: PlanStep;
+  stepIndex: number;
+  totalSteps: number;
+}
+
+export interface PlanStepCompletedEvent extends RuntimeEventBase {
+  type: "plan_step_completed";
+  planId: string;
+  step: PlanStep;
+}
+
+export interface PlanStepFailedEvent extends RuntimeEventBase {
+  type: "plan_step_failed";
+  planId: string;
+  step: PlanStep;
+  error: { message: string };
+}
+
+export interface PlanCompletedEvent extends RuntimeEventBase {
+  type: "plan_completed";
+  planId: string;
 }
 
 export interface ModelRequestStartedEvent extends RuntimeEventBase {
@@ -147,6 +199,13 @@ export interface RunFailedEvent extends RuntimeEventBase {
 export type RuntimeEvent =
   | RunStartedEvent
   | ContextAssembledEvent
+  | PlanCreatedEvent
+  | PlanApprovalRequestedEvent
+  | PlanApprovalResolvedEvent
+  | PlanStepStartedEvent
+  | PlanStepCompletedEvent
+  | PlanStepFailedEvent
+  | PlanCompletedEvent
   | ModelRequestStartedEvent
   | ModelRequestCompletedEvent
   | ToolCallRequestedEvent
@@ -216,11 +275,21 @@ export interface ApprovalResolver {
   resolve(request: ApprovalRequest): Promise<ApprovalResolution>;
 }
 
+export interface PlanApprovalRequest {
+  plan: Plan;
+}
+
+export interface PlanApprovalResolver {
+  resolvePlan(request: PlanApprovalRequest): Promise<ApprovalResolution>;
+}
+
 export interface AgentRuntimeDependencies {
   contextAssembler: ContextAssembler;
   modelProvider: ModelProvider;
   permissionPolicy?: PermissionPolicy;
   approvalResolver?: ApprovalResolver;
+  planner?: Planner;
+  planApprovalResolver?: PlanApprovalResolver;
   tools?: ExecutableTool[];
   skillIndex?: ContextSkillSummary[];
   maxSteps?: number;
@@ -241,6 +310,8 @@ export class AgentRuntime {
   readonly #modelProvider: ModelProvider;
   readonly #permissionPolicy: PermissionPolicy;
   readonly #approvalResolver: ApprovalResolver | undefined;
+  readonly #planner: Planner | undefined;
+  readonly #planApprovalResolver: PlanApprovalResolver | undefined;
   readonly #tools: Map<string, ExecutableTool>;
   readonly #skillIndex: ContextSkillSummary[];
   readonly #maxSteps: number;
@@ -255,6 +326,8 @@ export class AgentRuntime {
     this.#modelProvider = dependencies.modelProvider;
     this.#permissionPolicy = dependencies.permissionPolicy ?? new DefaultPermissionPolicy();
     this.#approvalResolver = dependencies.approvalResolver;
+    this.#planner = dependencies.planner;
+    this.#planApprovalResolver = dependencies.planApprovalResolver;
     this.#tools = new Map((dependencies.tools ?? []).map((tool) => [tool.name, tool]));
     this.#skillIndex = dependencies.skillIndex ?? [];
     this.#maxSteps = dependencies.maxSteps ?? DEFAULT_MAX_STEPS;
@@ -290,7 +363,84 @@ export class AgentRuntime {
     });
 
     const toolDefinitions = this.#buildToolDefinitions();
-    let messages: ModelMessage[] = assembled.modelInput.messages;
+
+    if (this.#planner !== undefined) {
+      yield* this.#runWithPlan(input.message, assembled, toolDefinitions, base);
+      return;
+    }
+
+    // No planner: run inner agent loop directly.
+    const result = yield* this.#runInnerLoop(assembled.modelInput.messages, toolDefinitions, assembled.modelInput.options, base);
+    if (result.success) {
+      yield this.#event({ ...base, type: "run_completed" });
+    } else {
+      yield this.#event({ ...base, type: "run_failed", error: { message: result.error ?? "Unknown error.", recoverable: result.recoverable ?? false } });
+    }
+  }
+
+  async *#runWithPlan(
+    goal: string,
+    assembled: ContextAssemblyResult,
+    toolDefinitions: ModelToolDefinition[],
+    base: { runId: string; sessionId?: string }
+  ): AsyncGenerator<RuntimeEvent, void> {
+    const plannerContext: PlannerContext = {
+      systemInstruction: this.#systemInstruction,
+      availableTools: [...this.#tools.keys()]
+    };
+
+    const plan = await this.#planner!.createPlan(goal, plannerContext);
+    yield this.#event({ ...base, type: "plan_created", plan });
+
+    // In observe mode, request plan approval before executing any step.
+    if (normalizeAutonomyMode(this.#runtime?.mode) === "observe" && this.#planApprovalResolver !== undefined) {
+      yield this.#event({ ...base, type: "plan_approval_requested", plan });
+      const resolution = await this.#planApprovalResolver.resolvePlan({ plan });
+      yield this.#event({ ...base, type: "plan_approval_resolved", planId: plan.id, approved: resolution.approved, reason: resolution.reason });
+
+      if (!resolution.approved) {
+        yield this.#event({ ...base, type: "run_failed", error: { message: "Plan was not approved.", recoverable: false } });
+        return;
+      }
+    }
+
+    // Extract the system message from the assembled context to reuse across steps.
+    const systemMessage = assembled.modelInput.messages[0];
+
+    for (let i = 0; i < plan.steps.length; i++) {
+      const step = plan.steps[i];
+      if (step === undefined) continue;
+
+      const runningStep: PlanStep = { ...step, status: "running" };
+      yield this.#event({ ...base, type: "plan_step_started", planId: plan.id, step: runningStep, stepIndex: i, totalSteps: plan.steps.length });
+
+      const stepMessage = `${step.description}\n\n(Step ${i + 1} of ${plan.steps.length} for goal: ${goal})`;
+      const stepMessages: ModelMessage[] = [
+        ...(systemMessage !== undefined ? [systemMessage] : []),
+        { role: "user", content: stepMessage }
+      ];
+
+      const result = yield* this.#runInnerLoop(stepMessages, toolDefinitions, assembled.modelInput.options, base);
+
+      if (result.success) {
+        yield this.#event({ ...base, type: "plan_step_completed", planId: plan.id, step: { ...step, status: "complete" } });
+      } else {
+        const errorMessage = result.error ?? "Step failed.";
+        yield this.#event({ ...base, type: "plan_step_failed", planId: plan.id, step: { ...step, status: "failed" }, error: { message: errorMessage } });
+      }
+    }
+
+    yield this.#event({ ...base, type: "plan_completed", planId: plan.id });
+    yield this.#event({ ...base, type: "run_completed" });
+  }
+
+  async *#runInnerLoop(
+    initialMessages: ModelMessage[],
+    toolDefinitions: ModelToolDefinition[],
+    options: ModelRequestOptions | undefined,
+    base: { runId: string; sessionId?: string }
+  ): AsyncGenerator<RuntimeEvent, { success: boolean; error?: string; recoverable?: boolean }> {
+    let messages = initialMessages;
     let steps = 0;
 
     while (steps < this.#maxSteps) {
@@ -299,7 +449,7 @@ export class AgentRuntime {
       const output = await this.#modelProvider.generate({
         messages,
         ...(toolDefinitions.length > 0 ? { tools: toolDefinitions } : {}),
-        ...(assembled.modelInput.options !== undefined ? { options: assembled.modelInput.options } : {})
+        ...(options !== undefined ? { options } : {})
       });
 
       yield this.#event({ ...base, type: "model_request_completed", provider: "configured" });
@@ -307,26 +457,24 @@ export class AgentRuntime {
       steps++;
 
       if (output.type === "error") {
-        yield this.#event({ ...base, type: "run_failed", error: { message: output.message, recoverable: output.recoverable } });
-        return;
+        return { success: false, error: output.message, recoverable: output.recoverable };
       }
 
       if (output.type === "message") {
         yield this.#event({ ...base, type: "assistant_message_created", message: { role: "assistant", content: output.content } });
-        yield this.#event({ ...base, type: "run_completed" });
-        return;
+        return { success: true };
       }
 
-      // type === "tool_calls": add assistant tool_calls message and execute each tool
+      // type === "tool_calls"
       messages = [...messages, { role: "assistant", content: null, toolCalls: output.calls }];
 
       const toolResultMessages: ModelMessage[] = [];
       let hardTerminate = false;
+      let terminationError = "";
 
       for (const call of output.calls) {
         yield this.#event({ ...base, type: "tool_call_requested", call });
 
-        // Check tool existence before permission evaluation: no tool, no permission to evaluate.
         const tool = this.#tools.get(call.name);
         if (tool === undefined) {
           const errorMessage = `Tool "${call.name}" is not registered.`;
@@ -342,10 +490,9 @@ export class AgentRuntime {
 
         yield this.#event({ ...base, type: "tool_call_permission_evaluated", callId: call.id, toolName: call.name, decision });
 
-        // Security boundary: blocked actions terminate the run immediately.
         if (decision.decision === "deny") {
-          yield this.#event({ ...base, type: "run_failed", error: { message: `Tool call ${call.name} was denied.`, recoverable: false } });
           hardTerminate = true;
+          terminationError = `Tool call ${call.name} was denied.`;
           break;
         }
 
@@ -359,10 +506,9 @@ export class AgentRuntime {
 
           yield this.#event({ ...base, type: "approval_resolved", callId: call.id, toolName: call.name, resolution });
 
-          // User explicitly declined: terminate the run.
           if (!resolution.approved) {
-            yield this.#event({ ...base, type: "run_failed", error: { message: `Tool call ${call.name} was denied.`, recoverable: false } });
             hardTerminate = true;
+            terminationError = `Tool call ${call.name} was denied.`;
             break;
           }
         }
@@ -382,16 +528,17 @@ export class AgentRuntime {
         }
 
         yield this.#event({ ...base, type: "tool_completed", callId: call.id, toolName: call.name, result });
-
         toolResultMessages.push({ role: "tool", toolCallId: call.id, content: JSON.stringify(result) });
       }
 
-      if (hardTerminate) return;
+      if (hardTerminate) {
+        return { success: false, error: terminationError, recoverable: false };
+      }
 
       messages = [...messages, ...toolResultMessages];
     }
 
-    yield this.#event({ ...base, type: "run_failed", error: { message: `Agent loop reached the step limit of ${this.#maxSteps}.`, recoverable: false } });
+    return { success: false, error: `Agent loop reached the step limit of ${this.#maxSteps}.`, recoverable: false };
   }
 
   #buildContextToolSummaries(): ContextToolSummary[] {

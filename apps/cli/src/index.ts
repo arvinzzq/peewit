@@ -660,6 +660,20 @@ function traceEventLabel(event: RuntimeEvent): string {
       return "Received user message";
     case "context_assembled":
       return "Assembled context";
+    case "plan_created":
+      return "Created plan";
+    case "plan_approval_requested":
+      return "Requested plan approval";
+    case "plan_approval_resolved":
+      return "Resolved plan approval";
+    case "plan_step_started":
+      return `Started step ${event.stepIndex + 1}/${event.totalSteps}`;
+    case "plan_step_completed":
+      return "Completed step";
+    case "plan_step_failed":
+      return "Failed step";
+    case "plan_completed":
+      return "Completed plan";
     case "model_request_started":
       return "Started model request";
     case "model_request_completed":

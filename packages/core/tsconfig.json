@@ -6,5 +6,5 @@
     "outDir": "dist"
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../context" }, { "path": "../models" }, { "path": "../permissions" }, { "path": "../tools" }]
+  "references": [{ "path": "../context" }, { "path": "../models" }, { "path": "../permissions" }, { "path": "../planner" }, { "path": "../tools" }]
 }
