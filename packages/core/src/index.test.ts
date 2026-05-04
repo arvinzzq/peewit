@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { DefaultContextAssembler } from "@arvinclaw/context";
-import { FakeModelProvider } from "@arvinclaw/models";
+import { FakeModelProvider, FakeStreamingProvider } from "@arvinclaw/models";
 import { createReadFileTool } from "@arvinclaw/tools";
 import {
   AgentRuntime,
@@ -22,6 +22,7 @@ describe("runtime event contracts", () => {
       "todos_updated",
       "planning_stall_detected",
       "model_request_started",
+      "token_delta",
       "model_request_completed",
       "tool_call_requested",
       "tool_call_permission_evaluated",
@@ -902,6 +903,44 @@ describe("todos_updated event", () => {
     });
     const events = await collect(runtime.runTurn({ message: "Hello." }));
     expect(events.map((e) => e.type)).not.toContain("todos_updated");
+  });
+});
+
+describe("streaming path", () => {
+  test("emits token_delta events when preferStreaming is true and provider supports streaming", async () => {
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeStreamingProvider([["Hello", " ", "world"]]),
+      systemInstruction: "You are ArvinClaw.",
+      preferStreaming: true,
+      createRunId: () => "run_stream",
+      createEventId: (() => { let n = 0; return () => `evt_s_${++n}`; })(),
+      now: () => "2026-05-05T10:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Hi." }));
+    const tokenDeltas = events.filter((e) => e.type === "token_delta");
+
+    expect(tokenDeltas).toHaveLength(3);
+    expect(tokenDeltas[0]).toMatchObject({ type: "token_delta", delta: "Hello" });
+    expect(tokenDeltas[2]).toMatchObject({ type: "token_delta", delta: "world" });
+
+    const messageEvent = events.find((e) => e.type === "assistant_message_created");
+    expect(messageEvent).toMatchObject({ type: "assistant_message_created", message: { content: "Hello world" } });
+  });
+
+  test("does not emit token_delta when preferStreaming is false (default)", async () => {
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeStreamingProvider([["Hello", " ", "world"]]),
+      systemInstruction: "You are ArvinClaw.",
+      createRunId: () => "run_nostream",
+      createEventId: (() => { let n = 0; return () => `evt_ns_${++n}`; })(),
+      now: () => "2026-05-05T10:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Hi." }));
+    expect(events.map((e) => e.type)).not.toContain("token_delta");
   });
 });
 

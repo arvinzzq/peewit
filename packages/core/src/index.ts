@@ -1,6 +1,6 @@
 /**
- * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, optional ApprovalResolver, executable tools, maxSteps, maxPlanningStallRetries, runtime metadata, user turn input, and optional recent conversation messages.
- * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, todos_updated event, planning_stall_detected event, tool-call request events, permission evaluation events, approval resolution events, and tool lifecycle events.
+ * INPUT: ContextAssembler, ModelProvider (optionally StreamingModelProvider), PermissionPolicy, optional ApprovalResolver, executable tools, maxSteps, maxPlanningStallRetries, runtime metadata, user turn input, and optional recent conversation messages.
+ * OUTPUT: AgentRuntime, runtime event contracts (including token_delta for streaming), in-memory trace store, todos_updated event, planning_stall_detected event, tool-call request events, permission evaluation events, approval resolution events, and tool lifecycle events.
  * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -11,7 +11,8 @@ import type {
   ContextSkillSummary,
   ContextToolSummary
 } from "@arvinclaw/context";
-import type { ModelMessage, ModelProvider, ModelRequestOptions, ModelToolCall, ModelToolDefinition } from "@arvinclaw/models";
+import { isStreamingProvider } from "@arvinclaw/models";
+import type { ModelMessage, ModelOutput, ModelProvider, ModelUsage, ModelToolCall, ModelToolDefinition } from "@arvinclaw/models";
 import {
   DefaultPermissionPolicy,
   type AutonomyMode,
@@ -29,6 +30,7 @@ export const runtimeEventTypes = [
   "todos_updated",
   "planning_stall_detected",
   "model_request_started",
+  "token_delta",
   "model_request_completed",
   "tool_call_requested",
   "tool_call_permission_evaluated",
@@ -77,6 +79,11 @@ export interface PlanningStallDetectedEvent extends RuntimeEventBase {
 export interface ModelRequestStartedEvent extends RuntimeEventBase {
   type: "model_request_started";
   provider: string;
+}
+
+export interface TokenDeltaEvent extends RuntimeEventBase {
+  type: "token_delta";
+  delta: string;
 }
 
 export interface ModelRequestCompletedEvent extends RuntimeEventBase {
@@ -163,6 +170,7 @@ export type RuntimeEvent =
   | TodosUpdatedEvent
   | PlanningStallDetectedEvent
   | ModelRequestStartedEvent
+  | TokenDeltaEvent
   | ModelRequestCompletedEvent
   | ToolCallRequestedEvent
   | ToolCallPermissionEvaluatedEvent
@@ -242,6 +250,7 @@ export interface AgentRuntimeDependencies {
   maxPlanningStallRetries?: number;
   systemInstruction: string;
   runtime?: ContextRuntimeMetadata;
+  preferStreaming?: boolean;
   createRunId?: () => string;
   createEventId?: () => string;
   now?: () => string;
@@ -271,6 +280,7 @@ export class AgentRuntime {
   readonly #maxPlanningStallRetries: number;
   readonly #systemInstruction: string;
   readonly #runtime: ContextRuntimeMetadata | undefined;
+  readonly #preferStreaming: boolean;
   readonly #createRunId: () => string;
   readonly #createEventId: () => string;
   readonly #now: () => string;
@@ -286,6 +296,7 @@ export class AgentRuntime {
     this.#skillIndex = dependencies.skillIndex ?? [];
     this.#systemInstruction = dependencies.systemInstruction;
     this.#runtime = dependencies.runtime;
+    this.#preferStreaming = dependencies.preferStreaming ?? false;
     this.#createRunId = dependencies.createRunId ?? randomId("run");
     this.#createEventId = dependencies.createEventId ?? randomId("evt");
     this.#now = dependencies.now ?? (() => new Date().toISOString());
@@ -330,11 +341,44 @@ export class AgentRuntime {
     while (steps < this.#maxSteps) {
       yield this.#event({ ...base, type: "model_request_started", provider: "configured" });
 
-      const output = await this.#modelProvider.generate({
+      const modelInput = {
         messages,
         ...(toolDefinitions.length > 0 ? { tools: toolDefinitions } : {}),
         ...(assembled.modelInput.options !== undefined ? { options: assembled.modelInput.options } : {})
-      });
+      };
+
+      let output: ModelOutput;
+
+      if (this.#preferStreaming && isStreamingProvider(this.#modelProvider)) {
+        let textContent = "";
+        let streamedToolCalls: ModelToolCall[] | undefined;
+        let streamedUsage: ModelUsage | undefined;
+        let streamError: { message: string; recoverable: boolean; category: string } | undefined;
+
+        for await (const streamEvent of this.#modelProvider.generateStream(modelInput)) {
+          if (streamEvent.type === "token_delta") {
+            yield this.#event({ ...base, type: "token_delta", delta: streamEvent.delta });
+          } else if (streamEvent.type === "message_done") {
+            textContent = streamEvent.content;
+            streamedUsage = streamEvent.usage;
+          } else if (streamEvent.type === "tool_calls") {
+            streamedToolCalls = streamEvent.calls;
+            streamedUsage = streamEvent.usage;
+          } else if (streamEvent.type === "error") {
+            streamError = { category: streamEvent.category, message: streamEvent.message, recoverable: streamEvent.recoverable };
+          }
+        }
+
+        if (streamError !== undefined) {
+          output = { type: "error", category: streamError.category as never, message: streamError.message, recoverable: streamError.recoverable };
+        } else if (streamedToolCalls !== undefined) {
+          output = { type: "tool_calls", calls: streamedToolCalls, ...(streamedUsage !== undefined ? { usage: streamedUsage } : {}) };
+        } else {
+          output = { type: "message", content: textContent, ...(streamedUsage !== undefined ? { usage: streamedUsage } : {}) };
+        }
+      } else {
+        output = await this.#modelProvider.generate(modelInput);
+      }
 
       yield this.#event({ ...base, type: "model_request_completed", provider: "configured" });
 

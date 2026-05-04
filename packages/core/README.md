@@ -12,8 +12,8 @@ It must stay adapter-agnostic and vendor-agnostic.
 | --- | --- | --- |
 | `package.json` | Package manifest | Declares the core package and workspace dependencies, including context, models, permissions, and tools. |
 | `tsconfig.json` | TypeScript config | Builds core with references to context, models, permissions, and tools. |
-| `src/index.ts` | Runtime core | Exports runtime event contracts including `todos_updated` and `planning_stall_detected` events, in-memory trace store, agent loop with built-in `update_todos` injection, planning stall detection with retry injection, tool summary projection, default permission guidance, tool-call request events, permission evaluation events, approval resolver contracts, and tool lifecycle events. |
-| `src/index.test.ts` | Runtime tests | Protects event vocabulary, terminal-event detection, trace storage, context flow, message run flow, tool-call behavior, permission policy, approval resolver, tool execution, multi-round loop, step limit, planning stall detection (promise phrases, headings, bullets, tool-call bypass, no-tool bypass), and `todos_updated` event emission. |
+| `src/index.ts` | Runtime core | Exports runtime event contracts including `token_delta`, `todos_updated`, and `planning_stall_detected` events, in-memory trace store, agent loop with optional streaming path (`preferStreaming`), built-in `update_todos` injection, planning stall detection with retry injection, tool summary projection, default permission guidance, tool-call request events, permission evaluation events, approval resolver contracts, and tool lifecycle events. |
+| `src/index.test.ts` | Runtime tests | Protects event vocabulary (including `token_delta`), terminal-event detection, trace storage, context flow, message run flow, tool-call behavior, permission policy, approval resolver, tool execution, multi-round loop, step limit, planning stall detection, `todos_updated` event emission, and streaming path (token_delta emission with `preferStreaming`, no-delta with default). |
 
 ## Update Reminder
 

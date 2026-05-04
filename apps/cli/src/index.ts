@@ -693,6 +693,8 @@ function traceEventLabel(event: RuntimeEvent): string {
       return `Planning stall detected (${event.stallCount}/${event.maxRetries})`;
     case "model_request_started":
       return "Started model request";
+    case "token_delta":
+      return `Token delta: "${event.delta.slice(0, 20)}${event.delta.length > 20 ? "…" : ""}"`;
     case "model_request_completed":
       return "Completed model request";
     case "tool_call_requested":
