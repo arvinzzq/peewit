@@ -269,6 +269,9 @@ async function runInteractiveLoop(session: CliChatSession, title: string, option
     }
 
     const turn = await session.sendMessage(message);
+    if (turn.todosLines.length > 0) {
+      emit(...turn.todosLines, "");
+    }
     if (turn.approvalLines.length > 0) {
       emit(...turn.approvalLines, "");
     }
@@ -328,6 +331,7 @@ function renderInteractiveHelp(): string[] {
 export interface CliChatTurnResult {
   assistantText: string;
   approvalLines: string[];
+  todosLines: string[];
   events: RuntimeEvent[];
 }
 
@@ -484,6 +488,7 @@ export class CliChatSession {
     return {
       assistantText,
       approvalLines: this.#approvalPromptLog.slice(approvalStartIndex),
+      todosLines: renderTodosProgress(events),
       events
     };
   }
@@ -636,6 +641,18 @@ function createSessionId(): string {
   return `session_${crypto.randomUUID()}`;
 }
 
+export function renderTodosProgress(events: RuntimeEvent[]): string[] {
+  const todosEvent = [...events].reverse().find((e) => e.type === "todos_updated");
+  if (todosEvent?.type !== "todos_updated" || todosEvent.todos.length === 0) return [];
+
+  const lines = ["Tasks:"];
+  for (const todo of todosEvent.todos) {
+    const icon = todo.status === "completed" ? "✓" : todo.status === "in_progress" ? "→" : "·";
+    lines.push(`  ${icon} ${todo.content}`);
+  }
+  return lines;
+}
+
 export function renderSkillIndex(skills: SkillDefinition[]): string[] {
   if (skills.length === 0) return ["No skills loaded."];
   return skills.map((s) => `[${s.source}] ${s.name}: ${s.description}`);
@@ -664,6 +681,10 @@ function traceEventLabel(event: RuntimeEvent): string {
       return "Received user message";
     case "context_assembled":
       return "Assembled context";
+    case "todos_updated":
+      return `Updated todos (${event.todos.length} items)`;
+    case "planning_stall_detected":
+      return `Planning stall detected (${event.stallCount}/${event.maxRetries})`;
     case "model_request_started":
       return "Started model request";
     case "model_request_completed":
