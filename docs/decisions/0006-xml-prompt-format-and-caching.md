@@ -20,7 +20,7 @@ Example output from the context assembler:
 
 ```xml
 <identity>
-ArvinClaw is a CLI-first general-purpose agent...
+ArvinClaw is an OpenClaw-inspired personal general-purpose agent...
 </identity>
 
 <safety>

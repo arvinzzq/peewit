@@ -6,7 +6,7 @@ ArvinClaw is an OpenClaw-inspired personal general-purpose agent project.
 
 The goal is twofold:
 
-- Build a real CLI-first agent that can grow into a broader personal agent platform.
+- Build a real, usable general-purpose agent with multiple entry adapters (CLI today, Web UI and others later).
 - Learn the architecture behind OpenClaw-like systems by implementing each module from first principles.
 
 ## Current Phase

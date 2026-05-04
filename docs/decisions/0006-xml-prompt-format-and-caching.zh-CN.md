@@ -20,7 +20,7 @@ Context assembler 输出示例：
 
 ```xml
 <identity>
-ArvinClaw 是一个 CLI-first 通用 Agent...
+ArvinClaw 是一个受 OpenClaw 启发的个人通用 Agent...
 </identity>
 
 <safety>
