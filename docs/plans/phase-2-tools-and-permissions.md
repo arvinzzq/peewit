@@ -18,16 +18,17 @@ Completed:
 - CLI renders approval prompts for `ask` permission decisions: `6c3b956`
 - Runtime approval resolver records approval request and resolution events: `7e81d92`
 - Executable tool contracts and built-in read-only file tools: `099e037`
+- Runtime executes registered tools and sends observations back to the model: `5ee7791`
 
 Remaining:
 
-- Runtime tool execution wiring after tool-call events.
+- CLI default registration for read-only file tools.
 - Guarded file write tool.
-- Tool lifecycle trace events.
+- Additional safety regression tests for tool execution.
 
 Next recommended slice:
 
-- Wire runtime tool execution to the executable tool contracts.
+- Register built-in read-only file tools in the CLI runtime composition.
 
 ## 1. Purpose
 
