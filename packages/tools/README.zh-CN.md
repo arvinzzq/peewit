@@ -12,8 +12,8 @@
 | --- | --- | --- |
 | `package.json` | Package manifest | 声明 tools package、export entrypoint 和 build scripts。 |
 | `tsconfig.json` | TypeScript config | 构建 tools package。 |
-| `src/index.ts` | Tool registry and file tools | 导出 tool definition contracts、executable tool contracts、risk metadata、registry lookup/listing behavior、read-only file tools、guarded write_file tool、normalized tool results 和 registry errors。 |
-| `src/index.test.ts` | Tool tests | 保护 registry lookup、deterministic listing、defensive copies、duplicate registration errors、read-only and write_file tools、workspace boundaries、secret file blocking 和 normalized failures。 |
+| `src/index.ts` | Tool registry and built-in tools | 导出 tool definition contracts、executable tool contracts、risk metadata、registry lookup/listing behavior、read-only file tools、guarded write_file tool、guarded shell tool、normalized tool results 和 registry errors。 |
+| `src/index.test.ts` | Tool tests | 保护 registry lookup、deterministic listing、defensive copies、duplicate registration errors、read-only and write_file tools、shell tool execution、workspace boundaries、secret file blocking、blocked command patterns、timeout handling 和 normalized failures。 |
 
 ## Update Reminder
 

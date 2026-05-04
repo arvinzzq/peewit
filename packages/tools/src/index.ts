@@ -1,10 +1,11 @@
 /**
  * INPUT: Tool definitions, input schemas, risk metadata, registration requests, tool execution input, and workspace file system access.
- * OUTPUT: Tool contracts, registry lookup/listing behavior, executable read-only file tools, guarded write_file tool, normalized tool results, and registry errors.
+ * OUTPUT: Tool contracts, registry lookup/listing behavior, executable read-only file tools, guarded write_file tool, guarded shell tool, normalized tool results, and registry errors.
  * POS: Tool system layer; exposes capabilities without making permission decisions.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
+import { exec } from "node:child_process";
 import { readdir, readFile, writeFile as writeFileFs, mkdir } from "node:fs/promises";
 import { resolve, relative, basename, extname, dirname } from "node:path";
 
@@ -61,7 +62,16 @@ export interface WriteFileToolResult {
   summary: string;
 }
 
-export type ToolExecutionResult = ReadFileToolResult | ListDirectoryToolResult | WriteFileToolResult | ToolExecutionFailure;
+export interface ShellToolResult {
+  ok: true;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  summary: string;
+}
+
+export type ToolExecutionResult = ReadFileToolResult | ListDirectoryToolResult | WriteFileToolResult | ShellToolResult | ToolExecutionFailure;
 
 export interface ExecutableTool extends ToolDefinition {
   execute(input: unknown, context: ToolExecutionContext): Promise<ToolExecutionResult>;
@@ -276,6 +286,117 @@ function getWriteInput(input: unknown): { path: string; content: string } | unde
   const path = (input as { path?: unknown }).path;
   const content = (input as { content?: unknown }).content;
   return typeof path === "string" && typeof content === "string" ? { path, content } : undefined;
+}
+
+const SHELL_DEFAULT_TIMEOUT_MS = 30_000;
+const SHELL_MAX_OUTPUT_CHARS = 4_000;
+
+const BLOCKED_COMMAND_PATTERNS: RegExp[] = [
+  /\brm\b.*-[a-zA-Z]*r[a-zA-Z]*.*\s+\/\s*$/, // rm -r* targeting root /
+  /\brm\b.*-[a-zA-Z]*r[a-zA-Z]*.*\s+~\/?$/, // rm -r* targeting home ~
+  /:\(\)\s*\{/, // fork bomb
+  /[|>]\s*\/dev\/(sd|hd|nvme|vd)[a-z0-9]?/, // write/pipe to block devices
+  /\b(mkfs(\.[a-z0-9]+)?|fdisk|parted|shred)\b/, // disk tools
+];
+
+function isBlockedCommand(command: string): boolean {
+  return BLOCKED_COMMAND_PATTERNS.some((pattern) => pattern.test(command));
+}
+
+function truncateShellOutput(output: string): string {
+  if (output.length <= SHELL_MAX_OUTPUT_CHARS) return output;
+  return `${output.slice(0, SHELL_MAX_OUTPUT_CHARS)}\n[truncated ${output.length - SHELL_MAX_OUTPUT_CHARS} characters]`;
+}
+
+function runShellCommand(
+  command: string,
+  cwd: string,
+  timeoutMs: number
+): Promise<{ completed: true; exitCode: number; stdout: string; stderr: string; durationMs: number } | { completed: false }> {
+  return new Promise((resolve) => {
+    const start = Date.now();
+    exec(command, { cwd, timeout: timeoutMs }, (error, stdout, stderr) => {
+      const durationMs = Date.now() - start;
+      if (error?.killed === true) {
+        resolve({ completed: false });
+        return;
+      }
+      const exitCode = error === null ? 0 : typeof error.code === "number" ? error.code : 1;
+      resolve({
+        completed: true,
+        exitCode,
+        stdout: truncateShellOutput(stdout),
+        stderr: truncateShellOutput(stderr),
+        durationMs
+      });
+    });
+  });
+}
+
+function getShellInput(input: unknown): { command: string; timeoutMs?: number } | undefined {
+  if (typeof input !== "object" || input === null) return undefined;
+  const command = (input as { command?: unknown }).command;
+  if (typeof command !== "string") return undefined;
+  const timeoutMs = (input as { timeoutMs?: unknown }).timeoutMs;
+  return { command, ...(typeof timeoutMs === "number" ? { timeoutMs } : {}) };
+}
+
+function blockedCommandError(): ToolExecutionFailure {
+  return {
+    ok: false,
+    error: {
+      code: "command_blocked",
+      message: "Command matches a blocked pattern."
+    }
+  };
+}
+
+export function createShellTool(): ExecutableTool {
+  return {
+    name: "run_shell",
+    description: "Run a shell command in the workspace directory. Requires approval.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        command: { type: "string" },
+        timeoutMs: { type: "number" }
+      },
+      required: ["command"]
+    },
+    risk: "high",
+    async execute(input, context) {
+      const parsed = getShellInput(input);
+      if (parsed === undefined) {
+        return inputError("Tool input must include a string command.");
+      }
+
+      if (isBlockedCommand(parsed.command)) {
+        return blockedCommandError();
+      }
+
+      const timeoutMs = parsed.timeoutMs ?? SHELL_DEFAULT_TIMEOUT_MS;
+      const result = await runShellCommand(parsed.command, context.workspaceRoot, timeoutMs);
+
+      if (!result.completed) {
+        return {
+          ok: false,
+          error: {
+            code: "timeout",
+            message: `Command exceeded ${timeoutMs}ms timeout.`
+          }
+        };
+      }
+
+      return {
+        ok: true,
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        durationMs: result.durationMs,
+        summary: `Ran command in ${result.durationMs}ms with exit code ${result.exitCode}.`
+      };
+    }
+  };
 }
 
 export function createWriteFileTool(): ExecutableTool {

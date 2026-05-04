@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import {
   createListDirectoryTool,
   createReadFileTool,
+  createShellTool,
   createWriteFileTool,
   InMemoryToolRegistry,
   ToolRegistryError,
@@ -428,6 +429,187 @@ describe("write_file tool", () => {
       error: {
         code: "invalid_input",
         message: "Tool input must include a string path and string content."
+      }
+    });
+  });
+});
+
+describe("shell tool", () => {
+  test("has high risk", () => {
+    const tool = createShellTool();
+
+    expect(tool.risk).toBe("high");
+  });
+
+  test("runs a command and captures stdout", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const tool = createShellTool();
+
+    const result = await tool.execute({ command: "echo hello" }, { workspaceRoot: workspace });
+
+    expect(result).toMatchObject({
+      ok: true,
+      exitCode: 0,
+      stdout: expect.stringContaining("hello"),
+      stderr: "",
+    });
+  });
+
+  test("runs in the workspace directory", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const tool = createShellTool();
+
+    const result = await tool.execute({ command: "pwd" }, { workspaceRoot: workspace });
+
+    expect(result).toMatchObject({
+      ok: true,
+      exitCode: 0,
+      stdout: expect.stringContaining(workspace),
+    });
+  });
+
+  test("captures non-zero exit code as ok result", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const tool = createShellTool();
+
+    const result = await tool.execute({ command: "false" }, { workspaceRoot: workspace });
+
+    expect(result).toMatchObject({
+      ok: true,
+      exitCode: 1,
+    });
+  });
+
+  test("captures stderr output", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const tool = createShellTool();
+
+    const result = await tool.execute({ command: "echo errout >&2" }, { workspaceRoot: workspace });
+
+    expect(result).toMatchObject({
+      ok: true,
+      exitCode: 0,
+      stderr: expect.stringContaining("errout"),
+    });
+  });
+
+  test("returns timeout error when command exceeds limit", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const tool = createShellTool();
+
+    const result = await tool.execute(
+      { command: "sleep 10", timeoutMs: 200 },
+      { workspaceRoot: workspace }
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "timeout",
+        message: "Command exceeded 200ms timeout."
+      }
+    });
+  });
+
+  test("blocks rm -rf / pattern", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const tool = createShellTool();
+
+    const result = await tool.execute({ command: "rm -rf /" }, { workspaceRoot: workspace });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "command_blocked",
+        message: "Command matches a blocked pattern."
+      }
+    });
+  });
+
+  test("blocks rm -rf ~ pattern", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const tool = createShellTool();
+
+    const result = await tool.execute({ command: "rm -rf ~" }, { workspaceRoot: workspace });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "command_blocked",
+        message: "Command matches a blocked pattern."
+      }
+    });
+  });
+
+  test("blocks fork bomb pattern", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const tool = createShellTool();
+
+    const result = await tool.execute({ command: ":(){ :|:& };:" }, { workspaceRoot: workspace });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "command_blocked",
+        message: "Command matches a blocked pattern."
+      }
+    });
+  });
+
+  test("blocks mkfs commands", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const tool = createShellTool();
+
+    const result = await tool.execute({ command: "mkfs.ext4 /dev/sda" }, { workspaceRoot: workspace });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "command_blocked",
+        message: "Command matches a blocked pattern."
+      }
+    });
+  });
+
+  test("does not block safe rm within workspace", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    await writeFile(join(workspace, "temp.txt"), "delete me");
+    const tool = createShellTool();
+
+    const result = await tool.execute(
+      { command: "rm -rf ./temp.txt" },
+      { workspaceRoot: workspace }
+    );
+
+    expect(result).toMatchObject({ ok: true, exitCode: 0 });
+  });
+
+  test("rejects input with missing command field", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const tool = createShellTool();
+
+    const result = await tool.execute({}, { workspaceRoot: workspace });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "invalid_input",
+        message: "Tool input must include a string command."
+      }
+    });
+  });
+
+  test("rejects input with non-string command", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const tool = createShellTool();
+
+    const result = await tool.execute({ command: 42 }, { workspaceRoot: workspace });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "invalid_input",
+        message: "Tool input must include a string command."
       }
     });
   });
