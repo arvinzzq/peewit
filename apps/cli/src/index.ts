@@ -1,6 +1,6 @@
 /**
  * INPUT: CLI arguments, package version, optional line reader/fetch implementation, optional fake model outputs, config loader, runtime/session packages, context assembler, model providers, and built-in tools.
- * OUTPUT: CLI result objects, configured/fake interactive chat transcript, approval prompts, read-only, write_file, and shell tool registration, short-term session memory, latest-session resume behavior, persisted trace output, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
+ * OUTPUT: CLI result objects, configured/fake interactive chat transcript, approval prompts, read-only, write_file, shell, and read_web_page tool registration, short-term session memory, latest-session resume behavior, persisted trace output, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
  * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -13,7 +13,7 @@ import { DefaultContextAssembler } from "@arvinclaw/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
 import { FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
-import { createListDirectoryTool, createReadFileTool, createShellTool, createWriteFileTool } from "@arvinclaw/tools";
+import { createListDirectoryTool, createReadFileTool, createReadWebPageTool, createShellTool, createWriteFileTool } from "@arvinclaw/tools";
 
 export const cliPackageName = "@arvinclaw/cli";
 
@@ -385,7 +385,7 @@ export class CliChatSession {
           workspace: config.workspace.root,
           currentDate: new Date().toISOString().slice(0, 10)
         },
-        tools: createCliBuiltInTools(),
+        tools: createCliBuiltInTools(options),
         approvalResolver: createCliApprovalResolver(options, approvalPromptLog)
       }),
       config,
@@ -424,7 +424,7 @@ export class CliChatSession {
           workspace: config.workspace.root,
           currentDate
         },
-        tools: createCliBuiltInTools(),
+        tools: createCliBuiltInTools(options),
         approvalResolver: createCliApprovalResolver(options, approvalPromptLog)
       }),
       redactedConfig(config),
@@ -531,8 +531,14 @@ function createCliApprovalResolver(options: RunCliOptions, approvalPromptLog: st
   };
 }
 
-function createCliBuiltInTools() {
-  return [createReadFileTool(), createListDirectoryTool(), createWriteFileTool(), createShellTool()];
+function createCliBuiltInTools(options: RunCliOptions) {
+  return [
+    createReadFileTool(),
+    createListDirectoryTool(),
+    createWriteFileTool(),
+    createShellTool(),
+    createReadWebPageTool(options.fetch)
+  ];
 }
 
 class MessageMappedFakeModelProvider implements ModelProvider {

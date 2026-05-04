@@ -766,6 +766,50 @@ describe("runCli", () => {
     }
   });
 
+  test("executes built-in web page tool in the fake interactive chat loop", async () => {
+    const inputs = ["Read example.com", "/trace", "/exit"];
+
+    try {
+      const result = await runCli(["chat", "--fake-interactive"], "0.0.0", {
+        fakeModelOutputs: [
+          {
+            type: "tool_calls",
+            calls: [
+              {
+                id: "call_web",
+                name: "read_web_page",
+                input: { url: "https://example.com" }
+              }
+            ]
+          },
+          {
+            type: "message",
+            content: "Read the web page content."
+          }
+        ],
+        readLine: async () => inputs.shift(),
+        fetch: async (url) => {
+          if (url === "https://example.com") {
+            return new Response(
+              "<html><body><h1>Example Domain</h1><p>For illustrative examples.</p></body></html>",
+              { status: 200, headers: { "content-type": "text/html" } }
+            );
+          }
+          throw new Error(`Unexpected fetch call: ${url}`);
+        }
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("Assistant: Read the web page content.");
+      expect(result.stdout).toContain("7. Started tool (tool_started)");
+      expect(result.stdout).toContain("8. Completed tool (tool_completed)");
+      expect(result.stdout).toContain("12. Completed run (run_completed)");
+    } finally {
+      // no cleanup needed; no temp files created
+    }
+  });
+
   test("runs slash trace inside an interactive chat loop", async () => {
     const inputs = ["Hello trace", "/trace", "/exit"];
     const result = await runCli(["chat", "--fake-interactive"], "0.0.0", {

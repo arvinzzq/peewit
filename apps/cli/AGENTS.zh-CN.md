@@ -10,7 +10,7 @@
 
 ## Testing
 
-CLI 可见行为、session listing/resume、workspace prompt and read-only long-term/daily memory handoff、interactive input loops、built-in file and shell tool registration、approval prompts、durable message and trace handoff、short-term memory handoff、slash commands、trace rendering、config redaction and memory policy display 和 missing API key handling 需要在 `src/index.test.ts` 中有测试。Configured-provider tests 使用注入的 fake HTTP。CLI 单元测试不能要求真实 model provider 或 API key。
+CLI 可见行为、session listing/resume、workspace prompt and read-only long-term/daily memory handoff、interactive input loops、built-in file、shell and web page tool registration、approval prompts、durable message and trace handoff、short-term memory handoff、slash commands、trace rendering、config redaction and memory policy display 和 missing API key handling 需要在 `src/index.test.ts` 中有测试。Configured-provider tests 使用注入的 fake HTTP。CLI 单元测试不能要求真实 model provider 或 API key。
 
 ## Boundaries
 
