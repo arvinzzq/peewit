@@ -1,6 +1,6 @@
 /**
  * INPUT: CLI args, config, model providers, skill loader, session/trace stores, context assembler, built-in tools, optional fake outputs and line reader.
- * OUTPUT: CLI results, interactive chat, approval prompts, tool execution, session memory, trace output, redacted config, skill index, slash commands, and stdout/stderr.
+ * OUTPUT: CLI results, interactive chat, approval prompts, tool execution, todos progress display, session memory, trace output, redacted config, skill index, slash commands, and stdout/stderr.
  * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
