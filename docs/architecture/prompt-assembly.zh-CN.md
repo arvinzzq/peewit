@@ -116,13 +116,12 @@ MVP prompt assembly 应包含 compact skill index，而不是每个完整 skill 
 Skill index 应包括：
 
 - Skill name
-- Description
-- Source
-- When to use it
+- Description（同时用作路由触发器——没有单独的 `when` 字段）
+- Source location
 
-如果 Agent 后续需要完整 skill body，它应该通过 skill system 请求或加载。
+如果 Agent 当前任务需要完整 skill body，通过 skill system 按需加载。
 
-这遵循 OpenClaw-style 的思路：模型可以知道 skills 存在，而不需要每次 model call 都塞满完整 `SKILL.md` 内容。
+这遵循 OpenClaw 的思路：模型可以知道哪些 skills 存在，而不需要每次 model call 都塞满完整 `SKILL.md` 正文。详见 `skill-system.md` 第 5 节了解已确认的标准格式。
 
 ## 8. Tool Projection
 
@@ -235,7 +234,55 @@ MVP prompt assembly 成功标准：
 - 敏感内容进入 context 前应用 redaction。
 - Prompt assembly behavior 被 unit tests 覆盖。
 
-## 16. 相关文档
+## 16. XML Section 格式
+
+Prompt sections 应使用 XML tags 作为分隔符，而不是普通 Markdown 标题。
+
+示例：
+
+```xml
+<identity>
+ArvinClaw 是一个 CLI-first 通用 Agent...
+</identity>
+
+<tooling>
+可用 tools：read_file、list_directory、write_file、run_shell、read_web_page
+</tooling>
+
+<skills>
+- research：调查外部信息或比较来源时使用。
+- safe-shell：执行 shell 命令前评估风险时使用。
+</skills>
+```
+
+原因：
+
+- Anthropic 模型经过训练，会把 XML tags 识别为结构化分隔符，而不是正文内容。这产生更可靠的 section 边界识别。
+- XML tags 能无歧义地把 section 意图与正文文字分开。
+- Tags 在测试中易于确定性解析。
+- 这是 Anthropic 官方推荐的复杂 system prompt 结构化方式。
+
+决策记录：[0006 — XML Prompt Format and Caching](../decisions/0006-xml-prompt-format-and-caching.zh-CN.md)
+
+Section 顺序原则：稳定 sections 靠前（identity、safety），易变 sections 靠后（skills、tools、workspace files）。这支持第 17 节描述的 caching 策略。
+
+## 17. Prompt Caching
+
+`AnthropicProvider` 应对 system content 应用 prompt caching。
+
+Anthropic API 支持在 system content blocks 上加 `cache_control: { type: "ephemeral" }` 标记。在一个 cache window 内，首次发送带此标记的 system block 后，同一 window 内的后续调用可以复用已缓存的前缀，不需要重新处理稳定内容。
+
+策略：
+
+- 在 system content array 的最后一个稳定 block 上加 `cache_control: { type: "ephemeral" }`。
+- Section 顺序应把易变内容（skills、workspace files、current date/time）放在最后，让稳定内容尽可能多地被缓存。
+- MVP 可以对整个 system block 应用 caching，因为单次 turn 的 system content 通常基本不变。
+
+这降低了多轮会话中 system prompt 较大但变化较少时的成本和延迟。
+
+决策记录：[0006 — XML Prompt Format and Caching](../decisions/0006-xml-prompt-format-and-caching.zh-CN.md)
+
+## 18. 相关文档
 
 - [主设计](../product/arvinclaw-design.zh-CN.md)
 - [OpenClaw Implementation Notes](../research/openclaw-implementation-notes.zh-CN.md)
@@ -245,3 +292,4 @@ MVP prompt assembly 成功标准：
 - [Model Provider](./model-provider.zh-CN.md)
 - [Skill System](./skill-system.zh-CN.md)
 - [Permission System](./permission-system.zh-CN.md)
+- [Decision 0006 — XML Prompt Format and Caching](../decisions/0006-xml-prompt-format-and-caching.zh-CN.md)
