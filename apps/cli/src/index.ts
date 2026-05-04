@@ -388,7 +388,7 @@ export class CliChatSession {
       new AgentRuntime({
         contextAssembler: createCliContextAssembler(config, new Date().toISOString().slice(0, 10)),
         modelProvider: provider,
-        systemInstruction: "You are ArvinClaw, an OpenClaw-inspired personal agent. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require user approval.",
+        systemInstruction: "You are ArvinClaw, a personal general-purpose agent. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require user approval.",
         runtime: {
           mode: "confirm",
           workspace: config.workspace.root,
@@ -424,7 +424,7 @@ export class CliChatSession {
       new AgentRuntime({
         contextAssembler: createCliContextAssembler(config, currentDate),
         modelProvider: configuredProvider,
-        systemInstruction: "You are ArvinClaw, an OpenClaw-inspired personal agent. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require user approval.",
+        systemInstruction: "You are ArvinClaw, a personal general-purpose agent. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require user approval.",
         runtime: {
           mode: config.runtime.defaultMode,
           workspace: config.workspace.root,
