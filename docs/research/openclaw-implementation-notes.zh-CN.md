@@ -365,13 +365,104 @@ type TaskRecord = {
 | 多 Agent | 否 | 否 | 是（父子任务） |
 | 目的 | 把目标拆分为步骤 | 向用户展示进度 | 后台 job 编排 |
 
-**ArvinClaw 影响**：Phase 4 的 `Plan` 在目的上最接近 Claude Code 的 TodoWrite（临时性、in-turn 进度展示），但由架构驱动而不是模型调用。真正的 OpenClaw-style 持久化 TaskFlow（跨 session 计划、后台执行）属于 Phase 8+，届时才需要设计后台自动化。
+**ArvinClaw 影响**：预执行 `Plan` 结构（基础设施驱动的分步执行）已被移除。正确方式是模型调用的 `update_todos` tool 等价物 — 已由第三轮研究（第 8 节）确认。TaskFlow 等价的持久化（SQLite、跨 session）属于 Phase 8+。
 
 ### `pi-embedded-runner` Execution Lanes
 
 确认：`pi-embedded-runner/lanes.ts` 处理的是 session 与 global command lanes（`session:<key>` 命名），而不是 task/plan 追踪。Plan state management（`buildAgentRuntimePlan`、`emitAgentPlanEvent`）在 `run.ts` 中 — 是 embedded runner 的内部逻辑，不是用户可见的 todos。
 
-## 8. 源码级后续开放问题
+## 8. 源码确认发现（第三轮研究，2026-05-04）
+
+以下内容来自直接的仓库文件访问和文档 fetch 确认。
+
+### `update_plan` Tool — Per-Turn 进度追踪器
+
+来源：`src/agents/tools/update-plan-tool.ts`，测试文件 `src/agents/openclaw-tools.update-plan.test.ts`。
+
+OpenClaw 有一个模型可调用的 tool，用于在执行过程中追踪任务进度。Schema：
+
+```typescript
+plan: Array<{
+  step: string;
+  status: "pending" | "in_progress" | "completed"
+}>
+```
+
+同一时刻最多一个步骤处于 `in_progress` 状态。模型每次调用时全量替换列表（与 Claude Code 的 `TodoWrite` 模式相同）。
+
+**启用规则：**
+- 默认禁用 — 需要在 config 中设置 `tools.experimental.planTool: true`。
+- 对 GPT-5 / GPT-5.5+ 模型在 `executionContract` 未设置或为 `strict-agentic` 时自动启用。
+- **不**对 Anthropic Claude 自动启用 — 必须显式开启。
+- 显式设置 `tools.experimental.planTool: false` 即使在 `strict-agentic` 下也会禁用。
+
+**与已移除 ArvinClaw Plan 的关键区别：** 模型在执行*过程中*调用 `update_plan` 追踪已完成的工作 — 而不是在执行*之前*生成供 runtime 编排的计划。该 tool 不包含任何基础设施侧的执行管理。
+
+**与 Claude Code TodoWrite 的关系：** 结构上完全一致 — 都是模型调用、全量替换、`pending/in_progress/completed` 状态列表。OpenClaw 的 `update_plan` 就是其 TodoWrite 的原生等价物。
+
+ArvinClaw 影响：按此模型调用模式实现 `update_todos` tool。不需要基础设施编排。
+
+### 规划停滞检测（Planning Stall Detection）
+
+来源：`src/agents/pi-embedded-runner/run/incomplete-turn.ts`。
+
+OpenClaw 会主动检测模型只生成规划文字而不执行任何 tool action 的情况，并强制纠正。检测使用三个 regex pattern：
+
+- `PLANNING_ONLY_PROMISE_RE` — 匹配 "I'll..."、"let me..."、"I'm going to..."
+- `PLANNING_ONLY_HEADING_RE` — 匹配标题如 "Plan:"、"Steps:"、"Approach:"
+- `PLANNING_ONLY_BULLET_RE` — 匹配项目符号或编号步骤列表
+
+检测到时，runner 注入：
+```
+PLANNING_ONLY_RETRY_INSTRUCTION = "The previous assistant turn only described the plan. Do not restate the plan. Act now: take the first concrete tool action you can."
+```
+
+如果模型持续输出规划文字而不动作，run 会终止：
+```
+STRICT_AGENTIC_BLOCKED_TEXT = "Agent stopped after repeated plan-only turns without taking a concrete action."
+```
+
+重试限制：
+- 默认：1 次规划停滞重试后终止。
+- `executionContract: "strict-agentic"`：2 次后硬终止。
+
+ArvinClaw 影响：这是 Phase 4 值得加入的高价值机制。没有它，模型可能无限叙述计划而不采取行动。该检查应在 `AgentRuntime` 中每次模型响应后、tool dispatch 前执行。
+
+### `sessions_spawn` — Subagent 系统
+
+来源：`https://docs.openclaw.ai/tools/subagents`，`docs/tools/subagents.md`。
+
+这是 OpenClaw 处理长程复杂任务分解和并行工作的主要机制：
+
+- 主 agent 调用 `sessions_spawn` 启动后台子 agent。
+- 每个子 agent 在独立 session 中运行（`agent:<id>:subagent:<uuid>`），拥有隔离的 context。
+- 完成后 push 结果回父 agent — 非轮询。
+- 支持 orchestrator 模式：主 → orchestrator 子 agent → worker 子 agents（最大 depth 2）。
+- 默认最大并发子 agent 数：全局 8，每个父 session 5。
+- Context 模式：`isolated`（默认 — 全新 context，成本更低）或 `fork`（分叉父 transcript）。
+
+在 `coding` 和 `full` tool profiles 中默认可用；`messaging` 中不可用。
+
+ArvinClaw 影响：Subagents 属于 Phase 7+ 工作，需要 gateway 和 multi-session 基础设施。不在早期 phases 实现。
+
+### `strict-agentic` Execution Contract
+
+设置更严格的 in-turn 执行行为：
+- 对支持的模型自动启用 `update_plan`（Anthropic 默认不自动启用）。
+- 将规划停滞重试限制从 1 提高到 2 次后硬终止。
+- 整个 run 期间执行更严格的防停滞行为。
+
+### Thinking Budget
+
+OpenClaw 暴露可配置的推理预算：`off`、`minimal`、`low`、`medium`、`high`、`xhigh`、`adaptive`、`max`。
+
+- Anthropic Claude 4.6 默认为 `adaptive`。
+- Thinking 在每次 tool call 前在模型内部进行 — 不是单独的预规划 pass。
+- 通过 `/think:<level>` 内联指令、session 默认值或每 agent 配置控制。
+
+ArvinClaw 影响：暂缓。Anthropic 模型在内部处理此事。Phase 9+ 之前不需要配置接口。
+
+## 9. 源码级后续开放问题
 
 下一轮研究应检查源码：
 
@@ -386,7 +477,7 @@ type TaskRecord = {
 - Context engine plugins 如何选择
 - Memory search 和 memory flush 如何与 compaction 集成
 
-## 10. ArvinClaw Backlog 更新
+## 11. ArvinClaw Backlog 更新
 
 本研究建议新增或细化这些 ArvinClaw 文档：
 
@@ -409,7 +500,7 @@ type TaskRecord = {
 - Context compaction
 - Memory flush before compaction
 
-## 11. 来源
+## 12. 来源
 
 - [OpenClaw Agent Loop](https://docs.openclaw.ai/concepts/agent-loop)
 - [OpenClaw Context](https://docs.openclaw.ai/concepts/context)
@@ -421,7 +512,7 @@ type TaskRecord = {
 - [OpenClaw llms.txt](https://docs.openclaw.ai/llms.txt)
 - [OpenClaw GitHub repository](https://github.com/openclaw/openclaw)
 
-## 12. 相关文档
+## 13. 相关文档
 
 - [OpenClaw Architecture Map](../architecture/openclaw-architecture-map.zh-CN.md)
 - [Reference Systems](../architecture/reference-systems.zh-CN.md)

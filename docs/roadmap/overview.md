@@ -36,7 +36,7 @@ The roadmap follows a dual-track approach:
 | Phase 1 | Complete | MVP agent loop | CLI chat can call a model and produce traceable responses | Agent Core, context assembly, ModelProvider, basic loop |
 | Phase 2 | Complete | Tools and permissions | Agent can inspect files, run approved commands, and read web content | Tool Registry, PermissionPolicy |
 | Phase 3 | Complete | Context assembly and skills | Agent has structured context with tools, skills, and permission guidance; can load `SKILL.md`; Claude available directly | Context section architecture, Anthropic provider, skill loader |
-| Phase 4 | Revised | Planning and autonomy | Planner prototype removed; phase re-scoped — see Phase 4 note | — |
+| Phase 4 | Not Started | In-turn task tracking | Agent tracks complex task progress transparently and avoids planning stalls | `update_todos` tool, planning stall detection |
 | Phase 5 | In Progress | Sessions and memory | Agent remembers sessions and can use local knowledge | Session store, trace store, memory interfaces |
 | Phase 6 | Not Started | Web UI | User can chat, inspect traces, and approve actions in a browser | UI adapter, API boundary, trace visualization |
 | Phase 7 | Not Started | Multi-entry adapters | CLI, Web, desktop, and message entries share one Agent Core | Adapter interface, gateway direction |
@@ -239,25 +239,47 @@ Implementation plan: [Phase 3 Context Assembly and Skills](../plans/phase-3-cont
 - No context compaction.
 - No streaming output.
 
-## 7. Phase 4: Planning and Autonomy
+## 7. Phase 4: In-Turn Task Tracking
 
-### Status Note (2026-05-04)
+### User Result
 
-A `packages/planner` prototype was built and then removed after reviewing OpenClaw's source. OpenClaw has no in-turn planning tool for interactive runs. Planning is implicit through the model's own reasoning and retry loops (`planningOnlyRetryAttempts`). An explicit `create_plan` tool with infra-managed step execution is not an OpenClaw concept.
+The agent tracks complex task progress transparently during execution. The user can see which steps have been done and what is next. The agent does not stall by narrating plans without taking action.
 
-The prototype was removed to keep ArvinClaw aligned with OpenClaw's architecture. The `observe`, `confirm`, and `auto` modes remain from Phase 2's permission system and continue to work without a Planner.
+### Architecture Added
 
-Phase 4 scope will be re-evaluated before this phase is re-opened. Possible re-scoped deliverables: agent loop hardening, better autonomy mode documentation, or retry and error recovery improvements.
+- `update_todos` tool: model-called tool for per-turn task tracking (equivalent to OpenClaw `update_plan` and Claude Code `TodoWrite`)
+- Planning stall detection in `AgentRuntime`: detect plan-only turns and inject retry instruction
+- CLI progress display: show current todo state after each turn
 
-### Original Goal
+### Design Alignment
 
-The agent can operate in `observe`, `confirm`, or `auto` mode with visible progress and safe failure handling.
+OpenClaw's approach (confirmed from source, 2026-05-04):
+
+1. **`update_plan` tool** — model calls it during execution to update step statuses. Not a pre-execution planner. Full-replace list: `{step, status: pending|in_progress|completed}[]`.
+2. **Planning stall detection** — runtime detects "I'll...", bulleted plans, step headings without tool actions, and injects a retry instruction forcing immediate execution.
+3. **Execute-first, not plan-first** — the model acts immediately and updates the plan state as it goes.
+
+ArvinClaw's `update_todos` follows the same model-called, no-infra-orchestration pattern.
+
+### Learning Documents
+
+- `docs/plans/phase-4-in-turn-task-tracking.md`
+- `docs/research/openclaw-implementation-notes.md` Section 8
+
+### Acceptance Criteria
+
+- Model can call `update_todos` to declare and update task steps with `pending`, `in_progress`, or `completed` status.
+- CLI displays the current todo list after each turn when the model updates it.
+- `AgentRuntime` detects plan-only turns (no tool calls, planning-pattern text) and injects a retry instruction.
+- After `N` consecutive plan-only turns, the run terminates with a clear error message.
+- `update_todos` is registered as a standard tool; no infra orchestration added.
 
 ### Non-Goals
 
-- No autonomous background daemon yet (Phase 8).
-- No multi-agent task delegation.
-- No explicit plan construct (removed; implicit model reasoning is the OpenClaw-aligned approach).
+- No infra-driven step execution (execute-first is the correct pattern).
+- No subagent spawning (Phase 7+).
+- No SQLite-backed persistent TaskFlow (Phase 8+).
+- No pre-execution planner that blocks execution until a plan is approved.
 
 ## 8. Phase 5: Sessions, Memory, and Knowledge
 

@@ -36,7 +36,7 @@ Roadmap 采用双轨方法：
 | Phase 1 | Complete | MVP agent loop | CLI chat 可以调用模型并产生可追踪响应 | Agent Core、context assembly、ModelProvider、基础 loop |
 | Phase 2 | Complete | 工具与权限 | Agent 可以检查文件、运行已批准命令，并读取 Web 内容 | Tool Registry、PermissionPolicy |
 | Phase 3 | Complete | Context assembly 与 skills | Agent 有包含工具、skills 和权限指导的结构化 context；可加载 `SKILL.md`；Claude 可直接使用 | Context section 架构、Anthropic provider、skill loader |
-| Phase 4 | Revised | 规划与自主 | Planner 原型已移除；phase 重新规划中 — 详见 Phase 4 说明 | — |
+| Phase 4 | Not Started | In-turn 任务追踪 | Agent 在执行过程中透明地追踪复杂任务进度，避免规划停滞 | `update_todos` tool、规划停滞检测 |
 | Phase 5 | In Progress | 会话与记忆 | Agent 可以记住会话，并使用本地知识 | Session store、trace store、memory interfaces |
 | Phase 6 | Not Started | Streaming 与 Web UI | 用户可以在终端看到 streaming token 输出，并通过浏览器界面聊天、检查 trace、批准动作 | Streaming provider、Ink CLI 渲染升级、UI adapter、trace visualization |
 | Phase 7 | Not Started | 多入口 adapters | CLI、Web、桌面和消息入口共享一个 Agent Core | Adapter interface、gateway direction |
@@ -237,25 +237,47 @@ Agent 的 system prompt 有包含 identity、runtime、tooling、safety、skills
 - 暂不做 context compaction。
 - 暂不做流式输出。
 
-## 7. Phase 4：规划与自主
+## 7. Phase 4：In-Turn 任务追踪
 
-### 状态说明（2026-05-04）
+### 用户结果
 
-`packages/planner` 原型在审查 OpenClaw 源码后被移除。OpenClaw 对交互式 run 没有 in-turn planning tool，规划通过模型自身推理和 retry loop 隐式完成（`planningOnlyRetryAttempts`）。带有基础设施管理 step 执行的显式 `create_plan` tool 不是 OpenClaw 的概念。
+Agent 在执行过程中透明地追踪复杂任务进度。用户可以看到已完成了哪些步骤以及下一步是什么。Agent 不会因为不断叙述计划而不采取行动而停滞。
 
-原型被移除以保持 ArvinClaw 与 OpenClaw 架构的对齐。Phase 2 permission system 中的 `observe`、`confirm`、`auto` 模式仍然保留并正常工作。
+### 新增架构
 
-Phase 4 范围将在重新开放前重新评估。可能的修订交付物：agent loop 加固、更好的 autonomy mode 文档，或 retry 与错误恢复改进。
+- `update_todos` tool：模型调用的 per-turn 任务追踪 tool（等同于 OpenClaw `update_plan` 和 Claude Code `TodoWrite`）
+- `AgentRuntime` 中的规划停滞检测：检测 plan-only turns 并注入重试指令
+- CLI 进度展示：每次 turn 后展示当前 todo 状态
 
-### 原始目标
+### 设计对齐
 
-Agent 可以在 `observe`、`confirm` 或 `auto` 模式运行，具有可见进度和安全的失败处理。
+OpenClaw 的方式（来自 2026-05-04 源码确认）：
+
+1. **`update_plan` tool** — 模型在执行过程中调用它更新步骤状态。不是预执行规划器。全量替换列表：`{step, status: pending|in_progress|completed}[]`。
+2. **规划停滞检测** — runtime 检测 "I'll..."、项目符号列表、没有 tool action 的步骤标题，并注入重试指令强制立即执行。
+3. **先执行，再规划** — 模型立即行动，边做边更新计划状态。
+
+ArvinClaw 的 `update_todos` 遵循同样的模型调用、无基础设施编排模式。
+
+### 学习文档
+
+- `docs/plans/phase-4-in-turn-task-tracking.md`
+- `docs/research/openclaw-implementation-notes.md` 第 8 节
+
+### 验收标准
+
+- 模型可以调用 `update_todos`，使用 `pending`、`in_progress` 或 `completed` 状态声明和更新任务步骤。
+- 模型更新 todo 时，CLI 在每次 turn 后展示当前 todo 列表。
+- `AgentRuntime` 检测 plan-only turns（无 tool calls、含规划 pattern 的文字）并注入重试指令。
+- 连续 `N` 次 plan-only turns 后，run 以清晰的错误消息终止。
+- `update_todos` 作为标准 tool 注册；不添加基础设施编排。
 
 ### 非目标
 
-- 暂不做 autonomous background daemon（Phase 8）。
-- 暂不做 multi-agent task delegation。
-- 不做显式 plan 结构（已移除；隐式模型推理是对齐 OpenClaw 的方式）。
+- 不做基础设施驱动的分步执行（先执行才是正确模式）。
+- 不做 subagent spawning（Phase 7+）。
+- 不做 SQLite 持久化 TaskFlow（Phase 8+）。
+- 不做阻塞执行直到计划被批准的预执行规划器。
 
 ## 8. Phase 5：会话、记忆与知识
 

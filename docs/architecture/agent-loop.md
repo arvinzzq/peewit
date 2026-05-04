@@ -273,15 +273,29 @@ User goal
 
 The Planner should be introduced as an extension of the loop, not as a separate competing runtime.
 
-### In-Turn Planning — OpenClaw-Aligned Approach
+### In-Turn Task Tracking — OpenClaw-Aligned Approach
 
-OpenClaw has no in-turn planning tool for interactive runs. The model reasons and plans implicitly. OpenClaw's runtime tracks `planningOnlyRetryAttempts` to detect when the model is producing plans without executing tools, and retries — but this is infra-level retry logic, not a model-callable planning construct.
+OpenClaw's execute-first philosophy: the model acts immediately and tracks progress as it goes. Two mechanisms make this work:
 
-ArvinClaw follows the same principle: the model decides how to decompose and approach a task through its own reasoning. The loop provides tool access and accurate context; the model handles strategy.
+**1. `update_plan` tool (equivalent to Claude Code `TodoWrite`)**
 
-An explicit `create_plan` tool with infra-managed step execution was prototyped and removed (2026-05-04) after this research was confirmed. Source: `docs/research/openclaw-implementation-notes.md` Section 7.
+The model calls `update_plan` during execution to maintain a structured list of task steps and their statuses. This is a full-replace, model-called tool — no infra orchestration. Schema: `{step, status: pending|in_progress|completed}[]`. This is structurally identical to Claude Code's `TodoWrite`.
 
-For background job orchestration (durable multi-step pipelines), that belongs to Phase 8+ as OpenClaw-style TaskFlow — SQLite-backed, persistent across sessions, with multi-agent support. It is a completely different concept from in-turn planning.
+ArvinClaw Phase 4 implements an equivalent `update_todos` tool following the same pattern.
+
+**2. Planning stall detection**
+
+OpenClaw's `pi-embedded-runner` detects "planning-only" turns — model responses that contain planning text (promises, step headings, bullet lists) without executing any tool call. On detection, it injects a retry instruction: *"Act now: take the first concrete tool action you can."* After N retries without action, the run terminates with an error.
+
+ArvinClaw Phase 4 adds equivalent stall detection in `AgentRuntime`.
+
+**For long-horizon task decomposition: subagents**
+
+OpenClaw's primary mechanism for truly complex tasks is `sessions_spawn` — spawning background subagents in separate sessions. Subagents run isolated, announce results when complete (push-based), and support an orchestrator pattern (depth up to 2).
+
+This belongs to ArvinClaw Phase 7+ when multi-session infrastructure and a gateway exist.
+
+Source: `docs/research/openclaw-implementation-notes.md` Section 8 (third research pass, 2026-05-04).
 
 ## 13. Failure Handling
 

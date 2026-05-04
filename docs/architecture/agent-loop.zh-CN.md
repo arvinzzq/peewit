@@ -271,15 +271,29 @@ MVP Loop 可以没有完整 Planner，只需要支持可追踪工具使用。
 
 Planner 应是 Loop 的扩展，而不是另一个竞争 runtime。
 
-### In-Turn 规划 — 对齐 OpenClaw 的方式
+### In-Turn 任务追踪 — 对齐 OpenClaw 的方式
 
-OpenClaw 对交互式 run 没有 in-turn planning tool。模型通过自身推理隐式进行规划。OpenClaw runtime 会追踪 `planningOnlyRetryAttempts`，检测模型只生成计划而不执行 tool 的情况并重试——但这是基础设施级别的 retry 逻辑，不是模型可调用的规划结构。
+OpenClaw 的先执行哲学：模型立即行动，边做边追踪进度。两个机制使这成为可能：
 
-ArvinClaw 遵循同样的原则：模型通过自身推理决定如何分解和处理任务。loop 提供 tool 访问权限和准确的上下文；模型负责策略。
+**1. `update_plan` tool（等同于 Claude Code `TodoWrite`）**
 
-一个带有基础设施管理 step 执行的显式 `create_plan` tool 曾被原型实现，并在确认上述研究后于 2026-05-04 移除。来源：`docs/research/openclaw-implementation-notes.md` 第 7 节。
+模型在执行过程中调用 `update_plan` 维护任务步骤和状态的结构化列表。这是全量替换、模型调用的 tool — 无基础设施编排。Schema：`{step, status: pending|in_progress|completed}[]`。结构上与 Claude Code 的 `TodoWrite` 完全一致。
 
-后台 job 编排（跨 session 的持久化多步骤 pipeline）属于 Phase 8+ 的 OpenClaw-style TaskFlow — 基于 SQLite、跨 session 持久化、支持多 Agent。这与 in-turn 规划是完全不同的概念。
+ArvinClaw Phase 4 实现等价的 `update_todos` tool，遵循同样的模式。
+
+**2. 规划停滞检测**
+
+OpenClaw 的 `pi-embedded-runner` 检测 "planning-only" turns — 包含规划文字（承诺、步骤标题、项目符号列表）但没有执行任何 tool call 的模型响应。检测到时注入重试指令："立即行动：执行你能做的第一个具体 tool action。"N 次重试后仍无行动则以错误终止 run。
+
+ArvinClaw Phase 4 在 `AgentRuntime` 中添加等价的停滞检测。
+
+**长程任务分解：subagents**
+
+OpenClaw 处理真正复杂任务的主要机制是 `sessions_spawn` — 在独立 session 中生成后台子 agent。子 agent 隔离运行，完成时 push 结果（非轮询），支持 orchestrator 模式（最大 depth 2）。
+
+这属于 ArvinClaw Phase 7+，需要 multi-session 基础设施和 gateway。
+
+来源：`docs/research/openclaw-implementation-notes.md` 第 8 节（第三轮研究，2026-05-04）。
 
 ## 13. 失败处理
 
