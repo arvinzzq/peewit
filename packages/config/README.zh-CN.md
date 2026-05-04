@@ -12,8 +12,8 @@
 | --- | --- | --- |
 | `package.json` | Package manifest | 声明 config package、public exports 和 build scripts。 |
 | `tsconfig.json` | TypeScript config | 构建 config package。 |
-| `src/index.ts` | Config loader | 导出 config types、defaults、merge logic、workspace/model/memory env handling、OpenRouter shortcut handling、validation 和 redaction。 |
-| `src/index.test.ts` | Config tests | 保护 defaults、precedence、workspace/model/memory env overrides、OpenRouter shortcut handling、redaction 和 validation errors。 |
+| `src/index.ts` | Config loader | 导出 config types、defaults、merge logic、workspace/model/memory env handling、OpenRouter 和 Anthropic API key shortcuts、provider 选择（openai-compatible 或 anthropic）、validation 和 redaction。 |
+| `src/index.test.ts` | Config tests | 保护 defaults、precedence、workspace/model/memory env overrides、OpenRouter shortcut handling、ANTHROPIC_API_KEY shortcut handling、redaction 和 validation errors。 |
 
 ## Update Reminder
 

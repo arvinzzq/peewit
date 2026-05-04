@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  AnthropicProvider,
   FakeModelProvider,
   OpenAICompatibleProvider,
   type ModelInput,
@@ -263,6 +264,254 @@ describe("OpenAI-compatible provider", () => {
       category: "authentication",
       message: "Provider request failed with status 401.",
       recoverable: false
+    });
+  });
+});
+
+// ─── Anthropic Provider ───────────────────────────────────────────────────
+
+type AnthropicFakeRequest = {
+  model: string;
+  max_tokens: number;
+  system?: string;
+  messages: unknown[];
+  tools?: unknown[];
+  temperature?: number;
+};
+
+type AnthropicFakeResponse = {
+  content: Array<{ type: string; [key: string]: unknown }>;
+  stop_reason: string | null;
+  usage: { input_tokens: number; output_tokens: number };
+};
+
+function fakeAnthropicClient(response: AnthropicFakeResponse, captured: AnthropicFakeRequest[] = []) {
+  return {
+    messages: {
+      create: async (params: AnthropicFakeRequest) => {
+        captured.push(params);
+        return response;
+      }
+    }
+  };
+}
+
+describe("AnthropicProvider", () => {
+  test("extracts system message and sends it as the system parameter", async () => {
+    const captured: AnthropicFakeRequest[] = [];
+    const provider = new AnthropicProvider({
+      model: "claude-opus-4-7",
+      client: fakeAnthropicClient(
+        { content: [{ type: "text", text: "Hello." }], stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 5 } },
+        captured
+      )
+    });
+
+    await provider.generate({
+      messages: [
+        { role: "system", content: "You are ArvinClaw." },
+        { role: "user", content: "Hello." }
+      ]
+    });
+
+    expect(captured[0]?.system).toBe("You are ArvinClaw.");
+    expect(captured[0]?.messages).toEqual([{ role: "user", content: "Hello." }]);
+  });
+
+  test("returns text response as ModelMessageOutput with usage", async () => {
+    const provider = new AnthropicProvider({
+      model: "claude-opus-4-7",
+      client: fakeAnthropicClient({
+        content: [{ type: "text", text: "Hello from Anthropic." }],
+        stop_reason: "end_turn",
+        usage: { input_tokens: 12, output_tokens: 8 }
+      })
+    });
+
+    const output = await provider.generate({
+      messages: [{ role: "user", content: "Hello." }]
+    });
+
+    expect(output).toEqual<ModelOutput>({
+      type: "message",
+      content: "Hello from Anthropic.",
+      usage: { inputTokens: 12, outputTokens: 8 }
+    });
+  });
+
+  test("parses tool_use blocks as ModelToolCallsOutput", async () => {
+    const provider = new AnthropicProvider({
+      model: "claude-opus-4-7",
+      client: fakeAnthropicClient({
+        content: [{ type: "tool_use", id: "toolu_01", name: "read_file", input: { path: "README.md" } }],
+        stop_reason: "tool_use",
+        usage: { input_tokens: 20, output_tokens: 15 }
+      })
+    });
+
+    const output = await provider.generate({
+      messages: [{ role: "user", content: "Read the README." }]
+    });
+
+    expect(output).toEqual<ModelOutput>({
+      type: "tool_calls",
+      calls: [{ id: "toolu_01", name: "read_file", input: { path: "README.md" } }],
+      usage: { inputTokens: 20, outputTokens: 15 }
+    });
+  });
+
+  test("translates tool definitions to Anthropic input_schema format", async () => {
+    const captured: AnthropicFakeRequest[] = [];
+    const provider = new AnthropicProvider({
+      model: "claude-opus-4-7",
+      client: fakeAnthropicClient(
+        { content: [{ type: "text", text: "OK." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 3 } },
+        captured
+      )
+    });
+
+    await provider.generate({
+      messages: [{ role: "user", content: "Use a tool." }],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "read_file",
+            description: "Read a workspace file.",
+            parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] }
+          }
+        }
+      ]
+    });
+
+    expect(captured[0]?.tools).toEqual([
+      {
+        name: "read_file",
+        description: "Read a workspace file.",
+        input_schema: {
+          type: "object",
+          properties: { path: { type: "string" } },
+          required: ["path"]
+        }
+      }
+    ]);
+  });
+
+  test("groups consecutive tool messages into one user message with tool_result blocks", async () => {
+    const captured: AnthropicFakeRequest[] = [];
+    const provider = new AnthropicProvider({
+      model: "claude-opus-4-7",
+      client: fakeAnthropicClient(
+        { content: [{ type: "text", text: "Done." }], stop_reason: "end_turn", usage: { input_tokens: 30, output_tokens: 5 } },
+        captured
+      )
+    });
+
+    await provider.generate({
+      messages: [
+        { role: "user", content: "Read two files." },
+        { role: "assistant", content: null, toolCalls: [
+          { id: "tc_1", name: "read_file", input: { path: "a.txt" } },
+          { id: "tc_2", name: "read_file", input: { path: "b.txt" } }
+        ]},
+        { role: "tool", toolCallId: "tc_1", content: '{"ok":true,"content":"first"}' },
+        { role: "tool", toolCallId: "tc_2", content: '{"ok":true,"content":"second"}' }
+      ]
+    });
+
+    const msgs = captured[0]?.messages as Array<{ role: string; content: unknown }> | undefined;
+    // Two consecutive tool messages → one user message with two tool_result blocks
+    expect(msgs).toHaveLength(3);
+    expect(msgs?.[2]).toEqual({
+      role: "user",
+      content: [
+        { type: "tool_result", tool_use_id: "tc_1", content: '{"ok":true,"content":"first"}' },
+        { type: "tool_result", tool_use_id: "tc_2", content: '{"ok":true,"content":"second"}' }
+      ]
+    });
+  });
+
+  test("translates assistant tool_calls to tool_use content blocks", async () => {
+    const captured: AnthropicFakeRequest[] = [];
+    const provider = new AnthropicProvider({
+      model: "claude-opus-4-7",
+      client: fakeAnthropicClient(
+        { content: [{ type: "text", text: "Done." }], stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 3 } },
+        captured
+      )
+    });
+
+    await provider.generate({
+      messages: [
+        { role: "assistant", content: null, toolCalls: [{ id: "tc_1", name: "read_file", input: { path: "a.txt" } }] },
+        { role: "tool", toolCallId: "tc_1", content: "result" }
+      ]
+    });
+
+    const msgs = captured[0]?.messages as Array<{ role: string; content: unknown }> | undefined;
+    expect(msgs?.[0]).toEqual({
+      role: "assistant",
+      content: [{ type: "tool_use", id: "tc_1", name: "read_file", input: { path: "a.txt" } }]
+    });
+  });
+
+  test("normalizes authentication error (401)", async () => {
+    const provider = new AnthropicProvider({
+      model: "claude-opus-4-7",
+      client: {
+        messages: {
+          create: async () => { throw Object.assign(new Error("Unauthorized."), { status: 401 }); }
+        }
+      }
+    });
+
+    const output = await provider.generate({ messages: [{ role: "user", content: "Hi." }] });
+
+    expect(output).toEqual<ModelOutput>({
+      type: "error",
+      category: "authentication",
+      message: "Unauthorized.",
+      recoverable: false
+    });
+  });
+
+  test("normalizes rate limit error (429) as recoverable", async () => {
+    const provider = new AnthropicProvider({
+      model: "claude-opus-4-7",
+      client: {
+        messages: {
+          create: async () => { throw Object.assign(new Error("Rate limited."), { status: 429 }); }
+        }
+      }
+    });
+
+    const output = await provider.generate({ messages: [{ role: "user", content: "Hi." }] });
+
+    expect(output).toEqual<ModelOutput>({
+      type: "error",
+      category: "rate_limit",
+      message: "Rate limited.",
+      recoverable: true
+    });
+  });
+
+  test("normalizes network error when client throws without status", async () => {
+    const provider = new AnthropicProvider({
+      model: "claude-opus-4-7",
+      client: {
+        messages: {
+          create: async () => { throw new Error("Connection refused."); }
+        }
+      }
+    });
+
+    const output = await provider.generate({ messages: [{ role: "user", content: "Hi." }] });
+
+    expect(output).toEqual<ModelOutput>({
+      type: "error",
+      category: "network",
+      message: "Provider network request failed.",
+      recoverable: true
     });
   });
 });

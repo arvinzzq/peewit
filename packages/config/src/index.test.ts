@@ -65,6 +65,30 @@ describe("loadConfig", () => {
     expect(JSON.stringify(redactedConfig(config))).not.toContain("sk-or-test-secret");
   });
 
+  test("supports ANTHROPIC_API_KEY as an Anthropic provider shortcut", () => {
+    const config = loadConfig({
+      env: {
+        ANTHROPIC_API_KEY: "sk-ant-test-secret"
+      }
+    });
+
+    expect(config.model.provider).toBe("anthropic");
+    expect(config.secrets.apiKey).toBe("sk-ant-test-secret");
+    expect(JSON.stringify(redactedConfig(config))).not.toContain("sk-ant-test-secret");
+  });
+
+  test("lets generic ARVINCLAW_API_KEY override ANTHROPIC_API_KEY shortcut", () => {
+    const config = loadConfig({
+      env: {
+        ANTHROPIC_API_KEY: "sk-ant-test-secret",
+        ARVINCLAW_API_KEY: "sk-override-secret"
+      }
+    });
+
+    expect(config.model.provider).toBe("anthropic");
+    expect(config.secrets.apiKey).toBe("sk-override-secret");
+  });
+
   test("lets generic ArvinClaw model settings override OpenRouter defaults", () => {
     const config = loadConfig({
       env: {

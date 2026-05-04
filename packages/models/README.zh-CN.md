@@ -12,8 +12,8 @@
 | --- | --- | --- |
 | `package.json` | Package manifest | 声明 public package exports 和 build scripts。 |
 | `tsconfig.json` | TypeScript config | 构建 models package。 |
-| `src/index.ts` | Provider layer | 导出 model message types、ModelToolDefinition、含 tools 的 ModelInput、ModelOutput union、fake provider，以及支持 tool schema 发送和 tool_calls 响应解析的 OpenAI-compatible provider。 |
-| `src/index.test.ts` | Provider tests | 保护 fake provider behavior、OpenAI-compatible normalization、tool definition request body、tool_calls 响应解析以及 tool/assistant 消息格式化。 |
+| `src/index.ts` | Provider layer | 导出 model message types、ModelToolDefinition、含 tools 的 ModelInput、ModelOutput union、fake provider、支持 tool schema 发送和 tool_calls 响应解析的 OpenAI-compatible provider，以及处理消息格式翻译和 tool_use/tool_result blocks 的 Anthropic provider。 |
+| `src/index.test.ts` | Provider tests | 保护 fake provider behavior、OpenAI-compatible normalization、tool definition request body、tool_calls 响应解析、tool/assistant 消息格式化，以及 Anthropic provider 消息翻译、tool definition 翻译、tool_use 响应解析和错误归一化。 |
 
 ## Update Reminder
 

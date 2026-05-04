@@ -1,6 +1,6 @@
 /**
- * INPUT: User config, project config, ArvinClaw env overrides, memory policy settings, and provider-specific env shortcuts.
- * OUTPUT: EffectiveConfig with memory policy, redacted config views, and validation errors.
+ * INPUT: User config, project config, ArvinClaw env overrides, memory policy settings, provider-specific env shortcuts (OPENROUTER_API_KEY, ANTHROPIC_API_KEY), and model provider selection.
+ * OUTPUT: EffectiveConfig with provider selection (openai-compatible or anthropic), memory policy, redacted config views, and validation errors.
  * POS: Configuration boundary; keeps config loading separate from runtime behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -19,7 +19,7 @@ export type MemoryWritePolicy = "disabled";
 
 export interface EffectiveConfig {
   model: {
-    provider: "openai-compatible";
+    provider: "openai-compatible" | "anthropic";
     baseURL: string;
     model: string;
     temperature: number;
@@ -191,9 +191,15 @@ function applyObject(target: Record<string, unknown>, value: unknown): void {
 
 function applyEnv(config: EffectiveConfig, env: Record<string, string | undefined>): void {
   if (env.OPENROUTER_API_KEY !== undefined) {
+    config.model.provider = "openai-compatible";
     config.model.baseURL = openRouterDefaults.baseURL;
     config.model.model = openRouterDefaults.model;
     config.secrets.apiKey = env.OPENROUTER_API_KEY;
+  }
+
+  if (env.ANTHROPIC_API_KEY !== undefined) {
+    config.model.provider = "anthropic";
+    config.secrets.apiKey = env.ANTHROPIC_API_KEY;
   }
 
   if (env.ARVINCLAW_BASE_URL !== undefined) {
@@ -217,6 +223,12 @@ function applyEnv(config: EffectiveConfig, env: Record<string, string | undefine
 }
 
 function validateConfig(config: EffectiveConfig): void {
+  if (config.model.provider !== "openai-compatible" && config.model.provider !== "anthropic") {
+    throw new ConfigValidationError(
+      `Invalid model.provider "${String(config.model.provider)}". Expected openai-compatible or anthropic.`
+    );
+  }
+
   if (!isAutonomyMode(config.runtime.defaultMode)) {
     throw new ConfigValidationError(
       `Invalid runtime.defaultMode "${String(config.runtime.defaultMode)}". Expected observe, confirm, or auto.`

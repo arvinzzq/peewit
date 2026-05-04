@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { loadConfig, redactedConfig, type EffectiveConfig, type RedactedConfigView } from "@arvinclaw/config";
 import { DefaultContextAssembler } from "@arvinclaw/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
-import { FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
+import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
 import { createListDirectoryTool, createReadFileTool, createReadWebPageTool, createShellTool, createWriteFileTool } from "@arvinclaw/tools";
 
@@ -410,14 +410,7 @@ export class CliChatSession {
     return new CliChatSession(
       new AgentRuntime({
         contextAssembler: createCliContextAssembler(config, currentDate),
-        modelProvider: new OpenAICompatibleProvider({
-          baseURL: config.model.baseURL,
-          apiKey: config.secrets.apiKey,
-          model: config.model.model,
-          temperature: config.model.temperature,
-          maxTokens: config.model.maxTokens,
-          ...(options.fetch ? { fetch: options.fetch } : {})
-        }),
+        modelProvider: createConfiguredProvider(config, options),
         systemInstruction: "You are ArvinClaw, a CLI-first OpenClaw-like learning agent.",
         runtime: {
           mode: config.runtime.defaultMode,
@@ -559,6 +552,25 @@ class MessageMappedFakeModelProvider implements ModelProvider {
       content: this.#mapMessage(lastUserMessage)
     };
   }
+}
+
+function createConfiguredProvider(config: EffectiveConfig, options: RunCliOptions): ModelProvider {
+  if (config.model.provider === "anthropic") {
+    return new AnthropicProvider({
+      ...(config.secrets.apiKey !== undefined ? { apiKey: config.secrets.apiKey } : {}),
+      model: config.model.model,
+      temperature: config.model.temperature,
+      maxTokens: config.model.maxTokens
+    });
+  }
+  return new OpenAICompatibleProvider({
+    baseURL: config.model.baseURL,
+    ...(config.secrets.apiKey !== undefined ? { apiKey: config.secrets.apiKey } : {}),
+    model: config.model.model,
+    temperature: config.model.temperature,
+    maxTokens: config.model.maxTokens,
+    ...(options.fetch ? { fetch: options.fetch } : {})
+  });
 }
 
 function createConfiguredSessionStore(config: EffectiveConfig, options: RunCliOptions, sessionId: string): SessionStore {
