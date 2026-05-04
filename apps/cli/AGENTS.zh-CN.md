@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-保持这个 package 专注于终端适配。它可以为 CLI commands 组装 runtime、config、包含 daily memory 的 workspace-aware and memory-policy-aware context assembly，通过 runtime approval resolver 询问用户 approval，以及 durable session/message/trace dependencies，但 Agent 行为属于 `packages/core`，prompt/context 工作属于 `packages/context`，session persistence 属于 `packages/sessions`，provider normalization 属于 `packages/models`。
+保持这个 package 专注于终端适配。它可以为 CLI commands 组装 runtime、config、包含 daily memory 的 workspace-aware and memory-policy-aware context assembly、built-in read-only file tools、通过 runtime approval resolver 询问用户 approval，以及 durable session/message/trace dependencies，但 Agent 行为属于 `packages/core`，prompt/context 工作属于 `packages/context`，session persistence 属于 `packages/sessions`，provider normalization 属于 `packages/models`，tool implementation 属于 `packages/tools`。
 
 ## When Files Change
 
@@ -10,8 +10,8 @@
 
 ## Testing
 
-CLI 可见行为、session listing/resume、workspace prompt and read-only long-term/daily memory handoff、interactive input loops、approval prompts、durable message and trace handoff、short-term memory handoff、slash commands、trace rendering、config redaction and memory policy display 和 missing API key handling 需要在 `src/index.test.ts` 中有测试。Configured-provider tests 使用注入的 fake HTTP。CLI 单元测试不能要求真实 model provider 或 API key。
+CLI 可见行为、session listing/resume、workspace prompt and read-only long-term/daily memory handoff、interactive input loops、built-in read-only file tool registration、approval prompts、durable message and trace handoff、short-term memory handoff、slash commands、trace rendering、config redaction and memory policy display 和 missing API key handling 需要在 `src/index.test.ts` 中有测试。Configured-provider tests 使用注入的 fake HTTP。CLI 单元测试不能要求真实 model provider 或 API key。
 
 ## Boundaries
 
-不要在这里 assemble prompts、执行 tools、决定 permissions 或嵌入 vendor-specific provider logic。
+不要在这里 assemble prompts、implement tools、决定 permissions 或嵌入 vendor-specific provider logic。

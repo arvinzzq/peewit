@@ -1,6 +1,6 @@
 /**
- * INPUT: CLI arguments, package version, optional line reader/fetch implementation, optional fake model outputs, config loader, runtime/session packages, context assembler, and model providers.
- * OUTPUT: CLI result objects, configured/fake interactive chat transcript, approval prompts, short-term session memory, latest-session resume behavior, persisted trace output, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
+ * INPUT: CLI arguments, package version, optional line reader/fetch implementation, optional fake model outputs, config loader, runtime/session packages, context assembler, model providers, and built-in tools.
+ * OUTPUT: CLI result objects, configured/fake interactive chat transcript, approval prompts, read-only file tool registration, short-term session memory, latest-session resume behavior, persisted trace output, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
  * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -13,6 +13,7 @@ import { DefaultContextAssembler } from "@arvinclaw/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
 import { FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
+import { createListDirectoryTool, createReadFileTool } from "@arvinclaw/tools";
 
 export const cliPackageName = "@arvinclaw/cli";
 
@@ -381,9 +382,10 @@ export class CliChatSession {
         systemInstruction: "You are ArvinClaw, a CLI-first OpenClaw-like learning agent.",
         runtime: {
           mode: "confirm",
-          workspace: process.cwd(),
+          workspace: config.workspace.root,
           currentDate: new Date().toISOString().slice(0, 10)
         },
+        tools: createCliBuiltInTools(),
         approvalResolver: createCliApprovalResolver(options, approvalPromptLog)
       }),
       config,
@@ -422,6 +424,7 @@ export class CliChatSession {
           workspace: config.workspace.root,
           currentDate
         },
+        tools: createCliBuiltInTools(),
         approvalResolver: createCliApprovalResolver(options, approvalPromptLog)
       }),
       redactedConfig(config),
@@ -526,6 +529,10 @@ function createCliApprovalResolver(options: RunCliOptions, approvalPromptLog: st
       };
     }
   };
+}
+
+function createCliBuiltInTools() {
+  return [createReadFileTool(), createListDirectoryTool()];
 }
 
 class MessageMappedFakeModelProvider implements ModelProvider {

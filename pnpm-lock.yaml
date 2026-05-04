@@ -38,6 +38,9 @@ importers:
       '@arvinclaw/sessions':
         specifier: workspace:*
         version: link:../../packages/sessions
+      '@arvinclaw/tools':
+        specifier: workspace:*
+        version: link:../../packages/tools
 
   packages/config: {}
 

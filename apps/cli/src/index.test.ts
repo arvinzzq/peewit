@@ -695,8 +695,8 @@ describe("runCli", () => {
     expect(result.stdout).toContain("Goodbye.");
   });
 
-  test("prompts for approval when an interactive fake-provider turn requests an ask-level tool call", async () => {
-    const inputs = ["Read README", "n", "/exit"];
+  test("prompts for approval when an interactive fake-provider turn requests an ask-level unknown tool call", async () => {
+    const inputs = ["Use unknown tool", "n", "/exit"];
     const result = await runCli(["chat", "--fake-interactive"], "0.0.0", {
       fakeModelOutputs: [
         {
@@ -704,9 +704,9 @@ describe("runCli", () => {
           calls: [
             {
               id: "call_1",
-              name: "read_file",
+              name: "unknown_tool",
               input: {
-                path: "README.md"
+                value: 1
               }
             }
           ]
@@ -718,10 +718,52 @@ describe("runCli", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("Approval required:");
-    expect(result.stdout).toContain("Tool: read_file");
+    expect(result.stdout).toContain("Tool: unknown_tool");
     expect(result.stdout).toContain("Risk: medium");
     expect(result.stdout).toContain("Reason: Medium and high-risk actions require approval in confirm mode.");
     expect(result.stdout).toContain("Decision: denied");
+  });
+
+  test("executes built-in read-only file tools in the fake interactive chat loop", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-cli-tool-workspace-"));
+    await writeFile(join(workspace, "README.md"), "CLI tool observation.");
+    const inputs = ["Read README", "/trace", "/exit"];
+
+    try {
+      const result = await runCli(["chat", "--fake-interactive"], "0.0.0", {
+        env: {
+          ARVINCLAW_WORKSPACE_ROOT: workspace
+        },
+        fakeModelOutputs: [
+          {
+            type: "tool_calls",
+            calls: [
+              {
+                id: "call_read",
+                name: "read_file",
+                input: {
+                  path: "README.md"
+                }
+              }
+            ]
+          },
+          {
+            type: "message",
+            content: "Read README through the built-in file tool."
+          }
+        ],
+        readLine: async () => inputs.shift()
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("Assistant: Read README through the built-in file tool.");
+      expect(result.stdout).toContain("7. Started tool (tool_started)");
+      expect(result.stdout).toContain("8. Completed tool (tool_completed)");
+      expect(result.stdout).toContain("12. Completed run (run_completed)");
+    } finally {
+      await rm(workspace, { force: true, recursive: true });
+    }
   });
 
   test("runs slash trace inside an interactive chat loop", async () => {

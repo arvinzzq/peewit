@@ -10,6 +10,7 @@
     { "path": "../../packages/config" },
     { "path": "../../packages/context" },
     { "path": "../../packages/core" },
-    { "path": "../../packages/models" }
+    { "path": "../../packages/models" },
+    { "path": "../../packages/tools" }
   ]
 }
