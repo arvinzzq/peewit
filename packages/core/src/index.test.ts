@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { DefaultContextAssembler } from "@arvinclaw/context";
@@ -19,6 +19,8 @@ describe("runtime event contracts", () => {
     expect(runtimeEventTypes).toEqual([
       "run_started",
       "context_assembled",
+      "todos_updated",
+      "planning_stall_detected",
       "model_request_started",
       "model_request_completed",
       "tool_call_requested",
@@ -604,9 +606,9 @@ describe("message-only AgentRuntime", () => {
 
     await collect(runtime.runTurn({ message: "Hello." }));
 
-    expect(modelProvider.requests[0]?.tools).toMatchObject([
-      { type: "function", function: { name: "read_file" } }
-    ]);
+    expect(modelProvider.requests[0]?.tools).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "function", function: expect.objectContaining({ name: "read_file" }) })])
+    );
   });
 
   test("loops for multiple tool-calling rounds until model returns a message", async () => {
@@ -778,6 +780,130 @@ describe("message-only AgentRuntime", () => {
   });
 });
 
+
+describe("planning stall detection", () => {
+  function makeRuntime(outputs: import("@arvinclaw/models").ModelOutput[], overrides: Partial<import("./index.js").AgentRuntimeDependencies> = {}) {
+    return new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider(outputs),
+      systemInstruction: "You are ArvinClaw.",
+      tools: [createReadFileTool()],
+      createRunId: () => "run_stall",
+      createEventId: (() => { let n = 0; return () => `evt_st_${++n}`; })(),
+      now: () => "2026-05-04T10:00:00.000Z",
+      ...overrides
+    });
+  }
+
+  test("emits planning_stall_detected when model narrates a plan without tool calls", async () => {
+    const runtime = makeRuntime([
+      { type: "message", content: "I'll start by reading the file, then summarize it." },
+      { type: "message", content: "Done." }
+    ]);
+    const events = await collect(runtime.runTurn({ message: "Summarize the project." }));
+    const types = events.map((e) => e.type);
+    expect(types).toContain("planning_stall_detected");
+    expect(types).toContain("run_completed");
+  });
+
+  test("emits run_failed after maxPlanningStallRetries consecutive stalls", async () => {
+    const runtime = makeRuntime(
+      [
+        { type: "message", content: "I'll read the file first." },
+        { type: "message", content: "Let me proceed step by step." },
+      ],
+      { maxPlanningStallRetries: 2 }
+    );
+    const events = await collect(runtime.runTurn({ message: "Do the task." }));
+    expect(events.at(-1)).toMatchObject({
+      type: "run_failed",
+      error: { message: expect.stringContaining("plan-only turns") }
+    });
+    expect(events.filter((e) => e.type === "planning_stall_detected")).toHaveLength(2);
+  });
+
+  test("does not detect stall when model calls a tool", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-stall-"));
+    try {
+      await writeFile(join(workspace, "README.md"), "hello");
+      const runtime = new AgentRuntime({
+        contextAssembler: new DefaultContextAssembler(),
+        modelProvider: new FakeModelProvider([
+          { type: "tool_calls", calls: [{ id: "tc1", name: "read_file", input: { path: "README.md" } }] },
+          { type: "message", content: "Summary: hello." }
+        ]),
+        systemInstruction: "You are ArvinClaw.",
+        tools: [createReadFileTool()],
+        runtime: { mode: "auto", workspace, currentDate: "2026-05-04" },
+        createRunId: () => "run_no_stall",
+        createEventId: (() => { let n = 0; return () => `evt_ns_${++n}`; })(),
+        now: () => "2026-05-04T10:00:00.000Z"
+      });
+      const events = await collect(runtime.runTurn({ message: "Read and summarize." }));
+      expect(events.map((e) => e.type)).not.toContain("planning_stall_detected");
+      expect(events.at(-1)?.type).toBe("run_completed");
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("does not detect stall when no tools are registered", async () => {
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([
+        { type: "message", content: "I'll think about this step by step." }
+      ]),
+      systemInstruction: "You are ArvinClaw.",
+      createRunId: () => "run_no_tool",
+      createEventId: (() => { let n = 0; return () => `evt_nt_${++n}`; })(),
+      now: () => "2026-05-04T10:00:00.000Z"
+    });
+    const events = await collect(runtime.runTurn({ message: "Think." }));
+    expect(events.map((e) => e.type)).not.toContain("planning_stall_detected");
+    expect(events.at(-1)?.type).toBe("run_completed");
+  });
+});
+
+describe("todos_updated event", () => {
+  test("emits todos_updated when model calls update_todos", async () => {
+    const workspace = tmpdir();
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([
+        {
+          type: "tool_calls",
+          calls: [{ id: "tc1", name: "update_todos", input: { todos: [{ content: "Step 1", status: "in_progress" }] } }]
+        },
+        { type: "message", content: "Done." }
+      ]),
+      systemInstruction: "You are ArvinClaw.",
+      runtime: { mode: "auto", workspace, currentDate: "2026-05-04" },
+      createRunId: () => "run_todos",
+      createEventId: (() => { let n = 0; return () => `evt_td_${++n}`; })(),
+      now: () => "2026-05-04T10:00:00.000Z"
+    });
+    const events = await collect(runtime.runTurn({ message: "Track progress." }));
+    const todosEvent = events.find((e) => e.type === "todos_updated");
+    expect(todosEvent).toBeDefined();
+    expect(todosEvent).toMatchObject({
+      type: "todos_updated",
+      todos: [{ content: "Step 1", status: "in_progress" }]
+    });
+  });
+
+  test("does not emit todos_updated when update_todos was not called", async () => {
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([{ type: "message", content: "Done." }]),
+      systemInstruction: "You are ArvinClaw.",
+      createRunId: () => "run_no_todos",
+      createEventId: (() => { let n = 0; return () => `evt_no_${++n}`; })(),
+      now: () => "2026-05-04T10:00:00.000Z"
+    });
+    const events = await collect(runtime.runTurn({ message: "Hello." }));
+    expect(events.map((e) => e.type)).not.toContain("todos_updated");
+  });
+});
 
 async function collect(events: AsyncIterable<RuntimeEvent>): Promise<RuntimeEvent[]> {
   const collected: RuntimeEvent[] = [];

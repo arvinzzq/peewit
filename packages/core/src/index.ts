@@ -1,6 +1,6 @@
 /**
- * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, optional ApprovalResolver, executable tools, maxSteps, runtime metadata, user turn input, and optional recent conversation messages.
- * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, tool-call request events, permission evaluation events, approval resolution events, and tool lifecycle events.
+ * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, optional ApprovalResolver, executable tools, maxSteps, maxPlanningStallRetries, runtime metadata, user turn input, and optional recent conversation messages.
+ * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, todos_updated event, planning_stall_detected event, tool-call request events, permission evaluation events, approval resolution events, and tool lifecycle events.
  * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -19,13 +19,15 @@ import {
   type PermissionPolicy,
   type PermissionRiskLevel
 } from "@arvinclaw/permissions";
-import type { ExecutableTool, ToolExecutionResult } from "@arvinclaw/tools";
+import { createUpdateTodosTool, type ExecutableTool, type TodoItem, type ToolExecutionResult } from "@arvinclaw/tools";
 
 export const corePackageName = "@arvinclaw/core";
 
 export const runtimeEventTypes = [
   "run_started",
   "context_assembled",
+  "todos_updated",
+  "planning_stall_detected",
   "model_request_started",
   "model_request_completed",
   "tool_call_requested",
@@ -59,6 +61,17 @@ export interface ContextAssembledEvent extends RuntimeEventBase {
   type: "context_assembled";
   messageCount: number;
   systemInstructionIncluded: boolean;
+}
+
+export interface TodosUpdatedEvent extends RuntimeEventBase {
+  type: "todos_updated";
+  todos: TodoItem[];
+}
+
+export interface PlanningStallDetectedEvent extends RuntimeEventBase {
+  type: "planning_stall_detected";
+  stallCount: number;
+  maxRetries: number;
 }
 
 export interface ModelRequestStartedEvent extends RuntimeEventBase {
@@ -147,6 +160,8 @@ export interface RunFailedEvent extends RuntimeEventBase {
 export type RuntimeEvent =
   | RunStartedEvent
   | ContextAssembledEvent
+  | TodosUpdatedEvent
+  | PlanningStallDetectedEvent
   | ModelRequestStartedEvent
   | ModelRequestCompletedEvent
   | ToolCallRequestedEvent
@@ -224,6 +239,7 @@ export interface AgentRuntimeDependencies {
   tools?: ExecutableTool[];
   skillIndex?: ContextSkillSummary[];
   maxSteps?: number;
+  maxPlanningStallRetries?: number;
   systemInstruction: string;
   runtime?: ContextRuntimeMetadata;
   createRunId?: () => string;
@@ -232,9 +248,17 @@ export interface AgentRuntimeDependencies {
 }
 
 const DEFAULT_MAX_STEPS = 12;
+const DEFAULT_MAX_PLANNING_STALL_RETRIES = 2;
 
 const DEFAULT_PERMISSION_GUIDANCE =
   "Low-risk actions run automatically. Medium and high-risk actions require approval. Blocked actions are never permitted.";
+
+const PLANNING_ONLY_RETRY_INSTRUCTION =
+  "Do not restate the plan. Act now: take the first concrete tool action you can.";
+
+const PLAN_PROMISE_RE = /\b(I['']ll|let me|I'm going to|I will|I plan to)\b/i;
+const PLAN_HEADING_RE = /^(plan|steps|approach|here['']s what I|my plan)[:\s]/im;
+const PLAN_BULLET_RE = /^(\d+\.|[-*•])\s+\w/m;
 
 export class AgentRuntime {
   readonly #contextAssembler: ContextAssembler;
@@ -244,25 +268,33 @@ export class AgentRuntime {
   readonly #tools: Map<string, ExecutableTool>;
   readonly #skillIndex: ContextSkillSummary[];
   readonly #maxSteps: number;
+  readonly #maxPlanningStallRetries: number;
   readonly #systemInstruction: string;
   readonly #runtime: ContextRuntimeMetadata | undefined;
   readonly #createRunId: () => string;
   readonly #createEventId: () => string;
   readonly #now: () => string;
+  #currentTodos: TodoItem[] = [];
 
   constructor(dependencies: AgentRuntimeDependencies) {
     this.#contextAssembler = dependencies.contextAssembler;
     this.#modelProvider = dependencies.modelProvider;
     this.#permissionPolicy = dependencies.permissionPolicy ?? new DefaultPermissionPolicy();
     this.#approvalResolver = dependencies.approvalResolver;
-    this.#tools = new Map((dependencies.tools ?? []).map((tool) => [tool.name, tool]));
-    this.#skillIndex = dependencies.skillIndex ?? [];
     this.#maxSteps = dependencies.maxSteps ?? DEFAULT_MAX_STEPS;
+    this.#maxPlanningStallRetries = dependencies.maxPlanningStallRetries ?? DEFAULT_MAX_PLANNING_STALL_RETRIES;
+    this.#skillIndex = dependencies.skillIndex ?? [];
     this.#systemInstruction = dependencies.systemInstruction;
     this.#runtime = dependencies.runtime;
     this.#createRunId = dependencies.createRunId ?? randomId("run");
     this.#createEventId = dependencies.createEventId ?? randomId("evt");
     this.#now = dependencies.now ?? (() => new Date().toISOString());
+
+    // update_todos is always available; the callback updates #currentTodos so
+    // the runtime can emit todos_updated after the tool call batch completes.
+    const updateTodos = createUpdateTodosTool((todos) => { this.#currentTodos = todos; });
+    const userTools = dependencies.tools ?? [];
+    this.#tools = new Map([updateTodos, ...userTools].map((tool) => [tool.name, tool]));
   }
 
   async *runTurn(input: AgentRuntimeInput): AsyncIterable<RuntimeEvent> {
@@ -292,6 +324,8 @@ export class AgentRuntime {
     const toolDefinitions = this.#buildToolDefinitions();
     let messages = assembled.modelInput.messages;
     let steps = 0;
+    let stallCount = 0;
+    this.#currentTodos = [];
 
     while (steps < this.#maxSteps) {
       yield this.#event({ ...base, type: "model_request_started", provider: "configured" });
@@ -312,12 +346,35 @@ export class AgentRuntime {
       }
 
       if (output.type === "message") {
+        // Detect planning-only turns (model narrates a plan without taking action).
+        // Only applies when actionable user-provided tools exist (update_todos alone
+        // is not enough — the model needs real tools to act with).
+        const hasActionableTools = [...this.#tools.keys()].some((n) => n !== "update_todos");
+        if (hasActionableTools && isPlanningOnly(output.content)) {
+          stallCount++;
+          yield this.#event({ ...base, type: "planning_stall_detected", stallCount, maxRetries: this.#maxPlanningStallRetries });
+
+          if (stallCount >= this.#maxPlanningStallRetries) {
+            yield this.#event({ ...base, type: "run_failed", error: { message: "Agent stopped after repeated plan-only turns without taking action.", recoverable: false } });
+            return;
+          }
+
+          messages = [
+            ...messages,
+            { role: "assistant", content: output.content },
+            { role: "user", content: PLANNING_ONLY_RETRY_INSTRUCTION }
+          ];
+          continue;
+        }
+
+        stallCount = 0;
         yield this.#event({ ...base, type: "assistant_message_created", message: { role: "assistant", content: output.content } });
         yield this.#event({ ...base, type: "run_completed" });
         return;
       }
 
       // type === "tool_calls"
+      stallCount = 0;
       messages = [...messages, { role: "assistant", content: null, toolCalls: output.calls }];
 
       const toolResultMessages: ModelMessage[] = [];
@@ -388,6 +445,11 @@ export class AgentRuntime {
         return;
       }
 
+      // Emit todos_updated if update_todos was called this batch.
+      if (output.calls.some((c) => c.name === "update_todos")) {
+        yield this.#event({ ...base, type: "todos_updated", todos: [...this.#currentTodos] });
+      }
+
       messages = [...messages, ...toolResultMessages];
     }
 
@@ -442,4 +504,8 @@ function createToolPermissionAction(call: ModelToolCall, risk: PermissionRiskLev
 
 function normalizeAutonomyMode(mode: string | undefined): AutonomyMode {
   return mode === "observe" || mode === "auto" ? mode : "confirm";
+}
+
+function isPlanningOnly(content: string): boolean {
+  return PLAN_PROMISE_RE.test(content) || PLAN_HEADING_RE.test(content) || PLAN_BULLET_RE.test(content);
 }
