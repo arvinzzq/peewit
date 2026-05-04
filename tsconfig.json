@@ -12,6 +12,7 @@
     { "path": "./packages/models" },
     { "path": "./packages/tools" },
     { "path": "./packages/permissions" },
+    { "path": "./packages/planner" },
     { "path": "./packages/skills" },
     { "path": "./packages/sessions" }
   ]
