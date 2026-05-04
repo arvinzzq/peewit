@@ -1,13 +1,12 @@
 /**
- * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, optional ApprovalResolver, optional Planner, optional PlanApprovalResolver, executable tools, maxSteps, runtime metadata, user turn input, and optional recent conversation messages.
- * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, plan events, plan step execution loop, tool-call request events, permission evaluation events, approval resolution events, and tool lifecycle events.
+ * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, optional ApprovalResolver, executable tools, maxSteps, runtime metadata, user turn input, and optional recent conversation messages.
+ * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, tool-call request events, permission evaluation events, approval resolution events, and tool lifecycle events.
  * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
 import type {
   ContextAssembler,
-  ContextAssemblyResult,
   ContextRuntimeMetadata,
   ContextSkillSummary,
   ContextToolSummary
@@ -20,7 +19,6 @@ import {
   type PermissionPolicy,
   type PermissionRiskLevel
 } from "@arvinclaw/permissions";
-import type { Plan, PlanStep, Planner, PlannerContext } from "@arvinclaw/planner";
 import type { ExecutableTool, ToolExecutionResult } from "@arvinclaw/tools";
 
 export const corePackageName = "@arvinclaw/core";
@@ -28,13 +26,6 @@ export const corePackageName = "@arvinclaw/core";
 export const runtimeEventTypes = [
   "run_started",
   "context_assembled",
-  "plan_created",
-  "plan_approval_requested",
-  "plan_approval_resolved",
-  "plan_step_started",
-  "plan_step_completed",
-  "plan_step_failed",
-  "plan_completed",
   "model_request_started",
   "model_request_completed",
   "tool_call_requested",
@@ -68,49 +59,6 @@ export interface ContextAssembledEvent extends RuntimeEventBase {
   type: "context_assembled";
   messageCount: number;
   systemInstructionIncluded: boolean;
-}
-
-export interface PlanCreatedEvent extends RuntimeEventBase {
-  type: "plan_created";
-  plan: Plan;
-}
-
-export interface PlanApprovalRequestedEvent extends RuntimeEventBase {
-  type: "plan_approval_requested";
-  plan: Plan;
-}
-
-export interface PlanApprovalResolvedEvent extends RuntimeEventBase {
-  type: "plan_approval_resolved";
-  planId: string;
-  approved: boolean;
-  reason: string;
-}
-
-export interface PlanStepStartedEvent extends RuntimeEventBase {
-  type: "plan_step_started";
-  planId: string;
-  step: PlanStep;
-  stepIndex: number;
-  totalSteps: number;
-}
-
-export interface PlanStepCompletedEvent extends RuntimeEventBase {
-  type: "plan_step_completed";
-  planId: string;
-  step: PlanStep;
-}
-
-export interface PlanStepFailedEvent extends RuntimeEventBase {
-  type: "plan_step_failed";
-  planId: string;
-  step: PlanStep;
-  error: { message: string };
-}
-
-export interface PlanCompletedEvent extends RuntimeEventBase {
-  type: "plan_completed";
-  planId: string;
 }
 
 export interface ModelRequestStartedEvent extends RuntimeEventBase {
@@ -199,13 +147,6 @@ export interface RunFailedEvent extends RuntimeEventBase {
 export type RuntimeEvent =
   | RunStartedEvent
   | ContextAssembledEvent
-  | PlanCreatedEvent
-  | PlanApprovalRequestedEvent
-  | PlanApprovalResolvedEvent
-  | PlanStepStartedEvent
-  | PlanStepCompletedEvent
-  | PlanStepFailedEvent
-  | PlanCompletedEvent
   | ModelRequestStartedEvent
   | ModelRequestCompletedEvent
   | ToolCallRequestedEvent
@@ -275,21 +216,11 @@ export interface ApprovalResolver {
   resolve(request: ApprovalRequest): Promise<ApprovalResolution>;
 }
 
-export interface PlanApprovalRequest {
-  plan: Plan;
-}
-
-export interface PlanApprovalResolver {
-  resolvePlan(request: PlanApprovalRequest): Promise<ApprovalResolution>;
-}
-
 export interface AgentRuntimeDependencies {
   contextAssembler: ContextAssembler;
   modelProvider: ModelProvider;
   permissionPolicy?: PermissionPolicy;
   approvalResolver?: ApprovalResolver;
-  planner?: Planner;
-  planApprovalResolver?: PlanApprovalResolver;
   tools?: ExecutableTool[];
   skillIndex?: ContextSkillSummary[];
   maxSteps?: number;
@@ -310,8 +241,6 @@ export class AgentRuntime {
   readonly #modelProvider: ModelProvider;
   readonly #permissionPolicy: PermissionPolicy;
   readonly #approvalResolver: ApprovalResolver | undefined;
-  readonly #planner: Planner | undefined;
-  readonly #planApprovalResolver: PlanApprovalResolver | undefined;
   readonly #tools: Map<string, ExecutableTool>;
   readonly #skillIndex: ContextSkillSummary[];
   readonly #maxSteps: number;
@@ -326,8 +255,6 @@ export class AgentRuntime {
     this.#modelProvider = dependencies.modelProvider;
     this.#permissionPolicy = dependencies.permissionPolicy ?? new DefaultPermissionPolicy();
     this.#approvalResolver = dependencies.approvalResolver;
-    this.#planner = dependencies.planner;
-    this.#planApprovalResolver = dependencies.planApprovalResolver;
     this.#tools = new Map((dependencies.tools ?? []).map((tool) => [tool.name, tool]));
     this.#skillIndex = dependencies.skillIndex ?? [];
     this.#maxSteps = dependencies.maxSteps ?? DEFAULT_MAX_STEPS;
@@ -363,84 +290,7 @@ export class AgentRuntime {
     });
 
     const toolDefinitions = this.#buildToolDefinitions();
-
-    if (this.#planner !== undefined) {
-      yield* this.#runWithPlan(input.message, assembled, toolDefinitions, base);
-      return;
-    }
-
-    // No planner: run inner agent loop directly.
-    const result = yield* this.#runInnerLoop(assembled.modelInput.messages, toolDefinitions, assembled.modelInput.options, base);
-    if (result.success) {
-      yield this.#event({ ...base, type: "run_completed" });
-    } else {
-      yield this.#event({ ...base, type: "run_failed", error: { message: result.error ?? "Unknown error.", recoverable: result.recoverable ?? false } });
-    }
-  }
-
-  async *#runWithPlan(
-    goal: string,
-    assembled: ContextAssemblyResult,
-    toolDefinitions: ModelToolDefinition[],
-    base: { runId: string; sessionId?: string }
-  ): AsyncGenerator<RuntimeEvent, void> {
-    const plannerContext: PlannerContext = {
-      systemInstruction: this.#systemInstruction,
-      availableTools: [...this.#tools.keys()]
-    };
-
-    const plan = await this.#planner!.createPlan(goal, plannerContext);
-    yield this.#event({ ...base, type: "plan_created", plan });
-
-    // In observe mode, request plan approval before executing any step.
-    if (normalizeAutonomyMode(this.#runtime?.mode) === "observe" && this.#planApprovalResolver !== undefined) {
-      yield this.#event({ ...base, type: "plan_approval_requested", plan });
-      const resolution = await this.#planApprovalResolver.resolvePlan({ plan });
-      yield this.#event({ ...base, type: "plan_approval_resolved", planId: plan.id, approved: resolution.approved, reason: resolution.reason });
-
-      if (!resolution.approved) {
-        yield this.#event({ ...base, type: "run_failed", error: { message: "Plan was not approved.", recoverable: false } });
-        return;
-      }
-    }
-
-    // Extract the system message from the assembled context to reuse across steps.
-    const systemMessage = assembled.modelInput.messages[0];
-
-    for (let i = 0; i < plan.steps.length; i++) {
-      const step = plan.steps[i];
-      if (step === undefined) continue;
-
-      const runningStep: PlanStep = { ...step, status: "running" };
-      yield this.#event({ ...base, type: "plan_step_started", planId: plan.id, step: runningStep, stepIndex: i, totalSteps: plan.steps.length });
-
-      const stepMessage = `${step.description}\n\n(Step ${i + 1} of ${plan.steps.length} for goal: ${goal})`;
-      const stepMessages: ModelMessage[] = [
-        ...(systemMessage !== undefined ? [systemMessage] : []),
-        { role: "user", content: stepMessage }
-      ];
-
-      const result = yield* this.#runInnerLoop(stepMessages, toolDefinitions, assembled.modelInput.options, base);
-
-      if (result.success) {
-        yield this.#event({ ...base, type: "plan_step_completed", planId: plan.id, step: { ...step, status: "complete" } });
-      } else {
-        const errorMessage = result.error ?? "Step failed.";
-        yield this.#event({ ...base, type: "plan_step_failed", planId: plan.id, step: { ...step, status: "failed" }, error: { message: errorMessage } });
-      }
-    }
-
-    yield this.#event({ ...base, type: "plan_completed", planId: plan.id });
-    yield this.#event({ ...base, type: "run_completed" });
-  }
-
-  async *#runInnerLoop(
-    initialMessages: ModelMessage[],
-    toolDefinitions: ModelToolDefinition[],
-    options: ModelRequestOptions | undefined,
-    base: { runId: string; sessionId?: string }
-  ): AsyncGenerator<RuntimeEvent, { success: boolean; error?: string; recoverable?: boolean }> {
-    let messages = initialMessages;
+    let messages = assembled.modelInput.messages;
     let steps = 0;
 
     while (steps < this.#maxSteps) {
@@ -449,7 +299,7 @@ export class AgentRuntime {
       const output = await this.#modelProvider.generate({
         messages,
         ...(toolDefinitions.length > 0 ? { tools: toolDefinitions } : {}),
-        ...(options !== undefined ? { options } : {})
+        ...(assembled.modelInput.options !== undefined ? { options: assembled.modelInput.options } : {})
       });
 
       yield this.#event({ ...base, type: "model_request_completed", provider: "configured" });
@@ -457,12 +307,14 @@ export class AgentRuntime {
       steps++;
 
       if (output.type === "error") {
-        return { success: false, error: output.message, recoverable: output.recoverable };
+        yield this.#event({ ...base, type: "run_failed", error: { message: output.message, recoverable: output.recoverable } });
+        return;
       }
 
       if (output.type === "message") {
         yield this.#event({ ...base, type: "assistant_message_created", message: { role: "assistant", content: output.content } });
-        return { success: true };
+        yield this.#event({ ...base, type: "run_completed" });
+        return;
       }
 
       // type === "tool_calls"
@@ -532,13 +384,14 @@ export class AgentRuntime {
       }
 
       if (hardTerminate) {
-        return { success: false, error: terminationError, recoverable: false };
+        yield this.#event({ ...base, type: "run_failed", error: { message: terminationError, recoverable: false } });
+        return;
       }
 
       messages = [...messages, ...toolResultMessages];
     }
 
-    return { success: false, error: `Agent loop reached the step limit of ${this.#maxSteps}.`, recoverable: false };
+    yield this.#event({ ...base, type: "run_failed", error: { message: `Agent loop reached the step limit of ${this.#maxSteps}.`, recoverable: false } });
   }
 
   #buildContextToolSummaries(): ContextToolSummary[] {

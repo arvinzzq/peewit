@@ -19,7 +19,6 @@
     "@arvinclaw/context": "workspace:*",
     "@arvinclaw/models": "workspace:*",
     "@arvinclaw/permissions": "workspace:*",
-    "@arvinclaw/planner": "workspace:*",
     "@arvinclaw/tools": "workspace:*"
   }
 }

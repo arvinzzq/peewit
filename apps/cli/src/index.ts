@@ -1,6 +1,6 @@
 /**
- * INPUT: CLI args, config, model providers, skill loader, optional planner, session/trace stores, context assembler, built-in tools, optional fake outputs and line reader.
- * OUTPUT: CLI results, interactive chat, plan display, approval prompts, tool execution, session memory, trace output, redacted config, skill index, slash commands, and stdout/stderr.
+ * INPUT: CLI args, config, model providers, skill loader, session/trace stores, context assembler, built-in tools, optional fake outputs and line reader.
+ * OUTPUT: CLI results, interactive chat, approval prompts, tool execution, session memory, trace output, redacted config, skill index, slash commands, and stdout/stderr.
  * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -10,10 +10,9 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, redactedConfig, type EffectiveConfig, type RedactedConfigView } from "@arvinclaw/config";
 import { DefaultContextAssembler } from "@arvinclaw/context";
-import { AgentRuntime, InMemoryRuntimeTraceStore, type ApprovalResolver, type PlanApprovalResolver, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
+import { AgentRuntime, InMemoryRuntimeTraceStore, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
 import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
-import { ModelBasedPlanner } from "@arvinclaw/planner";
 import { SkillLoader, toSkillSummary, type SkillDefinition } from "@arvinclaw/skills";
 import { createListDirectoryTool, createReadFileTool, createReadWebPageTool, createShellTool, createWriteFileTool } from "@arvinclaw/tools";
 
@@ -40,7 +39,6 @@ const helpText = `Usage: arvinclaw <command>
 
 Commands:
   chat        Start an interactive chat session
-  chat --plan Enable step-by-step task planning before execution
   chat --session <id>
               Start or continue a named interactive chat session
   chat --resume
@@ -106,7 +104,6 @@ interface ParsedFakeChatArgs {
 interface ParsedChatArgs {
   fakeInteractive: boolean;
   resume: boolean;
-  planning: boolean;
   sessionId?: string;
 }
 
@@ -116,7 +113,6 @@ function parseChatArgs(args: string[]): ParsedChatArgs {
   return {
     fakeInteractive: args.includes("--fake-interactive"),
     resume: args.includes("--resume"),
-    planning: args.includes("--plan"),
     ...(sessionIndex === -1 || args[sessionIndex + 1] === undefined ? {} : { sessionId: args[sessionIndex + 1] })
   };
 }
@@ -198,8 +194,7 @@ async function runInteractiveConfiguredChat(options: RunCliOptions, args: Parsed
 
   return runInteractiveLoop(
     await CliChatSession.createConfigured(config, options, {
-      ...(sessionId === undefined ? {} : { sessionId }),
-      ...(args.planning ? { planning: true } : {})
+      ...(sessionId === undefined ? {} : { sessionId })
     }),
     resumedSessionId === undefined ? "ArvinClaw chat" : `ArvinClaw chat\nResumed session: ${resumedSessionId}`,
     options
@@ -274,9 +269,6 @@ async function runInteractiveLoop(session: CliChatSession, title: string, option
     }
 
     const turn = await session.sendMessage(message);
-    if (turn.planLines.length > 0) {
-      emit(...turn.planLines, "");
-    }
     if (turn.approvalLines.length > 0) {
       emit(...turn.approvalLines, "");
     }
@@ -336,13 +328,11 @@ function renderInteractiveHelp(): string[] {
 export interface CliChatTurnResult {
   assistantText: string;
   approvalLines: string[];
-  planLines: string[];
   events: RuntimeEvent[];
 }
 
 interface CreateChatSessionOptions {
   sessionId?: string;
-  planning?: boolean;
 }
 
 export class CliChatSession {
@@ -429,7 +419,6 @@ export class CliChatSession {
     const skillIndex = skillDefinitions.map(toSkillSummary);
 
     const configuredProvider = createConfiguredProvider(config, options);
-    const planApprovalPromptLog: string[] = [];
 
     return new CliChatSession(
       new AgentRuntime({
@@ -443,12 +432,6 @@ export class CliChatSession {
         },
         tools: createCliBuiltInTools(options),
         skillIndex,
-        ...(sessionOptions.planning
-          ? {
-              planner: new ModelBasedPlanner({ modelProvider: configuredProvider }),
-              planApprovalResolver: createCliPlanApprovalResolver(options, planApprovalPromptLog)
-            }
-          : {}),
         approvalResolver: createCliApprovalResolver(options, approvalPromptLog)
       }),
       redactedConfig(config),
@@ -501,7 +484,6 @@ export class CliChatSession {
     return {
       assistantText,
       approvalLines: this.#approvalPromptLog.slice(approvalStartIndex),
-      planLines: renderPlanProgress(events),
       events
     };
   }
@@ -557,27 +539,6 @@ function createCliApprovalResolver(options: RunCliOptions, approvalPromptLog: st
         approved: false,
         reason: "Denied from CLI prompt."
       };
-    }
-  };
-}
-
-function createCliPlanApprovalResolver(options: RunCliOptions, planApprovalPromptLog: string[]): PlanApprovalResolver {
-  return {
-    async resolvePlan(request) {
-      planApprovalPromptLog.push(
-        "Plan approval required:",
-        `Goal: ${request.plan.goal}`,
-        ...request.plan.steps.map((s, i) => `  ${i + 1}. ${s.description}`)
-      );
-
-      const answer = (await options.readLine?.("Proceed with plan? [y/N] "))?.trim().toLowerCase();
-      if (answer === "y" || answer === "yes") {
-        planApprovalPromptLog.push("Decision: approved.");
-        return { approved: true, reason: "Plan approved from CLI prompt." };
-      }
-
-      planApprovalPromptLog.push("Decision: denied.");
-      return { approved: false, reason: "Plan denied from CLI prompt." };
     }
   };
 }
@@ -675,23 +636,6 @@ function createSessionId(): string {
   return `session_${crypto.randomUUID()}`;
 }
 
-export function renderPlanProgress(events: RuntimeEvent[]): string[] {
-  const lines: string[] = [];
-  for (const event of events) {
-    if (event.type === "plan_created") {
-      lines.push(`Plan: ${event.plan.goal}`);
-      event.plan.steps.forEach((s, i) => lines.push(`  ${i + 1}. ${s.description}`));
-    } else if (event.type === "plan_step_started") {
-      lines.push(`  → Step ${event.stepIndex + 1}/${event.totalSteps}: ${event.step.description}`);
-    } else if (event.type === "plan_step_completed") {
-      lines.push(`  ✓ Complete`);
-    } else if (event.type === "plan_step_failed") {
-      lines.push(`  ✗ Failed: ${event.error.message}`);
-    }
-  }
-  return lines;
-}
-
 export function renderSkillIndex(skills: SkillDefinition[]): string[] {
   if (skills.length === 0) return ["No skills loaded."];
   return skills.map((s) => `[${s.source}] ${s.name}: ${s.description}`);
@@ -720,20 +664,6 @@ function traceEventLabel(event: RuntimeEvent): string {
       return "Received user message";
     case "context_assembled":
       return "Assembled context";
-    case "plan_created":
-      return "Created plan";
-    case "plan_approval_requested":
-      return "Requested plan approval";
-    case "plan_approval_resolved":
-      return "Resolved plan approval";
-    case "plan_step_started":
-      return `Started step ${event.stepIndex + 1}/${event.totalSteps}`;
-    case "plan_step_completed":
-      return "Completed step";
-    case "plan_step_failed":
-      return "Failed step";
-    case "plan_completed":
-      return "Completed plan";
     case "model_request_started":
       return "Started model request";
     case "model_request_completed":
