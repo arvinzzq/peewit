@@ -19,6 +19,7 @@ Phase 0–3 已完成。Phase 5（会话与记忆）早期基础已完成。Phas
 - Phase 1：MVP agent loop — CLI chat、ModelProvider、context assembly、execution trace。
 - Phase 2：工具与权限 — `read_file`、`list_directory`、guarded `write_file`、guarded `run_shell`、`read_web_page` 工具，含工作区边界检查、secret 文件拦截、破坏性命令 pattern 检测和基于风险的 approval prompts。
 - Phase 3：Context assembly 与 skills — XML tagged system prompt sections（identity、runtime、tooling、safety、skills、workspace）、通过 `ANTHROPIC_API_KEY` 使用 Anthropic provider、含 workspace/user/built-in 优先级的 `SKILL.md` skill loader、内置技能、CLI `/skills` 命令、Anthropic prompt caching。
+- Phase 4：In-turn 任务追踪 — 模型可调用的 `update_todos` tool（等同于 OpenClaw `update_plan` 和 Claude Code `TodoWrite`）、`AgentRuntime` 中的规划停滞检测与重试注入、CLI 任务进度展示。
 - Phase 5（早期基础）：JSONL session storage、workspace prompt 加载和只读 memory 文件策略。
 
 ## 文档

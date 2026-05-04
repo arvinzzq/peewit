@@ -1,6 +1,6 @@
 # Phase 4：In-Turn 任务追踪
 
-状态：未开始
+状态：完成
 日期：2026-05-04
 
 English version: [phase-4-in-turn-task-tracking.md](./phase-4-in-turn-task-tracking.md)
