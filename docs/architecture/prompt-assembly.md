@@ -47,6 +47,8 @@ MVP prompt assembly should accept structured inputs:
 - Recent trace summaries
 - User message
 
+Phase 3 implementation note: `ContextAssemblyInput` will be extended with `tools?: ContextToolSummary[]`, `skillIndex?: ContextSkillSummary[]`, and `permissionGuidance?: string`. These inputs are currently absent; the assembler only receives `systemInstruction`, `runtime`, `recentMessages`, and `userMessage`. Extending these inputs is the first task of Phase 3.
+
 Later phases add:
 
 - `AGENTS.md`

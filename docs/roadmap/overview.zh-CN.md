@@ -35,7 +35,7 @@ Roadmap 采用双轨方法：
 | Phase 0 | Complete | 项目基础 | 带文档说明的 TypeScript workspace 和 CLI shell | Monorepo、配置、context package、文档布局 |
 | Phase 1 | Complete | MVP agent loop | CLI chat 可以调用模型并产生可追踪响应 | Agent Core、context assembly、ModelProvider、基础 loop |
 | Phase 2 | Complete | 工具与权限 | Agent 可以检查文件、运行已批准命令，并读取 Web 内容 | Tool Registry、PermissionPolicy |
-| Phase 3 | Not Started | 轻量 skills | Agent 可以加载本地 `SKILL.md` 指令 | Skill loader、skill 优先级、prompt assembly |
+| Phase 3 | Not Started | Context assembly 与 skills | Agent 有包含工具、skills 和权限指导的结构化 context；可加载 `SKILL.md`；Claude 可直接使用 | Context section 架构、Anthropic provider、skill loader |
 | Phase 4 | Not Started | 规划与自主 | Agent 可以规划任务，并在 `observe`、`confirm` 或 `auto` 模式运行 | Planner、任务状态、执行模式 |
 | Phase 5 | In Progress | 会话与记忆 | Agent 可以记住会话，并使用本地知识 | Session store、trace store、memory interfaces |
 | Phase 6 | Not Started | Web UI | 用户可以在浏览器中聊天、检查 trace、批准动作 | UI adapter、API boundary、trace visualization |
@@ -191,32 +191,42 @@ Agent 可以安全使用基础工具：
 - 暂不做 browser automation。
 - 暂不做 remote tool nodes。
 
-## 6. Phase 3：轻量 Skills
+## 6. Phase 3：Context Assembly 与 Skills
 
 ### 用户结果
 
-Agent 可以加载本地 skills，并使用它们指导常见工作流，例如 research、project inspection、task planning、documentation writing 和 safe shell usage。
+Agent 的 system prompt 有包含 identity、runtime、tooling、safety、skills 和 workspace 的结构化 sections。模型通过 tooling section 知道哪些工具可用。Agent 可以加载本地 skills 指导行为。可通过 Anthropic API 直接使用 Claude。
 
 ### 新增架构
 
+- 基于 section 的 context assembly（`ContextToolSummary`、`ContextSkillSummary`、命名 sections）
+- Tool summaries 从 `AgentRuntime` 流经 context assembler 进入 system prompt
+- System prompt 中的 permission guidance section
+- Anthropic provider
 - Skill directory scanner
 - `SKILL.md` parser
-- Skill precedence rules
-- Built-in skill loading
-- Skill-aware prompt assembly
+- Skill precedence rules：workspace > user > built-in
+- 内置 skills
+- Skill index 注入 context
 
 ### 学习文档
 
 - `docs/architecture/skill-system.md`
+- `docs/decisions/0005-anthropic-provider.md`
 
 主要架构说明：[Skill System](../architecture/skill-system.zh-CN.md)
 
+实施计划：[Phase 3 Context Assembly and Skills](../plans/phase-3-context-assembly-and-skills.zh-CN.md)
+
 ### 验收标准
 
+- Context assembler 在有相关输入时包含 tooling、safety 和 skills sections。
+- Tool 描述出现在 system prompt 中。
 - Skills 可以从项目、用户和内置位置加载。
 - 同名情况下，项目 skills 覆盖用户和内置 skills。
-- CLI 可以列出已加载 skills。
-- Skills 影响 Agent 行为，但不能绕过 Tool 和 Permission systems。
+- CLI 可以通过 `/skills` 列出已加载 skills。
+- Skills 通过 system prompt 影响 Agent 行为，不能绕过 Tool 和 Permission systems。
+- 通过 `model.provider: "anthropic"` 可选择 Anthropic provider。
 
 ### 非目标
 
@@ -224,6 +234,8 @@ Agent 可以加载本地 skills，并使用它们指导常见工作流，例如 
 - 暂不做 public marketplace。
 - 暂不做 skill version manager。
 - 暂不允许 skill files 任意授予权限。
+- 暂不做 context compaction。
+- 暂不做流式输出。
 
 ## 7. Phase 4：规划与自主
 

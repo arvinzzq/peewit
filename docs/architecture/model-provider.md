@@ -30,23 +30,25 @@ Different model vendors vary in:
 
 If Agent Core talks directly to one vendor API, those vendor details leak into planning, tool execution, tracing, and configuration. A provider layer keeps those concerns contained.
 
-## 3. MVP Provider
+## 3. Providers
 
-The MVP should implement one provider:
+Phase 1 implemented one provider:
 
 ```text
 OpenAICompatibleProvider
 ```
 
-This provider should support APIs that follow OpenAI-style chat completions or responses semantics closely enough to be configured through:
+This provider supports APIs that follow OpenAI-style chat completions semantics, configurable through `baseURL`, `apiKey`, `model`, `temperature`, and `maxTokens`. This covers OpenAI, OpenRouter, and any OpenAI-compatible local gateway.
 
-- `baseURL`
-- `apiKey`
-- `model`
-- `temperature`
-- `maxTokens`
+Phase 3 adds a second provider:
 
-This gives the MVP a practical path to work with providers such as OpenAI-compatible hosted models or local gateways, while keeping the implementation small.
+```text
+AnthropicProvider
+```
+
+This provider uses `@anthropic-ai/sdk` and connects directly to Anthropic. It translates `ModelInput` and `ModelOutput` to and from Anthropic's message format, including `tool_use` content blocks for tool calling. See [Decision 0005](../decisions/0005-anthropic-provider.md) for the reasoning.
+
+Provider selection is configured through `model.provider` in the effective configuration.
 
 ## 4. Responsibilities
 

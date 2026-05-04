@@ -35,7 +35,7 @@ The roadmap follows a dual-track approach:
 | Phase 0 | Complete | Project foundation | A documented TypeScript workspace with CLI shell | Monorepo, config, context package, documentation layout |
 | Phase 1 | Complete | MVP agent loop | CLI chat can call a model and produce traceable responses | Agent Core, context assembly, ModelProvider, basic loop |
 | Phase 2 | Complete | Tools and permissions | Agent can inspect files, run approved commands, and read web content | Tool Registry, PermissionPolicy |
-| Phase 3 | Not Started | Lightweight skills | Agent can load local `SKILL.md` instructions | Skill loader, skill precedence, prompt assembly |
+| Phase 3 | Not Started | Context assembly and skills | Agent has structured context with tools, skills, and permission guidance; can load `SKILL.md`; Claude available directly | Context section architecture, Anthropic provider, skill loader |
 | Phase 4 | Not Started | Planning and autonomy | Agent can plan tasks and run in `observe`, `confirm`, or `auto` mode | Planner, task state, execution modes |
 | Phase 5 | In Progress | Sessions and memory | Agent remembers sessions and can use local knowledge | Session store, trace store, memory interfaces |
 | Phase 6 | Not Started | Web UI | User can chat, inspect traces, and approve actions in a browser | UI adapter, API boundary, trace visualization |
@@ -191,32 +191,44 @@ Implementation plan: [Phase 2 Tools and Permissions](../plans/phase-2-tools-and-
 - No browser automation.
 - No remote tool nodes.
 
-## 6. Phase 3: Lightweight Skills
+## 6. Phase 3: Context Assembly and Skills
 
 ### User Result
 
-The agent can load local skills and use them to guide behavior for common workflows such as research, project inspection, task planning, documentation writing, and safe shell usage.
+The agent's system prompt has structured sections for identity, runtime, tooling, safety, skills, and workspace. The model knows what tools are available through a tooling section. The agent can load local skills and use them to guide behavior. Claude can be used directly via Anthropic API.
 
 ### Architecture Added
 
+- Section-based context assembly (`ContextToolSummary`, `ContextSkillSummary`, named sections)
+- Tool summaries flowing from `AgentRuntime` through context assembler into system prompt
+- Permission guidance section in system prompt
+- Anthropic provider
 - Skill directory scanner
 - `SKILL.md` parser
-- Skill precedence rules
-- Built-in skill loading
-- Skill-aware prompt assembly
+- Skill precedence rules: workspace > user > built-in
+- Built-in skills
+- Skill index injected into context
 
 ### Learning Documents
 
 - `docs/architecture/skill-system.md`
+- `docs/decisions/0005-anthropic-provider.md`
 
 Primary architecture note: [Skill System](../architecture/skill-system.md)
 
+Supporting decision: [Anthropic Provider](../decisions/0005-anthropic-provider.md)
+
+Implementation plan: [Phase 3 Context Assembly and Skills](../plans/phase-3-context-assembly-and-skills.md)
+
 ### Acceptance Criteria
 
+- Context assembler includes tooling, safety, and skills sections when relevant inputs are provided.
+- Tool descriptions appear in system prompt.
 - Skills can load from project, user, and built-in locations.
 - Project skills override user and built-in skills with the same name.
-- The CLI can list loaded skills.
-- Skills influence agent behavior without bypassing Tool and Permission systems.
+- The CLI can list loaded skills with `/skills`.
+- Skills influence agent behavior through system prompt without bypassing Tool and Permission systems.
+- Anthropic provider selectable via `model.provider: "anthropic"`.
 
 ### Non-Goals
 
@@ -224,6 +236,8 @@ Primary architecture note: [Skill System](../architecture/skill-system.md)
 - No public marketplace.
 - No skill version manager.
 - No arbitrary permission grant from skill files.
+- No context compaction.
+- No streaming output.
 
 ## 7. Phase 4: Planning and Autonomy
 
