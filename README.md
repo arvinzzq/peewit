@@ -18,11 +18,11 @@ Phase 0 (foundation), Phase 1 (MVP agent loop), and the early Phase 5 session an
 Current Phase 2 progress:
 
 - Tool registry, permission policy, and runtime tool-call orchestration are implemented.
-- `read_file`, `list_directory`, and guarded `write_file` tools are implemented with workspace boundary enforcement and secret file blocking.
+- `read_file`, `list_directory`, guarded `write_file`, and guarded `run_shell` tools are implemented with workspace boundary enforcement, secret file blocking, and destructive command pattern detection.
 - CLI approval prompts are wired for medium and high-risk tool calls.
 - Session storage (in-memory and JSONL), workspace prompt loading, and read-only memory file policy are implemented as early Phase 5 foundations.
 
-Phase 2 remaining work: shell tool and web tools.
+Phase 2 remaining work: web tools.
 
 ## Documentation
 

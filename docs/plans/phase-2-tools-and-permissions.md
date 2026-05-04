@@ -20,17 +20,18 @@ Completed:
 - Executable tool contracts and built-in read-only file tools: `099e037`
 - Runtime executes registered tools and sends observations back to the model: `5ee7791`
 - CLI registers built-in read-only file tools in runtime composition: `19c9ab3`
-- Secret file blocking in read_file, safety regression tests for read-only tools, and guarded write_file tool: `c5ae623`
-- CLI registers write_file tool: `aad5814`
+- Secret file blocking in read_file, safety regression tests for read-only tools, and guarded write_file tool: `8e82a36`
+- CLI registers write_file tool: `b497623`
+- Guarded shell tool with blocked patterns, timeout, and captured output: `1c7a231`
+- CLI registers shell tool: current
 
 Remaining:
 
-- Shell tool with confirmation, timeout, and captured output.
 - Web search or web page reader through a configured provider.
 
 Next recommended slice:
 
-- Add guarded shell tool (high risk, requires confirmation).
+- Add web page reader through a configured provider.
 
 ## 1. Purpose
 
