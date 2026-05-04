@@ -5,14 +5,27 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts"
+  ],
   "references": [
-    { "path": "../../packages/config" },
-    { "path": "../../packages/context" },
-    { "path": "../../packages/core" },
-    { "path": "../../packages/models" },
-    { "path": "../../packages/planner" },
-    { "path": "../../packages/skills" },
-    { "path": "../../packages/tools" }
+    {
+      "path": "../../packages/config"
+    },
+    {
+      "path": "../../packages/context"
+    },
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/models"
+    },
+    {
+      "path": "../../packages/skills"
+    },
+    {
+      "path": "../../packages/tools"
+    }
   ]
 }

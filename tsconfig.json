@@ -3,17 +3,37 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "include": ["vitest.config.ts", "scripts/**/*.ts"],
+  "include": [
+    "vitest.config.ts",
+    "scripts/**/*.ts"
+  ],
   "references": [
-    { "path": "./apps/cli" },
-    { "path": "./packages/config" },
-    { "path": "./packages/core" },
-    { "path": "./packages/context" },
-    { "path": "./packages/models" },
-    { "path": "./packages/tools" },
-    { "path": "./packages/permissions" },
-    { "path": "./packages/planner" },
-    { "path": "./packages/skills" },
-    { "path": "./packages/sessions" }
+    {
+      "path": "./apps/cli"
+    },
+    {
+      "path": "./packages/config"
+    },
+    {
+      "path": "./packages/core"
+    },
+    {
+      "path": "./packages/context"
+    },
+    {
+      "path": "./packages/models"
+    },
+    {
+      "path": "./packages/tools"
+    },
+    {
+      "path": "./packages/permissions"
+    },
+    {
+      "path": "./packages/skills"
+    },
+    {
+      "path": "./packages/sessions"
+    }
   ]
 }
