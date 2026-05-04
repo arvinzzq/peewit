@@ -316,22 +316,31 @@ export class AgentRuntime {
       messages = [...messages, { role: "assistant", content: null, toolCalls: output.calls }];
 
       const toolResultMessages: ModelMessage[] = [];
-      let runFailed = false;
+      let hardTerminate = false;
 
       for (const call of output.calls) {
         yield this.#event({ ...base, type: "tool_call_requested", call });
 
+        // Check tool existence before permission evaluation: no tool, no permission to evaluate.
         const tool = this.#tools.get(call.name);
+        if (tool === undefined) {
+          const errorMessage = `Tool "${call.name}" is not registered.`;
+          yield this.#event({ ...base, type: "tool_failed", callId: call.id, toolName: call.name, error: { message: errorMessage } });
+          toolResultMessages.push({ role: "tool", toolCallId: call.id, content: `Error: ${errorMessage}` });
+          continue;
+        }
+
         const decision = this.#permissionPolicy.evaluate({
           mode: normalizeAutonomyMode(this.#runtime?.mode),
-          action: createToolPermissionAction(call, tool?.risk ?? "medium")
+          action: createToolPermissionAction(call, tool.risk)
         });
 
         yield this.#event({ ...base, type: "tool_call_permission_evaluated", callId: call.id, toolName: call.name, decision });
 
+        // Security boundary: blocked actions terminate the run immediately.
         if (decision.decision === "deny") {
           yield this.#event({ ...base, type: "run_failed", error: { message: `Tool call ${call.name} was denied.`, recoverable: false } });
-          runFailed = true;
+          hardTerminate = true;
           break;
         }
 
@@ -345,32 +354,34 @@ export class AgentRuntime {
 
           yield this.#event({ ...base, type: "approval_resolved", callId: call.id, toolName: call.name, resolution });
 
+          // User explicitly declined: terminate the run.
           if (!resolution.approved) {
             yield this.#event({ ...base, type: "run_failed", error: { message: `Tool call ${call.name} was denied.`, recoverable: false } });
-            runFailed = true;
+            hardTerminate = true;
             break;
           }
         }
 
-        if (tool === undefined) {
-          yield this.#event({ ...base, type: "tool_failed", callId: call.id, toolName: call.name, error: { message: `Tool ${call.name} is not registered.` } });
-          yield this.#event({ ...base, type: "run_failed", error: { message: `Tool ${call.name} is not registered.`, recoverable: false } });
-          runFailed = true;
-          break;
-        }
-
         yield this.#event({ ...base, type: "tool_started", callId: call.id, toolName: call.name });
 
-        const result = await tool.execute(call.input, {
-          workspaceRoot: this.#runtime?.workspace ?? process.cwd()
-        });
+        let result: Awaited<ReturnType<typeof tool.execute>>;
+        try {
+          result = await tool.execute(call.input, {
+            workspaceRoot: this.#runtime?.workspace ?? process.cwd()
+          });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Unknown tool execution error.";
+          yield this.#event({ ...base, type: "tool_failed", callId: call.id, toolName: call.name, error: { message: errorMessage } });
+          toolResultMessages.push({ role: "tool", toolCallId: call.id, content: `Error: ${errorMessage}` });
+          continue;
+        }
 
         yield this.#event({ ...base, type: "tool_completed", callId: call.id, toolName: call.name, result });
 
         toolResultMessages.push({ role: "tool", toolCallId: call.id, content: JSON.stringify(result) });
       }
 
-      if (runFailed) return;
+      if (hardTerminate) return;
 
       messages = [...messages, ...toolResultMessages];
     }

@@ -305,62 +305,28 @@ describe("message-only AgentRuntime", () => {
 
     const events = await collect(runtime.runTurn({ sessionId: "session_1", message: "Read README." }));
 
+    // Unknown tool: error is fed back to model (no permission evaluation), loop continues,
+    // FakeModelProvider is exhausted → error output → run_failed.
     expect(events.map((event) => event.type)).toEqual([
       "run_started",
       "context_assembled",
       "model_request_started",
       "model_request_completed",
       "tool_call_requested",
-      "tool_call_permission_evaluated",
-      "approval_requested",
-      "approval_resolved",
+      "tool_failed",
+      "model_request_started",
+      "model_request_completed",
       "run_failed"
     ]);
     expect(events[4]).toMatchObject({
       type: "tool_call_requested",
-      call: {
-        id: "call_1",
-        name: "read_file",
-        input: {
-          path: "README.md"
-        }
-      }
+      call: { id: "call_1", name: "read_file", input: { path: "README.md" } }
     });
     expect(events[5]).toMatchObject({
-      type: "tool_call_permission_evaluated",
+      type: "tool_failed",
       callId: "call_1",
       toolName: "read_file",
-      decision: {
-        decision: "ask",
-        risk: "medium",
-        reason: "Medium and high-risk actions require approval in confirm mode."
-      }
-    });
-    expect(events[6]).toMatchObject({
-      type: "approval_requested",
-      callId: "call_1",
-      toolName: "read_file",
-      decision: {
-        decision: "ask",
-        risk: "medium",
-        reason: "Medium and high-risk actions require approval in confirm mode."
-      }
-    });
-    expect(events[7]).toMatchObject({
-      type: "approval_resolved",
-      callId: "call_1",
-      toolName: "read_file",
-      resolution: {
-        approved: false,
-        reason: "No approval resolver was configured."
-      }
-    });
-    expect(events[8]).toMatchObject({
-      type: "run_failed",
-      error: {
-        message: "Tool call read_file was denied.",
-        recoverable: false
-      }
+      error: { message: `Tool "read_file" is not registered.` }
     });
   });
 
@@ -382,6 +348,15 @@ describe("message-only AgentRuntime", () => {
           ]
         }
       ]),
+      tools: [
+        {
+          name: "custom_tool",
+          description: "A custom tool.",
+          risk: "medium" as const,
+          inputSchema: { type: "object" as const, properties: { value: { type: "integer" } } },
+          execute: async () => ({ ok: true as const, content: "result", summary: "done" })
+        }
+      ],
       permissionPolicy: {
         evaluate(input) {
           evaluatedActions.push(input);
@@ -438,17 +413,19 @@ describe("message-only AgentRuntime", () => {
       modelProvider: new FakeModelProvider([
         {
           type: "tool_calls",
-          calls: [
-            {
-              id: "call_approve",
-              name: "read_file",
-              input: {
-                path: "README.md"
-              }
-            }
-          ]
-        }
+          calls: [{ id: "call_approve", name: "read_file", input: { path: "README.md" } }]
+        },
+        { type: "message", content: "Read the file successfully." }
       ]),
+      tools: [
+        {
+          name: "read_file",
+          description: "Read a file.",
+          risk: "medium" as const,
+          inputSchema: { type: "object" as const, properties: { path: { type: "string" } } },
+          execute: async () => ({ ok: true as const, content: "file content", summary: "Read file." })
+        }
+      ],
       approvalResolver: {
         resolve(request) {
           approvalRequests.push(request);
@@ -474,9 +451,7 @@ describe("message-only AgentRuntime", () => {
         call: {
           id: "call_approve",
           name: "read_file",
-          input: {
-            path: "README.md"
-          }
+          input: { path: "README.md" }
         },
         decision: {
           decision: "ask",
@@ -485,6 +460,7 @@ describe("message-only AgentRuntime", () => {
         }
       }
     ]);
+    // Approved tool executes, result is fed back, model returns a final message.
     expect(events.map((event) => event.type)).toEqual([
       "run_started",
       "context_assembled",
@@ -494,33 +470,21 @@ describe("message-only AgentRuntime", () => {
       "tool_call_permission_evaluated",
       "approval_requested",
       "approval_resolved",
-      "tool_failed",
-      "run_failed"
+      "tool_started",
+      "tool_completed",
+      "model_request_started",
+      "model_request_completed",
+      "assistant_message_created",
+      "run_completed"
     ]);
     expect(events[7]).toMatchObject({
       type: "approval_resolved",
       callId: "call_approve",
       toolName: "read_file",
-      resolution: {
-        approved: true,
-        reason: "Approved by test."
-      }
+      resolution: { approved: true, reason: "Approved by test." }
     });
-    expect(events[8]).toMatchObject({
-      type: "tool_failed",
-      callId: "call_approve",
-      toolName: "read_file",
-      error: {
-        message: "Tool read_file is not registered."
-      }
-    });
-    expect(events[9]).toMatchObject({
-      type: "run_failed",
-      error: {
-        message: "Tool read_file is not registered.",
-        recoverable: false
-      }
-    });
+    expect(events[8]).toMatchObject({ type: "tool_started", callId: "call_approve" });
+    expect(events[9]).toMatchObject({ type: "tool_completed", callId: "call_approve" });
   });
 
   test("executes an allowed tool call and sends the observation back to the model", async () => {
@@ -680,6 +644,105 @@ describe("message-only AgentRuntime", () => {
     expect(events.find((e) => e.type === "assistant_message_created")).toMatchObject({
       type: "assistant_message_created",
       message: { content: "Read both files." }
+    });
+  });
+
+  test("feeds unknown tool error back to model as a tool result", async () => {
+    const modelProvider = new FakeModelProvider([
+      {
+        type: "tool_calls",
+        calls: [{ id: "call_unknown", name: "nonexistent_tool", input: {} }]
+      },
+      { type: "message", content: "I could not find that tool." }
+    ]);
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider,
+      systemInstruction: "You are ArvinClaw.",
+      createRunId: () => "run_unknown_tool",
+      createEventId: (() => { let n = 0; return () => `evt_ut_${++n}`; })(),
+      now: () => "2026-05-03T01:30:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Use a fake tool." }));
+
+    expect(events.map((e) => e.type)).toEqual([
+      "run_started",
+      "context_assembled",
+      "model_request_started",
+      "model_request_completed",
+      "tool_call_requested",
+      "tool_failed",
+      "model_request_started",
+      "model_request_completed",
+      "assistant_message_created",
+      "run_completed"
+    ]);
+    expect(events[5]).toMatchObject({
+      type: "tool_failed",
+      callId: "call_unknown",
+      toolName: "nonexistent_tool",
+      error: { message: `Tool "nonexistent_tool" is not registered.` }
+    });
+    // Error message fed to model as tool_result in the second request.
+    expect(modelProvider.requests[1]?.messages.at(-1)).toMatchObject({
+      role: "tool",
+      toolCallId: "call_unknown",
+      content: expect.stringContaining("not registered")
+    });
+  });
+
+  test("feeds tool execution exception back to model as a tool result", async () => {
+    const throwingTool = {
+      name: "crash_tool",
+      description: "A tool that always throws.",
+      risk: "low" as const,
+      inputSchema: { type: "object" as const, properties: {} },
+      execute: async () => { throw new Error("Simulated tool crash."); }
+    };
+    const modelProvider = new FakeModelProvider([
+      {
+        type: "tool_calls",
+        calls: [{ id: "call_crash", name: "crash_tool", input: {} }]
+      },
+      { type: "message", content: "The tool crashed." }
+    ]);
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider,
+      tools: [throwingTool],
+      systemInstruction: "You are ArvinClaw.",
+      runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-03" },
+      createRunId: () => "run_tool_crash",
+      createEventId: (() => { let n = 0; return () => `evt_tc_${++n}`; })(),
+      now: () => "2026-05-03T01:31:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Use the crashing tool." }));
+
+    expect(events.map((e) => e.type)).toEqual([
+      "run_started",
+      "context_assembled",
+      "model_request_started",
+      "model_request_completed",
+      "tool_call_requested",
+      "tool_call_permission_evaluated",
+      "tool_started",
+      "tool_failed",
+      "model_request_started",
+      "model_request_completed",
+      "assistant_message_created",
+      "run_completed"
+    ]);
+    expect(events[7]).toMatchObject({
+      type: "tool_failed",
+      callId: "call_crash",
+      error: { message: "Simulated tool crash." }
+    });
+    expect(modelProvider.requests[1]?.messages.at(-1)).toMatchObject({
+      role: "tool",
+      toolCallId: "call_crash",
+      content: "Error: Simulated tool crash."
     });
   });
 

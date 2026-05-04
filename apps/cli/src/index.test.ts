@@ -695,8 +695,8 @@ describe("runCli", () => {
     expect(result.stdout).toContain("Goodbye.");
   });
 
-  test("prompts for approval when an interactive fake-provider turn requests an ask-level unknown tool call", async () => {
-    const inputs = ["Use unknown tool", "n", "/exit"];
+  test("prompts for approval when an interactive fake-provider turn requests an ask-level tool call", async () => {
+    const inputs = ["Write a file", "n", "/exit"];
     const result = await runCli(["chat", "--fake-interactive"], "0.0.0", {
       fakeModelOutputs: [
         {
@@ -704,10 +704,8 @@ describe("runCli", () => {
           calls: [
             {
               id: "call_1",
-              name: "unknown_tool",
-              input: {
-                value: 1
-              }
+              name: "write_file",
+              input: { path: "output.txt", content: "hello" }
             }
           ]
         }
@@ -718,7 +716,7 @@ describe("runCli", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("Approval required:");
-    expect(result.stdout).toContain("Tool: unknown_tool");
+    expect(result.stdout).toContain("Tool: write_file");
     expect(result.stdout).toContain("Risk: medium");
     expect(result.stdout).toContain("Reason: Medium and high-risk actions require approval in confirm mode.");
     expect(result.stdout).toContain("Decision: denied");
