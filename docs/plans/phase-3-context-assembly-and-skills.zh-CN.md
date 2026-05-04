@@ -19,9 +19,17 @@ English version: [phase-3-context-assembly-and-skills.md](./phase-3-context-asse
   - `AgentRuntime` 将 tools 投影为 `ContextToolSummary[]` 并在每轮传入默认 permission guidance。
   - 所有测试通过。
 
+- Part B：Anthropic provider。
+  - 使用 `@anthropic-ai/sdk` 在 `packages/models` 添加 `AnthropicProvider`。
+  - 翻译消息、tool definitions 和 tool results 为 Anthropic 格式。
+  - 将 `tool_use` 响应 blocks 解析为 `ModelToolCallsOutput`。
+  - 归一化 Anthropic API 错误。
+  - `ANTHROPIC_API_KEY` 环境变量在 `packages/config` 中设置 `model.provider = "anthropic"`。
+  - CLI 在 `config.model.provider === "anthropic"` 时使用 `AnthropicProvider`。
+  - 所有测试通过。
+
 剩余：
 
-- Part B：Anthropic provider。
 - Part C：Skill loader 和 SKILL.md 解析器。
 - Part C：Skill index 注入 context assembler。
 - Part C：CLI /skills 命令。
@@ -29,7 +37,7 @@ English version: [phase-3-context-assembly-and-skills.md](./phase-3-context-asse
 
 下一步建议切片：
 
-- Part B：在 `packages/models` 添加 `@anthropic-ai/sdk` 并实现 `AnthropicProvider`。
+- Part C：实现 `packages/skills`，包含 `SkillLoader` 和 SKILL.md 解析器。
 
 ## 1. 目的
 

@@ -19,9 +19,17 @@ Completed:
   - `AgentRuntime` projects tools to `ContextToolSummary[]` and passes default permission guidance each turn.
   - All tests pass.
 
+- Part B: Anthropic provider.
+  - `AnthropicProvider` added to `packages/models` using `@anthropic-ai/sdk`.
+  - Translates messages, tool definitions, and tool results to Anthropic format.
+  - Parses `tool_use` response blocks as `ModelToolCallsOutput`.
+  - Normalizes Anthropic API errors.
+  - `ANTHROPIC_API_KEY` env var sets `model.provider = "anthropic"` in `packages/config`.
+  - CLI wires `AnthropicProvider` when `config.model.provider === "anthropic"`.
+  - All tests pass.
+
 Remaining:
 
-- Part B: Anthropic provider.
 - Part C: Skill loader and SKILL.md parser.
 - Part C: Skill index injection into context assembler.
 - Part C: CLI /skills command.
@@ -29,7 +37,7 @@ Remaining:
 
 Next recommended slice:
 
-- Part B: Add `@anthropic-ai/sdk` to `packages/models` and implement `AnthropicProvider`.
+- Part C: Implement `packages/skills` with `SkillLoader` and SKILL.md parser.
 
 ## 1. Purpose
 
