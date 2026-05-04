@@ -11,6 +11,7 @@
     { "path": "../../packages/context" },
     { "path": "../../packages/core" },
     { "path": "../../packages/models" },
+    { "path": "../../packages/skills" },
     { "path": "../../packages/tools" }
   ]
 }

@@ -1,6 +1,6 @@
 /**
- * INPUT: CLI arguments, package version, optional line reader/fetch implementation, optional fake model outputs, config loader, runtime/session packages, context assembler, model providers, and built-in tools.
- * OUTPUT: CLI result objects, configured/fake interactive chat transcript, approval prompts, read-only, write_file, shell, and read_web_page tool registration, short-term session memory, latest-session resume behavior, persisted trace output, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
+ * INPUT: CLI args, config, model providers, skill loader, session/trace stores, context assembler, built-in tools, optional fake outputs and line reader.
+ * OUTPUT: CLI results, interactive chat, approval prompts, tool execution, session memory, trace output, redacted config, skill index, slash commands, and stdout/stderr.
  * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -13,6 +13,7 @@ import { DefaultContextAssembler } from "@arvinclaw/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
 import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
+import { SkillLoader, toSkillSummary, type SkillDefinition } from "@arvinclaw/skills";
 import { createListDirectoryTool, createReadFileTool, createReadWebPageTool, createShellTool, createWriteFileTool } from "@arvinclaw/tools";
 
 export const cliPackageName = "@arvinclaw/cli";
@@ -192,7 +193,7 @@ async function runInteractiveConfiguredChat(options: RunCliOptions, args: Parsed
   const sessionId = args.sessionId ?? resumedSessionId;
 
   return runInteractiveLoop(
-    CliChatSession.createConfigured(config, options, sessionId === undefined ? {} : { sessionId }),
+    await CliChatSession.createConfigured(config, options, sessionId === undefined ? {} : { sessionId }),
     resumedSessionId === undefined ? "ArvinClaw chat" : `ArvinClaw chat\nResumed session: ${resumedSessionId}`,
     options
   );
@@ -287,6 +288,8 @@ async function renderSlashCommands(session: CliChatSession, slashCommands: strin
       rendered.push(["", "Recent Trace:", ...(await session.runSlashCommand(command))].join("\n"));
     } else if (command === "/config") {
       rendered.push(["", "Config:", ...(await session.runSlashCommand(command))].join("\n"));
+    } else if (command === "/skills") {
+      rendered.push(["", "Skills:", ...(await session.runSlashCommand(command))].join("\n"));
     } else {
       rendered.push(["", `Unknown slash command: ${command}`].join("\n"));
     }
@@ -315,6 +318,7 @@ function renderInteractiveHelp(): string[] {
     "/help    Show commands",
     "/trace   Show recent trace events",
     "/config  Show redacted configuration",
+    "/skills  List loaded skills",
     "/exit    Leave chat"
   ];
 }
@@ -337,6 +341,7 @@ export class CliChatSession {
   readonly #config: RedactedConfigView;
   readonly #recentMessageLimit: number;
   readonly #approvalPromptLog: string[];
+  readonly #skillDefinitions: SkillDefinition[];
 
   constructor(
     runtime: AgentRuntime,
@@ -345,7 +350,8 @@ export class CliChatSession {
     sessionId = createSessionId(),
     sessionStore: SessionStore = new InMemorySessionStore({ createSessionId: () => sessionId }),
     recentMessageLimit = 12,
-    approvalPromptLog: string[] = []
+    approvalPromptLog: string[] = [],
+    skillDefinitions: SkillDefinition[] = []
   ) {
     this.#runtime = runtime;
     this.#config = config;
@@ -354,6 +360,7 @@ export class CliChatSession {
     this.#sessionId = sessionId;
     this.#recentMessageLimit = recentMessageLimit;
     this.#approvalPromptLog = approvalPromptLog;
+    this.#skillDefinitions = skillDefinitions;
   }
 
   static createFake(
@@ -397,15 +404,17 @@ export class CliChatSession {
     );
   }
 
-  static createConfigured(config: EffectiveConfig, options: RunCliOptions = {}, sessionOptions: CreateChatSessionOptions = {}): CliChatSession {
+  static async createConfigured(config: EffectiveConfig, options: RunCliOptions = {}, sessionOptions: CreateChatSessionOptions = {}): Promise<CliChatSession> {
     if (config.secrets.apiKey === undefined) {
       throw new Error("Configured chat requires an API key.");
     }
 
     const sessionId = sessionOptions.sessionId ?? createSessionId();
-
     const currentDate = new Date().toISOString().slice(0, 10);
     const approvalPromptLog: string[] = [];
+
+    const skillDefinitions = await new SkillLoader().load({ workspaceRoot: config.workspace.root });
+    const skillIndex = skillDefinitions.map(toSkillSummary);
 
     return new CliChatSession(
       new AgentRuntime({
@@ -418,6 +427,7 @@ export class CliChatSession {
           currentDate
         },
         tools: createCliBuiltInTools(options),
+        skillIndex,
         approvalResolver: createCliApprovalResolver(options, approvalPromptLog)
       }),
       redactedConfig(config),
@@ -425,7 +435,8 @@ export class CliChatSession {
       sessionId,
       createConfiguredSessionStore(config, options, sessionId),
       12,
-      approvalPromptLog
+      approvalPromptLog,
+      skillDefinitions
     );
   }
 
@@ -482,6 +493,10 @@ export class CliChatSession {
 
     if (command === "/config") {
       return renderRedactedConfig(this.#config);
+    }
+
+    if (command === "/skills") {
+      return renderSkillIndex(this.#skillDefinitions);
     }
 
     return [`Unknown slash command: ${command}`];
@@ -615,6 +630,11 @@ function resolveSessionsDirectory(directory: string, env: Record<string, string 
 
 function createSessionId(): string {
   return `session_${crypto.randomUUID()}`;
+}
+
+export function renderSkillIndex(skills: SkillDefinition[]): string[] {
+  if (skills.length === 0) return ["No skills loaded."];
+  return skills.map((s) => `[${s.source}] ${s.name}: ${s.when}`);
 }
 
 export function renderRedactedConfig(config: RedactedConfigView): string[] {

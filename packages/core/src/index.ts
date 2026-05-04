@@ -8,6 +8,7 @@
 import type {
   ContextAssembler,
   ContextRuntimeMetadata,
+  ContextSkillSummary,
   ContextToolSummary
 } from "@arvinclaw/context";
 import type { ModelMessage, ModelProvider, ModelToolCall, ModelToolDefinition } from "@arvinclaw/models";
@@ -221,6 +222,7 @@ export interface AgentRuntimeDependencies {
   permissionPolicy?: PermissionPolicy;
   approvalResolver?: ApprovalResolver;
   tools?: ExecutableTool[];
+  skillIndex?: ContextSkillSummary[];
   maxSteps?: number;
   systemInstruction: string;
   runtime?: ContextRuntimeMetadata;
@@ -240,6 +242,7 @@ export class AgentRuntime {
   readonly #permissionPolicy: PermissionPolicy;
   readonly #approvalResolver: ApprovalResolver | undefined;
   readonly #tools: Map<string, ExecutableTool>;
+  readonly #skillIndex: ContextSkillSummary[];
   readonly #maxSteps: number;
   readonly #systemInstruction: string;
   readonly #runtime: ContextRuntimeMetadata | undefined;
@@ -253,6 +256,7 @@ export class AgentRuntime {
     this.#permissionPolicy = dependencies.permissionPolicy ?? new DefaultPermissionPolicy();
     this.#approvalResolver = dependencies.approvalResolver;
     this.#tools = new Map((dependencies.tools ?? []).map((tool) => [tool.name, tool]));
+    this.#skillIndex = dependencies.skillIndex ?? [];
     this.#maxSteps = dependencies.maxSteps ?? DEFAULT_MAX_STEPS;
     this.#systemInstruction = dependencies.systemInstruction;
     this.#runtime = dependencies.runtime;
@@ -273,6 +277,7 @@ export class AgentRuntime {
       ...(this.#runtime ? { runtime: this.#runtime } : {}),
       ...(contextToolSummaries.length > 0 ? { tools: contextToolSummaries } : {}),
       permissionGuidance: DEFAULT_PERMISSION_GUIDANCE,
+      ...(this.#skillIndex.length > 0 ? { skillIndex: this.#skillIndex } : {}),
       ...(input.recentMessages ? { recentMessages: input.recentMessages } : {}),
       userMessage: input.message
     });
