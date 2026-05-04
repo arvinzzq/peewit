@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
+  createAppendDailyMemoryTool,
   createListDirectoryTool,
   createReadFileTool,
   createReadWebPageTool,
@@ -805,5 +806,58 @@ describe("update_todos tool", () => {
     const tool = createUpdateTodosTool();
     const result = await tool.execute({ todos: "not an array" }, ctx);
     expect(result).toMatchObject({ ok: false });
+  });
+});
+
+describe("append_daily_memory tool", () => {
+  test("appends a note to today's daily memory file", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-memory-"));
+    try {
+      const tool = createAppendDailyMemoryTool({ getCurrentDate: () => "2026-05-04" });
+      const result = await tool.execute({ content: "Learned about update_todos." }, { workspaceRoot: workspace });
+      expect(result).toMatchObject({ ok: true, filePath: "memory/2026-05-04.md" });
+
+      const written = await readFile(join(workspace, "memory", "2026-05-04.md"), "utf8");
+      expect(written).toContain("Learned about update_todos.");
+    } finally {
+      await import("node:fs/promises").then((fs) => fs.rm(workspace, { recursive: true, force: true }));
+    }
+  });
+
+  test("appends multiple notes to the same file", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-memory-"));
+    try {
+      const tool = createAppendDailyMemoryTool({ getCurrentDate: () => "2026-05-04" });
+      await tool.execute({ content: "First note." }, { workspaceRoot: workspace });
+      await tool.execute({ content: "Second note." }, { workspaceRoot: workspace });
+
+      const written = await readFile(join(workspace, "memory", "2026-05-04.md"), "utf8");
+      expect(written).toContain("First note.");
+      expect(written).toContain("Second note.");
+    } finally {
+      await import("node:fs/promises").then((fs) => fs.rm(workspace, { recursive: true, force: true }));
+    }
+  });
+
+  test("creates the memory directory if it does not exist", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-memory-"));
+    try {
+      const tool = createAppendDailyMemoryTool({ getCurrentDate: () => "2026-05-04" });
+      const result = await tool.execute({ content: "Note." }, { workspaceRoot: workspace });
+      expect(result).toMatchObject({ ok: true });
+    } finally {
+      await import("node:fs/promises").then((fs) => fs.rm(workspace, { recursive: true, force: true }));
+    }
+  });
+
+  test("returns error for empty content", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-memory-"));
+    try {
+      const tool = createAppendDailyMemoryTool();
+      const result = await tool.execute({ content: "   " }, { workspaceRoot: workspace });
+      expect(result).toMatchObject({ ok: false });
+    } finally {
+      await import("node:fs/promises").then((fs) => fs.rm(workspace, { recursive: true, force: true }));
+    }
   });
 });

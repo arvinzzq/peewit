@@ -87,9 +87,8 @@ ArvinClaw should design for a future `MEMORY.md`, but not implement full long-te
 Phase 5 adds an explicit policy switch for long-term memory files:
 
 - `disabled`: default; do not load `USER.md`, `MEMORY.md`, or daily memory files.
-- `read-only`: loads `USER.md`, `MEMORY.md`, today's daily memory file, and yesterday's daily memory file from the configured workspace root when present.
-
-Long-term memory writes remain disabled in both modes.
+- `read-only`: loads `USER.md`, `MEMORY.md`, today's daily memory file, and yesterday's daily memory file from the configured workspace root when present. Writes remain disabled.
+- `write`: same read loading as `read-only`, plus enables the `append_daily_memory` tool. The model may append notes to `memory/YYYY-MM-DD.md` as a medium-risk action (requires user approval in `confirm` mode).
 
 Long-term memory needs strong policy because it can shape future behavior persistently.
 
@@ -114,7 +113,7 @@ Proposed files:
 | `SOUL.md` | Agent personality, values, tone, and boundaries | Phase 1 optional, Phase 2 recommended |
 | `USER.md` | User profile, preferences, and durable user context | Read-only when policy is enabled |
 | `MEMORY.md` | Curated long-term memory | Read-only when policy is enabled |
-| `memory/YYYY-MM-DD.md` | Daily notes and recent observations | Today/yesterday read-only when policy is enabled |
+| `memory/YYYY-MM-DD.md` | Daily notes and recent observations | Today/yesterday read-only when policy is `read-only` or `write`; writable via `append_daily_memory` tool when policy is `write` |
 | `TOOLS.md` | Environment and tool notes | Deferred |
 
 MVP starts with `AGENTS.md`-style operational instructions, read-only `SOUL.md`, and session storage. `USER.md` and `MEMORY.md` require the long-term memory policy to be `read-only` before the context loader includes them.
@@ -216,20 +215,21 @@ Each added prompt file should have tests and trace visibility.
 
 Memory writes are high-impact because they influence future sessions.
 
-MVP policy:
+Implemented policy:
 
-- No automatic long-term memory writes.
+- No automatic long-term memory writes in `disabled` or `read-only` mode.
 - Session storage writes are allowed as part of normal operation.
-- Prompt identity files are read-only by default.
-- Long-term memory files are not loaded unless the policy is explicitly switched from `disabled` to `read-only`.
-- Even in `read-only` mode, long-term memory writes remain disabled.
+- Prompt identity files (`SOUL.md`, `USER.md`, `MEMORY.md`) are always read-only.
+- Long-term memory files are not loaded unless the policy is explicitly `read-only` or `write`.
+- When policy is `write`, the `append_daily_memory` tool is registered. The model may call it to append a note to `memory/YYYY-MM-DD.md`. Risk level: `medium` — requires user approval in `confirm` mode.
+- The `append_daily_memory` tool only writes to today's daily file. It cannot overwrite `MEMORY.md`, `USER.md`, or `SOUL.md`.
 
-Future policy:
+Future policy additions:
 
-- The agent can propose memory writes.
-- The user can approve, edit, or reject them.
+- Model proposes entries for `MEMORY.md` (curated long-term memory).
+- User can approve, edit, or reject proposed memory entries.
+- `USER.md` updates require explicit user initiation.
 - Memory writes produce trace events.
-- Sensitive memory requires stronger confirmation.
 
 ## 14. Relationship to Permissions
 

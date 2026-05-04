@@ -149,10 +149,15 @@ describe("loadConfig", () => {
     expect(() =>
       loadConfig({
         env: {
-          ARVINCLAW_LONG_TERM_MEMORY: "write"
+          ARVINCLAW_LONG_TERM_MEMORY: "invalid-policy"
         }
       })
     ).toThrow(ConfigValidationError);
+  });
+
+  test("accepts write as a valid long-term memory policy", () => {
+    const config = loadConfig({ env: { ARVINCLAW_LONG_TERM_MEMORY: "write" } });
+    expect(config.memory.longTermFiles).toBe("write");
   });
 
   test("rejects invalid autonomy modes", () => {

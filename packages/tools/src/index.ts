@@ -1,6 +1,6 @@
 /**
  * INPUT: Tool definitions, input schemas, risk metadata, registration requests, tool execution input, and workspace file system access.
- * OUTPUT: Tool contracts, registry lookup/listing behavior, executable read-only file tools, guarded write_file tool, guarded shell tool, read_web_page tool, update_todos task tracker, normalized tool results, and registry errors.
+ * OUTPUT: Tool contracts, registry lookup/listing behavior, executable read-only file tools, guarded write_file tool, guarded shell tool, read_web_page tool, update_todos task tracker, append_daily_memory tool, normalized tool results, and registry errors.
  * POS: Tool system layer; exposes capabilities without making permission decisions.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -82,6 +82,12 @@ export interface UpdateTodosResult {
   ok: true;
 }
 
+export interface AppendDailyMemoryResult {
+  ok: true;
+  filePath: string;
+  summary: string;
+}
+
 export type ToolExecutionResult =
   | ReadFileToolResult
   | ListDirectoryToolResult
@@ -89,6 +95,7 @@ export type ToolExecutionResult =
   | ShellToolResult
   | ReadWebPageToolResult
   | UpdateTodosResult
+  | AppendDailyMemoryResult
   | ToolExecutionFailure;
 
 export type TodoStatus = "pending" | "in_progress" | "completed";
@@ -613,6 +620,49 @@ export function createUpdateTodosTool(onUpdate?: (todos: TodoItem[]) => void): E
 
       onUpdate?.(todos);
       return { ok: true };
+    }
+  };
+}
+
+export function createAppendDailyMemoryTool(
+  options?: { getCurrentDate?: () => string }
+): ExecutableTool {
+  return {
+    name: "append_daily_memory",
+    description: "Append a note to today's daily memory file (memory/YYYY-MM-DD.md) in the workspace. Use this to record facts, decisions, or observations worth remembering across sessions.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        content: { type: "string" }
+      },
+      required: ["content"]
+    },
+    risk: "medium",
+    async execute(input, context): Promise<AppendDailyMemoryResult | ToolExecutionFailure> {
+      const raw = input as { content?: unknown };
+      if (typeof raw.content !== "string" || raw.content.trim().length === 0) {
+        return { ok: false, error: { code: "invalid_input", message: "content must be a non-empty string." } };
+      }
+
+      const today = options?.getCurrentDate?.() ?? new Date().toISOString().slice(0, 10);
+      const memoryDir = resolve(context.workspaceRoot, "memory");
+      const filePath = resolve(memoryDir, `${today}.md`);
+
+      try {
+        await mkdir(memoryDir, { recursive: true });
+        const timestamp = new Date().toISOString().replace("T", " ").slice(0, 16);
+        const entry = `\n## ${timestamp}\n\n${raw.content.trim()}\n`;
+        await writeFileFs(filePath, entry, { flag: "a" });
+
+        return {
+          ok: true,
+          filePath: `memory/${today}.md`,
+          summary: `Appended note to memory/${today}.md.`
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to write daily memory.";
+        return { ok: false, error: { code: "write_error", message } };
+      }
     }
   };
 }

@@ -1,17 +1,15 @@
 # Phase 5 Sessions and Memory Plan
 
-Status: Paused After Early Foundation
-Date: 2026-05-03
+Status: Complete
+Date: 2026-05-04
 
 Simplified Chinese version: [phase-5-sessions-and-memory.zh-CN.md](./phase-5-sessions-and-memory.zh-CN.md)
 
 ## Progress
 
-Status: Paused After Early Foundation
+Status: Complete
 
-Roadmap note:
-
-Phase 5 was advanced early to provide session, trace, workspace prompt, and read-only memory foundations. Further memory expansion is paused until Phase 2 tools/permissions and later planning/autonomy support are in place.
+All Phase 5 work is done. See completed items below.
 
 Completed:
 
@@ -29,22 +27,7 @@ Completed:
 - Long-term memory disabled/read-only policy and CLI visibility: `b737c68`, `db89088`
 - Read-only `USER.md` and `MEMORY.md` loading when enabled: `fafe13f`
 - Read-only today/yesterday daily memory loading when enabled: `7d38ccc`
-
-Remaining:
-
-- Daily memory write policy and future daily note creation.
-
-Latest verification:
-
-- `pnpm run check`
-- `pnpm vitest run packages/sessions/src/index.test.ts`
-- `pnpm vitest run packages/context/src/index.test.ts`
-- `pnpm vitest run packages/core/src/index.test.ts`
-- `pnpm vitest run apps/cli/src/index.test.ts`
-
-Next recommended slice when Phase 5 resumes:
-
-- Define daily memory write policy before creating or updating `memory/YYYY-MM-DD.md`.
+- Daily memory write via `append_daily_memory` tool when policy is `write`
 
 ## 1. Purpose
 

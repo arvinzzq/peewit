@@ -18,7 +18,7 @@ const anthropicDefaults = {
 
 export type AutonomyMode = "observe" | "confirm" | "auto";
 export type TraceVerbosity = "explainable" | "debug";
-export type LongTermMemoryFilePolicy = "disabled" | "read-only";
+export type LongTermMemoryFilePolicy = "disabled" | "read-only" | "write";
 export type MemoryWritePolicy = "disabled";
 
 export interface EffectiveConfig {
@@ -272,5 +272,5 @@ function isTraceVerbosity(value: unknown): value is TraceVerbosity {
 }
 
 function isLongTermMemoryFilePolicy(value: unknown): value is LongTermMemoryFilePolicy {
-  return value === "disabled" || value === "read-only";
+  return value === "disabled" || value === "read-only" || value === "write";
 }

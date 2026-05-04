@@ -1,17 +1,15 @@
 # Phase 5 Sessions and Memory Plan
 
-状态：Paused After Early Foundation
-日期：2026-05-03
+状态：完成
+日期：2026-05-04
 
 English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.md)
 
 ## Progress
 
-状态：Paused After Early Foundation
+状态：完成
 
-Roadmap note：
-
-Phase 5 已提前推进，用于提供 session、trace、workspace prompt 和 read-only memory foundations。后续 memory 扩展会暂停，等 Phase 2 tools/permissions 以及后续 planning/autonomy 支撑就绪后再继续。
+所有 Phase 5 工作已完成。
 
 已完成：
 
@@ -29,22 +27,7 @@ Phase 5 已提前推进，用于提供 session、trace、workspace prompt 和 re
 - Long-term memory disabled/read-only policy and CLI visibility：`b737c68`、`db89088`
 - Policy enabled 时只读加载 `USER.md` 和 `MEMORY.md`：`fafe13f`
 - Policy enabled 时只读加载今天/昨天 daily memory：`7d38ccc`
-
-剩余：
-
-- Daily memory write policy 和未来 daily note creation。
-
-最新验证：
-
-- `pnpm run check`
-- `pnpm vitest run packages/sessions/src/index.test.ts`
-- `pnpm vitest run packages/context/src/index.test.ts`
-- `pnpm vitest run packages/core/src/index.test.ts`
-- `pnpm vitest run apps/cli/src/index.test.ts`
-
-Phase 5 恢复时的下一步建议切片：
-
-- 在创建或更新 `memory/YYYY-MM-DD.md` 前定义 daily memory write policy。
+- Policy 为 `write` 时通过 `append_daily_memory` tool 写入 daily memory
 
 ## 1. 目的
 
