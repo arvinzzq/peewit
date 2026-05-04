@@ -26,6 +26,8 @@ English version: [phase-2-tools-and-permissions.md](./phase-2-tools-and-permissi
 - CLI 注册 shell tool：`7abb38b`
 - read_web_page tool（含 HTML extraction、truncation 和 injectable fetch）：`417ed8e`
 - CLI 注册 read_web_page tool：`0e0946b`
+- ModelInput tool definitions、OpenAICompatibleProvider tool_calls 响应解析：`4bf6c78`
+- 真正的 agent while loop（multi-round tool calling + maxSteps 限制）：`1aaa7b8`
 
 剩余：
 

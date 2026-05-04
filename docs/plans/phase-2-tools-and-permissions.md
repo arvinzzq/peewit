@@ -26,6 +26,8 @@ Completed:
 - CLI registers shell tool: `7abb38b`
 - read_web_page tool with HTML extraction, truncation, and injectable fetch: `417ed8e`
 - CLI registers read_web_page tool: `0e0946b`
+- ModelInput tool definitions, tool_calls response parsing in OpenAICompatibleProvider: `4bf6c78`
+- Real agent while loop with multi-round tool calling and maxSteps enforcement: `1aaa7b8`
 
 Remaining:
 
