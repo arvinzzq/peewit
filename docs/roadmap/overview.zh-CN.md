@@ -36,7 +36,7 @@ Roadmap 采用双轨方法：
 | Phase 1 | Complete | MVP agent loop | CLI chat 可以调用模型并产生可追踪响应 | Agent Core、context assembly、ModelProvider、基础 loop |
 | Phase 2 | Complete | 工具与权限 | Agent 可以检查文件、运行已批准命令，并读取 Web 内容 | Tool Registry、PermissionPolicy |
 | Phase 3 | Complete | Context assembly 与 skills | Agent 有包含工具、skills 和权限指导的结构化 context；可加载 `SKILL.md`；Claude 可直接使用 | Context section 架构、Anthropic provider、skill loader |
-| Phase 4 | Complete | 规划与自主 | Agent 可以规划任务，并在 `observe`、`confirm` 或 `auto` 模式运行 | Planner、任务状态、执行模式 |
+| Phase 4 | Revised | 规划与自主 | Planner 原型已移除；phase 重新规划中 — 详见 Phase 4 说明 | — |
 | Phase 5 | In Progress | 会话与记忆 | Agent 可以记住会话，并使用本地知识 | Session store、trace store、memory interfaces |
 | Phase 6 | Not Started | Streaming 与 Web UI | 用户可以在终端看到 streaming token 输出，并通过浏览器界面聊天、检查 trace、批准动作 | Streaming provider、Ink CLI 渲染升级、UI adapter、trace visualization |
 | Phase 7 | Not Started | 多入口 adapters | CLI、Web、桌面和消息入口共享一个 Agent Core | Adapter interface、gateway direction |
@@ -239,41 +239,23 @@ Agent 的 system prompt 有包含 identity、runtime、tooling、safety、skills
 
 ## 7. Phase 4：规划与自主
 
-### 用户结果
+### 状态说明（2026-05-04）
 
-Agent 可以将目标拆解为步骤，以可见进度执行步骤，并在 `observe`、`confirm` 或 `auto` 模式运行。
+`packages/planner` 原型在审查 OpenClaw 源码后被移除。OpenClaw 对交互式 run 没有 in-turn planning tool，规划通过模型自身推理和 retry loop 隐式完成（`planningOnlyRetryAttempts`）。带有基础设施管理 step 执行的显式 `create_plan` tool 不是 OpenClaw 的概念。
 
-### 新增架构
+原型被移除以保持 ArvinClaw 与 OpenClaw 架构的对齐。Phase 2 permission system 中的 `observe`、`confirm`、`auto` 模式仍然保留并正常工作。
 
-- Planner
-- Task state model
-- Plan update loop
-- Autonomy mode policy
-- Failure recovery path
+Phase 4 范围将在重新开放前重新评估。可能的修订交付物：agent loop 加固、更好的 autonomy mode 文档，或 retry 与错误恢复改进。
 
-### 学习文档
+### 原始目标
 
-- `docs/architecture/planner.md`
-- `docs/architecture/autonomy-modes.md`
-
-这些文档是 planned documents，目前尚未创建。
-
-实施计划：[Phase 4 规划与自主执行](../plans/phase-4-planning-and-autonomy.zh-CN.md)
-
-### 验收标准
-
-- 复杂任务可以在执行前产生计划。
-- Plan steps 可以标记为 pending、running、complete、failed 或 skipped。
-- `observe` 模式在每一步暂停。
-- `confirm` 模式遵守 permission policy。
-- `auto` 模式在允许的 policy boundaries 内继续执行。
-- Failures 会被总结，并可以更新计划。
+Agent 可以在 `observe`、`confirm` 或 `auto` 模式运行，具有可见进度和安全的失败处理。
 
 ### 非目标
 
-- 暂不做 autonomous background daemon。
+- 暂不做 autonomous background daemon（Phase 8）。
 - 暂不做 multi-agent task delegation。
-- 暂不做 advanced workflow language。
+- 不做显式 plan 结构（已移除；隐式模型推理是对齐 OpenClaw 的方式）。
 
 ## 8. Phase 5：会话、记忆与知识
 

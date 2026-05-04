@@ -11,15 +11,14 @@ ArvinClaw 是一个受 OpenClaw 启发的个人通用 Agent 项目。
 
 ## 当前阶段
 
-Phase 4（规划与自主执行）已完成。ArvinClaw 准备继续 Phase 5（会话与记忆）和 Phase 6（Streaming 与 Web UI）。
+Phase 0–3 已完成。Phase 5（会话与记忆）早期基础已完成。Phase 4 已修订——详见 roadmap。
 
 已完成阶段：
 
 - Phase 0：项目基础 — monorepo、config、文档布局。
 - Phase 1：MVP agent loop — CLI chat、ModelProvider、context assembly、execution trace。
 - Phase 2：工具与权限 — `read_file`、`list_directory`、guarded `write_file`、guarded `run_shell`、`read_web_page` 工具，含工作区边界检查、secret 文件拦截、破坏性命令 pattern 检测和基于风险的 approval prompts。
-- Phase 3：Context assembly 与 skills — 基于 section 的 system prompt（identity、runtime、tooling、safety、skills、workspace）、通过 `ANTHROPIC_API_KEY` 使用 Anthropic provider、含 workspace/user/built-in 优先级的 `SKILL.md` skill loader、内置技能、CLI `/skills` 命令。
-- Phase 4：规划与自主执行 — 含 create_plan tool 注入的 `packages/planner` 和 `ModelBasedPlanner`、`AgentRuntime` 中 7 个新 plan events、支持 observe 模式 plan approval 的 `--plan` 逐步规划模式。
+- Phase 3：Context assembly 与 skills — XML tagged system prompt sections（identity、runtime、tooling、safety、skills、workspace）、通过 `ANTHROPIC_API_KEY` 使用 Anthropic provider、含 workspace/user/built-in 优先级的 `SKILL.md` skill loader、内置技能、CLI `/skills` 命令、Anthropic prompt caching。
 - Phase 5（早期基础）：JSONL session storage、workspace prompt 加载和只读 memory 文件策略。
 
 ## 文档

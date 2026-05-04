@@ -11,15 +11,14 @@ The goal is twofold:
 
 ## Current Phase
 
-Phase 4 (planning and autonomy) is complete. ArvinClaw is ready to continue with Phase 5 (sessions and memory) and Phase 6 (streaming and Web UI).
+Phases 0–3 are complete. Phase 5 (sessions and memory) is in progress with early foundations done. Phase 4 is revised — see the roadmap for details.
 
 Completed phases:
 
 - Phase 0: Project foundation — monorepo, config, documentation layout.
 - Phase 1: MVP agent loop — CLI chat, ModelProvider, context assembly, execution trace.
 - Phase 2: Tools and permissions — `read_file`, `list_directory`, guarded `write_file`, guarded `run_shell`, and `read_web_page` tools with workspace enforcement, secret file blocking, destructive pattern detection, and risk-based approval prompts.
-- Phase 3: Context assembly and skills — section-based system prompt (identity, runtime, tooling, safety, skills, workspace), Anthropic provider via `ANTHROPIC_API_KEY`, `SKILL.md` skill loader with workspace/user/built-in precedence, built-in skills, `/skills` CLI command.
-- Phase 4: Planning and autonomy — `packages/planner` with `ModelBasedPlanner` using `create_plan` tool injection, 7 new plan events in `AgentRuntime`, `--plan` flag for step-by-step planning mode with observe-mode plan approval.
+- Phase 3: Context assembly and skills — XML-tagged system prompt sections (identity, runtime, tooling, safety, skills, workspace), Anthropic provider via `ANTHROPIC_API_KEY`, `SKILL.md` skill loader with workspace/user/built-in precedence, built-in skills, `/skills` CLI command, prompt caching for Anthropic.
 - Phase 5 (early foundations): JSONL session storage, workspace prompt loading, and read-only memory file policy.
 
 ## Documentation

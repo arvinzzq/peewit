@@ -36,7 +36,7 @@ The roadmap follows a dual-track approach:
 | Phase 1 | Complete | MVP agent loop | CLI chat can call a model and produce traceable responses | Agent Core, context assembly, ModelProvider, basic loop |
 | Phase 2 | Complete | Tools and permissions | Agent can inspect files, run approved commands, and read web content | Tool Registry, PermissionPolicy |
 | Phase 3 | Complete | Context assembly and skills | Agent has structured context with tools, skills, and permission guidance; can load `SKILL.md`; Claude available directly | Context section architecture, Anthropic provider, skill loader |
-| Phase 4 | Complete | Planning and autonomy | Agent can plan tasks and run in `observe`, `confirm`, or `auto` mode | Planner, task state, execution modes |
+| Phase 4 | Revised | Planning and autonomy | Planner prototype removed; phase re-scoped — see Phase 4 note | — |
 | Phase 5 | In Progress | Sessions and memory | Agent remembers sessions and can use local knowledge | Session store, trace store, memory interfaces |
 | Phase 6 | Not Started | Web UI | User can chat, inspect traces, and approve actions in a browser | UI adapter, API boundary, trace visualization |
 | Phase 7 | Not Started | Multi-entry adapters | CLI, Web, desktop, and message entries share one Agent Core | Adapter interface, gateway direction |
@@ -241,41 +241,23 @@ Implementation plan: [Phase 3 Context Assembly and Skills](../plans/phase-3-cont
 
 ## 7. Phase 4: Planning and Autonomy
 
-### User Result
+### Status Note (2026-05-04)
 
-The agent can decompose a goal into steps, execute the steps with visible progress, and operate in `observe`, `confirm`, or `auto` mode.
+A `packages/planner` prototype was built and then removed after reviewing OpenClaw's source. OpenClaw has no in-turn planning tool for interactive runs. Planning is implicit through the model's own reasoning and retry loops (`planningOnlyRetryAttempts`). An explicit `create_plan` tool with infra-managed step execution is not an OpenClaw concept.
 
-### Architecture Added
+The prototype was removed to keep ArvinClaw aligned with OpenClaw's architecture. The `observe`, `confirm`, and `auto` modes remain from Phase 2's permission system and continue to work without a Planner.
 
-- Planner
-- Task state model
-- Plan update loop
-- Autonomy mode policy
-- Failure recovery path
+Phase 4 scope will be re-evaluated before this phase is re-opened. Possible re-scoped deliverables: agent loop hardening, better autonomy mode documentation, or retry and error recovery improvements.
 
-### Learning Documents
+### Original Goal
 
-- `docs/architecture/planner.md`
-- `docs/architecture/autonomy-modes.md`
-
-These documents are planned and have not been created yet.
-
-Implementation plan: [Phase 4 Planning and Autonomy](../plans/phase-4-planning-and-autonomy.md)
-
-### Acceptance Criteria
-
-- Complex tasks can produce a plan before execution.
-- Plan steps can be marked pending, running, complete, failed, or skipped.
-- `observe` mode pauses at each step.
-- `confirm` mode follows the permission policy.
-- `auto` mode continues within allowed policy boundaries.
-- Failures are summarized and can update the plan.
+The agent can operate in `observe`, `confirm`, or `auto` mode with visible progress and safe failure handling.
 
 ### Non-Goals
 
-- No autonomous background daemon yet.
+- No autonomous background daemon yet (Phase 8).
 - No multi-agent task delegation.
-- No advanced workflow language.
+- No explicit plan construct (removed; implicit model reasoning is the OpenClaw-aligned approach).
 
 ## 8. Phase 5: Sessions, Memory, and Knowledge
 
