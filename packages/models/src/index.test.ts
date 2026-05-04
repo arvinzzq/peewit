@@ -273,7 +273,7 @@ describe("OpenAI-compatible provider", () => {
 type AnthropicFakeRequest = {
   model: string;
   max_tokens: number;
-  system?: string;
+  system?: Array<{ type: string; text?: string; cache_control?: unknown }>;
   messages: unknown[];
   tools?: unknown[];
   temperature?: number;
@@ -314,7 +314,9 @@ describe("AnthropicProvider", () => {
       ]
     });
 
-    expect(captured[0]?.system).toBe("You are ArvinClaw.");
+    expect(captured[0]?.system).toEqual([
+      { type: "text", text: "You are ArvinClaw.", cache_control: { type: "ephemeral" } }
+    ]);
     expect(captured[0]?.messages).toEqual([{ role: "user", content: "Hello." }]);
   });
 

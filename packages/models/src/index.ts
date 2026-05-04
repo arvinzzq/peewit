@@ -324,12 +324,14 @@ interface AnthropicAPIResponse {
   usage: { input_tokens: number; output_tokens: number };
 }
 
+type AnthropicSystemBlock = { type: "text"; text: string; cache_control?: { type: "ephemeral" } };
+
 interface AnthropicClientLike {
   messages: {
     create(params: {
       model: string;
       max_tokens: number;
-      system?: string;
+      system?: AnthropicSystemBlock[];
       messages: AnthropicAPIParam[];
       tools?: AnthropicAPIToolDef[];
       temperature?: number;
@@ -362,10 +364,15 @@ export class AnthropicProvider implements ModelProvider {
     try {
       const { system, messages } = translateMessagesToAnthropic(input.messages);
 
+      const systemBlocks: AnthropicSystemBlock[] | undefined =
+        system !== undefined
+          ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }]
+          : undefined;
+
       const response = await this.#client.messages.create({
         model: this.#model,
         max_tokens: this.#maxTokens,
-        ...(system !== undefined ? { system } : {}),
+        ...(systemBlocks !== undefined ? { system: systemBlocks } : {}),
         messages,
         ...(input.tools !== undefined && input.tools.length > 0
           ? { tools: translateToolsToAnthropic(input.tools) }
