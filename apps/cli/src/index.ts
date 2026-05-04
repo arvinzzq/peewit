@@ -1,6 +1,6 @@
 /**
  * INPUT: CLI arguments, package version, optional line reader/fetch implementation, optional fake model outputs, config loader, runtime/session packages, context assembler, model providers, and built-in tools.
- * OUTPUT: CLI result objects, configured/fake interactive chat transcript, approval prompts, read-only file tool registration, short-term session memory, latest-session resume behavior, persisted trace output, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
+ * OUTPUT: CLI result objects, configured/fake interactive chat transcript, approval prompts, read-only and write_file tool registration, short-term session memory, latest-session resume behavior, persisted trace output, assistant text, compact trace output, redacted config output, slash command output, and terminal stdout/stderr side effects.
  * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -13,7 +13,7 @@ import { DefaultContextAssembler } from "@arvinclaw/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
 import { FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
-import { createListDirectoryTool, createReadFileTool } from "@arvinclaw/tools";
+import { createListDirectoryTool, createReadFileTool, createWriteFileTool } from "@arvinclaw/tools";
 
 export const cliPackageName = "@arvinclaw/cli";
 
@@ -515,7 +515,7 @@ function createCliApprovalResolver(options: RunCliOptions, approvalPromptLog: st
 
       const answer = (await options.readLine?.("Approve once? [y/N/details] "))?.trim().toLowerCase();
       if (answer === "y" || answer === "yes") {
-        approvalPromptLog.push("Decision: approved once (tool execution is not wired yet).");
+        approvalPromptLog.push("Decision: approved once.");
         return {
           approved: true,
           reason: "Approved once from CLI prompt."
@@ -532,7 +532,7 @@ function createCliApprovalResolver(options: RunCliOptions, approvalPromptLog: st
 }
 
 function createCliBuiltInTools() {
-  return [createReadFileTool(), createListDirectoryTool()];
+  return [createReadFileTool(), createListDirectoryTool(), createWriteFileTool()];
 }
 
 class MessageMappedFakeModelProvider implements ModelProvider {
