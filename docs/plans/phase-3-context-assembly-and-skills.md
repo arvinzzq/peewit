@@ -7,27 +7,29 @@ Simplified Chinese version: [phase-3-context-assembly-and-skills.zh-CN.md](./pha
 
 ## Progress
 
-Status: Not Started
+Status: In Progress
 
 Completed:
 
-None yet.
+- Part A: Context section architecture.
+  - Named sections: identity, runtime, tooling, safety, skills, workspace, conversation_history, user_message.
+  - `ContextToolSummary`, `ContextSkillSummary`, `ContextSectionReport` types added to `packages/context`.
+  - `ContextAssemblyInput` extended with `tools?`, `skillIndex?`, `permissionGuidance?`.
+  - `ContextAssemblyReport` extended with `sections: ContextSectionReport[]`.
+  - `AgentRuntime` projects tools to `ContextToolSummary[]` and passes default permission guidance each turn.
+  - All tests pass.
 
 Remaining:
 
-- Context assembly section architecture.
-- Tool summaries flowing through context assembler.
-- Permission guidance section.
-- Skill index section placeholder.
-- Anthropic provider.
-- Skill loader and SKILL.md parser.
-- Skill index injection into context assembler.
-- CLI /skills command.
-- Safety regression tests.
+- Part B: Anthropic provider.
+- Part C: Skill loader and SKILL.md parser.
+- Part C: Skill index injection into context assembler.
+- Part C: CLI /skills command.
+- Documentation pass.
 
 Next recommended slice:
 
-- Add section architecture and ContextToolSummary / ContextSkillSummary to packages/context.
+- Part B: Add `@anthropic-ai/sdk` to `packages/models` and implement `AnthropicProvider`.
 
 ## 1. Purpose
 

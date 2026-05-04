@@ -47,6 +47,8 @@ MVP prompt assembly 应接受结构化输入：
 - Recent trace summaries
 - User message
 
+Phase 3 Part A 已完成：`ContextAssemblyInput` 已扩展 `tools?: ContextToolSummary[]`、`skillIndex?: ContextSkillSummary[]` 和 `permissionGuidance?: string`。Assembler 现在在提供这些输入时生成 tooling、safety 和 skills sections。Skill loader（Part C）尚未实现。
+
 后续 phases 增加：
 
 - `AGENTS.md`

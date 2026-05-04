@@ -7,27 +7,29 @@ English version: [phase-3-context-assembly-and-skills.md](./phase-3-context-asse
 
 ## Progress
 
-状态：未开始
+状态：进行中
 
 已完成：
 
-无。
+- Part A：Context section 架构。
+  - 具名 sections：identity、runtime、tooling、safety、skills、workspace、conversation_history、user_message。
+  - `packages/context` 添加了 `ContextToolSummary`、`ContextSkillSummary`、`ContextSectionReport` 类型。
+  - `ContextAssemblyInput` 扩展了 `tools?`、`skillIndex?`、`permissionGuidance?`。
+  - `ContextAssemblyReport` 扩展了 `sections: ContextSectionReport[]`。
+  - `AgentRuntime` 将 tools 投影为 `ContextToolSummary[]` 并在每轮传入默认 permission guidance。
+  - 所有测试通过。
 
 剩余：
 
-- Context assembly section 架构。
-- Tool summaries 流经 context assembler。
-- Permission guidance section。
-- Skill index section 占位。
-- Anthropic provider。
-- Skill loader 和 SKILL.md 解析器。
-- Skill index 注入 context assembler。
-- CLI /skills 命令。
-- 安全回归测试。
+- Part B：Anthropic provider。
+- Part C：Skill loader 和 SKILL.md 解析器。
+- Part C：Skill index 注入 context assembler。
+- Part C：CLI /skills 命令。
+- 文档整理。
 
 下一步建议切片：
 
-- 为 packages/context 添加 section 架构和 ContextToolSummary / ContextSkillSummary。
+- Part B：在 `packages/models` 添加 `@anthropic-ai/sdk` 并实现 `AnthropicProvider`。
 
 ## 1. 目的
 
