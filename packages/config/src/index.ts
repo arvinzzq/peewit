@@ -12,6 +12,10 @@ const openRouterDefaults = {
   model: "openai/gpt-4.1-mini"
 } as const;
 
+const anthropicDefaults = {
+  model: "claude-haiku-4-5-20251001"
+} as const;
+
 export type AutonomyMode = "observe" | "confirm" | "auto";
 export type TraceVerbosity = "explainable" | "debug";
 export type LongTermMemoryFilePolicy = "disabled" | "read-only";
@@ -199,6 +203,7 @@ function applyEnv(config: EffectiveConfig, env: Record<string, string | undefine
 
   if (env.ANTHROPIC_API_KEY !== undefined) {
     config.model.provider = "anthropic";
+    config.model.model = anthropicDefaults.model;
     config.secrets.apiKey = env.ANTHROPIC_API_KEY;
   }
 

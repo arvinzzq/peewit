@@ -73,8 +73,21 @@ describe("loadConfig", () => {
     });
 
     expect(config.model.provider).toBe("anthropic");
+    expect(config.model.model).toBe("claude-haiku-4-5-20251001");
     expect(config.secrets.apiKey).toBe("sk-ant-test-secret");
     expect(JSON.stringify(redactedConfig(config))).not.toContain("sk-ant-test-secret");
+  });
+
+  test("lets ARVINCLAW_MODEL override the Anthropic default model", () => {
+    const config = loadConfig({
+      env: {
+        ANTHROPIC_API_KEY: "sk-ant-test-secret",
+        ARVINCLAW_MODEL: "claude-sonnet-4-6"
+      }
+    });
+
+    expect(config.model.provider).toBe("anthropic");
+    expect(config.model.model).toBe("claude-sonnet-4-6");
   });
 
   test("lets generic ARVINCLAW_API_KEY override ANTHROPIC_API_KEY shortcut", () => {
