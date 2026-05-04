@@ -297,7 +297,81 @@ OpenClaw has many hook points. ArvinClaw should defer hooks until tool, permissi
 
 When implemented, hooks need clear decision rules and tests.
 
-## 7. Open Questions for Source-Level Follow-Up
+## 7. Source-Confirmed Findings (Second Research Pass, 2026-05-04)
+
+These are confirmed from direct repository file access.
+
+### SKILL.md Confirmed Format
+
+The actual standard format from `skills/skill-creator/SKILL.md` and `.agents/skills/`:
+
+```markdown
+---
+name: skill-name
+description: "When to use this skill and what it does."
+---
+# Skill Title
+
+[Full markdown instructions for the agent — loaded only when the skill is triggered]
+```
+
+Only `name` and `description` are required frontmatter fields. `description` serves as both the purpose summary and the routing trigger (what the agent reads to decide if this skill applies). The body is full instructions, loaded on trigger, targeting under 5k words.
+
+Progressive disclosure:
+1. Metadata (`name` + `description`) always in context — ~100 words
+2. SKILL.md body loaded when skill triggers — target <5k words
+3. Bundled resources (`scripts/`, `references/`, `assets/`) loaded as needed by the agent
+
+ArvinClaw implication: Our `ContextSkillSummary.when` field is non-standard. The correct approach is a single `description` field that answers both "what does this do" and "when to use it". The `when` field should be removed and its content merged into `description`.
+
+### OpenClaw Tasks and TaskFlow (vs Claude Code TodoWrite)
+
+OpenClaw has a full task registry in `src/tasks/` with SQLite persistence. This is completely different from Claude Code's TodoWrite.
+
+**OpenClaw Tasks** (`task-registry.types.ts`):
+```typescript
+type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "timed_out" | "cancelled" | "lost";
+type TaskRecord = {
+  taskId: string;
+  runtime: "subagent" | "acp" | "cli" | "cron";
+  task: string;
+  status: TaskStatus;
+  progressSummary?: string;
+  terminalSummary?: string;
+};
+```
+
+**OpenClaw TaskFlow** (`task-flow-registry.types.ts`) — durable multi-step pipelines:
+- Fields: `goal`, `currentStep`, `blockedSummary`, `stateJson`
+- Statuses: `queued | running | waiting | blocked | succeeded | failed | cancelled | lost`
+- Two modes: `managed` (TaskFlow drives steps) and `mirrored` (observes external tasks)
+- Full parent/child task relationships for multi-agent coordination
+
+**Claude Code TodoWrite** (confirmed from Agent SDK docs):
+- A tool the model calls directly (not infrastructure-level)
+- Ephemeral: exists only within one agent turn's context
+- Replace-all list: `{ todos: Array<{ content, status: "pending"|"in_progress"|"completed", activeForm }> }`
+- No `TodoRead` — consumers watch the stream for `TodoWrite` tool calls
+- Purpose: in-turn progress display to the user
+
+**Comparison**:
+
+| | ArvinClaw Plan | Claude Code TodoWrite | OpenClaw TaskFlow |
+| --- | --- | --- | --- |
+| Storage | In-memory (one turn) | In-context (one turn) | SQLite (persistent) |
+| Lifecycle | Created at turn start | Model calls on demand | Durable across sessions |
+| Driven by | AgentRuntime (infra) | Model (tool call) | TaskFlow engine (infra) |
+| Status states | pending/running/complete/failed/skipped | pending/in_progress/completed | 7 states incl. blocked/lost |
+| Multi-agent | No | No | Yes (parent/child) |
+| Purpose | Decompose goal into steps | Show progress to user | Background job orchestration |
+
+**ArvinClaw implication**: Our Phase 4 `Plan` is closest to Claude Code's TodoWrite in purpose (ephemeral, in-turn progress display) but is architecture-driven rather than model-called. For true OpenClaw-style durable TaskFlow (persistent plans across sessions, background execution), that belongs to Phase 8+ when background automation is designed.
+
+### `pi-embedded-runner` Execution Lanes
+
+Confirmed: `pi-embedded-runner/lanes.ts` handles session vs. global command lanes (`session:<key>` naming), not task/plan tracking. Plan state management (`buildAgentRuntimePlan`, `emitAgentPlanEvent`) is in `run.ts` — internal to the embedded runner, not user-visible todos.
+
+## 8. Open Questions for Source-Level Follow-Up
 
 The next research pass should inspect source code for:
 
@@ -312,7 +386,7 @@ The next research pass should inspect source code for:
 - How context engine plugins are selected
 - How memory search and memory flush integrate with compaction
 
-## 8. ArvinClaw Backlog Updates
+## 9. ArvinClaw Backlog Updates
 
 This research suggests adding or refining these ArvinClaw documents:
 
@@ -335,7 +409,7 @@ It also suggests adding these future test categories:
 - Context compaction
 - Memory flush before compaction
 
-## 9. Sources
+## 10. Sources
 
 - [OpenClaw Agent Loop](https://docs.openclaw.ai/concepts/agent-loop)
 - [OpenClaw Context](https://docs.openclaw.ai/concepts/context)
@@ -347,7 +421,7 @@ It also suggests adding these future test categories:
 - [OpenClaw llms.txt](https://docs.openclaw.ai/llms.txt)
 - [OpenClaw GitHub repository](https://github.com/openclaw/openclaw)
 
-## 10. Related Documents
+## 11. Related Documents
 
 - [OpenClaw architecture map](../architecture/openclaw-architecture-map.md)
 - [Reference systems](../architecture/reference-systems.md)

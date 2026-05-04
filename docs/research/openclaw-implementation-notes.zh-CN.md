@@ -297,7 +297,81 @@ OpenClaw 有很多 hook points。ArvinClaw 应将 hooks 延后到 tool、permiss
 
 实现 hooks 时，需要清晰决策规则和测试。
 
-## 7. 源码级后续开放问题
+## 7. 源码确认发现（第二轮研究，2026-05-04）
+
+以下内容来自直接的仓库文件访问确认。
+
+### SKILL.md 确认格式
+
+来自 `skills/skill-creator/SKILL.md` 和 `.agents/skills/` 的实际标准格式：
+
+```markdown
+---
+name: skill-name
+description: "When to use this skill and what it does."
+---
+# Skill Title
+
+[Full markdown instructions for the agent — loaded only when the skill is triggered]
+```
+
+只有 `name` 和 `description` 是必需的 frontmatter 字段。`description` 同时用作目的说明和路由触发器（模型读取它来判断该 skill 是否适用）。正文是完整指令，触发时加载，目标不超过 5k 词。
+
+渐进式加载：
+1. Metadata（`name` + `description`）始终在上下文中 — 约 100 词
+2. SKILL.md 正文在 skill 触发时加载 — 目标 <5k 词
+3. 附属资源（`scripts/`、`references/`、`assets/`）由 Agent 按需加载
+
+ArvinClaw 影响：我们的 `ContextSkillSummary.when` 字段不是标准字段。正确方式是单一 `description` 字段同时回答"这是什么"和"何时使用"。`when` 字段应被移除，其内容合并到 `description` 中。
+
+### OpenClaw Tasks 与 TaskFlow（对比 Claude Code TodoWrite）
+
+OpenClaw 在 `src/tasks/` 中有一个完整 task registry，基于 SQLite 持久化。这与 Claude Code 的 TodoWrite 完全不同。
+
+**OpenClaw Tasks**（`task-registry.types.ts`）：
+```typescript
+type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "timed_out" | "cancelled" | "lost";
+type TaskRecord = {
+  taskId: string;
+  runtime: "subagent" | "acp" | "cli" | "cron";
+  task: string;
+  status: TaskStatus;
+  progressSummary?: string;
+  terminalSummary?: string;
+};
+```
+
+**OpenClaw TaskFlow**（`task-flow-registry.types.ts`）— 持久化多步骤 pipelines：
+- 字段：`goal`、`currentStep`、`blockedSummary`、`stateJson`
+- 状态：`queued | running | waiting | blocked | succeeded | failed | cancelled | lost`
+- 两种模式：`managed`（TaskFlow 驱动步骤）和 `mirrored`（观察外部任务）
+- 完整父子任务关系，支持多 Agent 协调
+
+**Claude Code TodoWrite**（来自 Agent SDK 文档确认）：
+- 模型直接调用的 tool（非基础设施级别）
+- 临时性：仅存在于一次 agent turn 的上下文中
+- Replace-all 列表：`{ todos: Array<{ content, status: "pending"|"in_progress"|"completed", activeForm }> }`
+- 无 `TodoRead` — 消费方通过监听 stream 中的 `TodoWrite` tool call 来获取
+- 目的：向用户展示 in-turn 进度
+
+**对比**：
+
+| | ArvinClaw Plan | Claude Code TodoWrite | OpenClaw TaskFlow |
+| --- | --- | --- | --- |
+| 存储 | 内存（单次 turn） | 上下文（单次 turn） | SQLite（持久化） |
+| 生命周期 | Turn 开始时创建 | 模型按需调用 | 跨 session 持久存在 |
+| 驱动方式 | AgentRuntime（基础设施） | 模型（tool call） | TaskFlow 引擎（基础设施） |
+| 状态 | pending/running/complete/failed/skipped | pending/in_progress/completed | 7 种状态含 blocked/lost |
+| 多 Agent | 否 | 否 | 是（父子任务） |
+| 目的 | 把目标拆分为步骤 | 向用户展示进度 | 后台 job 编排 |
+
+**ArvinClaw 影响**：Phase 4 的 `Plan` 在目的上最接近 Claude Code 的 TodoWrite（临时性、in-turn 进度展示），但由架构驱动而不是模型调用。真正的 OpenClaw-style 持久化 TaskFlow（跨 session 计划、后台执行）属于 Phase 8+，届时才需要设计后台自动化。
+
+### `pi-embedded-runner` Execution Lanes
+
+确认：`pi-embedded-runner/lanes.ts` 处理的是 session 与 global command lanes（`session:<key>` 命名），而不是 task/plan 追踪。Plan state management（`buildAgentRuntimePlan`、`emitAgentPlanEvent`）在 `run.ts` 中 — 是 embedded runner 的内部逻辑，不是用户可见的 todos。
+
+## 8. 源码级后续开放问题
 
 下一轮研究应检查源码：
 
@@ -312,7 +386,7 @@ OpenClaw 有很多 hook points。ArvinClaw 应将 hooks 延后到 tool、permiss
 - Context engine plugins 如何选择
 - Memory search 和 memory flush 如何与 compaction 集成
 
-## 8. ArvinClaw Backlog 更新
+## 10. ArvinClaw Backlog 更新
 
 本研究建议新增或细化这些 ArvinClaw 文档：
 
@@ -335,7 +409,7 @@ OpenClaw 有很多 hook points。ArvinClaw 应将 hooks 延后到 tool、permiss
 - Context compaction
 - Memory flush before compaction
 
-## 9. 来源
+## 11. 来源
 
 - [OpenClaw Agent Loop](https://docs.openclaw.ai/concepts/agent-loop)
 - [OpenClaw Context](https://docs.openclaw.ai/concepts/context)
@@ -347,7 +421,7 @@ OpenClaw 有很多 hook points。ArvinClaw 应将 hooks 延后到 tool、permiss
 - [OpenClaw llms.txt](https://docs.openclaw.ai/llms.txt)
 - [OpenClaw GitHub repository](https://github.com/openclaw/openclaw)
 
-## 10. 相关文档
+## 12. 相关文档
 
 - [OpenClaw Architecture Map](../architecture/openclaw-architecture-map.zh-CN.md)
 - [Reference Systems](../architecture/reference-systems.zh-CN.md)
