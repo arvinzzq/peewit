@@ -7,20 +7,16 @@ English version: [phase-4-planning-and-autonomy.md](./phase-4-planning-and-auton
 
 ## Progress
 
-状态：未开始
+状态：已完成
 
-已完成：无。
+已完成：
 
-剩余：
-
-- packages/planner：Plan 类型、Planner 接口、ModelBasedPlanner。
-- packages/core：Plan events、AgentRuntime 中的 planner 集成。
-- apps/cli：Plan 展示、observe 模式下的 plan 级 approval。
+- Part A：packages/planner — Plan、PlanStep、PlanStepStatus、Planner 接口、PlannerContext、支持 create_plan tool 注入和 fallback 的 ModelBasedPlanner。7 个测试。
+- Part B：packages/core — 7 个 plan event 类型添加到 runtimeEventTypes；inner loop 提取为 #runInnerLoop()；plan-driven 执行的 #runWithPlan()；PlanApprovalResolver 接口；AgentRuntimeDependencies 中的 planner 和 planApprovalResolver。6 个 planner 集成测试。
+- Part C：apps/cli — --plan 标志、createConfigured 中的 ModelBasedPlanner wiring、renderPlanProgress()、CliChatTurnResult.planLines、observe 模式 plan approval 的 createCliPlanApprovalResolver、plan events 的 trace event labels。
 - 文档整理。
 
-下一步建议切片：
-
-- 在 packages/planner 中定义 plan 类型和 Planner 接口。
+剩余：无。Phase 4 已完成。
 
 ## 1. 目的
 

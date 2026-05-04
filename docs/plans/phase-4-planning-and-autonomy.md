@@ -7,20 +7,16 @@ Simplified Chinese version: [phase-4-planning-and-autonomy.zh-CN.md](./phase-4-p
 
 ## Progress
 
-Status: Not Started
+Status: Complete
 
-Completed: None yet.
+Completed:
 
-Remaining:
-
-- packages/planner: Plan types, Planner interface, ModelBasedPlanner.
-- packages/core: Plan events, planner integration in AgentRuntime.
-- apps/cli: Plan display, plan-level approval in observe mode.
+- Part A: packages/planner — Plan, PlanStep, PlanStepStatus, Planner interface, PlannerContext, ModelBasedPlanner with create_plan tool injection and fallback behavior. 7 tests.
+- Part B: packages/core — 7 plan event types added to runtimeEventTypes; inner loop extracted to #runInnerLoop(); #runWithPlan() for plan-driven execution; PlanApprovalResolver interface; planner and planApprovalResolver in AgentRuntimeDependencies. 6 planner integration tests.
+- Part C: apps/cli — --plan flag, ModelBasedPlanner wiring in createConfigured, renderPlanProgress(), CliChatTurnResult.planLines, createCliPlanApprovalResolver for observe-mode plan approval, trace event labels for plan events.
 - Documentation pass.
 
-Next recommended slice:
-
-- Define plan types and Planner interface in packages/planner.
+Remaining: None. Phase 4 is complete.
 
 ## 1. Purpose
 
