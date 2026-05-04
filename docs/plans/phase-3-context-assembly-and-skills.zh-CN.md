@@ -1,13 +1,13 @@
 # Phase 3：Context Assembly 与 Skills
 
-状态：草案
+状态：已完成
 日期：2026-05-04
 
 English version: [phase-3-context-assembly-and-skills.md](./phase-3-context-assembly-and-skills.md)
 
 ## Progress
 
-状态：进行中
+状态：已完成
 
 已完成：
 
@@ -28,16 +28,15 @@ English version: [phase-3-context-assembly-and-skills.md](./phase-3-context-asse
   - CLI 在 `config.model.provider === "anthropic"` 时使用 `AnthropicProvider`。
   - 所有测试通过。
 
-剩余：
+- Part C：Skill system。
+  - `packages/skills` 含 `SkillDefinition`、`SkillSummary`、`SkillLoader`、`parseSKILLMd`、`toSkillSummary`。
+  - 三个内置技能：research、project-inspector、safe-shell。
+  - 优先级：workspace > user > built-in；可注入文件系统操作用于测试。
+  - `AgentRuntime` `skillIndex` 依赖；每轮传入 context assembler。
+  - CLI 通过 `SkillLoader` 加载技能，传给 runtime，通过 `/skills` slash command 展示。
+  - 所有测试通过。
 
-- Part C：Skill loader 和 SKILL.md 解析器。
-- Part C：Skill index 注入 context assembler。
-- Part C：CLI /skills 命令。
-- 文档整理。
-
-下一步建议切片：
-
-- Part C：实现 `packages/skills`，包含 `SkillLoader` 和 SKILL.md 解析器。
+剩余：无。Phase 3 已完成。
 
 ## 1. 目的
 

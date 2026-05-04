@@ -11,16 +11,17 @@ ArvinClaw 是一个受 OpenClaw 启发的个人通用 Agent 项目。
 
 ## 当前阶段
 
-Phase 2（工具与权限）已完成。ArvinClaw 准备进入 Phase 3：轻量 skills。
+Phase 3（context assembly 与 skills）已完成。ArvinClaw 准备进入 Phase 4：规划与自主执行。
 
 已完成阶段：
 
 - Phase 0：项目基础 — monorepo、config、文档布局。
 - Phase 1：MVP agent loop — CLI chat、ModelProvider、context assembly、execution trace。
 - Phase 2：工具与权限 — `read_file`、`list_directory`、guarded `write_file`、guarded `run_shell`、`read_web_page` 工具，含工作区边界检查、secret 文件拦截、破坏性命令 pattern 检测和基于风险的 approval prompts。
+- Phase 3：Context assembly 与 skills — 基于 section 的 system prompt（identity、runtime、tooling、safety、skills、workspace）、通过 `ANTHROPIC_API_KEY` 使用 Anthropic provider、含 workspace/user/built-in 优先级的 `SKILL.md` skill loader、内置技能、CLI `/skills` 命令。
 - Phase 5（早期基础）：JSONL session storage、workspace prompt 加载和只读 memory 文件策略。
 
-下一步：Phase 3 — 本地 `SKILL.md` 加载和 skill-aware agent 行为。
+下一步：Phase 4 — 任务规划与可见的逐步执行。
 
 ## 文档
 

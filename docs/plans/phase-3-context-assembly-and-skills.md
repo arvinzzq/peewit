@@ -1,13 +1,13 @@
 # Phase 3: Context Assembly and Skills
 
-Status: Draft
+Status: Complete
 Date: 2026-05-04
 
 Simplified Chinese version: [phase-3-context-assembly-and-skills.zh-CN.md](./phase-3-context-assembly-and-skills.zh-CN.md)
 
 ## Progress
 
-Status: In Progress
+Status: Complete
 
 Completed:
 
@@ -28,16 +28,15 @@ Completed:
   - CLI wires `AnthropicProvider` when `config.model.provider === "anthropic"`.
   - All tests pass.
 
-Remaining:
+- Part C: Skill system.
+  - `packages/skills` with `SkillDefinition`, `SkillSummary`, `SkillLoader`, `parseSKILLMd`, `toSkillSummary`.
+  - Three built-in skills: research, project-inspector, safe-shell.
+  - Precedence: workspace > user > built-in; injectable file system ops for tests.
+  - `AgentRuntime` `skillIndex` dependency; passed to context assembler each turn.
+  - CLI loads skills via `SkillLoader`, passes to runtime, exposes `/skills` slash command.
+  - All tests pass.
 
-- Part C: Skill loader and SKILL.md parser.
-- Part C: Skill index injection into context assembler.
-- Part C: CLI /skills command.
-- Documentation pass.
-
-Next recommended slice:
-
-- Part C: Implement `packages/skills` with `SkillLoader` and SKILL.md parser.
+Remaining: None. Phase 3 is complete.
 
 ## 1. Purpose
 
