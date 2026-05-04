@@ -11,19 +11,18 @@ The goal is twofold:
 
 ## Current Phase
 
-ArvinClaw is in Phase 1: MVP agent loop.
+ArvinClaw is in Phase 2: Tools and permissions.
 
-Phase 0 foundation is complete. Phase 1 is now building the first message-only agent loop.
+Phase 0 (foundation), Phase 1 (MVP agent loop), and the early Phase 5 session and memory foundations are complete.
 
-Current Phase 1 progress:
+Current Phase 2 progress:
 
-- Runtime event contracts are implemented.
-- `ModelProvider`, fake provider, and OpenAI-compatible provider are implemented.
-- Minimal context assembly is implemented.
-- Message-only `AgentRuntime.runTurn` is implemented.
-- CLI chat runtime wiring is still in progress.
+- Tool registry, permission policy, and runtime tool-call orchestration are implemented.
+- `read_file`, `list_directory`, and guarded `write_file` tools are implemented with workspace boundary enforcement and secret file blocking.
+- CLI approval prompts are wired for medium and high-risk tool calls.
+- Session storage (in-memory and JSONL), workspace prompt loading, and read-only memory file policy are implemented as early Phase 5 foundations.
 
-Phase 1 does not include full tool execution, long-term memory, or Web UI yet.
+Phase 2 remaining work: shell tool and web tools.
 
 ## Documentation
 
@@ -32,7 +31,7 @@ Start here:
 - [Documentation Index](./docs/README.md)
 - [Main Design](./docs/product/arvinclaw-design.md)
 - [Roadmap](./docs/roadmap/overview.md)
-- [Phase 1 Plan](./docs/plans/phase-1-mvp-agent-loop.md)
+- [Phase 2 Plan](./docs/plans/phase-2-tools-and-permissions.md)
 
 ## Development
 

@@ -20,15 +20,17 @@ English version: [phase-2-tools-and-permissions.md](./phase-2-tools-and-permissi
 - Executable tool contracts and built-in read-only file tools：`099e037`
 - Runtime executes registered tools and sends observations back to the model：`5ee7791`
 - CLI registers built-in read-only file tools in runtime composition：`19c9ab3`
+- read_file secret 文件拦截、read-only 工具安全回归测试、guarded write_file 工具：`c5ae623`
+- CLI 注册 write_file 工具：`aad5814`
 
 剩余：
 
-- Guarded file write tool。
-- Additional safety regression tests for tool execution。
+- Shell tool（高风险，需要确认，含 timeout 和 captured output）。
+- Web search 或 web page reader（通过配置的 provider）。
 
 下一步建议切片：
 
-- 添加 read-only file tool execution 的 safety regression tests。
+- 添加 guarded shell tool（高风险，需要确认）。
 
 ## 1. 目的
 

@@ -11,19 +11,18 @@ ArvinClaw 是一个受 OpenClaw 启发的个人通用 Agent 项目。
 
 ## 当前阶段
 
-ArvinClaw 处于 Phase 1：MVP agent loop 阶段。
+ArvinClaw 处于 Phase 2：Tools and permissions 阶段。
 
-Phase 0 foundation 已完成。Phase 1 现在正在构建第一版 message-only agent loop。
+Phase 0（基础）、Phase 1（MVP agent loop）以及 Phase 5 早期 session 和 memory 基础已完成。
 
-当前 Phase 1 进展：
+当前 Phase 2 进展：
 
-- Runtime event contracts 已实现。
-- `ModelProvider`、fake provider 和 OpenAI-compatible provider 已实现。
-- Minimal context assembly 已实现。
-- Message-only `AgentRuntime.runTurn` 已实现。
-- CLI chat runtime wiring 仍在进行中。
+- Tool registry、permission policy 以及 runtime tool-call 编排已实现。
+- `read_file`、`list_directory`、guarded `write_file` 工具已实现，含工作区边界检查和 secret 文件拦截。
+- CLI approval prompts 已接入 medium 和 high 风险工具调用。
+- Session storage（in-memory 和 JSONL）、workspace prompt 加载以及只读 memory 文件策略作为早期 Phase 5 基础已实现。
 
-Phase 1 暂不包含完整 tool execution、long-term memory 或 Web UI。
+Phase 2 剩余工作：shell tool 和 web tools。
 
 ## 文档
 
@@ -32,7 +31,7 @@ Phase 1 暂不包含完整 tool execution、long-term memory 或 Web UI。
 - [Documentation Index](./docs/README.zh-CN.md)
 - [Main Design](./docs/product/arvinclaw-design.zh-CN.md)
 - [Roadmap](./docs/roadmap/overview.zh-CN.md)
-- [Phase 1 Plan](./docs/plans/phase-1-mvp-agent-loop.zh-CN.md)
+- [Phase 2 Plan](./docs/plans/phase-2-tools-and-permissions.zh-CN.md)
 
 ## 开发
 
