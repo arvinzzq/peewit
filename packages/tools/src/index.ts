@@ -1,6 +1,6 @@
 /**
  * INPUT: Tool definitions, input schemas, risk metadata, registration requests, tool execution input, and workspace file system access.
- * OUTPUT: Tool contracts, registry lookup/listing behavior, executable read-only file tools, guarded write_file tool, guarded shell tool, read_web_page tool, normalized tool results, and registry errors.
+ * OUTPUT: Tool contracts, registry lookup/listing behavior, executable read-only file tools, guarded write_file tool, guarded shell tool, read_web_page tool, update_todos task tracker, normalized tool results, and registry errors.
  * POS: Tool system layer; exposes capabilities without making permission decisions.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -78,13 +78,25 @@ export interface ReadWebPageToolResult {
   summary: string;
 }
 
+export interface UpdateTodosResult {
+  ok: true;
+}
+
 export type ToolExecutionResult =
   | ReadFileToolResult
   | ListDirectoryToolResult
   | WriteFileToolResult
   | ShellToolResult
   | ReadWebPageToolResult
+  | UpdateTodosResult
   | ToolExecutionFailure;
+
+export type TodoStatus = "pending" | "in_progress" | "completed";
+
+export interface TodoItem {
+  content: string;
+  status: TodoStatus;
+}
 
 export type WebFetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -547,6 +559,60 @@ export function createReadWebPageTool(fetchFn: WebFetchLike = fetch): Executable
           }
         };
       }
+    }
+  };
+}
+
+export function createUpdateTodosTool(onUpdate?: (todos: TodoItem[]) => void): ExecutableTool {
+  return {
+    name: "update_todos",
+    description: "Update the task list to track progress on multi-step work. Call this when starting a complex task or after completing each step. At most one item may be in_progress at a time.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        todos: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              content: { type: "string" },
+              status: { type: "string", enum: ["pending", "in_progress", "completed"] }
+            },
+            required: ["content", "status"]
+          }
+        }
+      },
+      required: ["todos"]
+    },
+    risk: "low",
+    async execute(input, _context): Promise<UpdateTodosResult | ToolExecutionFailure> {
+      const raw = input as { todos?: unknown };
+      if (!Array.isArray(raw.todos)) {
+        return { ok: false, error: { code: "invalid_input", message: "todos must be an array." } };
+      }
+
+      const todos: TodoItem[] = [];
+      for (const item of raw.todos) {
+        if (typeof item !== "object" || item === null) {
+          return { ok: false, error: { code: "invalid_input", message: "Each todo must be an object." } };
+        }
+        const { content, status } = item as { content?: unknown; status?: unknown };
+        if (typeof content !== "string" || content.length === 0) {
+          return { ok: false, error: { code: "invalid_input", message: "Each todo must have a non-empty content string." } };
+        }
+        if (status !== "pending" && status !== "in_progress" && status !== "completed") {
+          return { ok: false, error: { code: "invalid_input", message: `Invalid status "${String(status)}". Must be pending, in_progress, or completed.` } };
+        }
+        todos.push({ content, status });
+      }
+
+      const inProgressCount = todos.filter((t) => t.status === "in_progress").length;
+      if (inProgressCount > 1) {
+        return { ok: false, error: { code: "invalid_input", message: "At most one todo may be in_progress at a time." } };
+      }
+
+      onUpdate?.(todos);
+      return { ok: true };
     }
   };
 }

@@ -7,9 +7,11 @@ import {
   createReadFileTool,
   createReadWebPageTool,
   createShellTool,
+  createUpdateTodosTool,
   createWriteFileTool,
   InMemoryToolRegistry,
   ToolRegistryError,
+  type TodoItem,
   type ToolDefinition,
   type WebFetchLike
 } from "./index.js";
@@ -748,5 +750,60 @@ describe("read_web_page tool", () => {
         message: "Tool url must use http or https."
       }
     });
+  });
+});
+
+describe("update_todos tool", () => {
+  const ctx = { workspaceRoot: "/ws" };
+
+  test("returns ok:true for a valid todo list", async () => {
+    const tool = createUpdateTodosTool();
+    const result = await tool.execute({ todos: [
+      { content: "Read the README", status: "completed" },
+      { content: "Write a summary", status: "in_progress" },
+      { content: "Open a PR", status: "pending" }
+    ] }, ctx);
+    expect(result).toEqual({ ok: true });
+  });
+
+  test("calls onUpdate callback with parsed todos", async () => {
+    const received: TodoItem[][] = [];
+    const tool = createUpdateTodosTool((todos) => received.push(todos));
+    await tool.execute({ todos: [{ content: "Step 1", status: "pending" }] }, ctx);
+    expect(received).toHaveLength(1);
+    expect(received[0]).toEqual([{ content: "Step 1", status: "pending" }]);
+  });
+
+  test("returns error when more than one item is in_progress", async () => {
+    const tool = createUpdateTodosTool();
+    const result = await tool.execute({ todos: [
+      { content: "Step 1", status: "in_progress" },
+      { content: "Step 2", status: "in_progress" }
+    ] }, ctx);
+    expect(result).toMatchObject({ ok: false });
+  });
+
+  test("returns error for invalid status value", async () => {
+    const tool = createUpdateTodosTool();
+    const result = await tool.execute({ todos: [{ content: "Step", status: "done" }] }, ctx);
+    expect(result).toMatchObject({ ok: false });
+  });
+
+  test("returns error for empty content", async () => {
+    const tool = createUpdateTodosTool();
+    const result = await tool.execute({ todos: [{ content: "", status: "pending" }] }, ctx);
+    expect(result).toMatchObject({ ok: false });
+  });
+
+  test("accepts empty todo list", async () => {
+    const tool = createUpdateTodosTool();
+    const result = await tool.execute({ todos: [] }, ctx);
+    expect(result).toEqual({ ok: true });
+  });
+
+  test("returns error when todos is not an array", async () => {
+    const tool = createUpdateTodosTool();
+    const result = await tool.execute({ todos: "not an array" }, ctx);
+    expect(result).toMatchObject({ ok: false });
   });
 });
