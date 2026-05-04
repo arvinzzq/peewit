@@ -11,18 +11,16 @@ ArvinClaw 是一个受 OpenClaw 启发的个人通用 Agent 项目。
 
 ## 当前阶段
 
-ArvinClaw 处于 Phase 2：Tools and permissions 阶段。
+Phase 2（工具与权限）已完成。ArvinClaw 准备进入 Phase 3：轻量 skills。
 
-Phase 0（基础）、Phase 1（MVP agent loop）以及 Phase 5 早期 session 和 memory 基础已完成。
+已完成阶段：
 
-当前 Phase 2 进展：
+- Phase 0：项目基础 — monorepo、config、文档布局。
+- Phase 1：MVP agent loop — CLI chat、ModelProvider、context assembly、execution trace。
+- Phase 2：工具与权限 — `read_file`、`list_directory`、guarded `write_file`、guarded `run_shell`、`read_web_page` 工具，含工作区边界检查、secret 文件拦截、破坏性命令 pattern 检测和基于风险的 approval prompts。
+- Phase 5（早期基础）：JSONL session storage、workspace prompt 加载和只读 memory 文件策略。
 
-- Tool registry、permission policy 以及 runtime tool-call 编排已实现。
-- `read_file`、`list_directory`、guarded `write_file`、guarded `run_shell` 工具已实现，含工作区边界检查、secret 文件拦截和破坏性命令 pattern 检测。
-- CLI approval prompts 已接入 medium 和 high 风险工具调用。
-- Session storage（in-memory 和 JSONL）、workspace prompt 加载以及只读 memory 文件策略作为早期 Phase 5 基础已实现。
-
-Phase 2 剩余工作：web tools。
+下一步：Phase 3 — 本地 `SKILL.md` 加载和 skill-aware agent 行为。
 
 ## 文档
 
@@ -31,7 +29,7 @@ Phase 2 剩余工作：web tools。
 - [Documentation Index](./docs/README.zh-CN.md)
 - [Main Design](./docs/product/arvinclaw-design.zh-CN.md)
 - [Roadmap](./docs/roadmap/overview.zh-CN.md)
-- [Phase 2 Plan](./docs/plans/phase-2-tools-and-permissions.zh-CN.md)
+- [Roadmap](./docs/roadmap/overview.zh-CN.md)
 
 ## 开发
 

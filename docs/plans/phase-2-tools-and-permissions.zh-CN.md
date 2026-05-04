@@ -23,15 +23,17 @@ English version: [phase-2-tools-and-permissions.md](./phase-2-tools-and-permissi
 - read_file secret 文件拦截、read-only 工具安全回归测试、guarded write_file 工具：`8e82a36`
 - CLI 注册 write_file 工具：`b497623`
 - Guarded shell tool（含 blocked patterns、timeout 和 captured output）：`1c7a231`
-- CLI 注册 shell tool：当前
+- CLI 注册 shell tool：`7abb38b`
+- read_web_page tool（含 HTML extraction、truncation 和 injectable fetch）：`417ed8e`
+- CLI 注册 read_web_page tool：`0e0946b`
 
 剩余：
 
-- Web search 或 web page reader（通过配置的 provider）。
+无。Phase 2 已完成。
 
-下一步建议切片：
+下一步建议阶段：
 
-- 添加 web page reader（通过配置的 provider）。
+- Phase 3：Lightweight skills — 加载本地 SKILL.md 文件并影响 agent 行为。
 
 ## 1. 目的
 

@@ -23,15 +23,17 @@ Completed:
 - Secret file blocking in read_file, safety regression tests for read-only tools, and guarded write_file tool: `8e82a36`
 - CLI registers write_file tool: `b497623`
 - Guarded shell tool with blocked patterns, timeout, and captured output: `1c7a231`
-- CLI registers shell tool: current
+- CLI registers shell tool: `7abb38b`
+- read_web_page tool with HTML extraction, truncation, and injectable fetch: `417ed8e`
+- CLI registers read_web_page tool: `0e0946b`
 
 Remaining:
 
-- Web search or web page reader through a configured provider.
+None. Phase 2 is complete.
 
-Next recommended slice:
+Next recommended phase:
 
-- Add web page reader through a configured provider.
+- Phase 3: Lightweight skills — load local SKILL.md files and influence agent behavior.
 
 ## 1. Purpose
 

@@ -11,18 +11,16 @@ The goal is twofold:
 
 ## Current Phase
 
-ArvinClaw is in Phase 2: Tools and permissions.
+Phase 2 (tools and permissions) is complete. ArvinClaw is ready to begin Phase 3: lightweight skills.
 
-Phase 0 (foundation), Phase 1 (MVP agent loop), and the early Phase 5 session and memory foundations are complete.
+Completed phases:
 
-Current Phase 2 progress:
+- Phase 0: Project foundation — monorepo, config, documentation layout.
+- Phase 1: MVP agent loop — CLI chat, ModelProvider, context assembly, execution trace.
+- Phase 2: Tools and permissions — `read_file`, `list_directory`, guarded `write_file`, guarded `run_shell`, and `read_web_page` tools with workspace enforcement, secret file blocking, destructive pattern detection, and risk-based approval prompts.
+- Phase 5 (early foundations): JSONL session storage, workspace prompt loading, and read-only memory file policy.
 
-- Tool registry, permission policy, and runtime tool-call orchestration are implemented.
-- `read_file`, `list_directory`, guarded `write_file`, and guarded `run_shell` tools are implemented with workspace boundary enforcement, secret file blocking, and destructive command pattern detection.
-- CLI approval prompts are wired for medium and high-risk tool calls.
-- Session storage (in-memory and JSONL), workspace prompt loading, and read-only memory file policy are implemented as early Phase 5 foundations.
-
-Phase 2 remaining work: web tools.
+Next: Phase 3 — local `SKILL.md` loading and skill-aware agent behavior.
 
 ## Documentation
 
@@ -31,7 +29,7 @@ Start here:
 - [Documentation Index](./docs/README.md)
 - [Main Design](./docs/product/arvinclaw-design.md)
 - [Roadmap](./docs/roadmap/overview.md)
-- [Phase 2 Plan](./docs/plans/phase-2-tools-and-permissions.md)
+- [Roadmap](./docs/roadmap/overview.md)
 
 ## Development
 
