@@ -877,6 +877,38 @@ describe("runCli", () => {
           }
         },
         {
+          type: "tool_started",
+          eventId: "evt_tool_started",
+          runId: "run_1",
+          timestamp: "2026-05-03T01:40:00.900Z",
+          callId: "call_1",
+          toolName: "read_file"
+        },
+        {
+          type: "tool_completed",
+          eventId: "evt_tool_completed",
+          runId: "run_1",
+          timestamp: "2026-05-03T01:40:00.950Z",
+          callId: "call_1",
+          toolName: "read_file",
+          result: {
+            ok: true,
+            content: "Hello",
+            summary: "Read file README.md."
+          }
+        },
+        {
+          type: "tool_failed",
+          eventId: "evt_tool_failed",
+          runId: "run_1",
+          timestamp: "2026-05-03T01:40:00.975Z",
+          callId: "call_2",
+          toolName: "missing_tool",
+          error: {
+            message: "Tool missing_tool is not registered."
+          }
+        },
+        {
           type: "run_completed",
           eventId: "evt_2",
           runId: "run_1",
@@ -889,7 +921,10 @@ describe("runCli", () => {
       "3. Evaluated tool permission (tool_call_permission_evaluated)",
       "4. Requested approval (approval_requested)",
       "5. Resolved approval (approval_resolved)",
-      "6. Completed run (run_completed)"
+      "6. Started tool (tool_started)",
+      "7. Completed tool (tool_completed)",
+      "8. Failed tool (tool_failed)",
+      "9. Completed run (run_completed)"
     ]);
   });
 

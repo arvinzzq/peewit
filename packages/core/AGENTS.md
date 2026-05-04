@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-Keep this package focused on runtime coordination, short-term context handoff, model-requested tool-call events, permission evaluation events, approval resolution events, shared runtime contracts, and trace storage interfaces. It may orchestrate injected dependencies, but it should not read environment variables, render CLI output, execute tools, collect approval UI, or call vendor APIs directly.
+Keep this package focused on runtime coordination, short-term context handoff, model-requested tool-call events, permission evaluation events, approval resolution events, executable tool orchestration, shared runtime contracts, and trace storage interfaces. It may orchestrate injected dependencies, but it should not read environment variables, render CLI output, collect approval UI, or call vendor APIs directly.
 
 ## When Files Change
 
@@ -10,8 +10,8 @@ Update local README and AGENTS files when runtime responsibilities or file inven
 
 ## Testing
 
-Runtime event order, trace storage, short-term context handoff, tool-call request events, permission evaluation events, approval resolution events, failure events, and dependency injection behavior need unit tests. Use fake providers, fake assemblers, injected fake permission policies, and injected fake approval resolvers; no real API keys.
+Runtime event order, trace storage, short-term context handoff, tool-call request events, permission evaluation events, approval resolution events, tool lifecycle events, failure events, and dependency injection behavior need unit tests. Use fake providers, fake assemblers, injected fake permission policies, injected fake approval resolvers, and safe fake or read-only tools; no real API keys.
 
 ## Boundaries
 
-Do not put prompt construction, CLI rendering, model SDK code, tool implementation, or permission UX in this package.
+Do not put prompt construction, CLI rendering, model SDK code, tool implementation details, or permission UX in this package.

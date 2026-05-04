@@ -58,6 +58,9 @@ importers:
       '@arvinclaw/permissions':
         specifier: workspace:*
         version: link:../permissions
+      '@arvinclaw/tools':
+        specifier: workspace:*
+        version: link:../tools
 
   packages/models: {}
 

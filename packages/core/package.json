@@ -18,6 +18,7 @@
   "dependencies": {
     "@arvinclaw/context": "workspace:*",
     "@arvinclaw/models": "workspace:*",
-    "@arvinclaw/permissions": "workspace:*"
+    "@arvinclaw/permissions": "workspace:*",
+    "@arvinclaw/tools": "workspace:*"
   }
 }

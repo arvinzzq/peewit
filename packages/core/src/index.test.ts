@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { DefaultContextAssembler } from "@arvinclaw/context";
 import { FakeModelProvider } from "@arvinclaw/models";
+import { createReadFileTool } from "@arvinclaw/tools";
 import {
   AgentRuntime,
   InMemoryRuntimeTraceStore,
@@ -21,6 +25,9 @@ describe("runtime event contracts", () => {
       "tool_call_permission_evaluated",
       "approval_requested",
       "approval_resolved",
+      "tool_started",
+      "tool_completed",
+      "tool_failed",
       "assistant_message_created",
       "run_completed",
       "run_failed"
@@ -499,6 +506,7 @@ describe("message-only AgentRuntime", () => {
       "tool_call_permission_evaluated",
       "approval_requested",
       "approval_resolved",
+      "tool_failed",
       "run_failed"
     ]);
     expect(events[7]).toMatchObject({
@@ -511,10 +519,115 @@ describe("message-only AgentRuntime", () => {
       }
     });
     expect(events[8]).toMatchObject({
+      type: "tool_failed",
+      callId: "call_approve",
+      toolName: "read_file",
+      error: {
+        message: "Tool read_file is not registered."
+      }
+    });
+    expect(events[9]).toMatchObject({
       type: "run_failed",
       error: {
-        message: "Tool execution is not wired yet.",
+        message: "Tool read_file is not registered.",
         recoverable: false
+      }
+    });
+  });
+
+  test("executes an allowed tool call and sends the observation back to the model", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-core-tools-"));
+    await writeFile(join(workspace, "README.md"), "Tool observation content.");
+    const modelProvider = new FakeModelProvider([
+      {
+        type: "tool_calls",
+        calls: [
+          {
+            id: "call_read",
+            name: "read_file",
+            input: {
+              path: "README.md"
+            }
+          }
+        ]
+      },
+      {
+        type: "message",
+        content: "I read the file."
+      }
+    ]);
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider,
+      tools: [createReadFileTool()],
+      systemInstruction: "You are ArvinClaw.",
+      runtime: {
+        mode: "confirm",
+        workspace,
+        currentDate: "2026-05-03"
+      },
+      createRunId: () => "run_execute_tool",
+      createEventId: (() => {
+        let next = 0;
+        return () => `evt_execute_tool_${++next}`;
+      })(),
+      now: () => "2026-05-03T01:26:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Read README." }));
+
+    expect(events.map((event) => event.type)).toEqual([
+      "run_started",
+      "context_assembled",
+      "model_request_started",
+      "model_request_completed",
+      "tool_call_requested",
+      "tool_call_permission_evaluated",
+      "tool_started",
+      "tool_completed",
+      "model_request_started",
+      "model_request_completed",
+      "assistant_message_created",
+      "run_completed"
+    ]);
+    expect(events[5]).toMatchObject({
+      type: "tool_call_permission_evaluated",
+      decision: {
+        decision: "allow",
+        risk: "low"
+      }
+    });
+    expect(events[6]).toMatchObject({
+      type: "tool_started",
+      callId: "call_read",
+      toolName: "read_file"
+    });
+    expect(events[7]).toMatchObject({
+      type: "tool_completed",
+      callId: "call_read",
+      toolName: "read_file",
+      result: {
+        ok: true,
+        summary: "Read file README.md."
+      }
+    });
+    expect(modelProvider.requests).toHaveLength(2);
+    expect(modelProvider.requests[1]?.messages.at(-1)).toEqual({
+      role: "tool",
+      content: JSON.stringify({
+        toolCallId: "call_read",
+        toolName: "read_file",
+        result: {
+          ok: true,
+          content: "Tool observation content.",
+          summary: "Read file README.md."
+        }
+      })
+    });
+    expect(events[10]).toMatchObject({
+      type: "assistant_message_created",
+      message: {
+        content: "I read the file."
       }
     });
   });

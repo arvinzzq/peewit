@@ -1,7 +1,7 @@
 /**
- * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, optional ApprovalResolver, runtime metadata, user turn input, optional recent conversation messages, and model-requested tool calls.
- * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, message orchestration, tool-call request events, permission evaluation events, and approval resolution events.
- * POS: Core runtime layer; coordinates a turn without owning adapters, tool execution, or vendor APIs.
+ * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, optional ApprovalResolver, executable tools, runtime metadata, user turn input, optional recent conversation messages, and model-requested tool calls.
+ * OUTPUT: AgentRuntime, runtime event contracts, in-memory trace store, message/tool orchestration, tool-call request events, permission evaluation events, approval resolution events, and tool lifecycle events.
+ * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
@@ -17,6 +17,7 @@ import {
   type PermissionPolicy,
   type PermissionRiskLevel
 } from "@arvinclaw/permissions";
+import type { ExecutableTool, ToolExecutionResult } from "@arvinclaw/tools";
 
 export const corePackageName = "@arvinclaw/core";
 
@@ -29,6 +30,9 @@ export const runtimeEventTypes = [
   "tool_call_permission_evaluated",
   "approval_requested",
   "approval_resolved",
+  "tool_started",
+  "tool_completed",
+  "tool_failed",
   "assistant_message_created",
   "run_completed",
   "run_failed"
@@ -104,6 +108,28 @@ export interface ApprovalResolvedEvent extends RuntimeEventBase {
   resolution: ApprovalResolution;
 }
 
+export interface ToolStartedEvent extends RuntimeEventBase {
+  type: "tool_started";
+  callId: string;
+  toolName: string;
+}
+
+export interface ToolCompletedEvent extends RuntimeEventBase {
+  type: "tool_completed";
+  callId: string;
+  toolName: string;
+  result: ToolExecutionResult;
+}
+
+export interface ToolFailedEvent extends RuntimeEventBase {
+  type: "tool_failed";
+  callId: string;
+  toolName: string;
+  error: {
+    message: string;
+  };
+}
+
 export interface RunCompletedEvent extends RuntimeEventBase {
   type: "run_completed";
 }
@@ -125,6 +151,9 @@ export type RuntimeEvent =
   | ToolCallPermissionEvaluatedEvent
   | ApprovalRequestedEvent
   | ApprovalResolvedEvent
+  | ToolStartedEvent
+  | ToolCompletedEvent
+  | ToolFailedEvent
   | AssistantMessageCreatedEvent
   | RunCompletedEvent
   | RunFailedEvent;
@@ -190,6 +219,7 @@ export interface AgentRuntimeDependencies {
   modelProvider: ModelProvider;
   permissionPolicy?: PermissionPolicy;
   approvalResolver?: ApprovalResolver;
+  tools?: ExecutableTool[];
   systemInstruction: string;
   runtime?: ContextRuntimeMetadata;
   createRunId?: () => string;
@@ -202,6 +232,7 @@ export class AgentRuntime {
   readonly #modelProvider: ModelProvider;
   readonly #permissionPolicy: PermissionPolicy;
   readonly #approvalResolver: ApprovalResolver | undefined;
+  readonly #tools: Map<string, ExecutableTool>;
   readonly #systemInstruction: string;
   readonly #runtime: ContextRuntimeMetadata | undefined;
   readonly #createRunId: () => string;
@@ -213,6 +244,7 @@ export class AgentRuntime {
     this.#modelProvider = dependencies.modelProvider;
     this.#permissionPolicy = dependencies.permissionPolicy ?? new DefaultPermissionPolicy();
     this.#approvalResolver = dependencies.approvalResolver;
+    this.#tools = new Map((dependencies.tools ?? []).map((tool) => [tool.name, tool]));
     this.#systemInstruction = dependencies.systemInstruction;
     this.#runtime = dependencies.runtime;
     this.#createRunId = dependencies.createRunId ?? randomId("run");
@@ -279,6 +311,8 @@ export class AgentRuntime {
     }
 
     if (output.type === "tool_calls") {
+      const toolMessages: ModelMessage[] = [];
+
       for (const call of output.calls) {
         yield this.#event({
           ...base,
@@ -286,9 +320,10 @@ export class AgentRuntime {
           call
         });
 
+        const tool = this.#tools.get(call.name);
         const decision = this.#permissionPolicy.evaluate({
           mode: normalizeAutonomyMode(this.#runtime?.mode),
-          action: createToolPermissionAction(call)
+          action: createToolPermissionAction(call, tool?.risk ?? "medium")
         });
 
         yield this.#event({
@@ -348,15 +383,113 @@ export class AgentRuntime {
             return;
           }
         }
+
+        if (tool === undefined) {
+          yield this.#event({
+            ...base,
+            type: "tool_failed",
+            callId: call.id,
+            toolName: call.name,
+            error: {
+              message: `Tool ${call.name} is not registered.`
+            }
+          });
+
+          yield this.#event({
+            ...base,
+            type: "run_failed",
+            error: {
+              message: `Tool ${call.name} is not registered.`,
+              recoverable: false
+            }
+          });
+          return;
+        }
+
+        yield this.#event({
+          ...base,
+          type: "tool_started",
+          callId: call.id,
+          toolName: call.name
+        });
+
+        const result = await tool.execute(call.input, {
+          workspaceRoot: this.#runtime?.workspace ?? process.cwd()
+        });
+
+        yield this.#event({
+          ...base,
+          type: "tool_completed",
+          callId: call.id,
+          toolName: call.name,
+          result
+        });
+
+        toolMessages.push({
+          role: "tool",
+          content: JSON.stringify({
+            toolCallId: call.id,
+            toolName: call.name,
+            result
+          })
+        });
+      }
+
+      const followUpInput = {
+        ...assembled.modelInput,
+        messages: [...assembled.modelInput.messages, ...toolMessages]
+      };
+
+      yield this.#event({
+        ...base,
+        type: "model_request_started",
+        provider: "configured"
+      });
+
+      const followUpOutput = await this.#modelProvider.generate(followUpInput);
+
+      yield this.#event({
+        ...base,
+        type: "model_request_completed",
+        provider: "configured"
+      });
+
+      if (followUpOutput.type === "error") {
+        yield this.#event({
+          ...base,
+          type: "run_failed",
+          error: {
+            message: followUpOutput.message,
+            recoverable: followUpOutput.recoverable
+          }
+        });
+        return;
+      }
+
+      if (followUpOutput.type === "tool_calls") {
+        yield this.#event({
+          ...base,
+          type: "run_failed",
+          error: {
+            message: "Multiple tool-call rounds are not wired yet.",
+            recoverable: false
+          }
+        });
+        return;
       }
 
       yield this.#event({
         ...base,
-        type: "run_failed",
-        error: {
-          message: "Tool execution is not wired yet.",
-          recoverable: false
+        type: "assistant_message_created",
+        message: {
+          role: "assistant",
+          content: followUpOutput.content
         }
+      });
+
+      yield this.#event({
+        ...base,
+        type: "run_completed"
       });
       return;
     }
@@ -389,7 +522,7 @@ function randomId(prefix: string): () => string {
   return () => `${prefix}_${crypto.randomUUID()}`;
 }
 
-function createToolPermissionAction(call: ModelToolCall): {
+function createToolPermissionAction(call: ModelToolCall, risk: PermissionRiskLevel): {
   kind: "tool";
   name: string;
   summary: string;
@@ -399,7 +532,7 @@ function createToolPermissionAction(call: ModelToolCall): {
     kind: "tool",
     name: call.name,
     summary: `Model requested tool ${call.name}.`,
-    risk: "medium"
+    risk
   };
 }
 

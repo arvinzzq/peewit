@@ -627,6 +627,12 @@ function traceEventLabel(event: RuntimeEvent): string {
       return "Requested approval";
     case "approval_resolved":
       return "Resolved approval";
+    case "tool_started":
+      return "Started tool";
+    case "tool_completed":
+      return "Completed tool";
+    case "tool_failed":
+      return "Failed tool";
     case "assistant_message_created":
       return "Created assistant message";
     case "run_completed":
