@@ -19,16 +19,16 @@ Completed:
 - Runtime approval resolver records approval request and resolution events: `7e81d92`
 - Executable tool contracts and built-in read-only file tools: `099e037`
 - Runtime executes registered tools and sends observations back to the model: `5ee7791`
+- CLI registers built-in read-only file tools in runtime composition: `19c9ab3`
 
 Remaining:
 
-- CLI default registration for read-only file tools.
 - Guarded file write tool.
 - Additional safety regression tests for tool execution.
 
 Next recommended slice:
 
-- Register built-in read-only file tools in the CLI runtime composition.
+- Add safety regression tests for read-only file tool execution.
 
 ## 1. Purpose
 

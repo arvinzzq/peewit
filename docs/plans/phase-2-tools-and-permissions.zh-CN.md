@@ -19,16 +19,16 @@ English version: [phase-2-tools-and-permissions.md](./phase-2-tools-and-permissi
 - Runtime approval resolver records approval request and resolution events：`7e81d92`
 - Executable tool contracts and built-in read-only file tools：`099e037`
 - Runtime executes registered tools and sends observations back to the model：`5ee7791`
+- CLI registers built-in read-only file tools in runtime composition：`19c9ab3`
 
 剩余：
 
-- CLI default registration for read-only file tools。
 - Guarded file write tool。
 - Additional safety regression tests for tool execution。
 
 下一步建议切片：
 
-- 在 CLI runtime composition 中注册 built-in read-only file tools。
+- 添加 read-only file tool execution 的 safety regression tests。
 
 ## 1. 目的
 
