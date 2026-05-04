@@ -12,8 +12,8 @@ It must stay adapter-agnostic and vendor-agnostic.
 | --- | --- | --- |
 | `package.json` | Package manifest | Declares the core package and workspace dependencies, including context, models, permissions, and tools. |
 | `tsconfig.json` | TypeScript config | Builds core with references to context, models, permissions, and tools. |
-| `src/index.ts` | Runtime core | Exports runtime event contracts, in-memory trace store, real agent loop (while loop with maxSteps), tool summary projection to context assembler, tool definition projection to model provider, default permission guidance, tool-call request events, permission evaluation events, approval resolver contracts, and tool lifecycle events. |
-| `src/index.test.ts` | Runtime tests | Protects event vocabulary, terminal-event detection, trace storage, recent-message context flow, message run flow, tool-call request behavior, runtime permission policy injection, approval resolver behavior, tool execution, multi-round tool-calling loop, tool definition handoff, and step-limit enforcement. |
+| `src/index.ts` | Runtime core | Exports runtime event contracts including plan events, in-memory trace store, plan-driven agent loop with optional Planner and PlanApprovalResolver, inner tool-calling loop, tool summary projection, default permission guidance, tool-call request events, permission evaluation events, approval resolver contracts, and tool lifecycle events. |
+| `src/index.test.ts` | Runtime tests | Protects event vocabulary, terminal-event detection, trace storage, context flow, message run flow, tool-call behavior, permission policy, approval resolver, tool execution, multi-round loop, step limit, and planner integration including plan events, step execution, step failure resilience, and observe-mode plan approval. |
 
 ## Update Reminder
 

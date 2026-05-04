@@ -16,6 +16,7 @@
     "@arvinclaw/core": "workspace:*",
     "@arvinclaw/models": "workspace:*",
     "@arvinclaw/sessions": "workspace:*",
+    "@arvinclaw/planner": "workspace:*",
     "@arvinclaw/skills": "workspace:*",
     "@arvinclaw/tools": "workspace:*"
   }

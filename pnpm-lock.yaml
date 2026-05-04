@@ -35,6 +35,9 @@ importers:
       '@arvinclaw/models':
         specifier: workspace:*
         version: link:../../packages/models
+      '@arvinclaw/planner':
+        specifier: workspace:*
+        version: link:../../packages/planner
       '@arvinclaw/sessions':
         specifier: workspace:*
         version: link:../../packages/sessions
@@ -64,6 +67,9 @@ importers:
       '@arvinclaw/permissions':
         specifier: workspace:*
         version: link:../permissions
+      '@arvinclaw/planner':
+        specifier: workspace:*
+        version: link:../planner
       '@arvinclaw/tools':
         specifier: workspace:*
         version: link:../tools
@@ -75,6 +81,12 @@ importers:
         version: 0.92.0
 
   packages/permissions: {}
+
+  packages/planner:
+    dependencies:
+      '@arvinclaw/models':
+        specifier: workspace:*
+        version: link:../models
 
   packages/sessions: {}
 
