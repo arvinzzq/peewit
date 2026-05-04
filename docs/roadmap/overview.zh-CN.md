@@ -258,6 +258,8 @@ Agent 可以将目标拆解为步骤，以可见进度执行步骤，并在 `obs
 
 这些文档是 planned documents，目前尚未创建。
 
+实施计划：[Phase 4 规划与自主执行](../plans/phase-4-planning-and-autonomy.zh-CN.md)
+
 ### 验收标准
 
 - 复杂任务可以在执行前产生计划。

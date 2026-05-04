@@ -260,6 +260,8 @@ The agent can decompose a goal into steps, execute the steps with visible progre
 
 These documents are planned and have not been created yet.
 
+Implementation plan: [Phase 4 Planning and Autonomy](../plans/phase-4-planning-and-autonomy.md)
+
 ### Acceptance Criteria
 
 - Complex tasks can produce a plan before execution.
