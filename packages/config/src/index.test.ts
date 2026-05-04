@@ -51,16 +51,23 @@ describe("loadConfig", () => {
     expect(JSON.stringify(redactedConfig(config))).not.toContain("sk-test-secret");
   });
 
-  test("supports OpenRouter API key as an OpenAI-compatible provider shortcut", () => {
+  test("requires ARVINCLAW_MODEL when using OPENROUTER_API_KEY", () => {
+    expect(() =>
+      loadConfig({ env: { OPENROUTER_API_KEY: "sk-or-test-secret" } })
+    ).toThrow(ConfigValidationError);
+  });
+
+  test("supports OpenRouter API key with explicit model", () => {
     const config = loadConfig({
       env: {
-        OPENROUTER_API_KEY: "sk-or-test-secret"
+        OPENROUTER_API_KEY: "sk-or-test-secret",
+        ARVINCLAW_MODEL: "openai/gpt-4o"
       }
     });
 
     expect(config.model.provider).toBe("openai-compatible");
     expect(config.model.baseURL).toBe("https://openrouter.ai/api/v1");
-    expect(config.model.model).toBe("openai/gpt-4.1-mini");
+    expect(config.model.model).toBe("openai/gpt-4o");
     expect(config.secrets.apiKey).toBe("sk-or-test-secret");
     expect(JSON.stringify(redactedConfig(config))).not.toContain("sk-or-test-secret");
   });

@@ -8,8 +8,7 @@
 export const configPackageName = "@arvinclaw/config";
 
 const openRouterDefaults = {
-  baseURL: "https://openrouter.ai/api/v1",
-  model: "openai/gpt-4.1-mini"
+  baseURL: "https://openrouter.ai/api/v1"
 } as const;
 
 const anthropicDefaults = {
@@ -197,7 +196,7 @@ function applyEnv(config: EffectiveConfig, env: Record<string, string | undefine
   if (env.OPENROUTER_API_KEY !== undefined) {
     config.model.provider = "openai-compatible";
     config.model.baseURL = openRouterDefaults.baseURL;
-    config.model.model = openRouterDefaults.model;
+    config.model.model = "";
     config.secrets.apiKey = env.OPENROUTER_API_KEY;
   }
 
@@ -231,6 +230,12 @@ function validateConfig(config: EffectiveConfig): void {
   if (config.model.provider !== "openai-compatible" && config.model.provider !== "anthropic") {
     throw new ConfigValidationError(
       `Invalid model.provider "${String(config.model.provider)}". Expected openai-compatible or anthropic.`
+    );
+  }
+
+  if (config.model.model.trim().length === 0) {
+    throw new ConfigValidationError(
+      "No model configured. Set ARVINCLAW_MODEL=<model-name> (e.g. ARVINCLAW_MODEL=openai/gpt-4o for OpenRouter)."
     );
   }
 
