@@ -273,6 +273,25 @@ User goal
 
 The Planner should be introduced as an extension of the loop, not as a separate competing runtime.
 
+### Plan, TodoWrite, and TaskFlow — Three Different Concepts
+
+ArvinClaw Phase 4 introduces a `Plan` construct. It is important to distinguish this from similar-sounding concepts in other systems:
+
+| | ArvinClaw Plan | Claude Code TodoWrite | OpenClaw TaskFlow |
+| --- | --- | --- | --- |
+| Storage | In-memory (one turn) | In-context (one turn) | SQLite (persistent) |
+| Lifecycle | Created at turn start | Model calls on demand | Durable across sessions |
+| Driven by | AgentRuntime (infra) | Model (tool call) | TaskFlow engine (infra) |
+| Status states | pending / running / complete / failed / skipped | pending / in_progress / completed | 7 states incl. blocked / lost |
+| Multi-agent | No | No | Yes (parent/child) |
+| Purpose | Decompose goal into steps for the current turn | Show progress to user in-turn | Background job orchestration |
+
+**ArvinClaw Plan** is closest to Claude Code's `TodoWrite` in purpose — both are ephemeral and represent progress within one agent turn. The key architectural difference: ArvinClaw's Plan is driven by infrastructure (`AgentRuntime`) and created via `create_plan` tool injection, whereas Claude Code's `TodoWrite` is a plain tool the model calls directly with no infrastructure orchestration.
+
+**OpenClaw TaskFlow** is a full durable pipeline engine backed by SQLite. It has 7 status states, parent/child task relationships, and multi-agent coordination. This is fundamentally different from either in-turn construct. ArvinClaw should not attempt TaskFlow-equivalent persistence until Phase 8+ (background automation), when background execution patterns are actually needed.
+
+Source: confirmed from OpenClaw source research 2026-05-04. See `docs/research/openclaw-implementation-notes.md` Section 7.
+
 ## 13. Failure Handling
 
 The loop should handle failures explicitly:

@@ -271,6 +271,25 @@ MVP Loop 可以没有完整 Planner，只需要支持可追踪工具使用。
 
 Planner 应是 Loop 的扩展，而不是另一个竞争 runtime。
 
+### Plan、TodoWrite 与 TaskFlow — 三个不同概念
+
+ArvinClaw Phase 4 引入了 `Plan` 结构。需要和其他系统中看起来类似的概念区分清楚：
+
+| | ArvinClaw Plan | Claude Code TodoWrite | OpenClaw TaskFlow |
+| --- | --- | --- | --- |
+| 存储 | 内存（单次 turn） | 上下文（单次 turn） | SQLite（持久化） |
+| 生命周期 | Turn 开始时创建 | 模型按需调用 | 跨 session 持久存在 |
+| 驱动方式 | AgentRuntime（基础设施） | 模型（tool call） | TaskFlow 引擎（基础设施） |
+| 状态 | pending / running / complete / failed / skipped | pending / in_progress / completed | 7 种状态，含 blocked / lost |
+| 多 Agent | 否 | 否 | 是（父子任务） |
+| 目的 | 把当前 turn 的目标拆分为步骤 | 向用户展示进度 | 后台 job 编排 |
+
+**ArvinClaw Plan** 在目的上最接近 Claude Code 的 `TodoWrite` — 两者都是临时性的，都代表单次 agent turn 内的进度。核心架构区别在于：ArvinClaw 的 Plan 由基础设施（`AgentRuntime`）通过 `create_plan` tool 注入来驱动，而 Claude Code 的 `TodoWrite` 是模型直接调用的普通 tool，没有基础设施编排。
+
+**OpenClaw TaskFlow** 是一个完整的持久化管道引擎，基于 SQLite，具有 7 种状态、父子任务关系和多 Agent 协调能力。这与上述两种 in-turn 结构有本质区别。ArvinClaw 不应在 Phase 8+（后台自动化）真正需要后台执行模式之前实现 TaskFlow 级别的持久化。
+
+来源：来自 OpenClaw 源码研究 2026-05-04 确认。详见 `docs/research/openclaw-implementation-notes.md` 第 7 节。
+
 ## 13. 失败处理
 
 Loop 应显式处理失败：
