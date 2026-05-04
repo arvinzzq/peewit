@@ -1,12 +1,12 @@
 /**
  * INPUT: Tool definitions, input schemas, risk metadata, registration requests, tool execution input, and workspace file system access.
- * OUTPUT: Tool contracts, registry lookup/listing behavior, executable read-only file tools, normalized tool results, and registry errors.
+ * OUTPUT: Tool contracts, registry lookup/listing behavior, executable read-only file tools, guarded write_file tool, normalized tool results, and registry errors.
  * POS: Tool system layer; exposes capabilities without making permission decisions.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
-import { readdir, readFile } from "node:fs/promises";
-import { resolve, relative } from "node:path";
+import { readdir, readFile, writeFile as writeFileFs, mkdir } from "node:fs/promises";
+import { resolve, relative, basename, extname, dirname } from "node:path";
 
 export const toolsPackageName = "@arvinclaw/tools";
 
@@ -56,7 +56,12 @@ export interface ListDirectoryToolResult {
   summary: string;
 }
 
-export type ToolExecutionResult = ReadFileToolResult | ListDirectoryToolResult | ToolExecutionFailure;
+export interface WriteFileToolResult {
+  ok: true;
+  summary: string;
+}
+
+export type ToolExecutionResult = ReadFileToolResult | ListDirectoryToolResult | WriteFileToolResult | ToolExecutionFailure;
 
 export interface ExecutableTool extends ToolDefinition {
   execute(input: unknown, context: ToolExecutionContext): Promise<ToolExecutionResult>;
@@ -126,6 +131,10 @@ export function createReadFileTool(): ExecutableTool {
       const target = resolveWorkspacePath(context.workspaceRoot, path);
       if (target === undefined) {
         return outsideWorkspaceError();
+      }
+
+      if (isSecretLikePath(target.absolutePath)) {
+        return secretFileError();
       }
 
       try {
@@ -239,6 +248,74 @@ function fileSystemError(error: unknown): ToolExecutionFailure {
     error: {
       code,
       message: "File system operation failed."
+    }
+  };
+}
+
+function isSecretLikePath(absolutePath: string): boolean {
+  const name = basename(absolutePath).toLowerCase();
+  if (name === ".env" || name.startsWith(".env.")) return true;
+  if (name === ".netrc") return true;
+  const ext = extname(name);
+  if (ext === ".key" || ext === ".pem" || ext === ".p12" || ext === ".pfx") return true;
+  return name === "id_rsa" || name === "id_ed25519" || name === "id_ecdsa" || name === "id_dsa";
+}
+
+function secretFileError(): ToolExecutionFailure {
+  return {
+    ok: false,
+    error: {
+      code: "path_not_permitted",
+      message: "Tool path is not permitted."
+    }
+  };
+}
+
+function getWriteInput(input: unknown): { path: string; content: string } | undefined {
+  if (typeof input !== "object" || input === null) return undefined;
+  const path = (input as { path?: unknown }).path;
+  const content = (input as { content?: unknown }).content;
+  return typeof path === "string" && typeof content === "string" ? { path, content } : undefined;
+}
+
+export function createWriteFileTool(): ExecutableTool {
+  return {
+    name: "write_file",
+    description: "Write or overwrite a UTF-8 file inside the workspace. Requires approval.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string" },
+        content: { type: "string" }
+      },
+      required: ["path", "content"]
+    },
+    risk: "medium",
+    async execute(input, context) {
+      const parsed = getWriteInput(input);
+      if (parsed === undefined) {
+        return inputError("Tool input must include a string path and string content.");
+      }
+
+      const target = resolveWorkspacePath(context.workspaceRoot, parsed.path);
+      if (target === undefined) {
+        return outsideWorkspaceError();
+      }
+
+      if (isSecretLikePath(target.absolutePath)) {
+        return secretFileError();
+      }
+
+      try {
+        await mkdir(dirname(target.absolutePath), { recursive: true });
+        await writeFileFs(target.absolutePath, parsed.content, "utf8");
+        return {
+          ok: true,
+          summary: `Wrote file ${target.displayPath}.`
+        };
+      } catch (error) {
+        return fileSystemError(error);
+      }
     }
   };
 }

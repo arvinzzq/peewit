@@ -12,8 +12,8 @@ It must not decide permissions; permission policy lives in `packages/permissions
 | --- | --- | --- |
 | `package.json` | Package manifest | Declares the tools package, export entrypoint, and build scripts. |
 | `tsconfig.json` | TypeScript config | Builds the tools package. |
-| `src/index.ts` | Tool registry and file tools | Exports tool definition contracts, executable tool contracts, risk metadata, registry lookup/listing behavior, read-only file tools, normalized tool results, and registry errors. |
-| `src/index.test.ts` | Tool tests | Protects registry lookup, deterministic listing, defensive copies, duplicate registration errors, read-only file tools, workspace boundaries, and normalized failures. |
+| `src/index.ts` | Tool registry and file tools | Exports tool definition contracts, executable tool contracts, risk metadata, registry lookup/listing behavior, read-only file tools, guarded write_file tool, normalized tool results, and registry errors. |
+| `src/index.test.ts` | Tool tests | Protects registry lookup, deterministic listing, defensive copies, duplicate registration errors, read-only and write_file tools, workspace boundaries, secret file blocking, and normalized failures. |
 
 ## Update Reminder
 
