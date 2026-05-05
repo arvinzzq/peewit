@@ -5,6 +5,7 @@
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
+import "dotenv/config";
 import { createInterface } from "node:readline";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
