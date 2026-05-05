@@ -178,6 +178,25 @@ apps/
 
 **依赖规则：** Core packages 不导入 apps。适配器层负责连接所有部分。无循环依赖。
 
+### 包文档
+
+每个包都有详细的 README，涵盖架构概述、核心概念、实现原理和设计决策。
+
+| 包 | 职责 | 文档 |
+|---|---|---|
+| `packages/core` | Agent 循环、事件系统、Hooks、Subagent 派生 | [README](./packages/core/README.zh-CN.md) |
+| `packages/context` | 系统提示组装、PromptMode、compactMessages | [README](./packages/context/README.zh-CN.md) |
+| `packages/models` | ModelProvider、Anthropic + OpenAI 兼容 Provider、流式 | [README](./packages/models/README.zh-CN.md) |
+| `packages/tools` | 内置工具、工作区边界、沙箱、记忆工具 | [README](./packages/tools/README.zh-CN.md) |
+| `packages/permissions` | 基于风险的权限策略、自主模式 | [README](./packages/permissions/README.zh-CN.md) |
+| `packages/sessions` | JSONL 会话和 Trace 存储、重放机制 | [README](./packages/sessions/README.zh-CN.md) |
+| `packages/skills` | SKILL.md 解析器、SkillLoader、SkillManager 生命周期 | [README](./packages/skills/README.zh-CN.md) |
+| `packages/adapters` | AdapterCapabilities、ToolProfile、filterToolsByProfile | [README](./packages/adapters/README.zh-CN.md) |
+| `packages/config` | 配置加载、环境变量、Provider 快捷方式、脱敏 | [README](./packages/config/README.zh-CN.md) |
+| `packages/scheduler` | CronScheduler、BackgroundApprovalResolver、JsonlTaskStore | [README](./packages/scheduler/README.zh-CN.md) |
+| `packages/taskflow` | 持久化跨会话任务图、TaskRecord | [README](./packages/taskflow/README.zh-CN.md) |
+| `packages/gateway` | SessionGateway — 跨适配器会话注册表 | [README](./packages/gateway/README.zh-CN.md) |
+
 ---
 
 ## 配置

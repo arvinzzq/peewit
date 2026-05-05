@@ -178,6 +178,25 @@ apps/
 
 **Dependency rules:** Core packages do not import from apps. The adapter layer wires everything. No circular dependencies.
 
+### Package Documentation
+
+Each package has a detailed README covering architecture, core concepts, implementation principles, and design decisions.
+
+| Package | Role | README |
+|---|---|---|
+| `packages/core` | Agent loop, event system, hooks, subagent spawning | [README](./packages/core/README.md) |
+| `packages/context` | System prompt assembly, PromptMode, compactMessages | [README](./packages/context/README.md) |
+| `packages/models` | ModelProvider, Anthropic + OpenAI-compatible providers, streaming | [README](./packages/models/README.md) |
+| `packages/tools` | Built-in tools, workspace boundary, sandbox, memory tools | [README](./packages/tools/README.md) |
+| `packages/permissions` | Risk-based permission policy, autonomy modes | [README](./packages/permissions/README.md) |
+| `packages/sessions` | JSONL session and trace storage, replay | [README](./packages/sessions/README.md) |
+| `packages/skills` | SKILL.md parser, SkillLoader, SkillManager lifecycle | [README](./packages/skills/README.md) |
+| `packages/adapters` | AdapterCapabilities, ToolProfile, filterToolsByProfile | [README](./packages/adapters/README.md) |
+| `packages/config` | Config loading, env vars, provider shortcuts, redaction | [README](./packages/config/README.md) |
+| `packages/scheduler` | CronScheduler, BackgroundApprovalResolver, JsonlTaskStore | [README](./packages/scheduler/README.md) |
+| `packages/taskflow` | Persistent cross-session task graph, TaskRecord | [README](./packages/taskflow/README.md) |
+| `packages/gateway` | SessionGateway — cross-adapter session registry | [README](./packages/gateway/README.md) |
+
 ---
 
 ## Configuration
