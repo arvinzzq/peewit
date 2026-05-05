@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { ConfigValidationError, loadConfig, redactedConfig } from "./index.js";
+import { ConfigValidationError, loadConfig, redactedConfig, resolveSessionsDirectory } from "./index.js";
 
 describe("loadConfig", () => {
   test("loads built-in defaults", () => {
@@ -177,5 +177,57 @@ describe("loadConfig", () => {
         }
       })
     ).toThrow(ConfigValidationError);
+  });
+});
+
+describe("resolveSessionsDirectory", () => {
+  test("returns absolute path unchanged", () => {
+    const config = loadConfig();
+    const result = resolveSessionsDirectory(
+      { ...config, sessions: { directory: "/absolute/path/sessions" } },
+      { HOME: "/home/user" }
+    );
+
+    expect(result).toBe("/absolute/path/sessions");
+  });
+
+  test("expands ~/path using HOME from provided env", () => {
+    const config = loadConfig();
+    const result = resolveSessionsDirectory(
+      { ...config, sessions: { directory: "~/.arvinclaw/sessions" } },
+      { HOME: "/home/testuser" }
+    );
+
+    expect(result).toBe("/home/testuser/.arvinclaw/sessions");
+  });
+
+  test("returns ~/ path unchanged when HOME is not in env and not in process.env", () => {
+    const config = loadConfig();
+    // Pass an env without HOME and ensure process.env.HOME is shadowed
+    const originalHome = process.env.HOME;
+    delete process.env.HOME;
+
+    try {
+      const result = resolveSessionsDirectory(
+        { ...config, sessions: { directory: "~/.arvinclaw/sessions" } },
+        {}
+      );
+
+      expect(result).toBe("~/.arvinclaw/sessions");
+    } finally {
+      if (originalHome !== undefined) {
+        process.env.HOME = originalHome;
+      }
+    }
+  });
+
+  test("uses default config sessions directory (~/. path) when called with default config", () => {
+    const config = loadConfig();
+
+    expect(config.sessions.directory).toBe("~/.arvinclaw/sessions");
+
+    const result = resolveSessionsDirectory(config, { HOME: "/home/arvin" });
+
+    expect(result).toBe("/home/arvin/.arvinclaw/sessions");
   });
 });

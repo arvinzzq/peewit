@@ -1,10 +1,12 @@
 /**
- * INPUT: User config, project config, ArvinClaw env overrides, memory policy settings, provider-specific env shortcuts (OPENROUTER_API_KEY, ANTHROPIC_API_KEY), and model provider selection.
- * OUTPUT: EffectiveConfig with provider selection (openai-compatible or anthropic), memory policy, redacted config views, and validation errors.
+ * INPUT: User config, project config, ArvinClaw env overrides, memory policy settings, provider-specific env shortcuts (OPENROUTER_API_KEY, ANTHROPIC_API_KEY), model provider selection, and sessions directory resolution requests.
+ * OUTPUT: EffectiveConfig with provider selection (openai-compatible or anthropic), memory policy, redacted config views, validation errors, and resolved sessions directory paths.
  * POS: Configuration boundary; keeps config loading separate from runtime behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
+import { join } from "node:path";
+
 export const configPackageName = "@arvinclaw/config";
 
 const openRouterDefaults = {
@@ -278,4 +280,26 @@ function isTraceVerbosity(value: unknown): value is TraceVerbosity {
 
 function isLongTermMemoryFilePolicy(value: unknown): value is LongTermMemoryFilePolicy {
   return value === "disabled" || value === "read-only" || value === "write";
+}
+
+/**
+ * Resolves the sessions directory from the config, expanding `~/` to the HOME
+ * directory from the provided env or process.env.HOME.
+ *
+ * Both CLI and Web adapters call this helper so they always point to the same
+ * directory, making sessions created in one surface visible in the other.
+ */
+export function resolveSessionsDirectory(
+  config: EffectiveConfig,
+  env?: Record<string, string | undefined>
+): string {
+  const directory = config.sessions.directory;
+
+  if (!directory.startsWith("~/")) {
+    return directory;
+  }
+
+  const home = env?.HOME ?? process.env.HOME;
+
+  return home === undefined ? directory : join(home, directory.slice(2));
 }

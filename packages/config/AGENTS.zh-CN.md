@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-把 configuration precedence、workspace/model/memory environment overrides、provider-specific shortcuts、validation 和 redaction 保持在这里。其他 packages 应接收 effective configuration 或配置好的依赖，而不是自己读取 config。
+把 configuration precedence、workspace/model/memory environment overrides、provider-specific shortcuts、validation、redaction 和 `resolveSessionsDirectory` helper 保持在这里。其他 packages 应接收 effective configuration 或配置好的依赖，而不是自己读取 config。
 
 ## When Files Change
 
@@ -10,7 +10,7 @@
 
 ## Testing
 
-Config changes 需要 defaults、override precedence、workspace/model/memory environment overrides、provider-specific shortcuts、invalid values 和 secret redaction 的测试。
+Config changes 需要 defaults、override precedence、workspace/model/memory environment overrides、provider-specific shortcuts、invalid values、secret redaction 和 `resolveSessionsDirectory` 路径展开的测试。
 
 ## Boundaries
 

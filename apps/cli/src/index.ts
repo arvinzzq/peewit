@@ -1,14 +1,13 @@
 /**
- * INPUT: CLI args, config, model providers, skill loader, session/trace stores, context assembler, built-in tools, optional fake outputs and line reader.
+ * INPUT: CLI args, config (including resolveSessionsDirectory from @arvinclaw/config), model providers, skill loader, session/trace stores, context assembler, built-in tools, optional fake outputs and line reader.
  * OUTPUT: CLI results, interactive chat, approval prompts, tool execution, todos progress display, daily memory appends (when policy is write), session memory, trace output, redacted config, skill index, slash commands, and stdout/stderr.
  * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
 import { createInterface } from "node:readline";
-import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadConfig, redactedConfig, type EffectiveConfig, type RedactedConfigView } from "@arvinclaw/config";
+import { loadConfig, redactedConfig, resolveSessionsDirectory, type EffectiveConfig, type RedactedConfigView } from "@arvinclaw/config";
 import { DefaultContextAssembler } from "@arvinclaw/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
 import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
@@ -611,7 +610,11 @@ function createConfiguredProvider(config: EffectiveConfig, options: RunCliOption
 }
 
 function createConfiguredSessionStore(config: EffectiveConfig, options: RunCliOptions, sessionId: string): SessionStore {
-  const directory = resolveSessionsDirectory(options.sessionsDirectory ?? config.sessions.directory, options.env);
+  // options.sessionsDirectory can override the directory for tests (avoids touching user files)
+  const effectiveConfig = options.sessionsDirectory
+    ? { ...config, sessions: { directory: options.sessionsDirectory } }
+    : config;
+  const directory = resolveSessionsDirectory(effectiveConfig, options.env);
 
   // The configured CLI path uses JSONL so named sessions can be replayed across
   // process runs; tests can still inject a temp directory to avoid user files.
@@ -638,16 +641,6 @@ function previousIsoDate(currentDate: string): string {
   date.setUTCDate(date.getUTCDate() - 1);
 
   return date.toISOString().slice(0, 10);
-}
-
-function resolveSessionsDirectory(directory: string, env: Record<string, string | undefined> | undefined): string {
-  if (!directory.startsWith("~/")) {
-    return directory;
-  }
-
-  const home = env?.HOME ?? process.env.HOME;
-
-  return home === undefined ? directory : join(home, directory.slice(2));
 }
 
 function createSessionId(): string {
