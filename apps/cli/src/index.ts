@@ -1,6 +1,6 @@
 /**
  * INPUT: CLI args, config, model providers, skill loader, session/trace stores, built-in tools, optional fake outputs and line reader.
- * OUTPUT: Chat, approvals, tool execution, todos, skill management subcommands, session/task listings, trace, redacted config, stdout/stderr.
+ * OUTPUT: Chat, approvals, tool execution, todos, skill management subcommands, session/task listings, trace, redacted config, stdout/stderr, gateway session registration.
  * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -10,14 +10,19 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, redactedConfig, resolveSessionsDirectory, type EffectiveConfig, type RedactedConfigView } from "@arvinclaw/config";
 import { DefaultContextAssembler } from "@arvinclaw/context";
-import { AgentRuntime, InMemoryRuntimeTraceStore, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
+import { AgentRuntime, InMemoryRuntimeTraceStore, createSpawnSubagentTool, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore, type SubagentFactory } from "@arvinclaw/core";
+import { SessionGateway, type GatewaySession } from "@arvinclaw/gateway";
 import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
+import { CLI_CAPABILITIES } from "@arvinclaw/adapters";
 import { BackgroundApprovalResolver, JsonlTaskStore, type TaskRunRecord } from "@arvinclaw/scheduler";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
 import { SkillLoader, SkillManager, toSkillSummary, type SkillDefinition } from "@arvinclaw/skills";
 import { createAppendDailyMemoryTool, createListDirectoryTool, createReadFileTool, createReadWebPageTool, createShellTool, createWriteFileTool } from "@arvinclaw/tools";
 
 export const cliPackageName = "@arvinclaw/cli";
+
+/** Module-level SessionGateway singleton — tracks all active CLI sessions in this process. */
+const cliGateway = new SessionGateway();
 
 export interface CliResult {
   exitCode: number;
@@ -691,6 +696,7 @@ export class CliChatSession {
   readonly #recentMessageLimit: number;
   readonly #approvalPromptLog: string[];
   readonly #skillDefinitions: SkillDefinition[];
+  readonly #gateway: SessionGateway | undefined;
 
   constructor(
     runtime: AgentRuntime,
@@ -700,7 +706,8 @@ export class CliChatSession {
     sessionStore: SessionStore = new InMemorySessionStore({ createSessionId: () => sessionId }),
     recentMessageLimit = 12,
     approvalPromptLog: string[] = [],
-    skillDefinitions: SkillDefinition[] = []
+    skillDefinitions: SkillDefinition[] = [],
+    gateway?: SessionGateway
   ) {
     this.#runtime = runtime;
     this.#config = config;
@@ -710,6 +717,11 @@ export class CliChatSession {
     this.#recentMessageLimit = recentMessageLimit;
     this.#approvalPromptLog = approvalPromptLog;
     this.#skillDefinitions = skillDefinitions;
+    this.#gateway = gateway;
+  }
+
+  close(): void {
+    this.#gateway?.unregister(this.#sessionId);
   }
 
   static createFake(
@@ -768,6 +780,31 @@ export class CliChatSession {
     const configuredProvider = createConfiguredProvider(config, options);
     const approvalResolver = sessionOptions.approvalResolver ?? createCliApprovalResolver(options, approvalPromptLog);
 
+    const builtInTools = createCliBuiltInTools(options, config);
+
+    const factory: SubagentFactory = {
+      create: (goal) => new AgentRuntime({
+        contextAssembler: createCliContextAssembler(redactedConfig(config), currentDate),
+        modelProvider: configuredProvider,
+        systemInstruction: `You are ArvinClaw, a sub-agent handling: ${goal}`,
+        runtime: { mode: config.runtime.defaultMode, workspace: config.workspace.root, currentDate },
+        tools: createCliBuiltInTools(options, config),
+        maxSteps: 8
+      })
+    };
+
+    const allTools = [...builtInTools, createSpawnSubagentTool(factory)];
+
+    const now = new Date().toISOString();
+    const gatewaySession: GatewaySession = {
+      id: sessionId,
+      adapterName: "cli",
+      capabilities: CLI_CAPABILITIES,
+      registeredAt: now,
+      lastActivityAt: now
+    };
+    cliGateway.register(gatewaySession);
+
     return new CliChatSession(
       new AgentRuntime({
         contextAssembler: createCliContextAssembler(config, currentDate),
@@ -778,7 +815,7 @@ export class CliChatSession {
           workspace: config.workspace.root,
           currentDate
         },
-        tools: createCliBuiltInTools(options, config),
+        tools: allTools,
         skillIndex,
         preferStreaming: sessionOptions.preferStreaming ?? false,
         approvalResolver
@@ -789,7 +826,8 @@ export class CliChatSession {
       createConfiguredSessionStore(config, options, sessionId),
       12,
       approvalPromptLog,
-      skillDefinitions
+      skillDefinitions,
+      cliGateway
     );
   }
 

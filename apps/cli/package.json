@@ -11,9 +11,11 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@arvinclaw/adapters": "workspace:*",
     "@arvinclaw/config": "workspace:*",
     "@arvinclaw/context": "workspace:*",
     "@arvinclaw/core": "workspace:*",
+    "@arvinclaw/gateway": "workspace:*",
     "@arvinclaw/models": "workspace:*",
     "@arvinclaw/scheduler": "workspace:*",
     "@arvinclaw/sessions": "workspace:*",

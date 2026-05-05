@@ -13,6 +13,9 @@
   ],
   "references": [
     {
+      "path": "../../packages/adapters"
+    },
+    {
       "path": "../../packages/config"
     },
     {
@@ -20,6 +23,9 @@
     },
     {
       "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/gateway"
     },
     {
       "path": "../../packages/models"

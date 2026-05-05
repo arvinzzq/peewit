@@ -1,6 +1,6 @@
 /**
  * INPUT: HTTP requests, env vars (ARVINCLAW_API_KEY, ARVINCLAW_MODEL, etc.), runtime events from AgentRuntime.
- * OUTPUT: JSON API (sessions CRUD, turns SSE stream, approval resolution), static client files in production.
+ * OUTPUT: JSON API (sessions CRUD, turns SSE stream, approval resolution, gateway sessions endpoint), static client files in production.
  * POS: Web adapter layer; exposes AgentRuntime over HTTP/SSE without owning agent logic.
  *
  * Session storage: one shared JsonlSessionStore at resolveSessionsDirectory(config).
@@ -13,6 +13,7 @@ import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
+import { WEB_CAPABILITIES } from "@arvinclaw/adapters";
 import { loadConfig, resolveSessionsDirectory, type EffectiveConfig } from "@arvinclaw/config";
 import { DefaultContextAssembler } from "@arvinclaw/context";
 import {
@@ -22,6 +23,7 @@ import {
   type ApprovalResolution,
   type ApprovalResolver
 } from "@arvinclaw/core";
+import { SessionGateway } from "@arvinclaw/gateway";
 import {
   AnthropicProvider,
   OpenAICompatibleProvider,
@@ -39,6 +41,9 @@ import {
   createShellTool,
   createWriteFileTool
 } from "@arvinclaw/tools";
+
+/** Module-level SessionGateway singleton — tracks all active Web sessions in this process. */
+const webGateway = new SessionGateway();
 
 // ─── Web Approval Resolver ────────────────────────────────────────────────────
 
@@ -161,6 +166,16 @@ async function createWebSession(config: EffectiveConfig, existingSessionId?: str
 
   const sessionRuntime: WebSessionRuntime = { id, runtime, traceStore, approvalResolver };
   sessions.set(id, sessionRuntime);
+
+  const now = new Date().toISOString();
+  webGateway.register({
+    id,
+    adapterName: "web",
+    capabilities: WEB_CAPABILITIES,
+    registeredAt: now,
+    lastActivityAt: now
+  });
+
   return sessionRuntime;
 }
 
@@ -328,7 +343,15 @@ app.post("/api/sessions/:id/turns", async (c) => {
     if (assistantText !== "") {
       await store.appendMessage({ sessionId: id, role: "assistant", content: assistantText });
     }
+
+    // Update gateway activity timestamp
+    webGateway.touch(id);
   });
+});
+
+// GET /api/gateway/sessions — list all active web sessions registered in the gateway
+app.get("/api/gateway/sessions", (c) => {
+  return c.json({ sessions: webGateway.list() });
 });
 
 // POST /api/sessions/:id/approvals — resolve a pending approval

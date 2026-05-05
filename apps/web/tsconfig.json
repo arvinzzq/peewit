@@ -18,9 +18,11 @@
     "vite.config.ts"
   ],
   "references": [
+    { "path": "../../packages/adapters" },
     { "path": "../../packages/config" },
     { "path": "../../packages/context" },
     { "path": "../../packages/core" },
+    { "path": "../../packages/gateway" },
     { "path": "../../packages/models" },
     { "path": "../../packages/sessions" },
     { "path": "../../packages/skills" },
