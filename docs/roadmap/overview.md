@@ -39,7 +39,7 @@ The roadmap follows a dual-track approach:
 | Phase 4 | Complete | In-turn task tracking | Agent tracks complex task progress transparently and avoids planning stalls | `update_todos` tool, planning stall detection |
 | Phase 5 | Complete | Sessions and memory | Agent remembers sessions and can use local knowledge | Session store, trace store, memory interfaces |
 | Phase 6 | Complete | Streaming and Web UI | Token-by-token streaming in CLI; browser-based chat with trace and approvals | Streaming ModelProvider, Ink CLI, Web adapter, SSE |
-| Phase 7 | Not Started | Multi-entry adapters | CLI, Web, desktop, and message entries share one Agent Core | Adapter interface, gateway direction |
+| Phase 7 | In Progress | Multi-entry adapters | CLI, Web, desktop, and message entries share one Agent Core | Adapter interface, gateway direction |
 | Phase 8 | Not Started | Background automation | Agent can run scheduled and event-triggered tasks | Scheduler, daemon, task queue |
 | Phase 9 | Not Started | Plugin and skill ecosystem | User can install, enable, disable, and review capabilities | Plugin metadata, permission declarations, versioning |
 | Phase 10 | Not Started | Full personal agent platform | OpenClaw-like personal agent with multiple models, agents, nodes, and sandboxed tools | Gateway, multi-agent runtime, node protocol, sandboxing |
@@ -379,6 +379,13 @@ The user can interact with the same agent from multiple entry points while prese
 
 - `docs/architecture/adapters.md`
 - `docs/architecture/gateway.md`
+- `docs/plans/phase-7-multi-entry-adapters.md`
+
+Primary architecture note: [Adapters](../architecture/adapters.md)
+
+Supporting architecture note: [Gateway](../architecture/gateway.md)
+
+Implementation plan: [Phase 7 Multi-Entry Adapters](../plans/phase-7-multi-entry-adapters.md)
 
 ### Acceptance Criteria
 
