@@ -279,7 +279,61 @@ Required test areas:
 
 Every memory-related iteration should include tests for both behavior and safety.
 
-## 17. Acceptance Criteria
+## 17. Memory Tools
+
+Two tools provide the model with direct access to the memory workspace.
+
+### `memory_search`
+
+`memory_search` performs full-text search over all files under the workspace memory directory (by default `memory/`).
+
+Input:
+- `query`: string — search terms
+- `limit`: number (optional, default 10) — maximum number of result excerpts
+
+Output: an array of `{ path, excerpt, lineNumber }` objects. Each excerpt is the matching line plus up to three lines of context on each side.
+
+The tool searches `MEMORY.md`, `USER.md`, and all `memory/YYYY-MM-DD.md` files. It does not search outside the configured memory directory.
+
+Risk level: Low (read-only).
+
+Use case: the model uses `memory_search` to check whether a fact is already known before deciding to write new memory, or to recall context from a previous session.
+
+### `memory_get`
+
+`memory_get` reads a specific memory file by path.
+
+Input:
+- `path`: string — relative path within the workspace memory directory (e.g., `MEMORY.md`, `memory/2026-05-05.md`)
+
+Output: full file contents as a string, or an error if the file does not exist.
+
+Path traversal protection: `memory_get` resolves the path relative to the workspace memory root and rejects any path that escapes the memory directory. Absolute paths are rejected.
+
+Risk level: Low (read-only).
+
+Use case: the model uses `memory_get` to read a specific memory file in full when `memory_search` returned a relevant excerpt but more context is needed.
+
+## 18. Memory Dreaming
+
+Memory dreaming is the planned background memory consolidation mechanism.
+
+The basic idea: after a session completes, a background process reviews recent daily memory files and session traces, identifies recurring facts, decisions, and preferences, and proposes additions to `MEMORY.md` for the user to review.
+
+Design principles for future implementation:
+
+- Dreaming runs as a background task, not during active sessions.
+- It only reads from memory files and session traces — never writes directly.
+- Proposed memory entries are surfaced as pending approvals in the CLI or Web UI.
+- The user reviews, edits, or rejects each proposed entry before it is written to `MEMORY.md`.
+- Dreaming produces a `memory_dream_completed` trace event with the number of entries proposed.
+- If a dreaming run produces no proposals, it records a `memory_dream_empty` trace event.
+
+Status: Planned. Not implemented in any current phase.
+
+OpenClaw alignment: OpenClaw implements memory dreaming as a scheduled agent run that uses a dedicated memory consolidation skill. ArvinClaw should follow the same pattern when implementing this feature.
+
+## 19. Acceptance Criteria
 
 The MVP memory boundary should be considered successful when:
 
@@ -291,8 +345,9 @@ The MVP memory boundary should be considered successful when:
 - Identity and memory files cannot bypass permissions.
 - The memory plan is documented in both English and Chinese.
 - Memory-related behavior has defined tests before implementation.
+- `memory_search` and `memory_get` tools are defined in this document even if not yet implemented.
 
-## 18. Related Documents
+## 20. Related Documents
 
 - [Main design](../product/arvinclaw-design.md)
 - [Roadmap](../roadmap/overview.md)
