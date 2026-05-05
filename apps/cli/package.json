@@ -20,6 +20,7 @@
     "@arvinclaw/scheduler": "workspace:*",
     "@arvinclaw/sessions": "workspace:*",
     "@arvinclaw/skills": "workspace:*",
+    "@arvinclaw/taskflow": "workspace:*",
     "@arvinclaw/tools": "workspace:*",
     "ink": "^7.0.1",
     "react": "^19.2.5"

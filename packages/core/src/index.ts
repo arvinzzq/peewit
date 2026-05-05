@@ -1,6 +1,6 @@
 /**
  * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, ApprovalResolver, tools, hooks, SessionMutex, ExecutionContract, maxSteps, maxPlanningStallRetries, runtime metadata, user turn input, optional recent messages.
- * OUTPUT: AgentRuntime, AgentHooks, SessionMutex, ExecutionContract, SubagentFactory, createSpawnSubagentTool, runtime event contracts (token_delta, todos_updated, planning_stall_detected), in-memory trace store, tool lifecycle events, permission events, approval events.
+ * OUTPUT: AgentRuntime, AgentHooks, SessionMutex, ExecutionContract, SubagentFactory, createSpawnSubagentTool, createSpawnSubagentAsyncTool, AsyncTaskStore, runtime event contracts (token_delta, todos_updated, planning_stall_detected), in-memory trace store, tool lifecycle events, permission events, approval events.
  * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -23,7 +23,7 @@ import {
   type PermissionPolicy,
   type PermissionRiskLevel
 } from "@arvinclaw/permissions";
-import { createUpdateTodosTool, type ExecutableTool, type TodoItem, type ToolExecutionResult, type SpawnSubagentResult } from "@arvinclaw/tools";
+import { createUpdateTodosTool, type ExecutableTool, type TodoItem, type ToolExecutionResult, type SpawnSubagentResult, type SpawnSubagentAsyncResult } from "@arvinclaw/tools";
 
 export const corePackageName = "@arvinclaw/core";
 
@@ -699,9 +699,66 @@ function isPlanningOnly(content: string): boolean {
   return PLAN_PROMISE_RE.test(content) || PLAN_HEADING_RE.test(content) || PLAN_BULLET_RE.test(content);
 }
 
+// AsyncTaskStore is a duck-typed interface for storing async task records.
+// Core uses this instead of importing @arvinclaw/taskflow to avoid coupling.
+export interface AsyncTaskStore {
+  create(record: { id: string; runtime: string; task: string; status: string; parentId?: string }): Promise<{ id: string }>;
+}
+
+export interface AsyncSubagentOptions {
+  taskStore?: AsyncTaskStore;
+  parentTaskId?: string;
+}
+
 // SubagentFactory creates a new AgentRuntime for a sub-agent goal.
 export interface SubagentFactory {
   create(goal: string): AgentRuntime;
+}
+
+// createSpawnSubagentAsyncTool returns an ExecutableTool that spawns a sub-agent asynchronously.
+// Returns a taskId immediately without waiting for the sub-agent to complete.
+export function createSpawnSubagentAsyncTool(
+  factory: SubagentFactory,
+  options?: AsyncSubagentOptions
+): ExecutableTool {
+  return {
+    name: "spawn_subagent_async",
+    description: "Spawn a sub-agent to handle a subtask asynchronously. Returns a taskId immediately; the sub-agent runs in the background. Use spawn_subagent for synchronous execution.",
+    risk: "medium",
+    inputSchema: {
+      type: "object",
+      properties: {
+        goal: { type: "string", description: "The complete goal for the sub-agent." },
+        context: { type: "string", description: "Optional background context." }
+      },
+      required: ["goal"]
+    },
+    async execute(rawInput) {
+      const input = rawInput as { goal: string; context?: string };
+      const taskId = `task_${crypto.randomUUID()}`;
+
+      // Create a task record if store is available
+      if (options?.taskStore !== undefined) {
+        await options.taskStore.create({
+          id: taskId,
+          runtime: "subagent",
+          task: input.goal,
+          status: "queued",
+          ...(options.parentTaskId !== undefined ? { parentId: options.parentTaskId } : {})
+        });
+      }
+
+      // Fire and forget — run in background
+      const message = input.context !== undefined ? `${input.goal}\n\nContext:\n${input.context}` : input.goal;
+      void (async () => {
+        const subRuntime = factory.create(input.goal);
+        for await (const _event of subRuntime.runTurn({ message })) { /* consume */ }
+      })();
+
+      const result: SpawnSubagentAsyncResult = { type: "spawn_subagent_async_result", taskId, status: "queued" };
+      return result;
+    }
+  };
 }
 
 // createSpawnSubagentTool returns an ExecutableTool that spawns a sub-agent.

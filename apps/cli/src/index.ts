@@ -1,6 +1,6 @@
 /**
- * INPUT: CLI args, config, model providers, skill loader, session/trace stores, built-in tools, optional fake outputs and line reader.
- * OUTPUT: Chat, approvals, tool execution, todos, skill management subcommands, session/task listings, daemon cron scheduling, trace, redacted config, stdout/stderr, gateway session registration.
+ * INPUT: CLI args, config, model providers, skill loader, session/trace stores, taskflow store, built-in tools, optional fake outputs and line reader.
+ * OUTPUT: Chat, approvals, tool execution, todos, skill management subcommands, session/task/taskflow listings, daemon cron scheduling, trace, redacted config, stdout/stderr, gateway session registration.
  * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -17,6 +17,7 @@ import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type Mo
 import { CLI_CAPABILITIES, filterToolsByProfile, type ToolProfile } from "@arvinclaw/adapters";
 import { BackgroundApprovalResolver, CronScheduler, JsonlTaskStore, type TaskDefinition, type TaskRunRecord } from "@arvinclaw/scheduler";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
+import { JsonlTaskFlowStore } from "@arvinclaw/taskflow";
 import { SkillLoader, SkillManager, toSkillSummary, type SkillDefinition } from "@arvinclaw/skills";
 import { createAppendDailyMemoryTool, createListDirectoryTool, createLoadSkillTool, createMemoryGetTool, createMemorySearchTool, createReadFileTool, createReadWebPageTool, createShellTool, createWriteFileTool, type SkillFileMap } from "@arvinclaw/tools";
 
@@ -76,6 +77,14 @@ Commands:
   daemon      Start the task scheduler daemon (runs scheduled tasks)
   daemon --once
               Run all due tasks once and exit
+  taskflow list
+              List recent task records
+  taskflow list --limit N
+              Show last N records
+  taskflow show <id>
+              Show details of a task
+  taskflow cancel <id>
+              Mark a task as cancelled
   --help      Show this help message
   --version   Show the CLI version
 `;
@@ -149,6 +158,10 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
   if (command === "daemon") {
     const once = rest.includes("--once");
     return runDaemon(options, once);
+  }
+
+  if (command === "taskflow") {
+    return runTaskflowCommand(rest, options);
   }
 
   return {
@@ -575,6 +588,134 @@ async function runDaemon(options: RunCliOptions, once: boolean): Promise<CliResu
     process.once("SIGTERM", shutdown);
     process.once("SIGINT", shutdown);
   });
+}
+
+function resolveTaskflowFilePath(options: RunCliOptions): string {
+  const config = loadConfig(options.env ? { env: options.env } : {});
+  const effectiveConfig = options.sessionsDirectory
+    ? { ...config, sessions: { directory: options.sessionsDirectory } }
+    : config;
+  const sessionsDir = resolveSessionsDirectory(effectiveConfig, options.env);
+  return join(dirname(sessionsDir), "taskflow.jsonl");
+}
+
+async function runTaskflowCommand(args: string[], options: RunCliOptions): Promise<CliResult> {
+  const subcommand = args[0];
+
+  if (subcommand === undefined || subcommand === "list") {
+    const limitIndex = args.indexOf("--limit");
+    const limitStr = limitIndex !== -1 ? args[limitIndex + 1] : undefined;
+    const limit = limitStr !== undefined ? parseInt(limitStr, 10) : undefined;
+    return runTaskflowList(options, limit);
+  }
+
+  if (subcommand === "show") {
+    const id = args[1];
+    if (id === undefined || id === "") {
+      return {
+        exitCode: 1,
+        stdout: helpText,
+        stderr: "Missing id for `taskflow show`. Usage: arvinclaw taskflow show <id>\n"
+      };
+    }
+    return runTaskflowShow(id, options);
+  }
+
+  if (subcommand === "cancel") {
+    const id = args[1];
+    if (id === undefined || id === "") {
+      return {
+        exitCode: 1,
+        stdout: helpText,
+        stderr: "Missing id for `taskflow cancel`. Usage: arvinclaw taskflow cancel <id>\n"
+      };
+    }
+    return runTaskflowCancel(id, options);
+  }
+
+  return {
+    exitCode: 1,
+    stdout: helpText,
+    stderr: `Unknown taskflow subcommand "${subcommand}".\n`
+  };
+}
+
+async function runTaskflowList(options: RunCliOptions, limit?: number): Promise<CliResult> {
+  const filePath = resolveTaskflowFilePath(options);
+  const store = new JsonlTaskFlowStore(filePath);
+  const records = await store.list(limit !== undefined ? { limit } : {});
+
+  if (records.length === 0) {
+    return {
+      exitCode: 0,
+      stdout: "No task records found.\n",
+      stderr: ""
+    };
+  }
+
+  const lines = records.map((r) => {
+    const idSuffix = r.id.slice(-8);
+    return `${idSuffix}  ${r.status}  ${r.runtime}  ${r.createdAt}  ${r.task.slice(0, 60)}`;
+  });
+
+  return {
+    exitCode: 0,
+    stdout: ["Task records:", ...lines].join("\n") + "\n",
+    stderr: ""
+  };
+}
+
+async function runTaskflowShow(id: string, options: RunCliOptions): Promise<CliResult> {
+  const filePath = resolveTaskflowFilePath(options);
+  const store = new JsonlTaskFlowStore(filePath);
+  const record = await store.get(id);
+
+  if (record === undefined) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: `Task "${id}" not found.\n`
+    };
+  }
+
+  const lines = [
+    `ID:               ${record.id}`,
+    `Runtime:          ${record.runtime}`,
+    `Status:           ${record.status}`,
+    `Task:             ${record.task}`,
+    `Created:          ${record.createdAt}`,
+    `Updated:          ${record.updatedAt}`,
+    ...(record.parentId !== undefined ? [`Parent:           ${record.parentId}`] : []),
+    ...(record.sessionId !== undefined ? [`Session:          ${record.sessionId}`] : []),
+    ...(record.progressSummary !== undefined ? [`Progress:         ${record.progressSummary}`] : []),
+    ...(record.terminalSummary !== undefined ? [`Terminal summary: ${record.terminalSummary}`] : [])
+  ];
+
+  return {
+    exitCode: 0,
+    stdout: lines.join("\n") + "\n",
+    stderr: ""
+  };
+}
+
+async function runTaskflowCancel(id: string, options: RunCliOptions): Promise<CliResult> {
+  const filePath = resolveTaskflowFilePath(options);
+  const store = new JsonlTaskFlowStore(filePath);
+  const updated = await store.update(id, { status: "cancelled" });
+
+  if (updated === undefined) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: `Task "${id}" not found.\n`
+    };
+  }
+
+  return {
+    exitCode: 0,
+    stdout: `Cancelled: ${id}\n`,
+    stderr: ""
+  };
 }
 
 function resolveSkillsDirectory(config: EffectiveConfig, options: RunCliOptions): string {

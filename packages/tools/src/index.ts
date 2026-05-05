@@ -96,6 +96,12 @@ export interface SpawnSubagentResult {
   error?: string;
 }
 
+export interface SpawnSubagentAsyncResult {
+  type: "spawn_subagent_async_result";
+  taskId: string;
+  status: string;
+}
+
 export interface LoadSkillResult {
   ok: boolean;
   content?: string;
@@ -125,6 +131,7 @@ export type ToolExecutionResult =
   | UpdateTodosResult
   | AppendDailyMemoryResult
   | SpawnSubagentResult
+  | SpawnSubagentAsyncResult
   | LoadSkillResult
   | MemorySearchResult
   | MemoryGetResult

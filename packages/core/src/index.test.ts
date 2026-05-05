@@ -13,7 +13,9 @@ import {
   isTerminalRuntimeEvent,
   runtimeEventTypes,
   createSpawnSubagentTool,
+  createSpawnSubagentAsyncTool,
   type AgentHooks,
+  type AsyncTaskStore,
   type RuntimeEvent,
   type SubagentFactory
 } from "./index.js";
@@ -1229,6 +1231,58 @@ describe("SessionMutex", () => {
     expect(order).toContain("Y");
     rel1();
     rel2();
+  });
+});
+
+describe("createSpawnSubagentAsyncTool", () => {
+  test("spawn_subagent_async returns taskId immediately without waiting", async () => {
+    let subagentStarted = false;
+    let subagentResolved = false;
+
+    // Sub-agent that takes a tick to complete
+    const factory: SubagentFactory = {
+      create: (_goal) =>
+        new AgentRuntime({
+          contextAssembler: new DefaultContextAssembler(),
+          modelProvider: new FakeModelProvider([{ type: "message", content: "Async sub-agent done." }]),
+          systemInstruction: "You are a sub-agent.",
+          createRunId: () => "sub_async_run",
+          createEventId: (() => { let n = 0; return () => `sub_async_evt_${++n}`; })(),
+          now: () => "2026-05-05T10:00:00.000Z",
+          hooks: {
+            beforeTurn: async () => { subagentStarted = true; },
+            afterTurn: async () => { subagentResolved = true; }
+          }
+        })
+    };
+
+    const createdRecords: Array<{ id: string; runtime: string; task: string; status: string }> = [];
+    const taskStore: AsyncTaskStore = {
+      async create(record) {
+        createdRecords.push(record);
+        return { id: record.id };
+      }
+    };
+
+    const tool = createSpawnSubagentAsyncTool(factory, { taskStore });
+    const result = await tool.execute({ goal: "Run async subtask." }, { workspaceRoot: "/workspace" });
+
+    // Returns immediately with a taskId
+    expect(result).toMatchObject({ type: "spawn_subagent_async_result", status: "queued" });
+    expect((result as unknown as { taskId: string }).taskId).toMatch(/^task_/);
+
+    // Task store was called
+    expect(createdRecords).toHaveLength(1);
+    expect(createdRecords[0]).toMatchObject({
+      runtime: "subagent",
+      task: "Run async subtask.",
+      status: "queued"
+    });
+
+    // Wait for background execution to complete
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(subagentStarted).toBe(true);
+    expect(subagentResolved).toBe(true);
   });
 });
 

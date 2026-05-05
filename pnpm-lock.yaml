@@ -50,6 +50,9 @@ importers:
       '@arvinclaw/skills':
         specifier: workspace:*
         version: link:../../packages/skills
+      '@arvinclaw/taskflow':
+        specifier: workspace:*
+        version: link:../../packages/taskflow
       '@arvinclaw/tools':
         specifier: workspace:*
         version: link:../../packages/tools

@@ -1270,6 +1270,38 @@ describe("runCli", () => {
     }
   });
 
+  test("taskflow list shows no records when empty", async () => {
+    const parentDir = await mkdtemp(join(tmpdir(), "arvinclaw-taskflow-cli-"));
+    const directory = join(parentDir, "sessions");
+    await mkdir(directory, { recursive: true });
+    try {
+      const result = await runCli(["taskflow", "list"], "0.0.0", {
+        sessionsDirectory: directory
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("No task records found.");
+      expect(result.stderr).toBe("");
+    } finally {
+      await rm(parentDir, { recursive: true, force: true });
+    }
+  });
+
+  test("taskflow show returns not-found for unknown id", async () => {
+    const parentDir = await mkdtemp(join(tmpdir(), "arvinclaw-taskflow-cli-"));
+    const directory = join(parentDir, "sessions");
+    await mkdir(directory, { recursive: true });
+    try {
+      const result = await runCli(["taskflow", "show", "nonexistent_id"], "0.0.0", {
+        sessionsDirectory: directory
+      });
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("nonexistent_id");
+      expect(result.stderr).toContain("not found");
+    } finally {
+      await rm(parentDir, { recursive: true, force: true });
+    }
+  });
+
   test("daemon --once skips tasks without cron field", async () => {
     const parentDir = await mkdtemp(join(tmpdir(), "arvinclaw-daemon-parent-"));
     const directory = join(parentDir, "sessions");

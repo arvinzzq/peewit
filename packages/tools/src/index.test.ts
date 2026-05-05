@@ -740,7 +740,7 @@ describe("read_web_page tool", () => {
     const result = await tool.execute({ url: "https://example.com" }, context);
 
     expect(result).toMatchObject({ ok: true });
-    if (result.ok && "content" in result) {
+    if ("ok" in result && result.ok && "content" in result) {
       expect(result.content).not.toContain("alert(1)");
       expect(result.content).not.toContain("color:red");
       expect(result.content).toContain("Clean text.");
@@ -755,7 +755,7 @@ describe("read_web_page tool", () => {
     const result = await tool.execute({ url: "https://example.com" }, context);
 
     expect(result).toMatchObject({ ok: true });
-    if (result.ok && "content" in result) {
+    if ("ok" in result && result.ok && "content" in result) {
       expect(result.content).toContain("[truncated");
       expect(result.content.length).toBeLessThan(longBody.length);
     }
