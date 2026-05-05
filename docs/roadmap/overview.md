@@ -41,7 +41,7 @@ The roadmap follows a dual-track approach:
 | Phase 6 | Complete | Streaming and Web UI | Token-by-token streaming in CLI; browser-based chat with trace and approvals | Streaming ModelProvider, Ink CLI, Web adapter, SSE |
 | Phase 7 | Complete | Multi-entry adapters | CLI, Web, desktop, and message entries share one Agent Core | Adapter interface, gateway direction |
 | Phase 8 | Complete | Background automation | Agent can run scheduled and event-triggered tasks | Scheduler, daemon, task queue |
-| Phase 9 | Not Started | Plugin and skill ecosystem | User can install, enable, disable, and review capabilities | Plugin metadata, permission declarations, versioning |
+| Phase 9 | In Progress | Plugin and skill ecosystem | User can install, enable, disable, and review capabilities | Plugin metadata, permission declarations, versioning |
 | Phase 10 | Not Started | Full personal agent platform | OpenClaw-like personal agent with multiple models, agents, nodes, and sandboxed tools | Gateway, multi-agent runtime, node protocol, sandboxing |
 
 Some later-phase learning documents are listed as planned filenames before they exist. They should be created when that phase is being actively designed, not all at once during MVP setup.
@@ -455,6 +455,8 @@ The user can install and manage skills or plugins with visible metadata, permiss
 
 - `docs/architecture/plugin-system.md`
 - `docs/architecture/skill-permissions.md`
+
+Implementation plan: [Phase 9 Plugin and Skill Ecosystem](../plans/phase-9-plugin-skill-ecosystem.md)
 
 ### Acceptance Criteria
 
