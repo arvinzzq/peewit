@@ -7,6 +7,7 @@
  */
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { render, Box, Text, useInput, useApp, useAnimation, Static } from "ink";
+import TextInput from "ink-text-input";
 import { loadConfig, type EffectiveConfig } from "@arvinclaw/config";
 import type { RuntimeEvent } from "@arvinclaw/core";
 import type { TodoItem } from "@arvinclaw/tools";
@@ -126,7 +127,7 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputState, setInputState] = useState({ text: "", cursor: 0 });
+  const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
 
   // Streaming state (current turn only)
@@ -198,7 +199,6 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
       setIsSending(true);
       setStreamingText("");
       setCurrentTool(null);
-      setInputState({ text: "", cursor: 0 });
 
       try {
         const turn = await session.sendMessage(trimmed, { onEvent: handleEvent });
@@ -212,42 +212,23 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
     [session, isSending, handleEvent]
   );
 
-  // Keyboard input handler
+  // Ctrl+C exit handler
   useInput(
     (inputChar, key) => {
-      if (pendingApproval !== null) return;
-      if (isSending) return;
-
-      setInputState((s) => {
-        const { text, cursor } = s;
-        if (key.return) {
-          const trimmed = text.trim();
-          if (trimmed === "/exit") { exit(); return s; }
-          if (trimmed !== "") void sendMessage(trimmed);
-          return { text: "", cursor: 0 };
-        }
-        if (key.leftArrow)  return { text, cursor: Math.max(0, cursor - 1) };
-        if (key.rightArrow) return { text, cursor: Math.min(text.length, cursor + 1) };
-        if (key.ctrl && inputChar === "a") return { text, cursor: 0 };
-        if (key.ctrl && inputChar === "e") return { text, cursor: text.length };
-        if (key.ctrl && inputChar === "k") return { text: text.slice(0, cursor), cursor };
-        if (key.ctrl && inputChar === "u") return { text: "", cursor: 0 };
-        if (key.escape) return { text: "", cursor: 0 };
-        if (key.ctrl && inputChar === "c") { exit(); return s; }
-        if (key.backspace) {
-          if (cursor === 0) return s;
-          return { text: text.slice(0, cursor - 1) + text.slice(cursor), cursor: cursor - 1 };
-        }
-        if (key.delete) {
-          return { text: text.slice(0, cursor) + text.slice(cursor + 1), cursor };
-        }
-        if (!key.ctrl && !key.meta && inputChar) {
-          return { text: text.slice(0, cursor) + inputChar + text.slice(cursor), cursor: cursor + 1 };
-        }
-        return s;
-      });
+      if (key.ctrl && inputChar === "c") exit();
     },
-    { isActive: pendingApproval === null && !isSending }
+    { isActive: true }
+  );
+
+  const handleSubmit = useCallback(
+    (value: string) => {
+      if (isSending || pendingApproval !== null) return;
+      const trimmed = value.trim();
+      if (trimmed === "/exit") { exit(); return; }
+      if (trimmed !== "") void sendMessage(trimmed);
+      setInput("");
+    },
+    [isSending, pendingApproval, sendMessage, exit]
   );
 
   if (loadError !== null) {
@@ -319,9 +300,12 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
       {!isSending && pendingApproval === null && (
         <Box>
           <Text color="cyan" bold>{"> "}</Text>
-          <Text>{inputState.text.slice(0, inputState.cursor)}</Text>
-          <Text inverse>{inputState.text[inputState.cursor] ?? " "}</Text>
-          <Text>{inputState.text.slice(inputState.cursor + 1)}</Text>
+          <TextInput
+            value={input}
+            onChange={setInput}
+            onSubmit={handleSubmit}
+            focus={pendingApproval === null && !isSending}
+          />
         </Box>
       )}
 

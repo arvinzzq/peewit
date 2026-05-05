@@ -24,6 +24,7 @@
     "@arvinclaw/tools": "workspace:*",
     "dotenv": "^17.4.2",
     "ink": "^7.0.1",
+    "ink-text-input": "^6.0.0",
     "react": "^19.2.5"
   },
   "devDependencies": {
