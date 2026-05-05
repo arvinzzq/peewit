@@ -57,8 +57,26 @@ Any change in Phase 7–9 that would complicate the gateway should be avoided:
 - Do not allow adapters to bypass `ApprovalResolver` — approval routing is a gateway concern.
 - Do not invent a second session directory — both adapters must use the same path so the gateway can unify session access.
 
-## 7. References
+## 7. Phase 10 Implementation
+
+Phase 10 delivers the first concrete gateway implementation as the `packages/gateway` package.
+
+The `SessionGateway` class is a simple in-memory registry:
+
+- **`register(session: GatewaySession)`** — called by an adapter when a session becomes active.
+- **`unregister(sessionId: string)`** — called when the session ends.
+- **`touch(sessionId: string)`** — updates `lastActivityAt` on each active turn.
+- **`get(sessionId: string)`** — returns a session record if it exists.
+- **`list()`** — returns all active sessions.
+- **`listByAdapter(adapterName: string)`** — returns sessions for one adapter surface.
+
+The `GatewaySession` record carries: `id`, `adapterName`, `capabilities` (from `@arvinclaw/adapters`), `registeredAt`, and `lastActivityAt`.
+
+The CLI adapter registers sessions in `CliChatSession.createConfigured()` and unregisters them in `close()`. The Web adapter registers sessions in `createWebSession()`. The Web server exposes `GET /api/gateway/sessions` so callers can inspect the registry.
+
+## 8. References
 
 - [Adapters](./adapters.md) — adapter boundary, capabilities, and current surfaces
 - [Session Storage](./session-storage.md) — session persistence contracts
 - [OpenClaw Architecture Map](./openclaw-architecture-map.md) — OpenClaw's gateway and node protocol
+- [Multi-Agent Runtime](./multi-agent-runtime.md) — sub-agent spawning that the gateway will coordinate

@@ -57,8 +57,26 @@ Phase 7–9 中任何会使 gateway 复杂化的变更都应避免：
 - 不要允许 adapters 绕过 `ApprovalResolver` — approval 路由是 gateway 关注点。
 - 不要创建第二个 session 目录 — 两个 adapters 必须使用相同路径，使 gateway 能够统一 session 访问。
 
-## 7. 参考
+## 7. Phase 10 实现
+
+Phase 10 将第一个具体的 gateway 实现作为 `packages/gateway` package 交付。
+
+`SessionGateway` 类是一个简单的内存注册表：
+
+- **`register(session: GatewaySession)`** — 当 session 变为活跃时由 adapter 调用。
+- **`unregister(sessionId: string)`** — session 结束时调用。
+- **`touch(sessionId: string)`** — 在每次活跃 turn 时更新 `lastActivityAt`。
+- **`get(sessionId: string)`** — 如果存在则返回 session 记录。
+- **`list()`** — 返回所有活跃 sessions。
+- **`listByAdapter(adapterName: string)`** — 返回某一 adapter 界面的 sessions。
+
+`GatewaySession` 记录包含：`id`、`adapterName`、`capabilities`（来自 `@arvinclaw/adapters`）、`registeredAt` 和 `lastActivityAt`。
+
+CLI adapter 在 `CliChatSession.createConfigured()` 中注册 sessions，在 `close()` 中注销。Web adapter 在 `createWebSession()` 中注册 sessions。Web server 暴露 `GET /api/gateway/sessions`，调用方可以检查注册表。
+
+## 8. 参考
 
 - [Adapters](./adapters.zh-CN.md) — adapter 边界、capabilities 和当前界面
 - [Session Storage](./session-storage.zh-CN.md) — session 持久化契约
 - [OpenClaw Architecture Map](./openclaw-architecture-map.zh-CN.md) — OpenClaw 的 gateway 和 node protocol
+- [Multi-Agent Runtime](./multi-agent-runtime.zh-CN.md) — gateway 将协调的 sub-agent spawning

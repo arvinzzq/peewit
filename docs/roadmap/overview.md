@@ -42,7 +42,7 @@ The roadmap follows a dual-track approach:
 | Phase 7 | Complete | Multi-entry adapters | CLI, Web, desktop, and message entries share one Agent Core | Adapter interface, gateway direction |
 | Phase 8 | Complete | Background automation | Agent can run scheduled and event-triggered tasks | Scheduler, daemon, task queue |
 | Phase 9 | Complete | Plugin and skill ecosystem | User can install, enable, disable, and review capabilities | Plugin metadata, permission declarations, versioning |
-| Phase 10 | Not Started | Full personal agent platform | OpenClaw-like personal agent with multiple models, agents, nodes, and sandboxed tools | Gateway, multi-agent runtime, node protocol, sandboxing |
+| Phase 10 | In Progress | Full personal agent platform | OpenClaw-like personal agent with multiple models, agents, nodes, and sandboxed tools | Gateway, multi-agent runtime, node protocol, sandboxing |
 
 Some later-phase learning documents are listed as planned filenames before they exist. They should be created when that phase is being actively designed, not all at once during MVP setup.
 
@@ -492,6 +492,8 @@ ArvinClaw becomes a full personal agent platform: multi-entry, multi-model, mult
 - `docs/architecture/node-protocol.md`
 - `docs/architecture/sandboxing.md`
 - `docs/architecture/gateway.md`
+
+Implementation plan: [Phase 10 Full Platform](../plans/phase-10-full-platform.md)
 
 ### Acceptance Criteria
 
