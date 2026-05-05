@@ -126,8 +126,7 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [cursorPos, setCursorPos] = useState(0);
+  const [inputState, setInputState] = useState({ text: "", cursor: 0 });
   const [isSending, setIsSending] = useState(false);
 
   // Streaming state (current turn only)
@@ -199,7 +198,7 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
       setIsSending(true);
       setStreamingText("");
       setCurrentTool(null);
-      setCursorPos(0);
+      setInputState({ text: "", cursor: 0 });
 
       try {
         const turn = await session.sendMessage(trimmed, { onEvent: handleEvent });
@@ -219,40 +218,34 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
       if (pendingApproval !== null) return;
       if (isSending) return;
 
-      if (key.return) {
-        const trimmed = input.trim();
-        if (trimmed === "/exit") { exit(); return; }
-        if (trimmed !== "") void sendMessage(trimmed);
-        setInput("");
-        setCursorPos(0);
-      } else if (key.leftArrow) {
-        setCursorPos((p) => Math.max(0, p - 1));
-      } else if (key.rightArrow) {
-        setCursorPos((p) => Math.min(input.length, p + 1));
-      } else if (key.ctrl && inputChar === "a") {
-        setCursorPos(0);
-      } else if (key.ctrl && inputChar === "e") {
-        setCursorPos(input.length);
-      } else if (key.ctrl && inputChar === "k") {
-        setInput((prev) => prev.slice(0, cursorPos));
-      } else if (key.ctrl && inputChar === "u") {
-        setInput("");
-        setCursorPos(0);
-      } else if (key.backspace) {
-        if (cursorPos === 0) return;
-        setInput((prev) => prev.slice(0, cursorPos - 1) + prev.slice(cursorPos));
-        setCursorPos((p) => p - 1);
-      } else if (key.delete) {
-        setInput((prev) => prev.slice(0, cursorPos) + prev.slice(cursorPos + 1));
-      } else if (key.escape) {
-        setInput("");
-        setCursorPos(0);
-      } else if (key.ctrl && inputChar === "c") {
-        exit();
-      } else if (!key.ctrl && !key.meta && inputChar) {
-        setInput((prev) => prev.slice(0, cursorPos) + inputChar + prev.slice(cursorPos));
-        setCursorPos((p) => p + 1);
-      }
+      setInputState((s) => {
+        const { text, cursor } = s;
+        if (key.return) {
+          const trimmed = text.trim();
+          if (trimmed === "/exit") { exit(); return s; }
+          if (trimmed !== "") void sendMessage(trimmed);
+          return { text: "", cursor: 0 };
+        }
+        if (key.leftArrow)  return { text, cursor: Math.max(0, cursor - 1) };
+        if (key.rightArrow) return { text, cursor: Math.min(text.length, cursor + 1) };
+        if (key.ctrl && inputChar === "a") return { text, cursor: 0 };
+        if (key.ctrl && inputChar === "e") return { text, cursor: text.length };
+        if (key.ctrl && inputChar === "k") return { text: text.slice(0, cursor), cursor };
+        if (key.ctrl && inputChar === "u") return { text: "", cursor: 0 };
+        if (key.escape) return { text: "", cursor: 0 };
+        if (key.ctrl && inputChar === "c") { exit(); return s; }
+        if (key.backspace) {
+          if (cursor === 0) return s;
+          return { text: text.slice(0, cursor - 1) + text.slice(cursor), cursor: cursor - 1 };
+        }
+        if (key.delete) {
+          return { text: text.slice(0, cursor) + text.slice(cursor + 1), cursor };
+        }
+        if (!key.ctrl && !key.meta && inputChar) {
+          return { text: text.slice(0, cursor) + inputChar + text.slice(cursor), cursor: cursor + 1 };
+        }
+        return s;
+      });
     },
     { isActive: pendingApproval === null && !isSending }
   );
@@ -326,9 +319,9 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
       {!isSending && pendingApproval === null && (
         <Box>
           <Text color="cyan" bold>{"> "}</Text>
-          <Text>{input.slice(0, cursorPos)}</Text>
-          <Text inverse>{input[cursorPos] ?? " "}</Text>
-          <Text>{input.slice(cursorPos + 1)}</Text>
+          <Text>{inputState.text.slice(0, inputState.cursor)}</Text>
+          <Text inverse>{inputState.text[inputState.cursor] ?? " "}</Text>
+          <Text>{inputState.text.slice(inputState.cursor + 1)}</Text>
         </Box>
       )}
 
