@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, redactedConfig, type EffectiveConfig, type RedactedConfigView } from "@arvinclaw/config";
 import { DefaultContextAssembler } from "@arvinclaw/context";
-import { AgentRuntime, InMemoryRuntimeTraceStore, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
+import { AgentRuntime, InMemoryRuntimeTraceStore, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
 import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
 import { SkillLoader, toSkillSummary, type SkillDefinition } from "@arvinclaw/skills";
@@ -335,9 +335,13 @@ export interface CliChatTurnResult {
   events: RuntimeEvent[];
 }
 
-interface CreateChatSessionOptions {
+export interface CreateChatSessionOptions {
   sessionId?: string;
+  preferStreaming?: boolean;
+  approvalResolver?: ApprovalResolver;
 }
+
+export type { ApprovalRequest, ApprovalResolution };
 
 export class CliChatSession {
   readonly #runtime: AgentRuntime;
@@ -423,6 +427,7 @@ export class CliChatSession {
     const skillIndex = skillDefinitions.map(toSkillSummary);
 
     const configuredProvider = createConfiguredProvider(config, options);
+    const approvalResolver = sessionOptions.approvalResolver ?? createCliApprovalResolver(options, approvalPromptLog);
 
     return new CliChatSession(
       new AgentRuntime({
@@ -436,7 +441,8 @@ export class CliChatSession {
         },
         tools: createCliBuiltInTools(options, config),
         skillIndex,
-        approvalResolver: createCliApprovalResolver(options, approvalPromptLog)
+        preferStreaming: sessionOptions.preferStreaming ?? false,
+        approvalResolver
       }),
       redactedConfig(config),
       new InMemoryRuntimeTraceStore(),
@@ -448,7 +454,7 @@ export class CliChatSession {
     );
   }
 
-  async sendMessage(message: string): Promise<CliChatTurnResult> {
+  async sendMessage(message: string, opts: { onEvent?: (event: RuntimeEvent) => void } = {}): Promise<CliChatTurnResult> {
     const events: RuntimeEvent[] = [];
     const approvalStartIndex = this.#approvalPromptLog.length;
     await this.#ensureSession();
@@ -463,6 +469,7 @@ export class CliChatSession {
       await this.#traceStore.append(event);
       await this.#sessionStore.appendTraceEvent({ sessionId: this.#sessionId, event });
       events.push(event);
+      opts.onEvent?.(event);
     }
 
     const assistantMessage = events.find((event) => event.type === "assistant_message_created");
@@ -721,13 +728,24 @@ function traceEventLabel(event: RuntimeEvent): string {
 }
 
 async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  const [command] = args;
+
+  // Real interactive chat → use Ink for streaming rendering
+  if (command === "chat" && !args.includes("--fake") && !args.includes("--fake-interactive")) {
+    const { runInkChat } = await import("./app.js");
+    await runInkChat({ args, env: process.env });
+    return;
+  }
+
+  // All other commands → existing readline-based path
   const terminal = createInterface({
     input: process.stdin,
     output: process.stdout
   });
   const lineIterator = terminal[Symbol.asyncIterator]();
 
-  const result = await runCli(process.argv.slice(2), "0.0.0", {
+  const result = await runCli(args, "0.0.0", {
     env: process.env,
     readLine: async (prompt) => {
       process.stdout.write(prompt);
