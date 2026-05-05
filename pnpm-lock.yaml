@@ -23,6 +23,9 @@ importers:
 
   apps/cli:
     dependencies:
+      '@arvinclaw/adapters':
+        specifier: workspace:*
+        version: link:../../packages/adapters
       '@arvinclaw/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -32,6 +35,9 @@ importers:
       '@arvinclaw/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@arvinclaw/gateway':
+        specifier: workspace:*
+        version: link:../../packages/gateway
       '@arvinclaw/models':
         specifier: workspace:*
         version: link:../../packages/models
@@ -60,6 +66,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@arvinclaw/adapters':
+        specifier: workspace:*
+        version: link:../../packages/adapters
       '@arvinclaw/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -69,6 +78,9 @@ importers:
       '@arvinclaw/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@arvinclaw/gateway':
+        specifier: workspace:*
+        version: link:../../packages/gateway
       '@arvinclaw/models':
         specifier: workspace:*
         version: link:../../packages/models
@@ -138,6 +150,12 @@ importers:
         specifier: workspace:*
         version: link:../tools
 
+  packages/gateway:
+    dependencies:
+      '@arvinclaw/adapters':
+        specifier: workspace:*
+        version: link:../adapters
+
   packages/models:
     dependencies:
       '@anthropic-ai/sdk':
@@ -158,6 +176,12 @@ importers:
   packages/sessions: {}
 
   packages/skills: {}
+
+  packages/taskflow:
+    dependencies:
+      '@arvinclaw/sessions':
+        specifier: workspace:*
+        version: link:../sessions
 
   packages/tools: {}
 

@@ -46,6 +46,9 @@
     },
     {
       "path": "./packages/gateway"
+    },
+    {
+      "path": "./packages/taskflow"
     }
   ]
 }
