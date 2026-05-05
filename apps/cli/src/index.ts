@@ -821,7 +821,8 @@ export class CliChatSession {
         skillIndex,
         preferStreaming: sessionOptions.preferStreaming ?? false,
         approvalResolver,
-        ...(config.runtime.promptMode !== undefined ? { promptMode: config.runtime.promptMode } : {})
+        ...(config.runtime.promptMode !== undefined ? { promptMode: config.runtime.promptMode } : {}),
+        ...(config.runtime.executionContract !== undefined ? { executionContract: config.runtime.executionContract } : {})
       }),
       redactedConfig(config),
       new InMemoryRuntimeTraceStore(),

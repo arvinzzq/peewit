@@ -160,7 +160,8 @@ async function createWebSession(config: EffectiveConfig, existingSessionId?: str
     skillIndex,
     preferStreaming: true,
     approvalResolver,
-    ...(config.runtime.promptMode !== undefined ? { promptMode: config.runtime.promptMode } : {})
+    ...(config.runtime.promptMode !== undefined ? { promptMode: config.runtime.promptMode } : {}),
+    ...(config.runtime.executionContract !== undefined ? { executionContract: config.runtime.executionContract } : {})
   });
 
   let id: string;

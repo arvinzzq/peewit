@@ -198,6 +198,26 @@ describe("loadConfig", () => {
       })
     ).toThrow(ConfigValidationError);
   });
+
+  test("supports ARVINCLAW_EXECUTION_CONTRACT env var", () => {
+    const config = loadConfig({
+      env: {
+        ARVINCLAW_EXECUTION_CONTRACT: "strict-agentic"
+      }
+    });
+
+    expect(config.runtime.executionContract).toBe("strict-agentic");
+  });
+
+  test("rejects invalid ARVINCLAW_EXECUTION_CONTRACT values", () => {
+    expect(() =>
+      loadConfig({
+        env: {
+          ARVINCLAW_EXECUTION_CONTRACT: "turbo-mode"
+        }
+      })
+    ).toThrow(ConfigValidationError);
+  });
 });
 
 describe("resolveSessionsDirectory", () => {

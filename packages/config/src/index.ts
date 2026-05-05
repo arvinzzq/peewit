@@ -1,6 +1,6 @@
 /**
- * INPUT: User config, project config, ArvinClaw env overrides, memory policy settings, provider-specific env shortcuts (OPENROUTER_API_KEY, ANTHROPIC_API_KEY), model provider selection, ARVINCLAW_PROMPT_MODE env var, and sessions directory resolution requests.
- * OUTPUT: EffectiveConfig with provider selection (openai-compatible or anthropic), memory policy, PromptMode type, redacted config views, validation errors, and resolved sessions directory paths.
+ * INPUT: User config, project config, env overrides (ARVINCLAW_PROMPT_MODE, ARVINCLAW_EXECUTION_CONTRACT, OPENROUTER_API_KEY, ANTHROPIC_API_KEY, and others), memory policy settings, and sessions directory resolution requests.
+ * OUTPUT: EffectiveConfig (including ExecutionContract), PromptMode, redacted config views, ConfigValidationError, and resolveSessionsDirectory helper.
  * POS: Configuration boundary; keeps config loading separate from runtime behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -22,6 +22,7 @@ export type TraceVerbosity = "explainable" | "debug";
 export type LongTermMemoryFilePolicy = "disabled" | "read-only" | "write";
 export type MemoryWritePolicy = "disabled";
 export type PromptMode = "full" | "minimal" | "none";
+export type ExecutionContract = "default" | "strict-agentic";
 
 export interface EffectiveConfig {
   model: {
@@ -38,6 +39,7 @@ export interface EffectiveConfig {
     defaultMode: AutonomyMode;
     maxSteps: number;
     promptMode?: PromptMode;
+    executionContract?: ExecutionContract;
   };
   trace: {
     verbosity: TraceVerbosity;
@@ -231,6 +233,9 @@ function applyEnv(config: EffectiveConfig, env: Record<string, string | undefine
   if (env.ARVINCLAW_PROMPT_MODE !== undefined) {
     config.runtime.promptMode = env.ARVINCLAW_PROMPT_MODE as PromptMode;
   }
+  if (env.ARVINCLAW_EXECUTION_CONTRACT !== undefined) {
+    config.runtime.executionContract = env.ARVINCLAW_EXECUTION_CONTRACT as ExecutionContract;
+  }
 }
 
 function validateConfig(config: EffectiveConfig): void {
@@ -275,6 +280,12 @@ function validateConfig(config: EffectiveConfig): void {
       `Invalid runtime.promptMode "${String(config.runtime.promptMode)}". Expected full, minimal, or none.`
     );
   }
+
+  if (config.runtime.executionContract !== undefined && !isExecutionContract(config.runtime.executionContract)) {
+    throw new ConfigValidationError(
+      `Invalid runtime.executionContract "${String(config.runtime.executionContract)}". Expected default or strict-agentic.`
+    );
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -295,6 +306,10 @@ function isLongTermMemoryFilePolicy(value: unknown): value is LongTermMemoryFile
 
 function isPromptMode(value: unknown): value is PromptMode {
   return value === "full" || value === "minimal" || value === "none";
+}
+
+function isExecutionContract(value: unknown): value is ExecutionContract {
+  return value === "default" || value === "strict-agentic";
 }
 
 /**
