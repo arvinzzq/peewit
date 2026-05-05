@@ -5,7 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-≥22-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-f69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
-[![Tests](https://img.shields.io/badge/tests-255%20passing-22c55e)](#开发)
+[![Tests](https://img.shields.io/badge/tests-339%20passing-22c55e)](#开发)
 
 English version: [README.md](./README.md)
 
@@ -28,11 +28,18 @@ ArvinClaw 是一个从零开始用 TypeScript 构建的个人通用 Agent。
 - **流式输出** — 逐 Token 输出，Web 端 SSE，CLI 端 Ink 终端渲染
 - **规划停滞检测** — 检测纯规划轮次并通过重试注入强制立即行动
 - **轮次内任务追踪** — 模型可调用的 `update_todos`（等同于 OpenClaw `update_plan`）
-- **子 Agent 派生** — `spawn_subagent` 工具，用于分解复杂任务
+- **子 Agent 派生** — `spawn_subagent`（同步阻塞）和 `spawn_subagent_async`（即发即忘）
+- **上下文压缩** — 上下文即将溢出前自动对历史对话进行摘要
+- **执行契约** — `default` 和 `strict-agentic` 两种规划执行纪律模式
+- **Hooks** — `beforeTurn`、`afterTurn`、`beforeToolCall`、`afterToolCall`、`onCompaction` 扩展点
+- **会话互斥锁** — 每会话写锁，保障并发安全
 
 ### 工具与权限
 - **内置工具** — `read_file`、`list_directory`、`write_file`、`run_shell`、`read_web_page`、`append_daily_memory`
+- **记忆工具** — `memory_search`（全文搜索）、`memory_get`（读取指定文件）、`load_skill`（按需加载 SKILL.md）
 - **基于风险的权限策略** — low / medium / high / blocked；`observe` / `confirm` / `auto` 模式
+- **工具 Profile** — `coding`、`full`、`messaging`、`background` 四种会话能力集合
+- **沙箱限制** — Shell 工具可限制在工作区根目录，拒绝路径穿越
 - **审批提示** — CLI 和 Web UI 中均支持交互式审批
 
 ### 上下文与记忆
@@ -55,12 +62,16 @@ ArvinClaw 是一个从零开始用 TypeScript 构建的个人通用 Agent。
 
 ### 后台自动化
 - **一次性任务** — `arvinclaw run "<目标>" [--mode auto|confirm]`
+- **Cron Daemon** — `arvinclaw daemon` 从 `tasks/*.task.json` 运行定时任务
+- **TaskFlow** — 持久化跨会话任务图，支持 8 种状态和父子关系
 - **后台审批策略** — `BackgroundApprovalResolver` 自动批准或拒绝
-- **任务历史** — `arvinclaw tasks` 列出运行记录
+- **任务历史** — `arvinclaw tasks` 和 `arvinclaw taskflow list/show/cancel`
+- **记忆整理** — `arvinclaw run --dream` 将日记文件整合写入 `MEMORY.md`
 
 ### 模型 Provider
 - **OpenAI 兼容** — 遵循 OpenAI chat completions API 的任何服务（OpenAI、OpenRouter、Ollama 等）
-- **Anthropic** — 原生 SDK，支持 Prompt Caching 和流式输出
+- **Anthropic** — 原生 SDK，支持 Prompt Caching、流式输出和扩展思考
+- **思考预算** — `off` / `minimal` / `low` / `medium` / `high` / `max` / `adaptive`，控制 Anthropic 推理深度
 
 ---
 
@@ -120,6 +131,11 @@ arvinclaw skills enable <name>
 arvinclaw skills disable <name>
 arvinclaw skills trust <name>
 arvinclaw skills review <name>
+arvinclaw daemon                        # 启动 Cron 调度守护进程
+arvinclaw taskflow list                 # 列出所有 TaskFlow 记录
+arvinclaw taskflow show <id>            # 查看指定任务详情
+arvinclaw taskflow cancel <id>          # 取消运行中的任务
+arvinclaw run "<目标>" --dream           # 记忆整理 — 将日记合并进 MEMORY.md
 ```
 
 ### Web UI
@@ -136,6 +152,7 @@ API 端点：
 - `POST /api/sessions/:id/turns` — 运行对话轮次（SSE 流）
 - `POST /api/sessions/:id/approvals` — 解析待处理审批
 - `GET /api/gateway/sessions` — 所有适配器的活跃会话
+- `GET /ws/:id` — WebSocket 连接，支持双向通信
 
 ---
 
@@ -154,7 +171,8 @@ packages/
   skills/       SKILL.md 解析器、SkillLoader、SkillManager
   tools/        内置工具、load_skill、memory_search、memory_get
   adapters/     AdapterCapabilities 接口，CLI/Web/Background 常量
-  scheduler/    BackgroundApprovalResolver、JsonlTaskStore、TaskDefinition
+  scheduler/    BackgroundApprovalResolver、JsonlTaskStore、CronScheduler
+  taskflow/     TaskRecord、JsonlTaskFlowStore — 持久化任务图
   gateway/      SessionGateway — 跨适配器会话注册表
 
 apps/
@@ -180,6 +198,11 @@ apps/
 | `ARVINCLAW_DEFAULT_MODE` | 自主模式：`observe` / `confirm` / `auto` | `confirm` |
 | `ARVINCLAW_WORKSPACE_ROOT` | 工作目录 | `.` |
 | `ARVINCLAW_LONG_TERM_MEMORY` | 记忆策略：`disabled` / `read-only` / `write` | `disabled` |
+| `ARVINCLAW_PROMPT_MODE` | 提示词渲染：`full` / `minimal` / `none` | `full` |
+| `ARVINCLAW_EXECUTION_CONTRACT` | 执行纪律：`default` / `strict-agentic` | `default` |
+| `ARVINCLAW_TOOL_PROFILE` | 工具能力集：`coding` / `full` / `messaging` / `background` | `full` |
+| `ARVINCLAW_SANDBOX` | 将 Shell 限制在工作区根目录：`true` / `false` | `false` |
+| `ARVINCLAW_THINKING_BUDGET` | Anthropic 推理深度：`off` / `minimal` / `low` / `medium` / `high` / `max` / `adaptive` | `adaptive` |
 
 文件配置：`arvinclaw.config.json`（项目级）和 `~/.arvinclaw/config.json`（用户级）。
 
@@ -246,14 +269,23 @@ ArvinClaw 在架构上与 OpenClaw 对齐，但并不完全相同。详见 [Deci
 | 后台任务 | ✅ `arvinclaw run` |
 | Skill 安装 / 信任 / 权限 | ✅ Phase 9 |
 | 会话网关 | ✅ `packages/gateway` |
-| 上下文压缩 | 🚧 计划中 |
-| Skill 按需加载 | 🚧 计划中 |
-| `memory_search` / `memory_get` 工具 | 🚧 计划中 |
-| Cron Daemon | 🚧 计划中 |
-| Hooks 系统 | 🚧 计划中 |
-| TaskFlow（持久任务图） | 🚧 计划中 |
+| 上下文压缩 | ✅ `packages/context` 中的 `compactMessages()` |
+| Skill 按需加载 | ✅ `load_skill` 工具 |
+| `memory_search` / `memory_get` 工具 | ✅ `packages/tools` |
+| 提示词模式（full / minimal / none） | ✅ `ARVINCLAW_PROMPT_MODE` |
+| Strict-agentic 执行契约 | ✅ `ARVINCLAW_EXECUTION_CONTRACT` |
+| 每会话写锁 | ✅ `packages/core` 中的 `SessionMutex` |
+| Hooks 系统 | ✅ `packages/core` 中的 `AgentHooks` |
+| 工具 Profile | ✅ `ARVINCLAW_TOOL_PROFILE` |
+| 沙箱限制 | ✅ `ARVINCLAW_SANDBOX` |
+| Cron Daemon | ✅ `arvinclaw daemon` |
+| TaskFlow（持久任务图） | ✅ `packages/taskflow` |
+| 异步子 Agent | ✅ `spawn_subagent_async` 工具 |
+| WebSocket 支持 | ✅ `GET /ws/:id` |
+| 思考预算 | ✅ `ARVINCLAW_THINKING_BUDGET` |
+| 记忆整理 | ✅ `arvinclaw run --dream` |
 
-完整缺口清单见 [OpenClaw 对齐计划](./docs/plans/openclaw-alignment.zh-CN.md)。
+全部 18 个 OpenClaw 对齐缺口已全部关闭。详见 [OpenClaw 对齐计划](./docs/plans/openclaw-alignment.zh-CN.md)。
 
 ---
 
