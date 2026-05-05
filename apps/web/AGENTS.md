@@ -13,7 +13,7 @@ Update README and AGENTS files when the API surface or file inventory changes. U
 - Do not assemble prompts or context here.
 - Do not define or execute tools here.
 - Do not apply permission policy here.
-- Session store choice (InMemorySessionStore in Phase 6) can be upgraded in Phase 7+.
+- Use the shared JsonlSessionStore (one instance at server start); do not create per-session stores.
 
 ## Development
 

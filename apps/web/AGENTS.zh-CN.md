@@ -13,7 +13,7 @@ API 接口或文件清单变更时，更新 README 和 AGENTS 文件。服务器
 - 不在此处组装提示词或上下文。
 - 不在此处定义或执行工具。
 - 不在此处应用权限策略。
-- 会话存储选择（Phase 6 使用 InMemorySessionStore）可在 Phase 7+ 升级。
+- 使用共享的 JsonlSessionStore（服务器启动时创建一个实例）；不要创建 per-session stores。
 
 ## Development
 
