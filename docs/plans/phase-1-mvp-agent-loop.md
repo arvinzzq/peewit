@@ -1,9 +1,46 @@
 # Phase 1 MVP Agent Loop Plan
 
-Status: Draft
+Status: Complete
 Date: 2026-05-02
 
 Simplified Chinese version: [phase-1-mvp-agent-loop.zh-CN.md](./phase-1-mvp-agent-loop.zh-CN.md)
+
+## Progress
+
+Status: Complete
+
+Completed:
+
+- Runtime event contracts: `24439e5`
+- `ModelProvider` interface and fake provider: `7df669d`
+- OpenAI-compatible provider with fake HTTP tests: `4b86a80`
+- Minimal context assembler: `8ef0c54`
+- Message-only `AgentRuntime.runTurn`: `eacb8e8`
+- CLI fake-provider chat smoke path: `8547d63`
+- In-memory runtime trace store and compact CLI trace rendering: `39c7868`, `2751a9c`
+- Same-run `/trace` command shape: `4d2ebe2`
+- Same-run `/config` command with redacted config: `ef005af`
+- Interactive CLI chat loop with fake provider: `518a936`
+- Interactive CLI configured provider wiring: `b1bfe3a`
+- Phase 1 acceptance and user test guide: in progress
+
+Remaining:
+
+- None for Phase 1 MVP scope
+
+Latest verification:
+
+- `pnpm run check`
+- `pnpm run cli --help`
+- `pnpm run cli chat --fake "hello"`
+- `pnpm run cli chat --fake "hello" /trace`
+- `ARVINCLAW_API_KEY=secret pnpm run cli chat --fake "hello" /config`
+- `printf 'Hello\n/trace\n/config\n/exit\n' | pnpm run cli chat --fake-interactive`
+- `pnpm run cli chat`
+
+Next recommended slice:
+
+- Start Phase 5-style session storage and short-term memory work as the next OpenClaw-aligned increment.
 
 ## 1. Purpose
 
@@ -188,7 +225,20 @@ Phase 1 is complete when:
 - Tests cover runtime, provider normalization, context assembly, trace, and CLI rendering.
 - The implementation still leaves tools and permissions ready for Phase 2.
 
-## 14. Related Documents
+## 14. User Test Guide
+
+Phase 1 user-facing verification lives in [Phase 1 MVP Test Guide](./phase-1-mvp-test-guide.md).
+
+That guide records:
+
+- Local verification commands.
+- CLI smoke paths.
+- Redacted config behavior.
+- Configured provider behavior.
+- Current OpenClaw alignment and gaps.
+- The next OpenClaw-aligned implementation focus.
+
+## 15. Related Documents
 
 - [Roadmap](../roadmap/overview.md)
 - [Agent Loop](../architecture/agent-loop.md)
@@ -200,3 +250,4 @@ Phase 1 is complete when:
 - [Runtime Composition](../architecture/runtime-composition.md)
 - [Architecture Contracts](../architecture/contracts.md)
 - [Testing Strategy](../architecture/testing-strategy.md)
+- [Phase 1 MVP Test Guide](./phase-1-mvp-test-guide.md)

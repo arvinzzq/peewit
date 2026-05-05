@@ -85,7 +85,7 @@ The implementation plan should refine exact event types, but MVP trace events ma
 - `plan_created`
 - `plan_updated`
 - `tool_selected`
-- `permission_evaluated`
+- `tool_call_permission_evaluated`
 - `approval_requested`
 - `approval_resolved`
 - `tool_started`
@@ -183,7 +183,7 @@ Trace records should eventually be associated with:
 - Tool call ID
 - Timestamp
 
-Phase 1 can keep this lightweight, but the shape should leave room for future session replay and Web UI trace visualization.
+Phase 5 persists runtime trace events into the same JSONL file as the session messages. This keeps trace replay local, append-only, and easy to inspect while leaving room for a richer trace index later.
 
 ## 12. CLI Rendering
 
@@ -193,6 +193,7 @@ MVP behavior:
 
 - Show important trace events inline during `chat`.
 - Provide `/trace` to show recent trace details.
+- For named sessions, `/trace` should load the persisted current-session trace after the CLI process restarts.
 - Hide debug-only details by default.
 - Clearly mark permission prompts and tool results.
 
@@ -239,6 +240,7 @@ Required test areas:
 - Debug details hidden by default
 - Error trace behavior
 - Session association when persistence is added
+- Persistence and replay of current-session trace
 - Regression tests for every new trace event type
 
 Trace tests should be updated whenever Agent Loop, Tool System, Permission System, CLI rendering, or session persistence changes.
@@ -253,6 +255,7 @@ The MVP execution trace should be considered successful when:
 - Errors are visible in trace.
 - Secret-like content is redacted.
 - CLI can show recent trace details.
+- CLI can replay persisted trace details for a named session.
 - Trace data is structured enough for future Web UI rendering.
 - Trace behavior is covered by unit and integration tests.
 

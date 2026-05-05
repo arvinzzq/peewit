@@ -279,22 +279,26 @@ Agent Core 应依赖 `ModelProvider` 接口，而不是某个具体厂商 SDK。
 
 详细架构说明：[docs/architecture/model-provider.zh-CN.md](../architecture/model-provider.zh-CN.md)
 
-MVP 只实现 OpenAI-compatible provider。
+Provider 决策：[docs/decisions/0005-anthropic-provider.zh-CN.md](../decisions/0005-anthropic-provider.zh-CN.md)
 
-预期配置：
+Phase 1 实现了 OpenAI-compatible provider。Phase 3 通过 `@anthropic-ai/sdk` 添加 Anthropic provider。
 
-- `baseURL`
-- `apiKey`
-- `model`
-- `temperature`
-- `maxTokens`
+Provider 选择通过配置的 `model.provider` 控制：
 
-未来 provider 可以包括：
+```json
+{ "model": { "provider": "openai-compatible", "baseURL": "...", "model": "..." } }
+{ "model": { "provider": "anthropic", "model": "claude-opus-4-7" } }
+```
 
-- Anthropic
-- Gemini
-- Ollama
-- 本地 OpenAI-compatible runtime
+密钥通过环境变量提供：
+
+```text
+ARVINCLAW_API_KEY       openai-compatible
+OPENROUTER_API_KEY      OpenRouter 快捷方式
+ANTHROPIC_API_KEY       anthropic
+```
+
+后续 provider 可以包括 Gemini、Ollama 和 router provider（在多个配置 provider 间选择）。
 
 ## 8.1 配置和密钥
 

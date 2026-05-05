@@ -1,0 +1,46 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
+  "references": [
+    {
+      "path": "../../packages/adapters"
+    },
+    {
+      "path": "../../packages/config"
+    },
+    {
+      "path": "../../packages/context"
+    },
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/gateway"
+    },
+    {
+      "path": "../../packages/models"
+    },
+    {
+      "path": "../../packages/scheduler"
+    },
+    {
+      "path": "../../packages/skills"
+    },
+    {
+      "path": "../../packages/taskflow"
+    },
+    {
+      "path": "../../packages/tools"
+    }
+  ]
+}

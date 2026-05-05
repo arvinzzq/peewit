@@ -89,6 +89,8 @@ Current decision records:
 
 - [0001: OpenClaw-Aligned Core Architecture](./decisions/0001-openclaw-aligned-core-architecture.md)
 - [0002: OpenClaw-Aligned, Not Identical](./decisions/0002-openclaw-aligned-not-identical.md)
+- [0003: Technology Stack Selection](./decisions/0003-technology-stack-selection.md)
+- [0004: Documentation Maintenance Policy](./decisions/0004-documentation-maintenance-policy.md)
 
 ## 7. Language Policy
 

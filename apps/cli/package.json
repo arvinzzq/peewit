@@ -1,0 +1,31 @@
+{
+  "name": "@arvinclaw/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "arvinclaw": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@arvinclaw/adapters": "workspace:*",
+    "@arvinclaw/config": "workspace:*",
+    "@arvinclaw/context": "workspace:*",
+    "@arvinclaw/core": "workspace:*",
+    "@arvinclaw/gateway": "workspace:*",
+    "@arvinclaw/models": "workspace:*",
+    "@arvinclaw/scheduler": "workspace:*",
+    "@arvinclaw/sessions": "workspace:*",
+    "@arvinclaw/skills": "workspace:*",
+    "@arvinclaw/taskflow": "workspace:*",
+    "@arvinclaw/tools": "workspace:*",
+    "ink": "^7.0.1",
+    "react": "^19.2.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14"
+  }
+}

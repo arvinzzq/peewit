@@ -30,23 +30,25 @@ Different model vendors vary in:
 
 If Agent Core talks directly to one vendor API, those vendor details leak into planning, tool execution, tracing, and configuration. A provider layer keeps those concerns contained.
 
-## 3. MVP Provider
+## 3. Providers
 
-The MVP should implement one provider:
+Phase 1 implemented one provider:
 
 ```text
 OpenAICompatibleProvider
 ```
 
-This provider should support APIs that follow OpenAI-style chat completions or responses semantics closely enough to be configured through:
+This provider supports APIs that follow OpenAI-style chat completions semantics, configurable through `baseURL`, `apiKey`, `model`, `temperature`, and `maxTokens`. This covers OpenAI, OpenRouter, and any OpenAI-compatible local gateway.
 
-- `baseURL`
-- `apiKey`
-- `model`
-- `temperature`
-- `maxTokens`
+Phase 3 adds a second provider:
 
-This gives the MVP a practical path to work with providers such as OpenAI-compatible hosted models or local gateways, while keeping the implementation small.
+```text
+AnthropicProvider
+```
+
+This provider uses `@anthropic-ai/sdk` and connects directly to Anthropic. It translates `ModelInput` and `ModelOutput` to and from Anthropic's message format, including `tool_use` content blocks for tool calling. See [Decision 0005](../decisions/0005-anthropic-provider.md) for the reasoning.
+
+Provider selection is configured through `model.provider` in the effective configuration.
 
 ## 4. Responsibilities
 
@@ -116,14 +118,49 @@ This lets the tool system validate and execute calls without knowing which LLM p
 
 ## 7. Streaming
 
-The MVP can start without full streaming support, but the provider interface should leave room for it.
+Phase 6 adds streaming support as an optional extension of `ModelProvider`.
 
-Two future modes should be possible:
+### Interface
 
-- Non-streaming: provider returns one complete `ModelOutput`.
-- Streaming: provider emits text deltas, tool call deltas, usage updates, and final completion events.
+```ts
+export type StreamEvent =
+  | { type: "token_delta"; delta: string }
+  | { type: "tool_calls"; calls: ModelToolCall[]; usage?: ModelUsage }
+  | { type: "message_done"; content: string; usage?: ModelUsage }
+  | { type: "error"; category: ModelErrorCategory; message: string; recoverable: boolean };
 
-The Agent Core should treat streaming as a delivery detail. The loop still needs a complete decision point before executing tools.
+export interface StreamingModelProvider extends ModelProvider {
+  generateStream(input: ModelInput): AsyncIterable<StreamEvent>;
+}
+
+export function isStreamingProvider(provider: ModelProvider): provider is StreamingModelProvider;
+```
+
+`StreamingModelProvider` extends `ModelProvider`, so streaming providers are drop-in replacements. Non-streaming providers continue to work unchanged.
+
+### Event sequence
+
+A streaming response emits:
+
+1. Zero or more `token_delta` events — each carries one text fragment.
+2. Either `message_done` (text response complete) or `tool_calls` (model requested tools).
+3. Optionally `error` if a failure occurs.
+
+### Agent Core behavior
+
+`AgentRuntime` detects whether the provider implements `StreamingModelProvider` using `isStreamingProvider()`. When it does:
+
+- Calls `generateStream()` instead of `generate()`.
+- Relays each `token_delta` as a `token_delta` runtime event.
+- Waits for `message_done` or `tool_calls` before making tool dispatch decisions.
+
+Streaming is a delivery detail. The agent loop decision points (execute tools vs. produce final message) are unchanged.
+
+### Provider implementations
+
+- `OpenAICompatibleProvider` — uses `stream: true`, parses SSE chunks from `response.body`.
+- `AnthropicProvider` — uses Anthropic SDK streaming, translates `content_block_delta` to `token_delta`.
+- `FakeStreamingProvider` — test double that emits configurable token sequences.
 
 ## 8. Error Normalization
 
@@ -165,6 +202,7 @@ Secrets should not be stored in project config. API keys should come from enviro
 
 ```text
 ARVINCLAW_API_KEY
+OPENROUTER_API_KEY
 ```
 
 Future versions may support provider-specific keys:

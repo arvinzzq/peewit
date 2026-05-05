@@ -5,6 +5,38 @@ Date: 2026-05-02
 
 Simplified Chinese version: [phase-2-tools-and-permissions.zh-CN.md](./phase-2-tools-and-permissions.zh-CN.md)
 
+## Progress
+
+Status: In Progress
+
+Completed:
+
+- Tool definition contracts and in-memory registry: `4ae3515`
+- Permission decision types and default policy: `6ccb737`
+- Runtime emits model-requested tool-call events: `0055ee8`
+- Runtime evaluates permission decisions for requested tool calls: `0a0f18b`
+- CLI renders approval prompts for `ask` permission decisions: `6c3b956`
+- Runtime approval resolver records approval request and resolution events: `7e81d92`
+- Executable tool contracts and built-in read-only file tools: `099e037`
+- Runtime executes registered tools and sends observations back to the model: `5ee7791`
+- CLI registers built-in read-only file tools in runtime composition: `19c9ab3`
+- Secret file blocking in read_file, safety regression tests for read-only tools, and guarded write_file tool: `8e82a36`
+- CLI registers write_file tool: `b497623`
+- Guarded shell tool with blocked patterns, timeout, and captured output: `1c7a231`
+- CLI registers shell tool: `7abb38b`
+- read_web_page tool with HTML extraction, truncation, and injectable fetch: `417ed8e`
+- CLI registers read_web_page tool: `0e0946b`
+- ModelInput tool definitions, tool_calls response parsing in OpenAICompatibleProvider: `4bf6c78`
+- Real agent while loop with multi-round tool calling and maxSteps enforcement: `1aaa7b8`
+
+Remaining:
+
+None. Phase 2 is complete.
+
+Next recommended phase:
+
+- Phase 3: Lightweight skills — load local SKILL.md files and influence agent behavior.
+
 ## 1. Purpose
 
 Phase 2 gives ArvinClaw the first real external action capability.
@@ -191,7 +223,7 @@ Phase 2 should add trace events such as:
 
 - `tool_call_requested`
 - `tool_input_validated`
-- `permission_evaluated`
+- `tool_call_permission_evaluated`
 - `approval_requested`
 - `approval_resolved`
 - `tool_started`

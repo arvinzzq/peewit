@@ -70,30 +70,39 @@ MVP can start by reading only `SKILL.md`. Supporting files can be added later on
 
 ## 5. `SKILL.md` Contents
 
-A skill file should describe:
+The confirmed standard format — aligned with OpenClaw source research (2026-05-04) — uses only two required frontmatter fields:
 
-- Skill name
-- Purpose
-- When to use it
-- Recommended process
-- Output expectations
-- Safety notes
-- Related tools, if any
+- `name`: skill identifier used for loading, overriding, and CLI display.
+- `description`: serves as both the purpose summary and the routing trigger. The model reads this field to decide whether the skill applies to the current task. Do not add a separate `when` field; merge that intent into `description`.
 
-The format should be simple Markdown. The MVP can use a small frontmatter block plus body content.
+The file body contains full workflow instructions. Target under 5 000 words for the body. The body is loaded only when the skill triggers.
 
 Example:
 
 ```markdown
 ---
 name: research
-description: Use when investigating external information and comparing sources.
+description: Use when investigating external information, comparing sources, or summarizing findings. Guides web search, source reading, source comparison, and citation-aware output.
 ---
 
 # Research
 
 Use this skill to search, read sources, compare evidence, and summarize findings with source links.
+
+[Full workflow instructions here…]
 ```
+
+Skills may include bundled resources under sibling directories (`scripts/`, `references/`, `assets/`), loaded by the agent as needed. These are not part of the required standard and should not be added until the base loading model is stable.
+
+### Progressive Disclosure
+
+The skill system uses three levels of context loading:
+
+1. **Skill index** — only `name` + `description` (approximately 100 words per skill). Always present in every model call context.
+2. **SKILL.md body** — full workflow instructions. Loaded only when the skill triggers for the current task.
+3. **Bundled resources** — scripts, references, or templates. Loaded by the agent as needed during execution.
+
+This keeps the per-call skill index compact while full instructions remain available on demand.
 
 ## 6. Skill Loading Locations
 
@@ -146,14 +155,9 @@ Later versions can add deterministic matching, explicit user selection, or a sep
 
 Skills should be added to the model context in a controlled way.
 
-The context should include:
+The context should include a compact skill index — skill name and description only. Full skill body instructions are loaded on demand when the model selects a skill. This follows the progressive disclosure principle described in Section 5.
 
-- Skill name
-- Skill purpose
-- Relevant process instructions
-- Safety notes
-
-The system should avoid blindly dumping every full skill into every model call. Large or irrelevant skill text can waste context and confuse behavior.
+The system should avoid dumping every full skill body into every model call. Large or irrelevant skill text wastes context and can confuse model behavior.
 
 ## 10. Skill Boundaries
 

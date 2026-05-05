@@ -279,22 +279,26 @@ The Agent Core should depend on a `ModelProvider` interface rather than a specif
 
 Detailed architecture note: [docs/architecture/model-provider.md](../architecture/model-provider.md)
 
-The MVP should implement only an OpenAI-compatible provider.
+Provider decision: [docs/decisions/0005-anthropic-provider.md](../decisions/0005-anthropic-provider.md)
 
-Expected configuration:
+Phase 1 implemented an OpenAI-compatible provider. Phase 3 adds an Anthropic provider using `@anthropic-ai/sdk`.
 
-- `baseURL`
-- `apiKey`
-- `model`
-- `temperature`
-- `maxTokens`
+Provider selection is controlled through `model.provider` in configuration:
 
-Future providers may include:
+```json
+{ "model": { "provider": "openai-compatible", "baseURL": "...", "model": "..." } }
+{ "model": { "provider": "anthropic", "model": "claude-opus-4-7" } }
+```
 
-- Anthropic
-- Gemini
-- Ollama
-- Local OpenAI-compatible runtimes
+Secrets are provided through environment variables:
+
+```text
+ARVINCLAW_API_KEY       openai-compatible
+OPENROUTER_API_KEY      OpenRouter shortcut
+ANTHROPIC_API_KEY       anthropic
+```
+
+Later providers may include Gemini, Ollama, and a router provider that selects among configured providers.
 
 ## 8.1 Configuration and Secrets
 
@@ -360,15 +364,19 @@ Detailed architecture note for prompt assembly: [docs/architecture/prompt-assemb
 
 Detailed architecture note for context engine: [docs/architecture/context-engine.md](../architecture/context-engine.md)
 
-MVP context assembly should include:
+Phase 3 context assembly implements a section-based system prompt with these named sections:
 
-- Base system instructions
-- Runtime metadata
-- Effective configuration
-- Session resume context
-- Skill index
-- Tool descriptions
-- Permission policy guidance
+- Identity: who ArvinClaw is
+- Runtime: current mode, workspace, date
+- Tooling: available tool names, descriptions, and risk levels
+- Safety: permission policy guidance
+- Skills: compact skill index (name and when to use)
+- Workspace: AGENTS.md, SOUL.md
+- Memory: USER.md, MEMORY.md, daily notes (when enabled)
+
+Each section is explicitly named in the `ContextAssemblyReport` so trace and debug tooling can show what the model received.
+
+`ContextAssemblyInput` is extended with `tools?: ContextToolSummary[]`, `skillIndex?: ContextSkillSummary[]`, and `permissionGuidance?: string`. `AgentRuntime` converts registered tools to `ContextToolSummary[]` before passing them to the assembler. The assembler also continues to output `ModelInput.tools` (the API-level structured schemas) for providers that support function calling.
 
 OpenClaw-like later context assembly should add:
 

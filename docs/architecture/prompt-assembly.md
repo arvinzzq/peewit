@@ -47,6 +47,8 @@ MVP prompt assembly should accept structured inputs:
 - Recent trace summaries
 - User message
 
+Phase 3 Part A complete: `ContextAssemblyInput` has been extended with `tools?: ContextToolSummary[]`, `skillIndex?: ContextSkillSummary[]`, and `permissionGuidance?: string`. The assembler now produces tooling, safety, and skills sections when these inputs are provided. The skill loader (Part C) is not yet implemented.
+
 Later phases add:
 
 - `AGENTS.md`
@@ -114,13 +116,12 @@ MVP prompt assembly should include a compact skill index, not every full skill b
 The skill index should include:
 
 - Skill name
-- Description
-- Source
-- When to use it
+- Description (which also serves as the routing trigger — there is no separate `when` field)
+- Source location
 
-If the agent needs the full skill body later, it should request or load it through the skill system.
+If the agent needs the full skill body for a task, it is loaded on demand through the skill system.
 
-This follows the OpenClaw-style idea that the model can know skills exist without flooding every model call with full `SKILL.md` content.
+This follows the OpenClaw approach: the model can know which skills exist without flooding every model call with full `SKILL.md` bodies. See `skill-system.md` Section 5 for the confirmed standard format.
 
 ## 8. Tool Projection
 
@@ -141,8 +142,7 @@ Workspace prompt files should be loaded through prompt assembly or context assem
 
 Planned loading stages:
 
-- MVP/Phase 1: no automatic long-term memory files; optional `AGENTS.md` loading can be added early.
-- Phase 1-2: read-only `SOUL.md`.
+- Phase 5 current: read `AGENTS.md` and read-only `SOUL.md` from the configured workspace root when present.
 - Phase 5: `USER.md`, `MEMORY.md`, and daily memory files after memory policy is ready.
 - Later: `TOOLS.md`, `HEARTBEAT.md`, `BOOTSTRAP.md`.
 
@@ -234,7 +234,55 @@ MVP prompt assembly should be considered successful when:
 - Redaction is applied before sensitive content enters context.
 - Prompt assembly behavior is covered by unit tests.
 
-## 16. Related Documents
+## 16. XML Section Format
+
+Prompt sections should be delimited with XML tags rather than plain prose headers.
+
+Example:
+
+```xml
+<identity>
+ArvinClaw is an OpenClaw-inspired personal general-purpose agent...
+</identity>
+
+<tooling>
+Available tools: read_file, list_directory, write_file, run_shell, read_web_page
+</tooling>
+
+<skills>
+- research: Use when investigating external information or comparing sources.
+- safe-shell: Use when evaluating shell command risk before execution.
+</skills>
+```
+
+Rationale:
+
+- Anthropic models are trained to treat XML tags as structured delimiters rather than prose content. This produces more reliable section-boundary recognition.
+- XML tags separate section intent from body text without ambiguity.
+- Tags are easy to parse deterministically in tests.
+- This is Anthropic's recommended approach for structuring complex system prompts.
+
+Decision record: [0006 — XML Prompt Format and Caching](../decisions/0006-xml-prompt-format-and-caching.md)
+
+Section ordering guidance: stable sections first (identity, safety), volatile sections last (skills, tools, workspace files). This supports the caching strategy described in Section 17.
+
+## 17. Prompt Caching
+
+The `AnthropicProvider` should apply prompt caching to the system content.
+
+Anthropic's API supports a `cache_control: { type: "ephemeral" }` marker on system content blocks. When the first request in a cache window sends a system block with this marker, subsequent calls within the 5-minute cache window reuse the cached prefix and do not re-process the stable content.
+
+Strategy:
+
+- Mark the system content array with `cache_control: { type: "ephemeral" }` on the last stable block.
+- Section ordering should place volatile content (skills, workspace files, current date/time) at the end so stable content can be maximally cached.
+- MVP can apply caching to the entire system block since per-turn system content is mostly stable.
+
+This reduces cost and latency for multi-turn sessions where the system prompt is large but changes rarely.
+
+Decision record: [0006 — XML Prompt Format and Caching](../decisions/0006-xml-prompt-format-and-caching.md)
+
+## 18. Related Documents
 
 - [Main design](../product/arvinclaw-design.md)
 - [OpenClaw implementation notes](../research/openclaw-implementation-notes.md)
@@ -244,3 +292,4 @@ MVP prompt assembly should be considered successful when:
 - [Model provider](./model-provider.md)
 - [Skill system](./skill-system.md)
 - [Permission system](./permission-system.md)
+- [Decision 0006 — XML Prompt Format and Caching](../decisions/0006-xml-prompt-format-and-caching.md)

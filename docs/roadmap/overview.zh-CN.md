@@ -30,21 +30,23 @@ Roadmap 采用双轨方法：
 
 ## 2. 阶段摘要
 
-| Phase | 目标 | 产品结果 | 架构焦点 |
-| --- | --- | --- | --- |
-| Phase 0 | 项目基础 | 带文档说明的 TypeScript workspace 和 CLI shell | Monorepo、配置、context package、文档布局 |
-| Phase 1 | MVP agent loop | CLI chat 可以调用模型并产生可追踪响应 | Agent Core、context assembly、ModelProvider、基础 loop |
-| Phase 2 | 工具与权限 | Agent 可以检查文件、运行已批准命令，并读取 Web 内容 | Tool Registry、PermissionPolicy |
-| Phase 3 | 轻量 skills | Agent 可以加载本地 `SKILL.md` 指令 | Skill loader、skill 优先级、prompt assembly |
-| Phase 4 | 规划与自主 | Agent 可以规划任务，并在 `observe`、`confirm` 或 `auto` 模式运行 | Planner、任务状态、执行模式 |
-| Phase 5 | 会话与记忆 | Agent 可以记住会话，并使用本地知识 | Session store、trace store、memory interfaces |
-| Phase 6 | Web UI | 用户可以在浏览器中聊天、检查 trace、批准动作 | UI adapter、API boundary、trace visualization |
-| Phase 7 | 多入口 adapters | CLI、Web、桌面和消息入口共享一个 Agent Core | Adapter interface、gateway direction |
-| Phase 8 | 后台自动化 | Agent 可以运行定时和事件触发任务 | Scheduler、daemon、task queue |
-| Phase 9 | Plugin 和 skill 生态 | 用户可以安装、启用、禁用和审查能力 | Plugin metadata、permission declarations、versioning |
-| Phase 10 | 完整个人 Agent 平台 | OpenClaw-like 的个人 Agent，具备多模型、多 Agent、多节点和沙箱化工具 | Gateway、multi-agent runtime、node protocol、sandboxing |
+| Phase | 状态 | 目标 | 产品结果 | 架构焦点 |
+| --- | --- | --- | --- | --- |
+| Phase 0 | Complete | 项目基础 | 带文档说明的 TypeScript workspace 和 CLI shell | Monorepo、配置、context package、文档布局 |
+| Phase 1 | Complete | MVP agent loop | CLI chat 可以调用模型并产生可追踪响应 | Agent Core、context assembly、ModelProvider、基础 loop |
+| Phase 2 | Complete | 工具与权限 | Agent 可以检查文件、运行已批准命令，并读取 Web 内容 | Tool Registry、PermissionPolicy |
+| Phase 3 | Complete | Context assembly 与 skills | Agent 有包含工具、skills 和权限指导的结构化 context；可加载 `SKILL.md`；Claude 可直接使用 | Context section 架构、Anthropic provider、skill loader |
+| Phase 4 | Complete | In-turn 任务追踪 | Agent 在执行过程中透明地追踪复杂任务进度，避免规划停滞 | `update_todos` tool、规划停滞检测 |
+| Phase 5 | Complete | 会话与记忆 | Agent 可以记住会话，并使用本地知识 | Session store、trace store、memory interfaces |
+| Phase 6 | Complete | Streaming 与 Web UI | CLI 逐 Token 流式输出；浏览器端聊天含 trace 和审批 | Streaming ModelProvider、Ink CLI、Web adapter、SSE |
+| Phase 7 | Complete | 多入口 adapters | CLI、Web、桌面和消息入口共享一个 Agent Core | Adapter interface、gateway direction |
+| Phase 8 | Complete | 后台自动化 | Agent 可以运行定时和事件触发任务 | Scheduler、daemon、task queue |
+| Phase 9 | Complete | Plugin 和 skill 生态 | 用户可以安装、启用、禁用和审查能力 | Plugin metadata、permission declarations、versioning |
+| Phase 10 | Complete | 完整个人 Agent 平台 | OpenClaw-like 的个人 Agent，具备多模型、多 Agent、多节点和沙箱化工具 | Gateway、multi-agent runtime、node protocol、sandboxing |
 
 部分后续阶段的学习文档会先以 planned filenames 的形式列出，实际文件尚未存在。它们应该在对应 phase 被正式设计时创建，而不是在 MVP setup 阶段一次性全部创建。
+
+进度细节保存在 phase plan 文档中。Roadmap status 应保持高层，只在 phase 开始、完成或 scope 出现实质变化时更新。
 
 ## 3. Phase 0：项目基础
 
@@ -108,6 +110,7 @@ Roadmap 采用双轨方法：
 - `docs/architecture/model-provider.md`
 - `docs/architecture/execution-trace.md`
 - `docs/architecture/cli-adapter.md`
+- `docs/plans/phase-1-mvp-test-guide.md`
 
 主要架构说明：[Agent Loop](../architecture/agent-loop.zh-CN.md)
 
@@ -117,6 +120,8 @@ Roadmap 采用双轨方法：
 
 支持架构说明：[CLI Adapter](../architecture/cli-adapter.zh-CN.md)
 
+用户验证指南：[Phase 1 MVP Test Guide](../plans/phase-1-mvp-test-guide.zh-CN.md)
+
 ### 验收标准
 
 - `arvinclaw chat` 启动交互式 session。
@@ -124,6 +129,8 @@ Roadmap 采用双轨方法：
 - Agent Core 不导入 CLI-specific code。
 - 每次响应都会产生 trace entry。
 - 模型配置可以从配置文件和环境变量加载。
+- 缺少 API key 时，CLI 产生清晰错误。
+- Fake-provider paths 保留用于本地学习和测试。
 
 ### 非目标
 
@@ -131,6 +138,12 @@ Roadmap 采用双轨方法：
 - 暂不做长期记忆。
 - 暂不做 Web UI。
 - 暂不做 multi-agent runtime。
+
+### Phase 1 后的 OpenClaw 差距
+
+Phase 1 有意停在 persistent sessions、workspace prompt loading、memory files、tools、permissions、skills、channels、heartbeat 和 multi-agent behavior 之前。
+
+下一个 OpenClaw-aligned increment 应先添加 session storage 和 short-term memory，再扩展 tools 或 channels。
 
 ## 5. Phase 2：工具与权限
 
@@ -178,32 +191,42 @@ Agent 可以安全使用基础工具：
 - 暂不做 browser automation。
 - 暂不做 remote tool nodes。
 
-## 6. Phase 3：轻量 Skills
+## 6. Phase 3：Context Assembly 与 Skills
 
 ### 用户结果
 
-Agent 可以加载本地 skills，并使用它们指导常见工作流，例如 research、project inspection、task planning、documentation writing 和 safe shell usage。
+Agent 的 system prompt 有包含 identity、runtime、tooling、safety、skills 和 workspace 的结构化 sections。模型通过 tooling section 知道哪些工具可用。Agent 可以加载本地 skills 指导行为。可通过 Anthropic API 直接使用 Claude。
 
 ### 新增架构
 
+- 基于 section 的 context assembly（`ContextToolSummary`、`ContextSkillSummary`、命名 sections）
+- Tool summaries 从 `AgentRuntime` 流经 context assembler 进入 system prompt
+- System prompt 中的 permission guidance section
+- Anthropic provider
 - Skill directory scanner
 - `SKILL.md` parser
-- Skill precedence rules
-- Built-in skill loading
-- Skill-aware prompt assembly
+- Skill precedence rules：workspace > user > built-in
+- 内置 skills
+- Skill index 注入 context
 
 ### 学习文档
 
 - `docs/architecture/skill-system.md`
+- `docs/decisions/0005-anthropic-provider.md`
 
 主要架构说明：[Skill System](../architecture/skill-system.zh-CN.md)
 
+实施计划：[Phase 3 Context Assembly and Skills](../plans/phase-3-context-assembly-and-skills.zh-CN.md)
+
 ### 验收标准
 
+- Context assembler 在有相关输入时包含 tooling、safety 和 skills sections。
+- Tool 描述出现在 system prompt 中。
 - Skills 可以从项目、用户和内置位置加载。
 - 同名情况下，项目 skills 覆盖用户和内置 skills。
-- CLI 可以列出已加载 skills。
-- Skills 影响 Agent 行为，但不能绕过 Tool 和 Permission systems。
+- CLI 可以通过 `/skills` 列出已加载 skills。
+- Skills 通过 system prompt 影响 Agent 行为，不能绕过 Tool 和 Permission systems。
+- 通过 `model.provider: "anthropic"` 可选择 Anthropic provider。
 
 ### 非目标
 
@@ -211,42 +234,50 @@ Agent 可以加载本地 skills，并使用它们指导常见工作流，例如 
 - 暂不做 public marketplace。
 - 暂不做 skill version manager。
 - 暂不允许 skill files 任意授予权限。
+- 暂不做 context compaction。
+- 暂不做流式输出。
 
-## 7. Phase 4：规划与自主
+## 7. Phase 4：In-Turn 任务追踪
 
 ### 用户结果
 
-Agent 可以将目标拆解为步骤，以可见进度执行步骤，并在 `observe`、`confirm` 或 `auto` 模式运行。
+Agent 在执行过程中透明地追踪复杂任务进度。用户可以看到已完成了哪些步骤以及下一步是什么。Agent 不会因为不断叙述计划而不采取行动而停滞。
 
 ### 新增架构
 
-- Planner
-- Task state model
-- Plan update loop
-- Autonomy mode policy
-- Failure recovery path
+- `update_todos` tool：模型调用的 per-turn 任务追踪 tool（等同于 OpenClaw `update_plan` 和 Claude Code `TodoWrite`）
+- `AgentRuntime` 中的规划停滞检测：检测 plan-only turns 并注入重试指令
+- CLI 进度展示：每次 turn 后展示当前 todo 状态
+
+### 设计对齐
+
+OpenClaw 的方式（来自 2026-05-04 源码确认）：
+
+1. **`update_plan` tool** — 模型在执行过程中调用它更新步骤状态。不是预执行规划器。全量替换列表：`{step, status: pending|in_progress|completed}[]`。
+2. **规划停滞检测** — runtime 检测 "I'll..."、项目符号列表、没有 tool action 的步骤标题，并注入重试指令强制立即执行。
+3. **先执行，再规划** — 模型立即行动，边做边更新计划状态。
+
+ArvinClaw 的 `update_todos` 遵循同样的模型调用、无基础设施编排模式。
 
 ### 学习文档
 
-- `docs/architecture/planner.md`
-- `docs/architecture/autonomy-modes.md`
-
-这些文档是 planned documents，目前尚未创建。
+- `docs/plans/phase-4-in-turn-task-tracking.md`
+- `docs/research/openclaw-implementation-notes.md` 第 8 节
 
 ### 验收标准
 
-- 复杂任务可以在执行前产生计划。
-- Plan steps 可以标记为 pending、running、complete、failed 或 skipped。
-- `observe` 模式在每一步暂停。
-- `confirm` 模式遵守 permission policy。
-- `auto` 模式在允许的 policy boundaries 内继续执行。
-- Failures 会被总结，并可以更新计划。
+- 模型可以调用 `update_todos`，使用 `pending`、`in_progress` 或 `completed` 状态声明和更新任务步骤。
+- 模型更新 todo 时，CLI 在每次 turn 后展示当前 todo 列表。
+- `AgentRuntime` 检测 plan-only turns（无 tool calls、含规划 pattern 的文字）并注入重试指令。
+- 连续 `N` 次 plan-only turns 后，run 以清晰的错误消息终止。
+- `update_todos` 作为标准 tool 注册；不添加基础设施编排。
 
 ### 非目标
 
-- 暂不做 autonomous background daemon。
-- 暂不做 multi-agent task delegation。
-- 暂不做 advanced workflow language。
+- 不做基础设施驱动的分步执行（先执行才是正确模式）。
+- 不做 subagent spawning（Phase 7+）。
+- 不做 SQLite 持久化 TaskFlow（Phase 8+）。
+- 不做阻塞执行直到计划被批准的预执行规划器。
 
 ## 8. Phase 5：会话、记忆与知识
 
@@ -266,6 +297,7 @@ Agent 可以保存 session history，展示之前的 traces，并开始跨任务
 - `docs/architecture/session-storage.md`
 - `docs/architecture/memory-system.md`
 - `docs/architecture/local-knowledge.md`
+- `docs/plans/phase-5-sessions-and-memory.md`
 
 `local-knowledge.md` 是 planned document，目前尚未创建。
 
@@ -273,11 +305,14 @@ Agent 可以保存 session history，展示之前的 traces，并开始跨任务
 
 支持架构说明：[Memory System](../architecture/memory-system.zh-CN.md)
 
+实施计划：[Phase 5 Sessions and Memory](../plans/phase-5-sessions-and-memory.zh-CN.md)
+
 ### 验收标准
 
 - Sessions 可以保存和恢复。
 - Traces 可以在 session 结束后检查。
 - Memory 与原始 chat history 分离。
+- Agent 可以在 context 中使用 recent session history。
 - 第一版 memory implementation 未来可以被替换。
 
 ### 非目标
@@ -286,19 +321,24 @@ Agent 可以保存 session history，展示之前的 traces，并开始跨任务
 - 暂不做 multi-user account system。
 - 暂不做复杂 personal data graph。
 
-## 9. Phase 6：Web UI
+## 9. Phase 6：Streaming 与 Web UI
 
 ### 用户结果
 
-用户可以通过 browser-based interface 使用 ArvinClaw，包含 chat、trace inspection 和 permission approval controls。
+用户可以在终端看到模型响应逐 token 流式输出，也可以通过 browser-based interface 使用 ArvinClaw，包含 chat、trace inspection 和 permission approval controls。
 
 ### 新增架构
 
+- Streaming `ModelProvider` 变体（token delta events）
+- CLI 渲染升级至 **Ink**（基于 React 的终端 UI）：实时 streaming 输出、tool 进度指示器、更丰富的 permission prompts
 - Web app
 - Agent Core 之上的 API layer
-- Streaming response channel
 - Trace visualization
 - Permission approval UI
+
+### CLI 渲染说明
+
+Phase 6 是 CLI 渲染架构需要演进的时机。当前的纯 stdout 输出适合 non-streaming turns，但无法支持实时 streaming 或原地 UI 更新。计划的升级是采用 **Ink** 作为 CLI 渲染框架。Ink 是基于 React 的终端 UI 库 — 与 OpenClaw 使用的相同 — 允许组件原地渲染和重新渲染。升级完全在 CLI adapter 层内完成，Agent Core 和其他所有 packages 不受影响。完整说明和采用条件参见 [CLI Adapter](../architecture/cli-adapter.zh-CN.md) 第 15 节。
 
 ### 学习文档
 
@@ -307,6 +347,8 @@ Agent 可以保存 session history，展示之前的 traces，并开始跨任务
 
 ### 验收标准
 
+- 模型响应在 CLI 中逐 token 流式输出。
+- CLI 使用 Ink 组件处理 streaming 输出、进度和 approval prompts。
 - Web UI 可以使用与 CLI 相同的 Agent Core。
 - Tool calls 和 permission prompts 在 UI 中可见。
 - CLI 和 Web UI 共享 session 和 trace 概念。
@@ -334,6 +376,13 @@ Agent 可以保存 session history，展示之前的 traces，并开始跨任务
 
 - `docs/architecture/adapters.md`
 - `docs/architecture/gateway.md`
+- `docs/plans/phase-7-multi-entry-adapters.md`
+
+主要架构说明：[Adapters](../architecture/adapters.zh-CN.md)
+
+支持架构说明：[Gateway](../architecture/gateway.zh-CN.md)
+
+实施计划：[Phase 7 Multi-Entry Adapters](../plans/phase-7-multi-entry-adapters.zh-CN.md)
 
 ### 验收标准
 
@@ -364,6 +413,13 @@ Agent 可以在没有前台 chat session 的情况下运行定时任务，或响
 
 - `docs/architecture/background-automation.md`
 - `docs/architecture/task-queue.md`
+- `docs/plans/phase-8-background-automation.md`
+
+主要架构说明：[后台自动化](../architecture/background-automation.zh-CN.md)
+
+支持架构说明：[Task Queue](../architecture/task-queue.zh-CN.md)
+
+实施计划：[Phase 8 后台自动化](../plans/phase-8-background-automation.zh-CN.md)
 
 ### 验收标准
 
@@ -396,6 +452,8 @@ Agent 可以在没有前台 chat session 的情况下运行定时任务，或响
 
 - `docs/architecture/plugin-system.md`
 - `docs/architecture/skill-permissions.md`
+
+实施计划：[Phase 9 Plugin 和 Skill 生态](../plans/phase-9-plugin-skill-ecosystem.zh-CN.md)
 
 ### 验收标准
 
@@ -432,6 +490,8 @@ ArvinClaw 成为完整个人 Agent 平台：多入口、多模型、多 Agent、
 - `docs/architecture/sandboxing.md`
 - `docs/architecture/gateway.md`
 
+实施计划：[Phase 10 完整平台](../plans/phase-10-full-platform.zh-CN.md)
+
 ### 验收标准
 
 - 多个入口可以与同一个 agent runtime 通信。
@@ -445,14 +505,29 @@ ArvinClaw 成为完整个人 Agent 平台：多入口、多模型、多 Agent、
 - 不保证与 OpenClaw 完全对等。
 - 除非后续明确选择，否则不假设 enterprise SaaS。
 
-## 14. 立即下一步
+## 14. OpenClaw 对齐 Backlog
 
-这份 roadmap 经过 review 后，下一步设计工作应创建第一批架构文档：
+Phase 0–10 已全部完成。以下是 ArvinClaw 与 OpenClaw 生产能力之间剩余的差距。
 
-- Project structure
-- Agent loop
-- Model provider
-- Tool system
-- Permission system
-- Skill system
-- Execution trace
+完整设计：[OpenClaw 对齐计划](../plans/openclaw-alignment.zh-CN.md)
+
+| 优先级 | 差距 | 迭代 |
+| --- | --- | --- |
+| 🔴 高 | 上下文压缩 | 1 |
+| 🔴 高 | Skill 全文按需加载（`load_skill` 工具） | 1 |
+| 🔴 高 | `memory_search` 工具 | 2 |
+| 🟡 中 | Prompt 模式（full / minimal / none） | 1 |
+| 🟡 中 | `memory_get` 工具 | 2 |
+| 🟡 中 | 额外工作区文件（TOOLS.md、IDENTITY.md、HEARTBEAT.md、BOOTSTRAP.md） | 2 |
+| 🟡 中 | 心跳机制 | 2 |
+| 🟡 中 | Strict-agentic 执行合约 | 3 |
+| 🟡 中 | 会话写锁 | 3 |
+| 🟡 中 | Hooks 系统 | 3 |
+| 🟡 中 | 工具 Profile（coding / full / messaging / background） | 4 |
+| 🟡 中 | 沙箱执行（工作区边界约束） | 4 |
+| 🟡 中 | Cron Daemon（`arvinclaw daemon`） | 5 |
+| 🟢 低 | TaskFlow（持久跨会话任务图） | 6 |
+| 🟢 低 | 异步子 Agent（push-based，fork 上下文模式） | 6 |
+| 🟢 低 | WebSocket 支持 | 7 |
+| 🟢 低 | Thinking Budget 配置 | 7 |
+| 🟢 低 | 记忆 Dreaming / 记忆晋升 | 7 |

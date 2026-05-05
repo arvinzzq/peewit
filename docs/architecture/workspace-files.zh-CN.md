@@ -75,7 +75,8 @@ Workspace files 应分阶段引入。
 
 加载：
 
-- `AGENTS.md`，如果存在且启用
+- `AGENTS.md`，如果存在
+- Read-only `SOUL.md`，如果存在
 
 不加载：
 
@@ -85,9 +86,7 @@ Workspace files 应分阶段引入。
 
 ### Phase 1-2
 
-增加：
-
-- Read-only `SOUL.md`
+完善 prompt-file security、redaction 和 trace visibility。
 
 ### Phase 5
 
@@ -132,6 +131,8 @@ Workspace files 应分阶段引入。
 - 与 memory 和成长的关系
 
 从 Agent 角度看，`SOUL.md` 默认应是 read-only。Agent self-modification 应要求明确用户批准。
+
+Phase 5 会在 configured workspace root 下存在这些文件时，将 `AGENTS.md` 和 `SOUL.md` 读入 context。文件不存在时会省略，不会导致 chat startup 失败。
 
 ### `USER.md`
 

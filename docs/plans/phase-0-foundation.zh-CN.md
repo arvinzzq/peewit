@@ -5,6 +5,27 @@
 
 English version: [phase-0-foundation.md](./phase-0-foundation.md)
 
+## Progress
+
+状态：Complete
+
+已完成：
+
+- TypeScript workspace 和 pnpm workspace setup：`59c3064`、`6a36343`
+- Apps 和 packages 的 package boundaries：`2df365e`
+- 带 help、version 和 chat placeholder 的 CLI command shell：`7e499a4`
+- 带 defaults、env overrides、validation 和 redaction 的 initial config loader：`5794556`
+- 针对 links、bilingual headings、module guides 和 source headers 的 documentation checks：`0703b1d`、`b63eb5b`
+- Root README 和 documentation maintenance policy：`54690fe`、`f1ec4e2`
+
+最新验证：
+
+- `pnpm run check`
+- `pnpm run cli --help`
+- `pnpm run cli chat`
+
+Phase 0 视为完成。后续 foundation changes 应作为单独 maintenance decisions，或记录到需要它们的 phase 中。
+
 ## 1. 目的
 
 Phase 0 在第一个可工作的 Agent loop 之前创建项目基础。

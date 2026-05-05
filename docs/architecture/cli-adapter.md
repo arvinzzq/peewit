@@ -50,7 +50,12 @@ Initial commands:
 
 | Command | Purpose | Phase |
 | --- | --- | --- |
-| `arvinclaw chat` | Start an interactive chat session | Phase 1 |
+| `arvinclaw chat` | Start an interactive chat session using configured provider settings | Phase 1 |
+| `arvinclaw chat --session <id>` | Start or continue a named JSONL-backed chat session | Phase 5 |
+| `arvinclaw chat --resume` | Continue the most recently updated JSONL-backed chat session | Phase 5 |
+| `arvinclaw chat --fake-interactive` | Start an interactive local learning session with a fake provider | Phase 1 |
+| `arvinclaw chat --fake "<message>"` | Run a one-turn fake-provider smoke path | Phase 1 |
+| `arvinclaw sessions` | List stored JSONL chat sessions | Phase 5 |
 | `arvinclaw --version` | Show version | Phase 0-1 |
 | `arvinclaw --help` | Show available commands | Phase 0-1 |
 
@@ -59,8 +64,6 @@ Early follow-up commands:
 | Command | Purpose | Phase |
 | --- | --- | --- |
 | `arvinclaw run "<goal>"` | Run a one-off goal and exit | Phase 2-4 |
-| `arvinclaw sessions` | List local sessions | Phase 5 |
-| `arvinclaw resume <session>` | Resume a session | Phase 5 |
 | `arvinclaw trace <session>` | Inspect stored trace events | Phase 5 |
 | `arvinclaw skills` | List loaded skills | Phase 3 |
 | `arvinclaw config` | Inspect effective configuration | Phase 1-2 |
@@ -74,13 +77,16 @@ MVP should avoid a large command surface. Commands should appear when the underl
 Expected behavior:
 
 1. Load configuration.
-2. Create or resume a lightweight session.
-3. Create a run ID for each user turn.
-4. Send the user message to Agent Core.
-5. Stream or print assistant output.
-6. Render trace events as they arrive.
-7. Ask for permission when the core reports an approval request.
-8. Persist session and trace data when storage exists.
+2. Require `ARVINCLAW_API_KEY` or `OPENROUTER_API_KEY` for the configured provider path.
+3. Create or resume a lightweight session.
+4. Create a run ID for each user turn.
+5. Send the user message to Agent Core.
+6. Stream or print assistant output.
+7. Render trace events as they arrive.
+8. Ask for permission when the core reports an approval request.
+9. Persist session and trace data when storage exists.
+
+Configured chat stores messages in JSONL session files under `~/.arvinclaw/sessions` by default. Named sessions use `--session <id>` and must use safe session IDs. `--resume` selects the most recently updated stored session and continues it. Default session IDs use a generic `session_<id>` shape because sessions belong to the agent, not to a specific adapter.
 
 The CLI should not know how the prompt was assembled. It can display a summary or report produced by the context package.
 
@@ -95,15 +101,15 @@ MVP slash commands:
 | `/help` | Show chat controls |
 | `/exit` | End the session |
 | `/trace` | Show recent explainable trace events |
+| `/config` | Show redacted effective configuration |
+| `/skills` | List loaded skills with source and trigger condition |
 | `/clear` | Clear terminal display, not session history |
 
 Future slash commands:
 
 | Slash Command | Purpose |
 | --- | --- |
-| `/skills` | Show loaded skills |
 | `/context` | Show context assembly summary |
-| `/config` | Show redacted effective configuration |
 | `/session` | Show current session metadata |
 | `/mode observe|confirm|auto` | Change autonomy mode when supported |
 | `/model <name>` | Change model when provider switching exists |
@@ -239,7 +245,31 @@ The interface should leave room for streaming:
 
 Streaming should not change package boundaries.
 
-## 15. Cancellation
+## 15. CLI Rendering Framework
+
+The MVP CLI uses plain Node.js stdout (`process.stdout.write`) and readline for all output and input. This is sufficient for non-streaming, line-by-line turn output, and works without a build-time dependency on a UI framework.
+
+When streaming model output and richer terminal UI become necessary, the planned rendering upgrade is **Ink** ([npmjs.com/package/ink](https://www.npmjs.com/package/ink)).
+
+Ink is a React-based terminal UI framework that lets components render and re-render in-place. It is the right choice for ArvinClaw because:
+
+- Streaming token output requires updating the same terminal region rather than printing new lines.
+- Tool progress indicators (spinner, step counter) need live updates during a multi-step run.
+- Permission prompts can be richer: show risk explanation, input preview, and approval controls as a block.
+- Trace panels can update as events arrive rather than being appended one line at a time.
+- OpenClaw itself uses Ink, so adopting it keeps us architecturally aligned.
+
+The upgrade path is contained to the CLI adapter layer. Agent Core, context assembly, tools, permissions, and session packages do not change. The adapter replaces its stdout calls with Ink component renders.
+
+This transition should happen when streaming output is added (Phase 6) and before any Web UI work, because streaming forces the terminal rendering architecture to evolve anyway.
+
+Ink adoption is deferred until:
+
+- `ModelProvider.generate()` supports a streaming variant.
+- The event stream carries token delta events that the CLI can display incrementally.
+- The approval prompt needs more than a one-line text prompt.
+
+## 17. Cancellation
 
 The CLI should eventually support canceling an active run.
 
@@ -251,7 +281,7 @@ MVP cancellation can be best-effort:
 
 The run queue owns run state. The CLI only sends a cancellation request.
 
-## 16. Relationship to Agent Core
+## 18. Relationship to Agent Core
 
 The CLI sends user input and local decisions into Agent Core.
 
@@ -265,7 +295,7 @@ The CLI receives:
 
 The CLI must not call tools directly on behalf of the model.
 
-## 17. Relationship to Web UI
+## 19. Relationship to Web UI
 
 The CLI is the first adapter. It should prove the adapter boundary.
 
@@ -280,7 +310,7 @@ Everything the Web UI needs later should already have a non-visual equivalent:
 
 If a behavior cannot be expressed without terminal assumptions, it likely belongs in the adapter layer.
 
-## 18. Testing Requirements
+## 20. Testing Requirements
 
 CLI adapter tests should focus on user-visible workflows and boundaries.
 
@@ -288,6 +318,7 @@ Required test areas:
 
 - Command parsing
 - `chat` startup flow
+- Session listing and resume behavior
 - Slash command handling
 - Permission prompt rendering and decision forwarding
 - Trace rendering from structured events
@@ -299,7 +330,7 @@ Required test areas:
 
 Any iteration that changes Agent Core events, permission prompts, trace events, session handling, or context reports should update CLI adapter tests.
 
-## 19. Acceptance Criteria
+## 21. Acceptance Criteria
 
 The MVP CLI adapter is successful when:
 
@@ -311,7 +342,7 @@ The MVP CLI adapter is successful when:
 - The CLI does not own prompt assembly, tool selection, provider logic, permission policy, or session persistence rules.
 - CLI behavior is covered by focused tests.
 
-## 20. Related Documents
+## 22. Related Documents
 
 - [Main design](../product/arvinclaw-design.md)
 - [Roadmap](../roadmap/overview.md)

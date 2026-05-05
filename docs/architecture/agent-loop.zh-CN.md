@@ -236,7 +236,23 @@ Trace event 可包括：
 
 Trace 用于产品理解和学习，不包含隐藏 chain-of-thought。
 
-## 11. Planner 演进
+## 11. Event Stream 形态
+
+Runtime 应把 loop 暴露为 event stream，而不只是一个最终结果。
+
+在 TypeScript 中，Phase 1 的 `AgentRuntime.runTurn` 使用 `AsyncIterable<RuntimeEvent>`。这让 adapter 可以在 run 推进时逐个消费事件：
+
+```ts
+for await (const event of runtime.runTurn(input)) {
+  await traceStore.append(event);
+}
+```
+
+普通 `async` function 返回 `RuntimeEvent[]` 也可以在 run 完成后表达同样的事件，但它会让 CLI、Web UI、trace viewer、permission prompts 和 tool progress 都等到整个 turn 结束后才能看到过程。Event stream 形态让 runtime 在运行中可观察。
+
+这也有助于学习：用户可以看到 Agent 从 user message，到 context assembly，到 model request，再到 assistant message，而不是把 Agent 当成黑盒。
+
+## 12. Planner 演进
 
 MVP Loop 可以没有完整 Planner，只需要支持可追踪工具使用。
 
@@ -255,7 +271,31 @@ MVP Loop 可以没有完整 Planner，只需要支持可追踪工具使用。
 
 Planner 应是 Loop 的扩展，而不是另一个竞争 runtime。
 
-## 12. 失败处理
+### In-Turn 任务追踪 — 对齐 OpenClaw 的方式
+
+OpenClaw 的先执行哲学：模型立即行动，边做边追踪进度。两个机制使这成为可能：
+
+**1. `update_plan` tool（等同于 Claude Code `TodoWrite`）**
+
+模型在执行过程中调用 `update_plan` 维护任务步骤和状态的结构化列表。这是全量替换、模型调用的 tool — 无基础设施编排。Schema：`{step, status: pending|in_progress|completed}[]`。结构上与 Claude Code 的 `TodoWrite` 完全一致。
+
+ArvinClaw Phase 4 实现等价的 `update_todos` tool，遵循同样的模式。
+
+**2. 规划停滞检测**
+
+OpenClaw 的 `pi-embedded-runner` 检测 "planning-only" turns — 包含规划文字（承诺、步骤标题、项目符号列表）但没有执行任何 tool call 的模型响应。检测到时注入重试指令："立即行动：执行你能做的第一个具体 tool action。"N 次重试后仍无行动则以错误终止 run。
+
+ArvinClaw Phase 4 在 `AgentRuntime` 中添加等价的停滞检测。
+
+**长程任务分解：subagents**
+
+OpenClaw 处理真正复杂任务的主要机制是 `sessions_spawn` — 在独立 session 中生成后台子 agent。子 agent 隔离运行，完成时 push 结果（非轮询），支持 orchestrator 模式（最大 depth 2）。
+
+这属于 ArvinClaw Phase 7+，需要 multi-session 基础设施和 gateway。
+
+来源：`docs/research/openclaw-implementation-notes.md` 第 8 节（第三轮研究，2026-05-04）。
+
+## 13. 失败处理
 
 Loop 应显式处理失败：
 
@@ -274,7 +314,7 @@ MVP 行为可以简单：
 - 向用户解释失败
 - 请求澄清或安全停止
 
-## 13. Step 限制
+## 14. Step 限制
 
 Loop 应为每个用户 turn 或任务设置最大 step 数，避免失控执行。
 
@@ -286,11 +326,11 @@ Loop 应为每个用户 turn 或任务设置最大 step 数，避免失控执行
 
 具体数字在实现计划阶段确定。
 
-## 14. 最小接口草案
+## 15. 最小接口草案
 
 ```ts
 interface AgentRuntime {
-  runTurn(input: AgentTurnInput): Promise<AgentTurnResult>;
+  runTurn(input: AgentTurnInput): AsyncIterable<RuntimeEvent>;
 }
 
 interface ModelProvider {
@@ -310,7 +350,7 @@ interface PermissionPolicy {
 
 这些是说明性接口，不是最终实现契约。
 
-## 15. 验收标准
+## 16. 验收标准
 
 第一版 Agent Loop 成功标准：
 
@@ -323,7 +363,7 @@ interface PermissionPolicy {
 - Loop 可以安全停止。
 - 用户可以看到可解释执行轨迹。
 
-## 16. 相关文档
+## 17. 相关文档
 
 - [主设计](../product/arvinclaw-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)

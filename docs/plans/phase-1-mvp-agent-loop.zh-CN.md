@@ -1,9 +1,46 @@
 # Phase 1 MVP Agent Loop Plan
 
-状态：草案
+状态：Complete
 日期：2026-05-02
 
 English version: [phase-1-mvp-agent-loop.md](./phase-1-mvp-agent-loop.md)
+
+## Progress
+
+状态：Complete
+
+已完成：
+
+- Runtime event contracts：`24439e5`
+- `ModelProvider` interface 和 fake provider：`7df669d`
+- 带 fake HTTP tests 的 OpenAI-compatible provider：`4b86a80`
+- Minimal context assembler：`8ef0c54`
+- Message-only `AgentRuntime.runTurn`：`eacb8e8`
+- CLI fake-provider chat smoke path：`8547d63`
+- In-memory runtime trace store 和 compact CLI trace rendering：`39c7868`、`2751a9c`
+- Same-run `/trace` command shape：`4d2ebe2`
+- 带 redacted config 的 same-run `/config` command：`ef005af`
+- 使用 fake provider 的 interactive CLI chat loop：`518a936`
+- Interactive CLI configured provider wiring：`b1bfe3a`
+- Phase 1 acceptance 和 user test guide：in progress
+
+剩余：
+
+- Phase 1 MVP scope 内无剩余项
+
+最新验证：
+
+- `pnpm run check`
+- `pnpm run cli --help`
+- `pnpm run cli chat --fake "hello"`
+- `pnpm run cli chat --fake "hello" /trace`
+- `ARVINCLAW_API_KEY=secret pnpm run cli chat --fake "hello" /config`
+- `printf 'Hello\n/trace\n/config\n/exit\n' | pnpm run cli chat --fake-interactive`
+- `pnpm run cli chat`
+
+下一步建议切片：
+
+- 作为下一个 OpenClaw-aligned increment，开始 Phase 5-style session storage 和 short-term memory 工作。
 
 ## 1. 目的
 
@@ -188,7 +225,20 @@ Phase 1 完成标准：
 - Tests 覆盖 runtime、provider normalization、context assembly、trace 和 CLI rendering。
 - 实现仍为 Phase 2 的 tools 和 permissions 留好空间。
 
-## 14. 相关文档
+## 14. 用户测试指南
+
+Phase 1 的面向用户验证记录在 [Phase 1 MVP Test Guide](./phase-1-mvp-test-guide.zh-CN.md)。
+
+这份指南记录：
+
+- 本地验证命令。
+- CLI smoke paths。
+- Redacted config behavior。
+- Configured provider behavior。
+- 当前 OpenClaw 对齐情况和差距。
+- 下一个 OpenClaw-aligned implementation focus。
+
+## 15. 相关文档
 
 - [Roadmap](../roadmap/overview.zh-CN.md)
 - [Agent Loop](../architecture/agent-loop.zh-CN.md)
@@ -200,3 +250,4 @@ Phase 1 完成标准：
 - [Runtime Composition](../architecture/runtime-composition.zh-CN.md)
 - [Architecture Contracts](../architecture/contracts.zh-CN.md)
 - [Testing Strategy](../architecture/testing-strategy.zh-CN.md)
+- [Phase 1 MVP Test Guide](./phase-1-mvp-test-guide.zh-CN.md)

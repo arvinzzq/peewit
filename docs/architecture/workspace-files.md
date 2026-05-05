@@ -75,7 +75,8 @@ Workspace files should be introduced in stages.
 
 Load:
 
-- `AGENTS.md`, if present and enabled
+- `AGENTS.md`, if present
+- Read-only `SOUL.md`, if present
 
 Do not load:
 
@@ -85,9 +86,7 @@ Do not load:
 
 ### Phase 1-2
 
-Add:
-
-- Read-only `SOUL.md`
+Refine prompt-file security, redaction, and trace visibility.
 
 ### Phase 5
 
@@ -132,6 +131,8 @@ Defines agent identity:
 - Relationship to memory and growth
 
 `SOUL.md` should be read-only by default from the agent's perspective. Agent self-modification should require explicit user approval.
+
+Phase 5 reads `AGENTS.md` and `SOUL.md` into context when the files exist under the configured workspace root. Missing files are omitted without failing chat startup.
 
 ### `USER.md`
 

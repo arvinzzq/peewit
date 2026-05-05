@@ -5,6 +5,38 @@
 
 English version: [phase-2-tools-and-permissions.md](./phase-2-tools-and-permissions.md)
 
+## Progress
+
+状态：In Progress
+
+已完成：
+
+- Tool definition contracts 和 in-memory registry：`4ae3515`
+- Permission decision types 和 default policy：`6ccb737`
+- Runtime emits model-requested tool-call events：`0055ee8`
+- Runtime evaluates permission decisions for requested tool calls：`0a0f18b`
+- CLI renders approval prompts for `ask` permission decisions：`6c3b956`
+- Runtime approval resolver records approval request and resolution events：`7e81d92`
+- Executable tool contracts and built-in read-only file tools：`099e037`
+- Runtime executes registered tools and sends observations back to the model：`5ee7791`
+- CLI registers built-in read-only file tools in runtime composition：`19c9ab3`
+- read_file secret 文件拦截、read-only 工具安全回归测试、guarded write_file 工具：`8e82a36`
+- CLI 注册 write_file 工具：`b497623`
+- Guarded shell tool（含 blocked patterns、timeout 和 captured output）：`1c7a231`
+- CLI 注册 shell tool：`7abb38b`
+- read_web_page tool（含 HTML extraction、truncation 和 injectable fetch）：`417ed8e`
+- CLI 注册 read_web_page tool：`0e0946b`
+- ModelInput tool definitions、OpenAICompatibleProvider tool_calls 响应解析：`4bf6c78`
+- 真正的 agent while loop（multi-round tool calling + maxSteps 限制）：`1aaa7b8`
+
+剩余：
+
+无。Phase 2 已完成。
+
+下一步建议阶段：
+
+- Phase 3：Lightweight skills — 加载本地 SKILL.md 文件并影响 agent 行为。
+
 ## 1. 目的
 
 Phase 2 给 ArvinClaw 增加第一批真实外部动作能力。
@@ -191,7 +223,7 @@ Phase 2 应增加 trace events，例如：
 
 - `tool_call_requested`
 - `tool_input_validated`
-- `permission_evaluated`
+- `tool_call_permission_evaluated`
 - `approval_requested`
 - `approval_resolved`
 - `tool_started`

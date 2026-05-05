@@ -94,8 +94,8 @@ MVP 不包含：
 | Trace summaries | Included | Recent explainable events |
 | Skill index | Included | Compact list, not full skill bodies |
 | Tool definitions | Included | Provider-neutral projection |
-| `AGENTS.md` | Early | Project instructions |
-| `SOUL.md` | Later | Read-only identity |
+| `AGENTS.md` | Included | Project instructions |
+| `SOUL.md` | Included | Read-only identity |
 | `USER.md` | Deferred | Needs privacy policy |
 | `MEMORY.md` | Deferred | Needs memory write policy |
 | Daily notes | Deferred | Needs memory system |
@@ -110,6 +110,7 @@ MVP order：
 ```text
 Base system instructions
   -> Runtime metadata
+  -> Workspace prompt files, if present
   -> Effective configuration
   -> Permission guidance
   -> Skill index
@@ -135,6 +136,8 @@ Base system instructions
 ```
 
 确切顺序可以演进，但变化必须有意为之并经过测试。
+
+Phase 5 实现了第一版 workspace prompt loading。`AGENTS.md` 和 `SOUL.md` 会从 configured workspace root 读取；不存在时跳过；存在时作为结构化 workspace prompt sections 追加到 system message。
 
 ## 7. Context Budget
 

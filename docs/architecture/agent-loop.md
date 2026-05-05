@@ -238,7 +238,23 @@ Trace events may include:
 
 The trace is for product understanding and learning. It should not include hidden chain-of-thought content.
 
-## 11. Planner Evolution
+## 11. Event Stream Shape
+
+The runtime should expose the loop as an event stream, not only as one final result.
+
+In TypeScript, Phase 1 uses `AsyncIterable<RuntimeEvent>` for `AgentRuntime.runTurn`. This lets adapters consume each event as the run advances:
+
+```ts
+for await (const event of runtime.runTurn(input)) {
+  await traceStore.append(event);
+}
+```
+
+A plain `async` function returning `RuntimeEvent[]` could represent the same events after the run completes, but it would make the CLI, Web UI, trace viewer, permission prompts, and tool progress wait until the whole turn is over. The event stream shape keeps the runtime observable while it is running.
+
+This is also useful for learning: a user can see the agent move from user message, to context assembly, to model request, to assistant message, instead of treating the agent as a black box.
+
+## 12. Planner Evolution
 
 The MVP loop can run without a full Planner. It only needs enough structure to support traceable tool use.
 
@@ -257,7 +273,31 @@ User goal
 
 The Planner should be introduced as an extension of the loop, not as a separate competing runtime.
 
-## 12. Failure Handling
+### In-Turn Task Tracking — OpenClaw-Aligned Approach
+
+OpenClaw's execute-first philosophy: the model acts immediately and tracks progress as it goes. Two mechanisms make this work:
+
+**1. `update_plan` tool (equivalent to Claude Code `TodoWrite`)**
+
+The model calls `update_plan` during execution to maintain a structured list of task steps and their statuses. This is a full-replace, model-called tool — no infra orchestration. Schema: `{step, status: pending|in_progress|completed}[]`. This is structurally identical to Claude Code's `TodoWrite`.
+
+ArvinClaw Phase 4 implements an equivalent `update_todos` tool following the same pattern.
+
+**2. Planning stall detection**
+
+OpenClaw's `pi-embedded-runner` detects "planning-only" turns — model responses that contain planning text (promises, step headings, bullet lists) without executing any tool call. On detection, it injects a retry instruction: *"Act now: take the first concrete tool action you can."* After N retries without action, the run terminates with an error.
+
+ArvinClaw Phase 4 adds equivalent stall detection in `AgentRuntime`.
+
+**For long-horizon task decomposition: subagents**
+
+OpenClaw's primary mechanism for truly complex tasks is `sessions_spawn` — spawning background subagents in separate sessions. Subagents run isolated, announce results when complete (push-based), and support an orchestrator pattern (depth up to 2).
+
+This belongs to ArvinClaw Phase 7+ when multi-session infrastructure and a gateway exist.
+
+Source: `docs/research/openclaw-implementation-notes.md` Section 8 (third research pass, 2026-05-04).
+
+## 13. Failure Handling
 
 The loop should handle failures explicitly:
 
@@ -278,7 +318,7 @@ MVP behavior can be simple:
 
 Later versions can add retries, fallback providers, plan repair, and recovery strategies.
 
-## 13. Step Limits
+## 14. Step Limits
 
 The loop should have a maximum step count per user turn or task. This prevents runaway execution.
 
@@ -290,13 +330,13 @@ Initial defaults can be conservative:
 
 The exact numbers can be chosen during implementation.
 
-## 14. Minimal Interfaces
+## 15. Minimal Interfaces
 
 The implementation plan should refine these interfaces, but the architecture expects concepts like:
 
 ```ts
 interface AgentRuntime {
-  runTurn(input: AgentTurnInput): Promise<AgentTurnResult>;
+  runTurn(input: AgentTurnInput): AsyncIterable<RuntimeEvent>;
 }
 
 interface ModelProvider {
@@ -316,7 +356,7 @@ interface PermissionPolicy {
 
 These are illustrative, not final implementation contracts.
 
-## 15. Acceptance Criteria
+## 16. Acceptance Criteria
 
 The first agent loop implementation should be considered successful when:
 
@@ -329,7 +369,7 @@ The first agent loop implementation should be considered successful when:
 - The loop stops safely.
 - The user can see an explainable trace of the process.
 
-## 16. Related Documents
+## 17. Related Documents
 
 - [Main design](../product/arvinclaw-design.md)
 - [Roadmap](../roadmap/overview.md)

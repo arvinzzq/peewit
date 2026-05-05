@@ -129,6 +129,8 @@ Trace storage should support:
 
 Trace records should be structured so CLI and future Web UI can render them differently.
 
+Phase 5 stores trace records in the same append-only JSONL file as session messages. This keeps the MVP inspectable: one session file can replay both the conversation and the visible execution timeline.
+
 ## 9. Tool Result Record
 
 Tool results may need their own records when output is large or structured.
@@ -230,12 +232,14 @@ Required test areas:
 - Creating sessions
 - Appending messages
 - Appending trace events
+- Replaying trace events from JSONL storage
 - Loading sessions
 - Context reconstruction boundaries
 - Redaction before persistence or display
 - Handling missing or corrupt session files
 - Storage version migration when schema changes
 - CLI behavior for current session trace
+- CLI behavior for named-session trace after process restart
 
 Session tests should be updated whenever Agent Loop, Execution Trace, CLI chat, or storage schema changes.
 

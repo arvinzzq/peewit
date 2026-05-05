@@ -40,7 +40,7 @@ ArvinClaw should use four memory-related layers.
 | --- | --- | --- |
 | Active context | Included | Current model context for one turn or task |
 | Short-term memory | Included | Current session messages, tool observations, trace summaries, recent working state |
-| Long-term memory | Designed, deferred | Curated durable knowledge across sessions |
+| Long-term memory | Policy included, content loading deferred | Curated durable knowledge across sessions |
 | Identity and instruction files | Designed, partially included | Stable prompt files such as `SOUL.md`, `USER.md`, and `AGENTS.md` |
 
 ## 4. Active Context
@@ -84,6 +84,12 @@ Long-term memory stores durable facts, preferences, decisions, and project knowl
 
 ArvinClaw should design for a future `MEMORY.md`, but not implement full long-term memory writes in the first MVP.
 
+Phase 5 adds an explicit policy switch for long-term memory files:
+
+- `disabled`: default; do not load `USER.md`, `MEMORY.md`, or daily memory files.
+- `read-only`: loads `USER.md`, `MEMORY.md`, today's daily memory file, and yesterday's daily memory file from the configured workspace root when present. Writes remain disabled.
+- `write`: same read loading as `read-only`, plus enables the `append_daily_memory` tool. The model may append notes to `memory/YYYY-MM-DD.md` as a medium-risk action (requires user approval in `confirm` mode).
+
 Long-term memory needs strong policy because it can shape future behavior persistently.
 
 Before implementing it, ArvinClaw needs answers for:
@@ -105,12 +111,12 @@ Proposed files:
 | --- | --- | --- |
 | `AGENTS.md` | Operational rules and project instructions | Phase 0 or Phase 1 |
 | `SOUL.md` | Agent personality, values, tone, and boundaries | Phase 1 optional, Phase 2 recommended |
-| `USER.md` | User profile, preferences, and durable user context | Designed, deferred until long-term memory policy |
-| `MEMORY.md` | Curated long-term memory | Deferred |
-| `memory/YYYY-MM-DD.md` | Daily notes and recent observations | Deferred or Phase 5 |
+| `USER.md` | User profile, preferences, and durable user context | Read-only when policy is enabled |
+| `MEMORY.md` | Curated long-term memory | Read-only when policy is enabled |
+| `memory/YYYY-MM-DD.md` | Daily notes and recent observations | Today/yesterday read-only when policy is `read-only` or `write`; writable via `append_daily_memory` tool when policy is `write` |
 | `TOOLS.md` | Environment and tool notes | Deferred |
 
-MVP should start with `AGENTS.md`-style operational instructions and session storage. `SOUL.md` can be supported as a read-only prompt file once prompt assembly and security rules are clear.
+MVP starts with `AGENTS.md`-style operational instructions, read-only `SOUL.md`, and session storage. `USER.md` and `MEMORY.md` require the long-term memory policy to be `read-only` before the context loader includes them.
 
 ## 8. `SOUL.md` Design
 
@@ -177,7 +183,7 @@ They are useful for:
 - Short-term recall
 - Candidate facts for later long-term promotion
 
-ArvinClaw should defer daily memory files until session storage and trace are stable.
+Phase 5 loads only today's and yesterday's daily memory files in `read-only` mode. It does not scan all historical daily files and does not write daily notes.
 
 ## 12. Startup Context Loading
 
@@ -189,7 +195,7 @@ Base system instructions
   -> SOUL.md
   -> USER.md, if enabled
   -> MEMORY.md, if enabled
-  -> Recent daily memory, if enabled
+  -> Today's and yesterday's daily memory, if enabled
   -> Session resume context
   -> Selected skills
 ```
@@ -209,18 +215,21 @@ Each added prompt file should have tests and trace visibility.
 
 Memory writes are high-impact because they influence future sessions.
 
-MVP policy:
+Implemented policy:
 
-- No automatic long-term memory writes.
+- No automatic long-term memory writes in `disabled` or `read-only` mode.
 - Session storage writes are allowed as part of normal operation.
-- Prompt identity files are read-only by default.
+- Prompt identity files (`SOUL.md`, `USER.md`, `MEMORY.md`) are always read-only.
+- Long-term memory files are not loaded unless the policy is explicitly `read-only` or `write`.
+- When policy is `write`, the `append_daily_memory` tool is registered. The model may call it to append a note to `memory/YYYY-MM-DD.md`. Risk level: `medium` — requires user approval in `confirm` mode.
+- The `append_daily_memory` tool only writes to today's daily file. It cannot overwrite `MEMORY.md`, `USER.md`, or `SOUL.md`.
 
-Future policy:
+Future policy additions:
 
-- The agent can propose memory writes.
-- The user can approve, edit, or reject them.
+- Model proposes entries for `MEMORY.md` (curated long-term memory).
+- User can approve, edit, or reject proposed memory entries.
+- `USER.md` updates require explicit user initiation.
 - Memory writes produce trace events.
-- Sensitive memory requires stronger confirmation.
 
 ## 14. Relationship to Permissions
 
@@ -259,6 +268,9 @@ Required test areas:
 - Missing prompt file behavior
 - Session memory reconstruction
 - Long-term memory disabled in MVP
+- Long-term memory policy validation and display
+- Read-only `USER.md` and `MEMORY.md` loading when the policy is enabled
+- Read-only today/yesterday daily memory loading when the policy is enabled
 - Read-only identity file policy
 - Memory write permission classification
 - Redaction before memory writes
@@ -267,19 +279,75 @@ Required test areas:
 
 Every memory-related iteration should include tests for both behavior and safety.
 
-## 17. Acceptance Criteria
+## 17. Memory Tools
+
+Two tools provide the model with direct access to the memory workspace.
+
+### `memory_search`
+
+`memory_search` performs full-text search over all files under the workspace memory directory (by default `memory/`).
+
+Input:
+- `query`: string — search terms
+- `limit`: number (optional, default 10) — maximum number of result excerpts
+
+Output: an array of `{ path, excerpt, lineNumber }` objects. Each excerpt is the matching line plus up to three lines of context on each side.
+
+The tool searches `MEMORY.md`, `USER.md`, and all `memory/YYYY-MM-DD.md` files. It does not search outside the configured memory directory.
+
+Risk level: Low (read-only).
+
+Use case: the model uses `memory_search` to check whether a fact is already known before deciding to write new memory, or to recall context from a previous session.
+
+### `memory_get`
+
+`memory_get` reads a specific memory file by path.
+
+Input:
+- `path`: string — relative path within the workspace memory directory (e.g., `MEMORY.md`, `memory/2026-05-05.md`)
+
+Output: full file contents as a string, or an error if the file does not exist.
+
+Path traversal protection: `memory_get` resolves the path relative to the workspace memory root and rejects any path that escapes the memory directory. Absolute paths are rejected.
+
+Risk level: Low (read-only).
+
+Use case: the model uses `memory_get` to read a specific memory file in full when `memory_search` returned a relevant excerpt but more context is needed.
+
+## 18. Memory Dreaming
+
+Memory dreaming is the planned background memory consolidation mechanism.
+
+The basic idea: after a session completes, a background process reviews recent daily memory files and session traces, identifies recurring facts, decisions, and preferences, and proposes additions to `MEMORY.md` for the user to review.
+
+Design principles for future implementation:
+
+- Dreaming runs as a background task, not during active sessions.
+- It only reads from memory files and session traces — never writes directly.
+- Proposed memory entries are surfaced as pending approvals in the CLI or Web UI.
+- The user reviews, edits, or rejects each proposed entry before it is written to `MEMORY.md`.
+- Dreaming produces a `memory_dream_completed` trace event with the number of entries proposed.
+- If a dreaming run produces no proposals, it records a `memory_dream_empty` trace event.
+
+Status: Planned. Not implemented in any current phase.
+
+OpenClaw alignment: OpenClaw implements memory dreaming as a scheduled agent run that uses a dedicated memory consolidation skill. ArvinClaw should follow the same pattern when implementing this feature.
+
+## 19. Acceptance Criteria
 
 The MVP memory boundary should be considered successful when:
 
 - Session memory is implemented through session storage.
 - Long-term memory is explicitly not auto-written.
+- Long-term memory file access has an explicit disabled/read-only policy.
 - The design supports future `SOUL.md`, `USER.md`, `MEMORY.md`, and daily memory files.
 - Prompt file loading is designed as an explicit context assembly step.
 - Identity and memory files cannot bypass permissions.
 - The memory plan is documented in both English and Chinese.
 - Memory-related behavior has defined tests before implementation.
+- `memory_search` and `memory_get` tools are defined in this document even if not yet implemented.
 
-## 18. Related Documents
+## 20. Related Documents
 
 - [Main design](../product/arvinclaw-design.md)
 - [Roadmap](../roadmap/overview.md)

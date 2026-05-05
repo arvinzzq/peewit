@@ -1,0 +1,904 @@
+/**
+ * INPUT: Tool definitions, schemas, workspace FS access, skill file map, ShellToolOptions.
+ * OUTPUT: Tool contracts, registry, built-in tools (file, shell with sandbox, web, memory,
+ *   todos, skills), ShellToolOptions, SkillFileMap, result types, registry errors.
+ * POS: Tool system layer; exposes capabilities without making permission decisions.
+ *
+ * Update this header and the parent directory docs when responsibilities change.
+ */
+import { exec } from "node:child_process";
+import { access, readdir, readFile, writeFile as writeFileFs, mkdir } from "node:fs/promises";
+import { resolve, relative, basename, extname, dirname, join } from "node:path";
+
+export const toolsPackageName = "@arvinclaw/tools";
+
+export type ToolRiskLevel = "low" | "medium" | "high" | "blocked";
+
+export interface ToolInputSchema {
+  type: "object";
+  properties?: Record<string, unknown>;
+  required?: string[];
+}
+
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: ToolInputSchema;
+  risk: ToolRiskLevel;
+}
+
+export interface ToolExecutionContext {
+  workspaceRoot: string;
+}
+
+export interface ToolExecutionError {
+  code: string;
+  message: string;
+}
+
+export interface ToolExecutionFailure {
+  ok: false;
+  error: ToolExecutionError;
+}
+
+export interface ReadFileToolResult {
+  ok: true;
+  content: string;
+  summary: string;
+}
+
+export interface DirectoryEntry {
+  name: string;
+  type: "file" | "directory" | "other";
+}
+
+export interface ListDirectoryToolResult {
+  ok: true;
+  entries: DirectoryEntry[];
+  summary: string;
+}
+
+export interface WriteFileToolResult {
+  ok: true;
+  summary: string;
+}
+
+export interface ShellToolResult {
+  ok: true;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
+  summary: string;
+}
+
+export interface ReadWebPageToolResult {
+  ok: true;
+  url: string;
+  content: string;
+  summary: string;
+}
+
+export interface UpdateTodosResult {
+  ok: true;
+}
+
+export interface AppendDailyMemoryResult {
+  ok: true;
+  filePath: string;
+  summary: string;
+}
+
+export interface SpawnSubagentResult {
+  type: "spawn_subagent_result";
+  ok: boolean;
+  result?: string;
+  error?: string;
+}
+
+export interface SpawnSubagentAsyncResult {
+  type: "spawn_subagent_async_result";
+  taskId: string;
+  status: string;
+}
+
+export interface LoadSkillResult {
+  ok: boolean;
+  content?: string;
+  error?: string;
+}
+
+export type SkillFileMap = Map<string, string>;
+
+export interface MemorySearchResult {
+  ok: true;
+  results: Array<{ file: string; excerpt: string }>;
+  total: number;
+}
+
+export interface MemoryGetResult {
+  ok: true;
+  content?: string;
+  error?: string;
+}
+
+export type ToolExecutionResult =
+  | ReadFileToolResult
+  | ListDirectoryToolResult
+  | WriteFileToolResult
+  | ShellToolResult
+  | ReadWebPageToolResult
+  | UpdateTodosResult
+  | AppendDailyMemoryResult
+  | SpawnSubagentResult
+  | SpawnSubagentAsyncResult
+  | LoadSkillResult
+  | MemorySearchResult
+  | MemoryGetResult
+  | ToolExecutionFailure;
+
+export type TodoStatus = "pending" | "in_progress" | "completed";
+
+export interface TodoItem {
+  content: string;
+  status: TodoStatus;
+}
+
+export type WebFetchLike = (url: string, init?: RequestInit) => Promise<Response>;
+
+export interface ExecutableTool extends ToolDefinition {
+  execute(input: unknown, context: ToolExecutionContext): Promise<ToolExecutionResult>;
+}
+
+export interface ToolRegistry {
+  register(tool: ToolDefinition): void;
+  get(name: string): ToolDefinition | undefined;
+  list(): ToolDefinition[];
+}
+
+export class ToolRegistryError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ToolRegistryError";
+  }
+}
+
+export class InMemoryToolRegistry implements ToolRegistry {
+  readonly #tools = new Map<string, ToolDefinition>();
+
+  register(tool: ToolDefinition): void {
+    if (this.#tools.has(tool.name)) {
+      throw new ToolRegistryError(`Tool "${tool.name}" is already registered.`);
+    }
+
+    this.#tools.set(tool.name, cloneToolDefinition(tool));
+  }
+
+  get(name: string): ToolDefinition | undefined {
+    const tool = this.#tools.get(name);
+
+    return tool === undefined ? undefined : cloneToolDefinition(tool);
+  }
+
+  list(): ToolDefinition[] {
+    return [...this.#tools.values()]
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .map((tool) => cloneToolDefinition(tool));
+  }
+}
+
+function cloneToolDefinition(tool: ToolDefinition): ToolDefinition {
+  return structuredClone(tool);
+}
+
+export function createReadFileTool(): ExecutableTool {
+  return {
+    name: "read_file",
+    description: "Read a UTF-8 file inside the workspace.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string"
+        }
+      },
+      required: ["path"]
+    },
+    risk: "low",
+    async execute(input, context) {
+      const path = getPathInput(input);
+      if (path === undefined) {
+        return inputError("Tool input must include a string path.");
+      }
+
+      const target = resolveWorkspacePath(context.workspaceRoot, path);
+      if (target === undefined) {
+        return outsideWorkspaceError();
+      }
+
+      if (isSecretLikePath(target.absolutePath)) {
+        return secretFileError();
+      }
+
+      try {
+        return {
+          ok: true,
+          content: await readFile(target.absolutePath, "utf8"),
+          summary: `Read file ${target.displayPath}.`
+        };
+      } catch (error) {
+        return fileSystemError(error);
+      }
+    }
+  };
+}
+
+export function createListDirectoryTool(): ExecutableTool {
+  return {
+    name: "list_directory",
+    description: "List entries in a workspace directory.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: {
+          type: "string"
+        }
+      },
+      required: ["path"]
+    },
+    risk: "low",
+    async execute(input, context) {
+      const path = getPathInput(input);
+      if (path === undefined) {
+        return inputError("Tool input must include a string path.");
+      }
+
+      const target = resolveWorkspacePath(context.workspaceRoot, path);
+      if (target === undefined) {
+        return outsideWorkspaceError();
+      }
+
+      try {
+        const entries = await readdir(target.absolutePath, { withFileTypes: true });
+
+        return {
+          ok: true,
+          entries: entries
+            .map<DirectoryEntry>((entry) => ({
+              name: entry.name,
+              type: entry.isDirectory() ? "directory" : entry.isFile() ? "file" : "other"
+            }))
+            .sort((left, right) => left.name.localeCompare(right.name)),
+          summary: `Listed directory ${target.displayPath}.`
+        };
+      } catch (error) {
+        return fileSystemError(error);
+      }
+    }
+  };
+}
+
+function getPathInput(input: unknown): string | undefined {
+  if (typeof input !== "object" || input === null || !("path" in input)) {
+    return undefined;
+  }
+
+  const path = (input as { path?: unknown }).path;
+
+  return typeof path === "string" ? path : undefined;
+}
+
+function resolveWorkspacePath(workspaceRoot: string, path: string): { absolutePath: string; displayPath: string } | undefined {
+  const root = resolve(workspaceRoot);
+  const absolutePath = resolve(root, path);
+  const relativePath = relative(root, absolutePath);
+
+  if (relativePath.startsWith("..") || relativePath === ".." || absolutePath !== root && relativePath === "") {
+    return undefined;
+  }
+
+  return {
+    absolutePath,
+    displayPath: relativePath === "" ? "." : relativePath
+  };
+}
+
+function inputError(message: string): ToolExecutionFailure {
+  return {
+    ok: false,
+    error: {
+      code: "invalid_input",
+      message
+    }
+  };
+}
+
+function outsideWorkspaceError(): ToolExecutionFailure {
+  return {
+    ok: false,
+    error: {
+      code: "path_outside_workspace",
+      message: "Tool path must stay inside the workspace."
+    }
+  };
+}
+
+function fileSystemError(error: unknown): ToolExecutionFailure {
+  const code = typeof error === "object" && error !== null && "code" in error ? String((error as { code?: unknown }).code) : "fs_error";
+
+  return {
+    ok: false,
+    error: {
+      code,
+      message: "File system operation failed."
+    }
+  };
+}
+
+function isSecretLikePath(absolutePath: string): boolean {
+  const name = basename(absolutePath).toLowerCase();
+  if (name === ".env" || name.startsWith(".env.")) return true;
+  if (name === ".netrc") return true;
+  const ext = extname(name);
+  if (ext === ".key" || ext === ".pem" || ext === ".p12" || ext === ".pfx") return true;
+  return name === "id_rsa" || name === "id_ed25519" || name === "id_ecdsa" || name === "id_dsa";
+}
+
+function secretFileError(): ToolExecutionFailure {
+  return {
+    ok: false,
+    error: {
+      code: "path_not_permitted",
+      message: "Tool path is not permitted."
+    }
+  };
+}
+
+function getWriteInput(input: unknown): { path: string; content: string } | undefined {
+  if (typeof input !== "object" || input === null) return undefined;
+  const path = (input as { path?: unknown }).path;
+  const content = (input as { content?: unknown }).content;
+  return typeof path === "string" && typeof content === "string" ? { path, content } : undefined;
+}
+
+const SHELL_DEFAULT_TIMEOUT_MS = 30_000;
+const SHELL_MAX_OUTPUT_CHARS = 4_000;
+
+const BLOCKED_COMMAND_PATTERNS: RegExp[] = [
+  /\brm\b.*-[a-zA-Z]*r[a-zA-Z]*.*\s+\/\s*$/, // rm -r* targeting root /
+  /\brm\b.*-[a-zA-Z]*r[a-zA-Z]*.*\s+~\/?$/, // rm -r* targeting home ~
+  /:\(\)\s*\{/, // fork bomb
+  /[|>]\s*\/dev\/(sd|hd|nvme|vd)[a-z0-9]?/, // write/pipe to block devices
+  /\b(mkfs(\.[a-z0-9]+)?|fdisk|parted|shred)\b/, // disk tools
+];
+
+function isBlockedCommand(command: string): boolean {
+  return BLOCKED_COMMAND_PATTERNS.some((pattern) => pattern.test(command));
+}
+
+function truncateShellOutput(output: string): string {
+  if (output.length <= SHELL_MAX_OUTPUT_CHARS) return output;
+  return `${output.slice(0, SHELL_MAX_OUTPUT_CHARS)}\n[truncated ${output.length - SHELL_MAX_OUTPUT_CHARS} characters]`;
+}
+
+function runShellCommand(
+  command: string,
+  cwd: string,
+  timeoutMs: number
+): Promise<{ completed: true; exitCode: number; stdout: string; stderr: string; durationMs: number } | { completed: false }> {
+  return new Promise((resolve) => {
+    const start = Date.now();
+    exec(command, { cwd, timeout: timeoutMs }, (error, stdout, stderr) => {
+      const durationMs = Date.now() - start;
+      if (error?.killed === true) {
+        resolve({ completed: false });
+        return;
+      }
+      const exitCode = error === null ? 0 : typeof error.code === "number" ? error.code : 1;
+      resolve({
+        completed: true,
+        exitCode,
+        stdout: truncateShellOutput(stdout),
+        stderr: truncateShellOutput(stderr),
+        durationMs
+      });
+    });
+  });
+}
+
+function getShellInput(input: unknown): { command: string; timeoutMs?: number } | undefined {
+  if (typeof input !== "object" || input === null) return undefined;
+  const command = (input as { command?: unknown }).command;
+  if (typeof command !== "string") return undefined;
+  const timeoutMs = (input as { timeoutMs?: unknown }).timeoutMs;
+  return { command, ...(typeof timeoutMs === "number" ? { timeoutMs } : {}) };
+}
+
+function blockedCommandError(): ToolExecutionFailure {
+  return {
+    ok: false,
+    error: {
+      code: "command_blocked",
+      message: "Command matches a blocked pattern."
+    }
+  };
+}
+
+function sandboxRejectionError(): ToolExecutionFailure {
+  return {
+    ok: false,
+    error: {
+      code: "sandbox_rejected",
+      message: "Command rejected: workspace sandbox prevents execution outside workspace."
+    }
+  };
+}
+
+/**
+ * SANDBOX_ESCAPE_PATTERNS is a heuristic list of patterns that attempt to escape
+ * the workspace when sandboxed mode is enabled.
+ *
+ * - `/../` — path traversal in arguments
+ * - `cd /` followed by space or end-of-string — change to an absolute path root
+ * - `cd ~/` or `cd ~` followed by space or end-of-string — change to the home directory
+ */
+const SANDBOX_ESCAPE_PATTERNS: RegExp[] = [
+  /\/\.\.\//,                  // /../ path traversal
+  /\bcd\s+\/(\s|$)/,           // cd / or cd /... (absolute root)
+  /\bcd\s+~\/?(\s|$)/          // cd ~ or cd ~/...
+];
+
+function isSandboxEscape(command: string): boolean {
+  return SANDBOX_ESCAPE_PATTERNS.some((pattern) => pattern.test(command));
+}
+
+/**
+ * ShellToolOptions controls optional safety features of the shell tool.
+ */
+export interface ShellToolOptions {
+  /**
+   * When true, commands that attempt to escape the workspace are rejected
+   * before execution. The shell process always runs in context.workspaceRoot.
+   */
+  sandboxed?: boolean;
+}
+
+export function createShellTool(options?: ShellToolOptions): ExecutableTool {
+  return {
+    name: "run_shell",
+    description: "Run a shell command in the workspace directory. Requires approval.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        command: { type: "string" },
+        timeoutMs: { type: "number" }
+      },
+      required: ["command"]
+    },
+    risk: "high",
+    async execute(input, context) {
+      const parsed = getShellInput(input);
+      if (parsed === undefined) {
+        return inputError("Tool input must include a string command.");
+      }
+
+      if (isBlockedCommand(parsed.command)) {
+        return blockedCommandError();
+      }
+
+      if (options?.sandboxed === true && isSandboxEscape(parsed.command)) {
+        return sandboxRejectionError();
+      }
+
+      const timeoutMs = parsed.timeoutMs ?? SHELL_DEFAULT_TIMEOUT_MS;
+      const result = await runShellCommand(parsed.command, context.workspaceRoot, timeoutMs);
+
+      if (!result.completed) {
+        return {
+          ok: false,
+          error: {
+            code: "timeout",
+            message: `Command exceeded ${timeoutMs}ms timeout.`
+          }
+        };
+      }
+
+      return {
+        ok: true,
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        durationMs: result.durationMs,
+        summary: `Ran command in ${result.durationMs}ms with exit code ${result.exitCode}.`
+      };
+    }
+  };
+}
+
+export function createWriteFileTool(): ExecutableTool {
+  return {
+    name: "write_file",
+    description: "Write or overwrite a UTF-8 file inside the workspace. Requires approval.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string" },
+        content: { type: "string" }
+      },
+      required: ["path", "content"]
+    },
+    risk: "medium",
+    async execute(input, context) {
+      const parsed = getWriteInput(input);
+      if (parsed === undefined) {
+        return inputError("Tool input must include a string path and string content.");
+      }
+
+      const target = resolveWorkspacePath(context.workspaceRoot, parsed.path);
+      if (target === undefined) {
+        return outsideWorkspaceError();
+      }
+
+      if (isSecretLikePath(target.absolutePath)) {
+        return secretFileError();
+      }
+
+      try {
+        await mkdir(dirname(target.absolutePath), { recursive: true });
+        await writeFileFs(target.absolutePath, parsed.content, "utf8");
+        return {
+          ok: true,
+          summary: `Wrote file ${target.displayPath}.`
+        };
+      } catch (error) {
+        return fileSystemError(error);
+      }
+    }
+  };
+}
+
+const WEB_PAGE_MAX_CHARS = 8_000;
+
+function parseHttpUrl(url: string): URL | undefined {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function extractTextFromHtml(html: string): string {
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncateWebContent(content: string): string {
+  if (content.length <= WEB_PAGE_MAX_CHARS) return content;
+  return `${content.slice(0, WEB_PAGE_MAX_CHARS)}\n[truncated ${content.length - WEB_PAGE_MAX_CHARS} characters]`;
+}
+
+function getUrlInput(input: unknown): string | undefined {
+  if (typeof input !== "object" || input === null) return undefined;
+  const url = (input as { url?: unknown }).url;
+  return typeof url === "string" ? url : undefined;
+}
+
+export function createReadWebPageTool(fetchFn: WebFetchLike = fetch): ExecutableTool {
+  return {
+    name: "read_web_page",
+    description: "Read a public web page and return its text content.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string" }
+      },
+      required: ["url"]
+    },
+    risk: "low",
+    async execute(input, _context) {
+      const url = getUrlInput(input);
+      if (url === undefined) {
+        return inputError("Tool input must include a string url.");
+      }
+
+      const parsed = parseHttpUrl(url);
+      if (parsed === undefined) {
+        return inputError("Tool url must use http or https.");
+      }
+
+      try {
+        const response = await fetchFn(url);
+
+        if (!response.ok) {
+          return {
+            ok: false,
+            error: {
+              code: "http_error",
+              message: `Page request failed with status ${response.status}.`
+            }
+          };
+        }
+
+        const html = await response.text();
+        const content = truncateWebContent(extractTextFromHtml(html));
+
+        return {
+          ok: true,
+          url,
+          content,
+          summary: `Read web page ${parsed.hostname}.`
+        };
+      } catch {
+        return {
+          ok: false,
+          error: {
+            code: "network_error",
+            message: "Web page request failed."
+          }
+        };
+      }
+    }
+  };
+}
+
+export function createUpdateTodosTool(onUpdate?: (todos: TodoItem[]) => void): ExecutableTool {
+  return {
+    name: "update_todos",
+    description: "Update the task list to track progress on multi-step work. Call this when starting a complex task or after completing each step. At most one item may be in_progress at a time.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        todos: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              content: { type: "string" },
+              status: { type: "string", enum: ["pending", "in_progress", "completed"] }
+            },
+            required: ["content", "status"]
+          }
+        }
+      },
+      required: ["todos"]
+    },
+    risk: "low",
+    async execute(input, _context): Promise<UpdateTodosResult | ToolExecutionFailure> {
+      const raw = input as { todos?: unknown };
+      if (!Array.isArray(raw.todos)) {
+        return { ok: false, error: { code: "invalid_input", message: "todos must be an array." } };
+      }
+
+      const todos: TodoItem[] = [];
+      for (const item of raw.todos) {
+        if (typeof item !== "object" || item === null) {
+          return { ok: false, error: { code: "invalid_input", message: "Each todo must be an object." } };
+        }
+        const { content, status } = item as { content?: unknown; status?: unknown };
+        if (typeof content !== "string" || content.length === 0) {
+          return { ok: false, error: { code: "invalid_input", message: "Each todo must have a non-empty content string." } };
+        }
+        if (status !== "pending" && status !== "in_progress" && status !== "completed") {
+          return { ok: false, error: { code: "invalid_input", message: `Invalid status "${String(status)}". Must be pending, in_progress, or completed.` } };
+        }
+        todos.push({ content, status });
+      }
+
+      const inProgressCount = todos.filter((t) => t.status === "in_progress").length;
+      if (inProgressCount > 1) {
+        return { ok: false, error: { code: "invalid_input", message: "At most one todo may be in_progress at a time." } };
+      }
+
+      onUpdate?.(todos);
+      return { ok: true };
+    }
+  };
+}
+
+export function createLoadSkillTool(skillFileMap: SkillFileMap): ExecutableTool {
+  return {
+    name: "load_skill",
+    description: "Load the full instructions for a named skill. Call this when you need to follow a skill's detailed guidance. Available skills are listed in the <skills> section.",
+    risk: "low",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "The exact skill name to load." }
+      },
+      required: ["name"]
+    },
+    async execute(rawInput): Promise<LoadSkillResult> {
+      const { name } = rawInput as { name: string };
+      const filePath = skillFileMap.get(name);
+      if (filePath === undefined) {
+        return { ok: false, error: `Skill "${name}" not found. Check the skills list for available names.` };
+      }
+      try {
+        const { readFile } = await import("node:fs/promises");
+        const content = await readFile(filePath, "utf-8");
+        return { ok: true, content };
+      } catch {
+        return { ok: false, error: `Could not read skill file for "${name}".` };
+      }
+    }
+  };
+}
+
+export function createMemorySearchTool(memoryDir: string): ExecutableTool {
+  return {
+    name: "memory_search",
+    description: "Search over memory files (MEMORY.md, USER.md, memory/YYYY-MM-DD.md) for relevant content. Returns matching excerpts.",
+    risk: "low",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string" },
+        maxResults: { type: "number" }
+      },
+      required: ["query"]
+    },
+    async execute(input): Promise<MemorySearchResult> {
+      const raw = input as { query?: unknown; maxResults?: unknown };
+      const query = typeof raw.query === "string" ? raw.query : "";
+      const maxResults = typeof raw.maxResults === "number" ? raw.maxResults : 5;
+
+      // Collect candidate files
+      const candidateFiles: string[] = [];
+
+      const rootMemoryMd = join(memoryDir, "MEMORY.md");
+      const rootUserMd = join(memoryDir, "USER.md");
+      const memorySubdir = join(memoryDir, "memory");
+
+      for (const candidatePath of [rootMemoryMd, rootUserMd]) {
+        try {
+          await access(candidatePath);
+          candidateFiles.push(candidatePath);
+        } catch {
+          // file does not exist — skip
+        }
+      }
+
+      try {
+        const entries = await readdir(memorySubdir, { recursive: true, withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isFile() && entry.name.endsWith(".md")) {
+            const dir = typeof entry.parentPath === "string" ? entry.parentPath : (entry as unknown as { path: string }).path;
+            candidateFiles.push(join(dir, entry.name));
+          }
+        }
+      } catch {
+        // memory subdir does not exist — skip
+      }
+
+      if (candidateFiles.length === 0) {
+        return { ok: true, results: [], total: 0 };
+      }
+
+      const queryWords = query.toLowerCase().split(/\s+/).filter((w) => w.length > 0);
+      const matches: Array<{ file: string; excerpt: string }> = [];
+
+      for (const filePath of candidateFiles) {
+        let content: string;
+        try {
+          content = await readFile(filePath, "utf8");
+        } catch {
+          continue;
+        }
+
+        const paragraphs = content.split(/\n\n+/);
+        const relPath = relative(memoryDir, filePath);
+
+        for (const paragraph of paragraphs) {
+          const lowerParagraph = paragraph.toLowerCase();
+          if (queryWords.some((word) => lowerParagraph.includes(word))) {
+            matches.push({ file: relPath, excerpt: paragraph.trim() });
+            if (matches.length >= maxResults) break;
+          }
+        }
+
+        if (matches.length >= maxResults) break;
+      }
+
+      return { ok: true, results: matches, total: matches.length };
+    }
+  };
+}
+
+export function createMemoryGetTool(memoryDir: string): ExecutableTool {
+  return {
+    name: "memory_get",
+    description: "Read the full contents of a specific memory file. Valid paths: MEMORY.md, USER.md, memory/YYYY-MM-DD.md",
+    risk: "low",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Relative path within the memory workspace, e.g. MEMORY.md or memory/2026-05-05.md" }
+      },
+      required: ["path"]
+    },
+    async execute(input): Promise<MemoryGetResult> {
+      const raw = input as { path?: unknown };
+      const requestedPath = typeof raw.path === "string" ? raw.path : "";
+
+      // Validate: reject path traversal, absolute paths, non-.md files
+      if (requestedPath.includes("..")) {
+        return { ok: true, error: "Path traversal is not permitted." };
+      }
+      if (requestedPath.startsWith("/")) {
+        return { ok: true, error: "Absolute paths are not permitted." };
+      }
+      if (!requestedPath.endsWith(".md")) {
+        return { ok: true, error: "Only .md files are permitted." };
+      }
+
+      const resolvedMemoryDir = resolve(memoryDir);
+      const resolvedPath = resolve(resolvedMemoryDir, requestedPath);
+
+      // Ensure the resolved path stays inside memoryDir
+      if (!resolvedPath.startsWith(resolvedMemoryDir + "/") && resolvedPath !== resolvedMemoryDir) {
+        return { ok: true, error: "Path traversal is not permitted." };
+      }
+
+      try {
+        const content = await readFile(resolvedPath, "utf8");
+        return { ok: true, content };
+      } catch {
+        return { ok: true, error: `File not found: ${requestedPath}` };
+      }
+    }
+  };
+}
+
+export function createAppendDailyMemoryTool(
+  options?: { getCurrentDate?: () => string }
+): ExecutableTool {
+  return {
+    name: "append_daily_memory",
+    description: "Append a note to today's daily memory file (memory/YYYY-MM-DD.md) in the workspace. Use this to record facts, decisions, or observations worth remembering across sessions.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        content: { type: "string" }
+      },
+      required: ["content"]
+    },
+    risk: "medium",
+    async execute(input, context): Promise<AppendDailyMemoryResult | ToolExecutionFailure> {
+      const raw = input as { content?: unknown };
+      if (typeof raw.content !== "string" || raw.content.trim().length === 0) {
+        return { ok: false, error: { code: "invalid_input", message: "content must be a non-empty string." } };
+      }
+
+      const today = options?.getCurrentDate?.() ?? new Date().toISOString().slice(0, 10);
+      const memoryDir = resolve(context.workspaceRoot, "memory");
+      const filePath = resolve(memoryDir, `${today}.md`);
+
+      try {
+        await mkdir(memoryDir, { recursive: true });
+        const timestamp = new Date().toISOString().replace("T", " ").slice(0, 16);
+        const entry = `\n## ${timestamp}\n\n${raw.content.trim()}\n`;
+        await writeFileFs(filePath, entry, { flag: "a" });
+
+        return {
+          ok: true,
+          filePath: `memory/${today}.md`,
+          summary: `Appended note to memory/${today}.md.`
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to write daily memory.";
+        return { ok: false, error: { code: "write_error", message } };
+      }
+    }
+  };
+}

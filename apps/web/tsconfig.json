@@ -1,0 +1,31 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": [
+    "src/server.ts",
+    "src/client/**/*.ts",
+    "src/client/**/*.tsx"
+  ],
+  "exclude": [
+    "dist",
+    "vite.config.ts"
+  ],
+  "references": [
+    { "path": "../../packages/adapters" },
+    { "path": "../../packages/config" },
+    { "path": "../../packages/context" },
+    { "path": "../../packages/core" },
+    { "path": "../../packages/gateway" },
+    { "path": "../../packages/models" },
+    { "path": "../../packages/sessions" },
+    { "path": "../../packages/skills" },
+    { "path": "../../packages/tools" }
+  ]
+}
