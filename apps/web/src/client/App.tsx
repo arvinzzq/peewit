@@ -30,6 +30,13 @@ interface RuntimeEventData {
   error?: { message: string };
 }
 
+interface SessionListItem {
+  id: string;
+  title?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ─── API helpers ───────────────────────────────────────────────────────────────
 
 async function apiPost<T>(path: string, body: unknown): Promise<T> {
@@ -38,6 +45,15 @@ async function apiPost<T>(path: string, body: unknown): Promise<T> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText })) as { error: string };
+    throw new Error(err.error ?? res.statusText);
+  }
+  return res.json() as Promise<T>;
+}
+
+async function apiGet<T>(path: string): Promise<T> {
+  const res = await fetch(path);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText })) as { error: string };
     throw new Error(err.error ?? res.statusText);
@@ -66,6 +82,15 @@ const css = {
   },
   title: { fontSize: "18px", fontWeight: 700, color: "#7c8cf8" },
   status: { fontSize: "12px", color: "#64748b" },
+  backBtn: {
+    padding: "4px 10px",
+    background: "transparent",
+    border: "1px solid #2d3748",
+    borderRadius: "6px",
+    color: "#94a3b8",
+    cursor: "pointer",
+    fontSize: "12px"
+  },
   messages: {
     flex: 1,
     overflowY: "auto" as const,
@@ -200,14 +225,160 @@ const css = {
     color: "#475569",
     maxHeight: "80px",
     overflowY: "auto" as const
+  },
+  // Sessions page styles
+  sessionsPage: {
+    flex: 1,
+    padding: "32px 24px",
+    overflowY: "auto" as const
+  },
+  sessionsTitle: {
+    fontSize: "22px",
+    fontWeight: 700,
+    color: "#e2e8f0",
+    marginBottom: "8px"
+  },
+  sessionsSubtitle: {
+    fontSize: "14px",
+    color: "#64748b",
+    marginBottom: "28px"
+  },
+  newSessionBtn: {
+    padding: "12px 24px",
+    background: "#7c8cf8",
+    color: "#0f1117",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: 700,
+    fontSize: "15px",
+    marginBottom: "28px",
+    display: "block"
+  },
+  sessionsList: {
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "10px"
+  },
+  sessionsListTitle: {
+    fontSize: "13px",
+    color: "#64748b",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.08em",
+    marginBottom: "12px"
+  },
+  sessionItem: {
+    background: "#161b27",
+    border: "1px solid #1e2433",
+    borderRadius: "10px",
+    padding: "14px 18px",
+    cursor: "pointer",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "4px",
+    transition: "border-color 0.15s"
+  },
+  sessionItemId: {
+    fontSize: "13px",
+    fontFamily: "monospace",
+    color: "#7c8cf8"
+  },
+  sessionItemDate: {
+    fontSize: "12px",
+    color: "#475569"
+  },
+  emptyState: {
+    color: "#475569",
+    fontSize: "14px",
+    padding: "20px 0"
   }
 };
 
-// ─── App component ────────────────────────────────────────────────────────────
+// ─── Sessions Page ─────────────────────────────────────────────────────────────
 
-export default function App() {
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+interface SessionsPageProps {
+  onNewSession: () => void;
+  onResumeSession: (sessionId: string) => void;
+}
+
+function SessionsPage({ onNewSession, onResumeSession }: SessionsPageProps) {
+  const [sessions, setSessions] = useState<SessionListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiGet<{ sessions: SessionListItem[] }>("/api/sessions")
+      .then(({ sessions: s }) => setSessions(s))
+      .catch((err: unknown) => setLoadError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setLoading(false));
+  }, []);
+
+  function formatDate(iso: string): string {
+    try {
+      return new Date(iso).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
+    } catch {
+      return iso;
+    }
+  }
+
+  return (
+    <div style={css.sessionsPage}>
+      <div style={css.sessionsTitle}>Sessions</div>
+      <div style={css.sessionsSubtitle}>
+        Start a new session or continue a previous one.
+      </div>
+
+      <button style={css.newSessionBtn} onClick={onNewSession}>
+        + New Session
+      </button>
+
+      {loading && (
+        <div style={css.emptyState}>Loading sessions…</div>
+      )}
+
+      {!loading && loadError !== null && (
+        <div style={{ ...css.emptyState, color: "#f87171" }}>
+          Could not load sessions: {loadError}
+        </div>
+      )}
+
+      {!loading && loadError === null && (
+        <>
+          <div style={css.sessionsListTitle}>Previous Sessions</div>
+          {sessions.length === 0 ? (
+            <div style={css.emptyState}>No previous sessions found.</div>
+          ) : (
+            <div style={css.sessionsList}>
+              {sessions.map((s) => (
+                <div
+                  key={s.id}
+                  style={css.sessionItem}
+                  onClick={() => onResumeSession(s.id)}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "#7c8cf8"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "#1e2433"; }}
+                >
+                  <div style={css.sessionItemId}>{s.id}</div>
+                  <div style={css.sessionItemDate}>
+                    Updated {formatDate(s.updatedAt)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Chat View ────────────────────────────────────────────────────────────────
+
+interface ChatViewProps {
+  sessionId: string;
+  onBack: () => void;
+}
+
+function ChatView({ sessionId, onBack }: ChatViewProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -219,13 +390,6 @@ export default function App() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-create session on mount
-  useEffect(() => {
-    apiPost<{ sessionId: string }>("/api/sessions", {})
-      .then(({ sessionId }) => setSessionId(sessionId))
-      .catch((err: unknown) => setError((err instanceof Error ? err.message : String(err))));
-  }, []);
-
   // Scroll to bottom when messages update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -233,7 +397,7 @@ export default function App() {
 
   const sendMessage = useCallback(
     async (msg: string) => {
-      if (sessionId === null || isSending || msg.trim() === "") return;
+      if (isSending || msg.trim() === "") return;
       const trimmed = msg.trim();
 
       setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
@@ -317,7 +481,10 @@ export default function App() {
           setMessages((prev) => [...prev, { role: "assistant", content: lastAssistantText }]);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: `Error: ${err instanceof Error ? err.message : String(err)}` }
+        ]);
       } finally {
         setIsSending(false);
       }
@@ -326,7 +493,7 @@ export default function App() {
   );
 
   const handleApprove = useCallback(async () => {
-    if (pendingApproval === null || sessionId === null) return;
+    if (pendingApproval === null) return;
     await apiPost(`/api/sessions/${sessionId}/approvals`, {
       callId: pendingApproval.callId,
       approved: true,
@@ -336,7 +503,7 @@ export default function App() {
   }, [pendingApproval, sessionId]);
 
   const handleDeny = useCallback(async () => {
-    if (pendingApproval === null || sessionId === null) return;
+    if (pendingApproval === null) return;
     await apiPost(`/api/sessions/${sessionId}/approvals`, {
       callId: pendingApproval.callId,
       approved: false,
@@ -345,32 +512,13 @@ export default function App() {
     setPendingApproval(null);
   }, [pendingApproval, sessionId]);
 
-  if (error !== null) {
-    return (
-      <div style={{ ...css.app, alignItems: "center", justifyContent: "center" }}>
-        <div style={{ color: "#f87171", fontSize: "16px", maxWidth: "480px", textAlign: "center" }}>
-          <div style={{ fontSize: "24px", marginBottom: "12px" }}>⚠</div>
-          <div>{error}</div>
-          <div style={{ marginTop: "8px", fontSize: "13px", color: "#64748b" }}>
-            Make sure ARVINCLAW_API_KEY is set and the server is running.
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (sessionId === null) {
-    return (
-      <div style={{ ...css.app, alignItems: "center", justifyContent: "center" }}>
-        <div style={{ color: "#7c8cf8" }}>Starting ArvinClaw…</div>
-      </div>
-    );
-  }
-
   return (
-    <div style={css.app}>
+    <>
       {/* Header */}
       <div style={css.header}>
+        <button style={css.backBtn} onClick={onBack}>
+          Sessions
+        </button>
         <div style={css.title}>ArvinClaw</div>
         <div style={css.status}>
           {isSending ? "Thinking…" : `Session ${sessionId.slice(-8)}`}
@@ -395,7 +543,7 @@ export default function App() {
 
         {/* Tool progress */}
         {currentTool !== null && (
-          <div style={css.toolStatus}>⟳ Running: {currentTool}</div>
+          <div style={css.toolStatus}>Running: {currentTool}</div>
         )}
 
         {/* Todos */}
@@ -448,7 +596,7 @@ export default function App() {
       {pendingApproval !== null && (
         <div style={css.approvalOverlay}>
           <div style={css.approvalCard}>
-            <div style={css.approvalTitle}>⚠ Approval Required</div>
+            <div style={css.approvalTitle}>Approval Required</div>
             <div style={css.approvalField}>
               <strong>Tool:</strong> {pendingApproval.toolName}
             </div>
@@ -472,6 +620,81 @@ export default function App() {
       )}
 
       <style>{`@keyframes blink { 50% { opacity: 0; } }`}</style>
+    </>
+  );
+}
+
+// ─── App component ────────────────────────────────────────────────────────────
+
+export default function App() {
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<"sessions" | "chat">("sessions");
+
+  const handleNewSession = useCallback(async () => {
+    setError(null);
+    try {
+      const { sessionId: id } = await apiPost<{ sessionId: string }>("/api/sessions", {});
+      setSessionId(id);
+      setView("chat");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
+
+  const handleResumeSession = useCallback(async (id: string) => {
+    setError(null);
+    try {
+      // Resume: POST /api/sessions with the existing session ID to wire up runtime
+      const { sessionId: resumedId } = await apiPost<{ sessionId: string }>("/api/sessions", { sessionId: id });
+      setSessionId(resumedId);
+      setView("chat");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
+
+  const handleBack = useCallback(() => {
+    setSessionId(null);
+    setView("sessions");
+  }, []);
+
+  if (error !== null) {
+    return (
+      <div style={{ ...css.app, alignItems: "center", justifyContent: "center" }}>
+        <div style={{ color: "#f87171", fontSize: "16px", maxWidth: "480px", textAlign: "center" }}>
+          <div style={{ fontSize: "24px", marginBottom: "12px" }}>Error</div>
+          <div>{error}</div>
+          <div style={{ marginTop: "8px", fontSize: "13px", color: "#64748b" }}>
+            Make sure ARVINCLAW_API_KEY is set and the server is running.
+          </div>
+          <button
+            style={{ ...css.backBtn, marginTop: "20px", padding: "8px 16px" }}
+            onClick={() => setError(null)}
+          >
+            Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={css.app}>
+      {view === "sessions" && (
+        <>
+          <div style={css.header}>
+            <div style={css.title}>ArvinClaw</div>
+          </div>
+          <SessionsPage
+            onNewSession={() => void handleNewSession()}
+            onResumeSession={(id) => void handleResumeSession(id)}
+          />
+        </>
+      )}
+      {view === "chat" && sessionId !== null && (
+        <ChatView sessionId={sessionId} onBack={handleBack} />
+      )}
     </div>
   );
 }

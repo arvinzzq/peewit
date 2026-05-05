@@ -16,7 +16,7 @@
 | `public/index.html` | HTML shell | 由 Vite 提供服务的单页应用入口。 |
 | `src/server.ts` | Hono API server | POST /api/sessions（创建或恢复）、GET /api/sessions（从 JsonlSessionStore 列出）、GET /api/sessions/:id（单个 session metadata）、GET /api/sessions/:id/messages（消息）、POST /api/sessions/:id/turns（SSE 流）、POST /api/sessions/:id/approvals（解析审批）；生产环境下提供静态客户端文件。 |
 | `src/client/main.tsx` | React entry | 将 `<App>` 挂载到 DOM。 |
-| `src/client/App.tsx` | Chat UI | 完整聊天组件：SSE 流式显示、审批 Modal、Todos 面板、Trace 日志条。 |
+| `src/client/App.tsx` | Chat UI | Sessions 页面（列出、新建、恢复）和聊天视图：SSE 流式显示、审批 Modal、Todos 面板、Trace 日志条。 |
 
 ## 开发
 
