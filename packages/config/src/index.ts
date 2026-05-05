@@ -1,6 +1,6 @@
 /**
- * INPUT: User config, project config, env overrides (ARVINCLAW_PROMPT_MODE, ARVINCLAW_EXECUTION_CONTRACT, ARVINCLAW_TOOL_PROFILE, OPENROUTER_API_KEY, ANTHROPIC_API_KEY, and others), memory policy settings, and sessions directory resolution requests.
- * OUTPUT: EffectiveConfig (including ExecutionContract and toolProfile), PromptMode, redacted config views, ConfigValidationError, and resolveSessionsDirectory helper.
+ * INPUT: User config, project config, env overrides (ARVINCLAW_PROMPT_MODE, ARVINCLAW_EXECUTION_CONTRACT, ARVINCLAW_TOOL_PROFILE, ARVINCLAW_SANDBOX, OPENROUTER_API_KEY, ANTHROPIC_API_KEY, and others), memory policy settings, and sessions directory resolution requests.
+ * OUTPUT: EffectiveConfig (including ExecutionContract, toolProfile, and sandboxed flag), PromptMode, redacted config views, ConfigValidationError, and resolveSessionsDirectory helper.
  * POS: Configuration boundary; keeps config loading separate from runtime behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -42,6 +42,7 @@ export interface EffectiveConfig {
     promptMode?: PromptMode;
     executionContract?: ExecutionContract;
     toolProfile?: ToolProfileConfig;
+    sandboxed?: boolean;
   };
   trace: {
     verbosity: TraceVerbosity;
@@ -240,6 +241,9 @@ function applyEnv(config: EffectiveConfig, env: Record<string, string | undefine
   }
   if (env.ARVINCLAW_TOOL_PROFILE !== undefined) {
     config.runtime.toolProfile = env.ARVINCLAW_TOOL_PROFILE as ToolProfileConfig;
+  }
+  if (env.ARVINCLAW_SANDBOX !== undefined) {
+    config.runtime.sandboxed = env.ARVINCLAW_SANDBOX === "true";
   }
 }
 

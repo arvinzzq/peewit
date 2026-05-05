@@ -131,7 +131,7 @@ async function createWebSession(config: EffectiveConfig, existingSessionId?: str
     createReadFileTool(),
     createListDirectoryTool(),
     createWriteFileTool(),
-    createShellTool(),
+    createShellTool(config.runtime.sandboxed !== undefined ? { sandboxed: config.runtime.sandboxed } : undefined),
     createReadWebPageTool()
   ];
 

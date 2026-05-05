@@ -625,6 +625,79 @@ describe("shell tool", () => {
   });
 });
 
+describe("sandboxed shell tool", () => {
+  test("sandboxed shell tool executes safe commands successfully", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-sandbox-"));
+    const tool = createShellTool({ sandboxed: true });
+
+    const result = await tool.execute({ command: "echo hello" }, { workspaceRoot: workspace });
+
+    expect(result).toMatchObject({
+      ok: true,
+      exitCode: 0,
+      stdout: expect.stringContaining("hello")
+    });
+  });
+
+  test("sandboxed shell tool rejects commands with path traversal", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-sandbox-"));
+    const tool = createShellTool({ sandboxed: true });
+
+    const result = await tool.execute(
+      { command: "cat /tmp/../etc/passwd" },
+      { workspaceRoot: workspace }
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "sandbox_rejected",
+        message: "Command rejected: workspace sandbox prevents execution outside workspace."
+      }
+    });
+  });
+
+  test("sandboxed shell tool rejects cd / commands", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-sandbox-"));
+    const tool = createShellTool({ sandboxed: true });
+
+    const result = await tool.execute({ command: "cd / && ls" }, { workspaceRoot: workspace });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "sandbox_rejected",
+        message: "Command rejected: workspace sandbox prevents execution outside workspace."
+      }
+    });
+  });
+
+  test("sandboxed shell tool rejects cd ~ commands", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-sandbox-"));
+    const tool = createShellTool({ sandboxed: true });
+
+    const result = await tool.execute({ command: "cd ~" }, { workspaceRoot: workspace });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: "sandbox_rejected",
+        message: "Command rejected: workspace sandbox prevents execution outside workspace."
+      }
+    });
+  });
+
+  test("non-sandboxed shell tool allows all commands", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-sandbox-"));
+    const tool = createShellTool({ sandboxed: false });
+
+    // A command with /../ in a path but sandboxed:false should not be rejected
+    const result = await tool.execute({ command: "echo hi" }, { workspaceRoot: workspace });
+
+    expect(result).toMatchObject({ ok: true, exitCode: 0 });
+  });
+});
+
 describe("read_web_page tool", () => {
   function makeFetch(status: number, body: string): WebFetchLike {
     return async () => new Response(body, { status, headers: { "content-type": "text/html" } });

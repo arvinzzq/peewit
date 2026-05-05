@@ -239,6 +239,26 @@ describe("loadConfig", () => {
       })
     ).toThrow(ConfigValidationError);
   });
+
+  test("ARVINCLAW_SANDBOX=true enables sandbox mode", () => {
+    const config = loadConfig({
+      env: {
+        ARVINCLAW_SANDBOX: "true"
+      }
+    });
+
+    expect(config.runtime.sandboxed).toBe(true);
+  });
+
+  test("ARVINCLAW_SANDBOX=false keeps sandbox mode disabled", () => {
+    const config = loadConfig({
+      env: {
+        ARVINCLAW_SANDBOX: "false"
+      }
+    });
+
+    expect(config.runtime.sandboxed).toBe(false);
+  });
 });
 
 describe("resolveSessionsDirectory", () => {

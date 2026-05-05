@@ -951,7 +951,7 @@ function createCliBuiltInTools(options: RunCliOptions, config?: EffectiveConfig,
     createReadFileTool(),
     createListDirectoryTool(),
     createWriteFileTool(),
-    createShellTool(),
+    createShellTool(config?.runtime.sandboxed !== undefined ? { sandboxed: config.runtime.sandboxed } : undefined),
     createReadWebPageTool(options.fetch)
   ];
 

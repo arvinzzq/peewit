@@ -1,6 +1,7 @@
 /**
- * INPUT: Tool definitions, input schemas, risk metadata, registration requests, tool execution input, workspace file system access, skill file map for on-demand skill loading.
- * OUTPUT: Tool contracts, registry/listing behavior, read-only file tools, write_file tool, shell tool, read_web_page, update_todos, append_daily_memory, memory_search, memory_get, load_skill tools, SkillFileMap, LoadSkillResult, MemorySearchResult, MemoryGetResult, SpawnSubagentResult types, and registry errors.
+ * INPUT: Tool definitions, schemas, workspace FS access, skill file map, ShellToolOptions.
+ * OUTPUT: Tool contracts, registry, built-in tools (file, shell with sandbox, web, memory,
+ *   todos, skills), ShellToolOptions, SkillFileMap, result types, registry errors.
  * POS: Tool system layer; exposes capabilities without making permission decisions.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -416,7 +417,46 @@ function blockedCommandError(): ToolExecutionFailure {
   };
 }
 
-export function createShellTool(): ExecutableTool {
+function sandboxRejectionError(): ToolExecutionFailure {
+  return {
+    ok: false,
+    error: {
+      code: "sandbox_rejected",
+      message: "Command rejected: workspace sandbox prevents execution outside workspace."
+    }
+  };
+}
+
+/**
+ * SANDBOX_ESCAPE_PATTERNS is a heuristic list of patterns that attempt to escape
+ * the workspace when sandboxed mode is enabled.
+ *
+ * - `/../` — path traversal in arguments
+ * - `cd /` followed by space or end-of-string — change to an absolute path root
+ * - `cd ~/` or `cd ~` followed by space or end-of-string — change to the home directory
+ */
+const SANDBOX_ESCAPE_PATTERNS: RegExp[] = [
+  /\/\.\.\//,                  // /../ path traversal
+  /\bcd\s+\/(\s|$)/,           // cd / or cd /... (absolute root)
+  /\bcd\s+~\/?(\s|$)/          // cd ~ or cd ~/...
+];
+
+function isSandboxEscape(command: string): boolean {
+  return SANDBOX_ESCAPE_PATTERNS.some((pattern) => pattern.test(command));
+}
+
+/**
+ * ShellToolOptions controls optional safety features of the shell tool.
+ */
+export interface ShellToolOptions {
+  /**
+   * When true, commands that attempt to escape the workspace are rejected
+   * before execution. The shell process always runs in context.workspaceRoot.
+   */
+  sandboxed?: boolean;
+}
+
+export function createShellTool(options?: ShellToolOptions): ExecutableTool {
   return {
     name: "run_shell",
     description: "Run a shell command in the workspace directory. Requires approval.",
@@ -437,6 +477,10 @@ export function createShellTool(): ExecutableTool {
 
       if (isBlockedCommand(parsed.command)) {
         return blockedCommandError();
+      }
+
+      if (options?.sandboxed === true && isSandboxEscape(parsed.command)) {
+        return sandboxRejectionError();
       }
 
       const timeoutMs = parsed.timeoutMs ?? SHELL_DEFAULT_TIMEOUT_MS;
