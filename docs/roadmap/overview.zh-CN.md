@@ -505,14 +505,29 @@ ArvinClaw 成为完整个人 Agent 平台：多入口、多模型、多 Agent、
 - 不保证与 OpenClaw 完全对等。
 - 除非后续明确选择，否则不假设 enterprise SaaS。
 
-## 14. 立即下一步
+## 14. OpenClaw 对齐 Backlog
 
-这份 roadmap 经过 review 后，下一步设计工作应创建第一批架构文档：
+Phase 0–10 已全部完成。以下是 ArvinClaw 与 OpenClaw 生产能力之间剩余的差距。
 
-- Project structure
-- Agent loop
-- Model provider
-- Tool system
-- Permission system
-- Skill system
-- Execution trace
+完整设计：[OpenClaw 对齐计划](../plans/openclaw-alignment.zh-CN.md)
+
+| 优先级 | 差距 | 迭代 |
+| --- | --- | --- |
+| 🔴 高 | 上下文压缩 | 1 |
+| 🔴 高 | Skill 全文按需加载（`load_skill` 工具） | 1 |
+| 🔴 高 | `memory_search` 工具 | 2 |
+| 🟡 中 | Prompt 模式（full / minimal / none） | 1 |
+| 🟡 中 | `memory_get` 工具 | 2 |
+| 🟡 中 | 额外工作区文件（TOOLS.md、IDENTITY.md、HEARTBEAT.md、BOOTSTRAP.md） | 2 |
+| 🟡 中 | 心跳机制 | 2 |
+| 🟡 中 | Strict-agentic 执行合约 | 3 |
+| 🟡 中 | 会话写锁 | 3 |
+| 🟡 中 | Hooks 系统 | 3 |
+| 🟡 中 | 工具 Profile（coding / full / messaging / background） | 4 |
+| 🟡 中 | 沙箱执行（工作区边界约束） | 4 |
+| 🟡 中 | Cron Daemon（`arvinclaw daemon`） | 5 |
+| 🟢 低 | TaskFlow（持久跨会话任务图） | 6 |
+| 🟢 低 | 异步子 Agent（push-based，fork 上下文模式） | 6 |
+| 🟢 低 | WebSocket 支持 | 7 |
+| 🟢 低 | Thinking Budget 配置 | 7 |
+| 🟢 低 | 记忆 Dreaming / 记忆晋升 | 7 |

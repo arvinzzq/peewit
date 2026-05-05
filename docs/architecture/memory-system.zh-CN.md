@@ -268,7 +268,61 @@ Memory 需要强测试，因为它会改变未来行为。
 
 每个 memory-related iteration 都应包含 behavior 和 safety 两方面测试。
 
-## 17. 验收标准
+## 17. 记忆工具
+
+两个工具为模型提供直接访问记忆工作区的能力。
+
+### `memory_search`
+
+`memory_search` 对工作区记忆目录（默认为 `memory/`）中的所有文件执行全文搜索。
+
+输入：
+- `query`：字符串 — 搜索词
+- `limit`：数字（可选，默认 10）— 最多返回的摘录数量
+
+输出：`{ path, excerpt, lineNumber }` 对象数组。每条摘录包含匹配行及前后各三行上下文。
+
+工具搜索 `MEMORY.md`、`USER.md` 和所有 `memory/YYYY-MM-DD.md` 文件。不搜索配置记忆目录以外的内容。
+
+风险级别：低（只读）。
+
+使用场景：模型使用 `memory_search` 在决定写入新记忆前检查某个事实是否已知，或从以前的会话中回忆上下文。
+
+### `memory_get`
+
+`memory_get` 按路径读取特定记忆文件。
+
+输入：
+- `path`：字符串 — 工作区记忆目录内的相对路径（例如 `MEMORY.md`、`memory/2026-05-05.md`）
+
+输出：文件完整内容（字符串），或文件不存在时的错误信息。
+
+路径遍历防护：`memory_get` 相对工作区记忆根目录解析路径，拒绝任何逃出记忆目录的路径。绝对路径会被拒绝。
+
+风险级别：低（只读）。
+
+使用场景：`memory_search` 返回相关摘录但需要更多上下文时，模型使用 `memory_get` 读取完整的记忆文件。
+
+## 18. 记忆 Dreaming
+
+记忆 Dreaming 是计划中的后台记忆整合机制。
+
+基本思路：会话结束后，后台进程回顾最近的日记文件和会话 Trace，识别反复出现的事实、决策和偏好，并向用户提出添加到 `MEMORY.md` 的建议供审查。
+
+未来实现的设计原则：
+
+- Dreaming 作为后台任务运行，而非在活跃会话期间运行。
+- 只从记忆文件和会话 Trace 读取，从不直接写入。
+- 提议的记忆条目作为待处理审批呈现在 CLI 或 Web UI 中。
+- 用户在每条提议写入 `MEMORY.md` 前进行审查、编辑或拒绝。
+- Dreaming 产生 `memory_dream_completed` Trace 事件，记录提议条目数量。
+- 如果 Dreaming 运行没有产生提议，记录 `memory_dream_empty` Trace 事件。
+
+状态：计划中。当前阶段尚未实现。
+
+OpenClaw 对齐：OpenClaw 将记忆 Dreaming 实现为使用专用记忆整合 Skill 的定时 Agent 运行。ArvinClaw 实现此功能时应遵循相同模式。
+
+## 19. 验收标准
 
 MVP memory boundary 成功标准：
 
@@ -280,8 +334,9 @@ MVP memory boundary 成功标准：
 - Identity 和 memory files 不能绕过 permissions。
 - Memory plan 同时用英文和中文记录。
 - Memory-related behavior 在实现前有定义好的测试。
+- `memory_search` 和 `memory_get` 工具已在本文档中定义，即使尚未实现。
 
-## 18. 相关文档
+## 20. 相关文档
 
 - [主设计](../product/arvinclaw-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)

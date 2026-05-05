@@ -508,14 +508,29 @@ Implementation plan: [Phase 10 Full Platform](../plans/phase-10-full-platform.md
 - No guarantee of parity with OpenClaw.
 - No enterprise SaaS assumptions unless explicitly chosen later.
 
-## 14. Immediate Next Step
+## 14. OpenClaw Alignment Backlog
 
-After this roadmap is reviewed, the next design work should create the first architecture documents for:
+Phases 0–10 are complete. The following gaps remain between ArvinClaw and OpenClaw's production capabilities.
 
-- Project structure
-- Agent loop
-- Model provider
-- Tool system
-- Permission system
-- Skill system
-- Execution trace
+Full design: [OpenClaw Alignment Plan](../plans/openclaw-alignment.md)
+
+| Priority | Gap | Iteration |
+| --- | --- | --- |
+| 🔴 High | Context compaction | 1 |
+| 🔴 High | Skill body on-demand loading (`load_skill` tool) | 1 |
+| 🔴 High | `memory_search` tool | 2 |
+| 🟡 Medium | Prompt modes (full / minimal / none) | 1 |
+| 🟡 Medium | `memory_get` tool | 2 |
+| 🟡 Medium | Additional workspace files (TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOTSTRAP.md) | 2 |
+| 🟡 Medium | Heartbeat mechanism | 2 |
+| 🟡 Medium | Strict-agentic execution contract | 3 |
+| 🟡 Medium | Per-session write locks | 3 |
+| 🟡 Medium | Hooks system | 3 |
+| 🟡 Medium | Tool profiles (coding / full / messaging / background) | 4 |
+| 🟡 Medium | Sandbox enforcement (workspace-boundary shell) | 4 |
+| 🟡 Medium | Cron daemon (`arvinclaw daemon`) | 5 |
+| 🟢 Low | TaskFlow (persistent cross-session task graph) | 6 |
+| 🟢 Low | Async subagents (push-based, fork context mode) | 6 |
+| 🟢 Low | WebSocket support | 7 |
+| 🟢 Low | Thinking budget configuration | 7 |
+| 🟢 Low | Memory dreaming / promotion | 7 |
