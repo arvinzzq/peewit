@@ -1,6 +1,6 @@
 # OpenClaw 对齐计划
 
-状态：进行中
+状态：已完成
 日期：2026-05-05
 
 English version: [openclaw-alignment.md](./openclaw-alignment.md)
@@ -9,32 +9,32 @@ English version: [openclaw-alignment.md](./openclaw-alignment.md)
 
 Phase 0–10 已将 ArvinClaw 建立为与 OpenClaw 核心架构对齐的可用个人 Agent 平台。
 
-本文档追踪 ArvinClaw 与 OpenClaw 生产行为之间的剩余差距。每个差距分配到一个实施迭代。按照项目的文档优先规范，每次迭代的代码修改前必须先完成设计文档。
+本文档追踪了迭代 1–7 中 ArvinClaw 与 OpenClaw 生产行为之间的剩余差距。所有 18 个差距现已全部关闭。
 
-本文档为活文档，差距关闭或发现新差距时持续更新。
+本文档已归档。新的架构差距或改进应在后续路线图文档中追踪。
 
 ## 2. 差距汇总
 
-| # | 差距 | 优先级 | 迭代 |
-|---|---|---|---|
-| 1 | 上下文压缩 | 🔴 高 | 1 |
-| 2 | Skill 全文按需加载（`load_skill` 工具） | 🔴 高 | 1 |
-| 3 | Prompt 模式（full / minimal / none） | 🟡 中 | 1 |
-| 4 | `memory_search` 工具 | 🔴 高 | 2 |
-| 5 | `memory_get` 工具 | 🟡 中 | 2 |
-| 6 | 额外工作区文件（TOOLS.md、IDENTITY.md、HEARTBEAT.md、BOOTSTRAP.md） | 🟡 中 | 2 |
-| 7 | 心跳机制 | 🟡 中 | 2 |
-| 8 | Strict-agentic 执行合约 | 🟡 中 | 3 |
-| 9 | 会话写锁（运行序列化） | 🟡 中 | 3 |
-| 10 | Hooks 系统 | 🟡 中 | 3 |
-| 11 | 工具 Profile（coding / full / messaging / background） | 🟡 中 | 4 |
-| 12 | 沙箱执行（工作区边界约束） | 🟡 中 | 4 |
-| 13 | Cron Daemon（`arvinclaw daemon`） | 🟡 中 | 5 |
-| 14 | TaskFlow（持久跨会话任务图） | 🟢 低 | 6 |
-| 15 | 异步子 Agent（push-based，fork 上下文模式） | 🟢 低 | 6 |
-| 16 | WebSocket 支持 | 🟢 低 | 7 |
-| 17 | Thinking Budget 配置 | 🟢 低 | 7 |
-| 18 | 记忆 Dreaming / 记忆晋升 | 🟢 低 | 7 |
+| # | 差距 | 优先级 | 迭代 | 状态 | 提交 |
+|---|---|---|---|---|---|
+| 1 | 上下文压缩 | 🔴 高 | 1 | ✅ 已完成 | `df54b1e` |
+| 2 | Skill 全文按需加载（`load_skill` 工具） | 🔴 高 | 1 | ✅ 已完成 | `10167ac` |
+| 3 | Prompt 模式（full / minimal / none） | 🟡 中 | 1 | ✅ 已完成 | `2e8251c` |
+| 4 | `memory_search` 工具 | 🔴 高 | 2 | ✅ 已完成 | `a7a1c5d` |
+| 5 | `memory_get` 工具 | 🟡 中 | 2 | ✅ 已完成 | `a7a1c5d` |
+| 6 | 额外工作区文件（TOOLS.md、IDENTITY.md、HEARTBEAT.md、BOOTSTRAP.md） | 🟡 中 | 2 | ✅ 已完成 | `fee903d` |
+| 7 | 心跳机制 | 🟡 中 | 2 | ✅ 已完成 | `fee903d` |
+| 8 | Strict-agentic 执行合约 | 🟡 中 | 3 | ✅ 已完成 | `c9d47f9` |
+| 9 | 会话写锁（运行序列化） | 🟡 中 | 3 | ✅ 已完成 | `eb555f5` |
+| 10 | Hooks 系统 | 🟡 中 | 3 | ✅ 已完成 | `eb555f5` |
+| 11 | 工具 Profile（coding / full / messaging / background） | 🟡 中 | 4 | ✅ 已完成 | `5021b64` |
+| 12 | 沙箱执行（工作区边界约束） | 🟡 中 | 4 | ✅ 已完成 | `68befac` |
+| 13 | Cron Daemon（`arvinclaw daemon`） | 🟡 中 | 5 | ✅ 已完成 | `6f47106` |
+| 14 | TaskFlow（持久跨会话任务图） | 🟢 低 | 6 | ✅ 已完成 | `ebcd52b` |
+| 15 | 异步子 Agent（push-based，fork 上下文模式） | 🟢 低 | 6 | ✅ 已完成 | `a7b1fc2` |
+| 16 | WebSocket 支持 | 🟢 低 | 7 | ✅ 已完成 | `ee000d4` |
+| 17 | Thinking Budget 配置 | 🟢 低 | 7 | ✅ 已完成 | `8967c2e` |
+| 18 | 记忆 Dreaming / 记忆晋升 | 🟢 低 | 7 | ✅ 已完成 | `cee3327` |
 
 ## 3. 迭代 1 — 上下文与 Prompt
 

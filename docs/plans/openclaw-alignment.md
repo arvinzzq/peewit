@@ -1,6 +1,6 @@
 # OpenClaw Alignment Plan
 
-Status: In Progress
+Status: Complete
 Date: 2026-05-05
 
 Simplified Chinese version: [openclaw-alignment.zh-CN.md](./openclaw-alignment.zh-CN.md)
@@ -9,32 +9,32 @@ Simplified Chinese version: [openclaw-alignment.zh-CN.md](./openclaw-alignment.z
 
 Phases 0–10 established ArvinClaw as a working personal agent platform aligned with OpenClaw's core architecture.
 
-This document tracks the remaining gaps between ArvinClaw and OpenClaw's production behavior. Each gap is assigned to an implementation iteration. Design documents precede each iteration's code changes per the project's docs-first convention.
+This document tracked the remaining gaps between ArvinClaw and OpenClaw's production behavior across Iterations 1–7. All 18 gaps are now closed.
 
-This is a living document. It will be updated as gaps are closed and new ones are discovered.
+This document is archived. New architectural gaps or improvements should be tracked in a successor roadmap document.
 
 ## 2. Gap Summary
 
-| # | Gap | Priority | Iteration |
-|---|---|---|---|
-| 1 | Context compaction | 🔴 High | 1 |
-| 2 | Skill body on-demand loading (`load_skill` tool) | 🔴 High | 1 |
-| 3 | Prompt modes (full / minimal / none) | 🟡 Medium | 1 |
-| 4 | `memory_search` tool | 🔴 High | 2 |
-| 5 | `memory_get` tool | 🟡 Medium | 2 |
-| 6 | Additional workspace files (TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOTSTRAP.md) | 🟡 Medium | 2 |
-| 7 | Heartbeat mechanism | 🟡 Medium | 2 |
-| 8 | Strict-agentic execution contract | 🟡 Medium | 3 |
-| 9 | Per-session write locks (run serialization) | 🟡 Medium | 3 |
-| 10 | Hooks system | 🟡 Medium | 3 |
-| 11 | Tool profiles (coding / full / messaging / background) | 🟡 Medium | 4 |
-| 12 | Sandbox enforcement (workspace-boundary shell) | 🟡 Medium | 4 |
-| 13 | Cron daemon (`arvinclaw daemon`) | 🟡 Medium | 5 |
-| 14 | TaskFlow (persistent cross-session task graph) | 🟢 Low | 6 |
-| 15 | Async subagents (push-based, fork context mode) | 🟢 Low | 6 |
-| 16 | WebSocket support | 🟢 Low | 7 |
-| 17 | Thinking budget configuration | 🟢 Low | 7 |
-| 18 | Memory dreaming / promotion | 🟢 Low | 7 |
+| # | Gap | Priority | Iteration | Status | Commit |
+|---|---|---|---|---|---|
+| 1 | Context compaction | 🔴 High | 1 | ✅ Complete | `df54b1e` |
+| 2 | Skill body on-demand loading (`load_skill` tool) | 🔴 High | 1 | ✅ Complete | `10167ac` |
+| 3 | Prompt modes (full / minimal / none) | 🟡 Medium | 1 | ✅ Complete | `2e8251c` |
+| 4 | `memory_search` tool | 🔴 High | 2 | ✅ Complete | `a7a1c5d` |
+| 5 | `memory_get` tool | 🟡 Medium | 2 | ✅ Complete | `a7a1c5d` |
+| 6 | Additional workspace files (TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOTSTRAP.md) | 🟡 Medium | 2 | ✅ Complete | `fee903d` |
+| 7 | Heartbeat mechanism | 🟡 Medium | 2 | ✅ Complete | `fee903d` |
+| 8 | Strict-agentic execution contract | 🟡 Medium | 3 | ✅ Complete | `c9d47f9` |
+| 9 | Per-session write locks (run serialization) | 🟡 Medium | 3 | ✅ Complete | `eb555f5` |
+| 10 | Hooks system | 🟡 Medium | 3 | ✅ Complete | `eb555f5` |
+| 11 | Tool profiles (coding / full / messaging / background) | 🟡 Medium | 4 | ✅ Complete | `5021b64` |
+| 12 | Sandbox enforcement (workspace-boundary shell) | 🟡 Medium | 4 | ✅ Complete | `68befac` |
+| 13 | Cron daemon (`arvinclaw daemon`) | 🟡 Medium | 5 | ✅ Complete | `6f47106` |
+| 14 | TaskFlow (persistent cross-session task graph) | 🟢 Low | 6 | ✅ Complete | `ebcd52b` |
+| 15 | Async subagents (push-based, fork context mode) | 🟢 Low | 6 | ✅ Complete | `a7b1fc2` |
+| 16 | WebSocket support | 🟢 Low | 7 | ✅ Complete | `ee000d4` |
+| 17 | Thinking budget configuration | 🟢 Low | 7 | ✅ Complete | `8967c2e` |
+| 18 | Memory dreaming / promotion | 🟢 Low | 7 | ✅ Complete | `cee3327` |
 
 ## 3. Iteration 1 — Context and Prompt
 
