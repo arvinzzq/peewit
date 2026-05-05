@@ -1,6 +1,6 @@
 # Phase 9: Plugin and Skill Ecosystem
 
-Status: In Progress
+Status: Complete
 Date: 2026-05-05
 
 Simplified Chinese version: [phase-9-plugin-skill-ecosystem.zh-CN.md](./phase-9-plugin-skill-ecosystem.zh-CN.md)
@@ -15,9 +15,9 @@ This phase is docs-first: design documents are committed before implementation b
 
 | Part | Commit | Contents |
 | --- | --- | --- |
-| A | `docs: add Phase 9 design — plugin and skill ecosystem` | This plan, plugin-system.md, skill-permissions.md, roadmap update |
-| B | `feat(skills): add extended metadata, SkillManager install/enable/disable/trust` | packages/skills update with SkillManager, extended SkillDefinition, tests, docs |
-| C | `feat(cli): add skills install, enable, disable, trust, review subcommands` | apps/cli skills subcommands, tests, docs |
+| A | `docs: add Phase 9 design — plugin and skill ecosystem` (3ba04a5) | This plan, plugin-system.md, skill-permissions.md, roadmap update |
+| B | `feat(skills): add extended metadata, SkillManager install/enable/disable/trust` (305c7fd) | packages/skills update with SkillManager, extended SkillDefinition, tests, docs |
+| C | `feat(cli): add skills install, enable, disable, trust, review subcommands` (5f68eac) | apps/cli skills subcommands, tests, docs |
 | D | `docs: mark Phase 9 complete` | Roadmap and plan status update |
 
 ## 3. Part A — Design Documents

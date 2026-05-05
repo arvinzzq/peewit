@@ -41,7 +41,7 @@ Roadmap 采用双轨方法：
 | Phase 6 | Complete | Streaming 与 Web UI | CLI 逐 Token 流式输出；浏览器端聊天含 trace 和审批 | Streaming ModelProvider、Ink CLI、Web adapter、SSE |
 | Phase 7 | Complete | 多入口 adapters | CLI、Web、桌面和消息入口共享一个 Agent Core | Adapter interface、gateway direction |
 | Phase 8 | Complete | 后台自动化 | Agent 可以运行定时和事件触发任务 | Scheduler、daemon、task queue |
-| Phase 9 | In Progress | Plugin 和 skill 生态 | 用户可以安装、启用、禁用和审查能力 | Plugin metadata、permission declarations、versioning |
+| Phase 9 | Complete | Plugin 和 skill 生态 | 用户可以安装、启用、禁用和审查能力 | Plugin metadata、permission declarations、versioning |
 | Phase 10 | Not Started | 完整个人 Agent 平台 | OpenClaw-like 的个人 Agent，具备多模型、多 Agent、多节点和沙箱化工具 | Gateway、multi-agent runtime、node protocol、sandboxing |
 
 部分后续阶段的学习文档会先以 planned filenames 的形式列出，实际文件尚未存在。它们应该在对应 phase 被正式设计时创建，而不是在 MVP setup 阶段一次性全部创建。
