@@ -2,9 +2,32 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
+type ChatMessage =
+  | { role: "user" | "assistant"; content: string }
+  | { role: "tool_result"; toolName: string; content: string };
+
+function formatToolResult(result: Record<string, unknown>): string {
+  if (Array.isArray(result.entries)) {
+    return (result.entries as { name: string; type: string }[])
+      .map((e) => `${e.type === "directory" ? "📁" : "📄"} ${e.name}`)
+      .join("\n");
+  }
+  if (typeof result.content === "string") {
+    const lines = result.content.split("\n");
+    return lines.length > 30
+      ? lines.slice(0, 30).join("\n") + `\n… (${lines.length - 30} more lines)`
+      : result.content;
+  }
+  if (typeof result.stdout === "string" || typeof result.stderr === "string") {
+    return [result.stdout, result.stderr].filter(Boolean).join("\n") || "(no output)";
+  }
+  if (Array.isArray(result.results)) {
+    return (result.results as { file: string; excerpt: string }[])
+      .map((r) => `[${r.file}]\n${r.excerpt}`)
+      .join("\n\n");
+  }
+  if (typeof result.error === "string") return `Error: ${result.error}`;
+  return JSON.stringify(result, null, 2);
 }
 
 interface TodoItem {
@@ -27,6 +50,7 @@ interface RuntimeEventData {
   call?: { id: string; name: string };
   decision?: { risk: string; reason: string };
   message?: { content: string };
+  result?: Record<string, unknown>;
   error?: { message: string };
 }
 
@@ -113,6 +137,28 @@ const css = {
     borderRadius: "4px 12px 12px 12px",
     padding: "10px 14px",
     whiteSpace: "pre-wrap" as const
+  },
+  msgTool: {
+    alignSelf: "flex-start" as const,
+    maxWidth: "90%",
+    background: "#0f1a0f",
+    border: "1px solid #2d4a2d",
+    borderRadius: "6px",
+    padding: "8px 12px",
+    fontSize: "13px"
+  },
+  msgToolLabel: {
+    color: "#4ade80",
+    fontWeight: 600 as const,
+    marginBottom: "6px",
+    fontSize: "12px"
+  },
+  msgToolPre: {
+    margin: 0,
+    color: "#86efac",
+    fontFamily: "monospace" as const,
+    whiteSpace: "pre-wrap" as const,
+    fontSize: "12px"
   },
   streamingMsg: {
     alignSelf: "flex-start" as const,
@@ -440,8 +486,19 @@ function ChatView({ sessionId, onBack }: ChatViewProps) {
             setStreamingText((prev) => prev + event.delta!);
           } else if (event.type === "tool_started" && event.toolName !== undefined) {
             setCurrentTool(event.toolName);
-          } else if (event.type === "tool_completed" || event.type === "tool_failed") {
+          } else if (event.type === "tool_completed" && event.toolName !== undefined) {
             setCurrentTool(null);
+            const resultText = event.result !== undefined
+              ? formatToolResult(event.result as Record<string, unknown>)
+              : "";
+            if (resultText !== "") {
+              setMessages((prev) => [...prev, { role: "tool_result", toolName: event.toolName!, content: resultText }]);
+            }
+          } else if (event.type === "tool_failed") {
+            setCurrentTool(null);
+            if (event.toolName !== undefined && event.error !== undefined) {
+              setMessages((prev) => [...prev, { role: "tool_result", toolName: event.toolName!, content: `Error: ${event.error!.message}` }]);
+            }
           } else if (event.type === "todos_updated" && event.todos !== undefined) {
             setTodos([...event.todos]);
           } else if (
@@ -527,11 +584,18 @@ function ChatView({ sessionId, onBack }: ChatViewProps) {
 
       {/* Messages */}
       <div style={css.messages}>
-        {messages.map((msg, i) => (
-          <div key={i} style={msg.role === "user" ? css.msgUser : css.msgAssistant}>
-            {msg.content}
-          </div>
-        ))}
+        {messages.map((msg, i) =>
+          msg.role === "tool_result" ? (
+            <div key={i} style={css.msgTool}>
+              <div style={css.msgToolLabel}>▶ {msg.toolName}</div>
+              <pre style={css.msgToolPre}>{msg.content}</pre>
+            </div>
+          ) : (
+            <div key={i} style={msg.role === "user" ? css.msgUser : css.msgAssistant}>
+              {msg.content}
+            </div>
+          )
+        )}
 
         {/* Streaming current turn */}
         {streamingText !== "" && (

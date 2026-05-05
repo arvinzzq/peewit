@@ -12,6 +12,7 @@ import type { RuntimeEvent } from "@arvinclaw/core";
 import type { TodoItem } from "@arvinclaw/tools";
 import {
   CliChatSession,
+  renderToolResult,
   type ApprovalRequest,
   type ApprovalResolution,
   type RunCliOptions
@@ -104,10 +105,9 @@ function ApprovalPrompt({
 
 // ─── Message types ─────────────────────────────────────────────────────────────
 
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
+type ChatMessage =
+  | { role: "user" | "assistant"; content: string }
+  | { role: "tool_result"; toolName: string; content: string };
 
 // ─── Main App component ────────────────────────────────────────────────────────
 
@@ -176,8 +176,13 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
       setStreamingText((prev) => prev + event.delta);
     } else if (event.type === "tool_started") {
       setCurrentTool(event.toolName);
-    } else if (event.type === "tool_completed" || event.type === "tool_failed") {
+    } else if (event.type === "tool_completed") {
       setCurrentTool(null);
+      const resultText = renderToolResult(event.result);
+      setMessages((prev) => [...prev, { role: "tool_result", toolName: event.toolName, content: resultText }]);
+    } else if (event.type === "tool_failed") {
+      setCurrentTool(null);
+      setMessages((prev) => [...prev, { role: "tool_result", toolName: event.toolName, content: `Error: ${event.error.message}` }]);
     } else if (event.type === "todos_updated") {
       setTodos([...event.todos]);
     }
@@ -269,16 +274,17 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
         {(msg, i) =>
           msg.role === "user" ? (
             <Box key={i} marginBottom={1}>
-              <Text color="cyan" bold>
-                {"You: "}
-              </Text>
+              <Text color="cyan" bold>{"You: "}</Text>
               <Text>{msg.content}</Text>
+            </Box>
+          ) : msg.role === "tool_result" ? (
+            <Box key={i} flexDirection="column" marginBottom={1}>
+              <Text color="yellow" dimColor>{`▶ ${msg.toolName}`}</Text>
+              <Text dimColor>{msg.content}</Text>
             </Box>
           ) : (
             <Box key={i} flexDirection="column" marginBottom={1}>
-              <Text color="green" bold>
-                {"Assistant:"}
-              </Text>
+              <Text color="green" bold>{"Assistant:"}</Text>
               <Text>{msg.content}</Text>
             </Box>
           )

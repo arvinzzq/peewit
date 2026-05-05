@@ -1456,7 +1456,7 @@ export function renderRedactedConfig(config: RedactedConfigView): string[] {
   ];
 }
 
-function renderToolResult(result: import("@arvinclaw/tools").ToolExecutionResult): string {
+export function renderToolResult(result: import("@arvinclaw/tools").ToolExecutionResult): string {
   if ("entries" in result && Array.isArray(result.entries)) {
     return result.entries.map((e: { name: string; type: string }) => `  ${e.type === "directory" ? "📁" : "📄"} ${e.name}`).join("\n");
   }
