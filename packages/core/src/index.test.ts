@@ -8,10 +8,12 @@ import { createReadFileTool } from "@arvinclaw/tools";
 import {
   AgentRuntime,
   InMemoryRuntimeTraceStore,
+  SessionMutex,
   createRuntimeEvent,
   isTerminalRuntimeEvent,
   runtimeEventTypes,
   createSpawnSubagentTool,
+  type AgentHooks,
   type RuntimeEvent,
   type SubagentFactory
 } from "./index.js";
@@ -992,6 +994,241 @@ describe("createSpawnSubagentTool", () => {
     const result = await tool.execute({ goal: "Do a failing subtask." }, { workspaceRoot: "/workspace" });
 
     expect(result).toEqual({ type: "spawn_subagent_result", ok: false, error: "Sub-agent network error." });
+  });
+});
+
+describe("AgentHooks", () => {
+  function makeHooksRuntime(hooks: AgentHooks, outputs: import("@arvinclaw/models").ModelOutput[]) {
+    return new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider(outputs),
+      systemInstruction: "You are ArvinClaw.",
+      hooks,
+      createRunId: () => "run_hooks",
+      createEventId: (() => { let n = 0; return () => `evt_h_${++n}`; })(),
+      now: () => "2026-05-05T10:00:00.000Z"
+    });
+  }
+
+  test("beforeTurn is called before run_started", async () => {
+    const order: string[] = [];
+    const hooks: AgentHooks = {
+      beforeTurn: async () => { order.push("beforeTurn"); }
+    };
+    const runtime = makeHooksRuntime(hooks, [{ type: "message", content: "Done." }]);
+    const events: string[] = [];
+    for await (const event of runtime.runTurn({ message: "Hi." })) {
+      events.push(event.type);
+      order.push(event.type);
+    }
+    // beforeTurn must appear before run_started
+    expect(order.indexOf("beforeTurn")).toBeLessThan(order.indexOf("run_started"));
+  });
+
+  test("afterTurn receives all events including run_completed", async () => {
+    let receivedEvents: RuntimeEvent[] = [];
+    const hooks: AgentHooks = {
+      afterTurn: async (events) => { receivedEvents = events; }
+    };
+    const runtime = makeHooksRuntime(hooks, [{ type: "message", content: "Done." }]);
+    await collect(runtime.runTurn({ message: "Hi." }));
+    expect(receivedEvents.map((e) => e.type)).toContain("run_completed");
+    expect(receivedEvents.length).toBeGreaterThan(0);
+  });
+
+  test("beforeToolCall returning 'abort' yields tool_failed and skips execution", async () => {
+    const executedTools: string[] = [];
+    const hooks: AgentHooks = {
+      beforeToolCall: async () => "abort"
+    };
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([
+        {
+          type: "tool_calls",
+          calls: [{ id: "call_abort", name: "noop_tool", input: {} }]
+        },
+        { type: "message", content: "Aborted." }
+      ]),
+      tools: [
+        {
+          name: "noop_tool",
+          description: "A no-op tool.",
+          risk: "low" as const,
+          inputSchema: { type: "object" as const, properties: {} },
+          execute: async () => {
+            executedTools.push("noop_tool");
+            return { ok: true as const, content: "noop", summary: "noop" };
+          }
+        }
+      ],
+      systemInstruction: "You are ArvinClaw.",
+      hooks,
+      runtime: { mode: "auto", workspace: "/workspace", currentDate: "2026-05-05" },
+      createRunId: () => "run_abort",
+      createEventId: (() => { let n = 0; return () => `evt_ab_${++n}`; })(),
+      now: () => "2026-05-05T10:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Run tool." }));
+
+    // Tool was NOT executed
+    expect(executedTools).toHaveLength(0);
+    // tool_failed was emitted
+    expect(events.map((e) => e.type)).toContain("tool_failed");
+    expect(events.find((e) => e.type === "tool_failed")).toMatchObject({
+      type: "tool_failed",
+      error: { message: "Tool call aborted by hook." }
+    });
+  });
+
+  test("hook throwing does not fail the run (run_completed still emitted)", async () => {
+    const hooks: AgentHooks = {
+      beforeTurn: async () => { throw new Error("beforeTurn exploded"); },
+      afterTurn: async () => { throw new Error("afterTurn exploded"); }
+    };
+    const runtime = makeHooksRuntime(hooks, [{ type: "message", content: "Done." }]);
+    const events = await collect(runtime.runTurn({ message: "Hi." }));
+    expect(events.at(-1)?.type).toBe("run_completed");
+  });
+
+  test("afterToolCall is called after tool_completed", async () => {
+    const afterCalls: string[] = [];
+    const hooks: AgentHooks = {
+      afterToolCall: async (call) => { afterCalls.push(call.name); }
+    };
+    const workspace = await import("node:os").then((os) => os.tmpdir());
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([
+        {
+          type: "tool_calls",
+          calls: [{ id: "call_after", name: "noop_tool2", input: {} }]
+        },
+        { type: "message", content: "Done." }
+      ]),
+      tools: [
+        {
+          name: "noop_tool2",
+          description: "A no-op tool.",
+          risk: "low" as const,
+          inputSchema: { type: "object" as const, properties: {} },
+          execute: async () => ({ ok: true as const, content: "noop2", summary: "noop2" })
+        }
+      ],
+      systemInstruction: "You are ArvinClaw.",
+      hooks,
+      runtime: { mode: "auto", workspace, currentDate: "2026-05-05" },
+      createRunId: () => "run_after",
+      createEventId: (() => { let n = 0; return () => `evt_at_${++n}`; })(),
+      now: () => "2026-05-05T10:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Run tool." }));
+    expect(afterCalls).toEqual(["noop_tool2"]);
+    expect(events.map((e) => e.type)).toContain("tool_completed");
+  });
+});
+
+describe("strict-agentic execution contract", () => {
+  test("strict-agentic uses maxRetries 3 by default", async () => {
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([
+        { type: "message", content: "I'll read the file first." },
+        { type: "message", content: "Let me proceed step by step." },
+        { type: "message", content: "I will now do the work." },
+        { type: "message", content: "Done." }
+      ]),
+      systemInstruction: "You are ArvinClaw.",
+      tools: [createReadFileTool()],
+      executionContract: "strict-agentic",
+      createRunId: () => "run_strict",
+      createEventId: (() => { let n = 0; return () => `evt_strict_${++n}`; })(),
+      now: () => "2026-05-05T10:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Do the task." }));
+    const stallEvents = events.filter((e) => e.type === "planning_stall_detected");
+    // With strict-agentic, maxRetries is 3, so 3 stalls before failure
+    expect(stallEvents).toHaveLength(3);
+    if (stallEvents[0]) {
+      expect((stallEvents[0] as import("./index.js").PlanningStallDetectedEvent).maxRetries).toBe(3);
+    }
+    expect(events.at(-1)?.type).toBe("run_failed");
+  });
+
+  test("default contract uses maxRetries 2", async () => {
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([
+        { type: "message", content: "I'll read the file first." },
+        { type: "message", content: "Let me proceed step by step." },
+        { type: "message", content: "Done." }
+      ]),
+      systemInstruction: "You are ArvinClaw.",
+      tools: [createReadFileTool()],
+      createRunId: () => "run_default",
+      createEventId: (() => { let n = 0; return () => `evt_def_${++n}`; })(),
+      now: () => "2026-05-05T10:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Do the task." }));
+    const stallEvents = events.filter((e) => e.type === "planning_stall_detected");
+    expect(stallEvents).toHaveLength(2);
+    if (stallEvents[0]) {
+      expect((stallEvents[0] as import("./index.js").PlanningStallDetectedEvent).maxRetries).toBe(2);
+    }
+    expect(events.at(-1)?.type).toBe("run_failed");
+  });
+});
+
+describe("SessionMutex", () => {
+  test("single acquire + release resolves immediately", async () => {
+    const mutex = new SessionMutex();
+    const release = await mutex.acquire("session-1");
+    expect(typeof release).toBe("function");
+    release();
+  });
+
+  test("two concurrent acquires for same session: second waits for first to release", async () => {
+    const mutex = new SessionMutex();
+    const order: number[] = [];
+
+    const release1 = await mutex.acquire("session-A");
+    order.push(1);
+
+    let release2: (() => void) | undefined;
+    const p2 = mutex.acquire("session-A").then((rel) => {
+      order.push(2);
+      release2 = rel;
+    });
+
+    // Give p2 a chance to run — it should NOT proceed yet
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(order).toEqual([1]);
+
+    // Now release the first lock
+    release1();
+    await p2;
+    expect(order).toEqual([1, 2]);
+    release2?.();
+  });
+
+  test("different sessions: both acquire without waiting", async () => {
+    const mutex = new SessionMutex();
+    const order: string[] = [];
+
+    const [rel1, rel2] = await Promise.all([
+      mutex.acquire("session-X").then((rel) => { order.push("X"); return rel; }),
+      mutex.acquire("session-Y").then((rel) => { order.push("Y"); return rel; })
+    ]);
+
+    expect(order).toHaveLength(2);
+    expect(order).toContain("X");
+    expect(order).toContain("Y");
+    rel1();
+    rel2();
   });
 });
 

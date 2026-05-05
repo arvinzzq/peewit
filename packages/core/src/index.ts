@@ -1,6 +1,6 @@
 /**
- * INPUT: ContextAssembler, ModelProvider (optionally StreamingModelProvider), PermissionPolicy, optional ApprovalResolver, executable tools, maxSteps, maxPlanningStallRetries, runtime metadata, user turn input, and optional recent conversation messages.
- * OUTPUT: AgentRuntime, SubagentFactory interface, createSpawnSubagentTool, runtime event contracts (including token_delta for streaming), in-memory trace store, todos_updated event, planning_stall_detected event, tool-call request events, permission evaluation events, approval resolution events, and tool lifecycle events.
+ * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, ApprovalResolver, tools, hooks, SessionMutex, ExecutionContract, maxSteps, maxPlanningStallRetries, runtime metadata, user turn input, optional recent messages.
+ * OUTPUT: AgentRuntime, AgentHooks, SessionMutex, ExecutionContract, SubagentFactory, createSpawnSubagentTool, runtime event contracts (token_delta, todos_updated, planning_stall_detected), in-memory trace store, tool lifecycle events, permission events, approval events.
  * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -242,6 +242,37 @@ export interface ApprovalResolver {
   resolve(request: ApprovalRequest): Promise<ApprovalResolution>;
 }
 
+export type ExecutionContract = "default" | "strict-agentic";
+
+export class SessionMutex {
+  readonly #locks = new Map<string, Promise<void>>();
+
+  async acquire(sessionId: string): Promise<() => void> {
+    const existing = this.#locks.get(sessionId) ?? Promise.resolve();
+    let release!: () => void;
+    const next = existing.then(() => new Promise<void>((resolve) => {
+      release = resolve;
+    }));
+    this.#locks.set(sessionId, next);
+    await existing;
+    return () => {
+      release();
+      // Clean up if no more waiters
+      if (this.#locks.get(sessionId) === next) {
+        this.#locks.delete(sessionId);
+      }
+    };
+  }
+}
+
+export interface AgentHooks {
+  beforeTurn?: (input: AgentRuntimeInput) => Promise<void>;
+  afterTurn?: (events: RuntimeEvent[]) => Promise<void>;
+  beforeToolCall?: (call: ModelToolCall) => Promise<void | "abort">;
+  afterToolCall?: (call: ModelToolCall, result: ToolExecutionResult) => Promise<void>;
+  onCompaction?: (messageBefore: number, messageAfter: number) => Promise<void>;
+}
+
 export interface AgentRuntimeDependencies {
   contextAssembler: ContextAssembler;
   modelProvider: ModelProvider;
@@ -256,6 +287,9 @@ export interface AgentRuntimeDependencies {
   preferStreaming?: boolean;
   compaction?: Partial<CompactionOptions>;
   promptMode?: PromptMode;
+  hooks?: AgentHooks;
+  sessionMutex?: SessionMutex;
+  executionContract?: ExecutionContract;
   createRunId?: () => string;
   createEventId?: () => string;
   now?: () => string;
@@ -288,6 +322,9 @@ export class AgentRuntime {
   readonly #preferStreaming: boolean;
   readonly #compaction: Partial<CompactionOptions> | undefined;
   readonly #promptMode: PromptMode | undefined;
+  readonly #hooks: AgentHooks | undefined;
+  readonly #sessionMutex: SessionMutex | undefined;
+  readonly #executionContract: ExecutionContract;
   readonly #createRunId: () => string;
   readonly #createEventId: () => string;
   readonly #now: () => string;
@@ -299,13 +336,20 @@ export class AgentRuntime {
     this.#permissionPolicy = dependencies.permissionPolicy ?? new DefaultPermissionPolicy();
     this.#approvalResolver = dependencies.approvalResolver;
     this.#maxSteps = dependencies.maxSteps ?? DEFAULT_MAX_STEPS;
-    this.#maxPlanningStallRetries = dependencies.maxPlanningStallRetries ?? DEFAULT_MAX_PLANNING_STALL_RETRIES;
+    this.#executionContract = dependencies.executionContract ?? "default";
+    this.#maxPlanningStallRetries = dependencies.executionContract === "strict-agentic"
+      ? (dependencies.maxPlanningStallRetries ?? 3)
+      : (dependencies.maxPlanningStallRetries ?? DEFAULT_MAX_PLANNING_STALL_RETRIES);
     this.#skillIndex = dependencies.skillIndex ?? [];
-    this.#systemInstruction = dependencies.systemInstruction;
+    this.#systemInstruction = dependencies.executionContract === "strict-agentic"
+      ? `${dependencies.systemInstruction}\n\nExecution contract: strict-agentic. Act immediately. Do not narrate plans. Call tools now.`
+      : dependencies.systemInstruction;
     this.#runtime = dependencies.runtime;
     this.#preferStreaming = dependencies.preferStreaming ?? false;
     this.#compaction = dependencies.compaction;
     this.#promptMode = dependencies.promptMode;
+    this.#hooks = dependencies.hooks;
+    this.#sessionMutex = dependencies.sessionMutex;
     this.#createRunId = dependencies.createRunId ?? randomId("run");
     this.#createEventId = dependencies.createEventId ?? randomId("evt");
     this.#now = dependencies.now ?? (() => new Date().toISOString());
@@ -320,198 +364,285 @@ export class AgentRuntime {
   async *runTurn(input: AgentRuntimeInput): AsyncIterable<RuntimeEvent> {
     const runId = this.#createRunId();
     const base = input.sessionId ? { runId, sessionId: input.sessionId } : { runId };
+    const collectedEvents: RuntimeEvent[] = [];
 
-    yield this.#event({ ...base, type: "run_started", userMessage: input.message });
+    // Acquire session mutex if configured
+    const release = this.#sessionMutex
+      ? await this.#sessionMutex.acquire(input.sessionId ?? "global")
+      : undefined;
 
-    const contextToolSummaries = this.#buildContextToolSummaries();
-    const assembled = await this.#contextAssembler.assemble({
-      systemInstruction: this.#systemInstruction,
-      ...(this.#runtime ? { runtime: this.#runtime } : {}),
-      ...(contextToolSummaries.length > 0 ? { tools: contextToolSummaries } : {}),
-      permissionGuidance: DEFAULT_PERMISSION_GUIDANCE,
-      ...(this.#skillIndex.length > 0 ? { skillIndex: this.#skillIndex } : {}),
-      ...(input.recentMessages ? { recentMessages: input.recentMessages } : {}),
-      ...(this.#promptMode !== undefined ? { promptMode: this.#promptMode } : {}),
-      userMessage: input.message
-    });
-
-    yield this.#event({
-      ...base,
-      type: "context_assembled",
-      messageCount: assembled.modelInput.messages.length,
-      systemInstructionIncluded: assembled.report.includedSections.includes("identity")
-    });
-
-    const toolDefinitions = this.#buildToolDefinitions();
-    let messages = assembled.modelInput.messages;
-    let steps = 0;
-    let stallCount = 0;
-    this.#currentTodos = [];
-
-    while (steps < this.#maxSteps) {
-      if (this.#compaction !== undefined) {
-        messages = await compactMessages(messages, this.#modelProvider, this.#compaction);
+    try {
+      // beforeTurn hook — errors must not fail the run
+      if (this.#hooks?.beforeTurn !== undefined) {
+        try {
+          await this.#hooks.beforeTurn(input);
+        } catch (err) {
+          if (typeof process !== "undefined" && process.env["NODE_ENV"] !== "production") {
+            console.warn("[AgentRuntime] beforeTurn hook threw:", err);
+          }
+        }
       }
 
-      yield this.#event({ ...base, type: "model_request_started", provider: "configured" });
-
-      const modelInput = {
-        messages,
-        ...(toolDefinitions.length > 0 ? { tools: toolDefinitions } : {}),
-        ...(assembled.modelInput.options !== undefined ? { options: assembled.modelInput.options } : {})
+      const emitAndCollect = (event: RuntimeEvent): RuntimeEvent => {
+        collectedEvents.push(event);
+        return event;
       };
 
-      let output: ModelOutput;
+      yield emitAndCollect(this.#event({ ...base, type: "run_started", userMessage: input.message }));
 
-      if (this.#preferStreaming && isStreamingProvider(this.#modelProvider)) {
-        let textContent = "";
-        let streamedToolCalls: ModelToolCall[] | undefined;
-        let streamedUsage: ModelUsage | undefined;
-        let streamError: { message: string; recoverable: boolean; category: string } | undefined;
+      const contextToolSummaries = this.#buildContextToolSummaries();
+      const assembled = await this.#contextAssembler.assemble({
+        systemInstruction: this.#systemInstruction,
+        ...(this.#runtime ? { runtime: this.#runtime } : {}),
+        ...(contextToolSummaries.length > 0 ? { tools: contextToolSummaries } : {}),
+        permissionGuidance: DEFAULT_PERMISSION_GUIDANCE,
+        ...(this.#skillIndex.length > 0 ? { skillIndex: this.#skillIndex } : {}),
+        ...(input.recentMessages ? { recentMessages: input.recentMessages } : {}),
+        ...(this.#promptMode !== undefined ? { promptMode: this.#promptMode } : {}),
+        userMessage: input.message
+      });
 
-        for await (const streamEvent of this.#modelProvider.generateStream(modelInput)) {
-          if (streamEvent.type === "token_delta") {
-            yield this.#event({ ...base, type: "token_delta", delta: streamEvent.delta });
-          } else if (streamEvent.type === "message_done") {
-            textContent = streamEvent.content;
-            streamedUsage = streamEvent.usage;
-          } else if (streamEvent.type === "tool_calls") {
-            streamedToolCalls = streamEvent.calls;
-            streamedUsage = streamEvent.usage;
-          } else if (streamEvent.type === "error") {
-            streamError = { category: streamEvent.category, message: streamEvent.message, recoverable: streamEvent.recoverable };
+      yield emitAndCollect(this.#event({
+        ...base,
+        type: "context_assembled",
+        messageCount: assembled.modelInput.messages.length,
+        systemInstructionIncluded: assembled.report.includedSections.includes("identity")
+      }));
+
+      const toolDefinitions = this.#buildToolDefinitions();
+      let messages = assembled.modelInput.messages;
+      let steps = 0;
+      let stallCount = 0;
+      this.#currentTodos = [];
+
+      while (steps < this.#maxSteps) {
+        if (this.#compaction !== undefined) {
+          const before = messages.length;
+          messages = await compactMessages(messages, this.#modelProvider, this.#compaction);
+          const after = messages.length;
+          if (this.#hooks?.onCompaction !== undefined) {
+            try {
+              await this.#hooks.onCompaction(before, after);
+            } catch (err) {
+              if (typeof process !== "undefined" && process.env["NODE_ENV"] !== "production") {
+                console.warn("[AgentRuntime] onCompaction hook threw:", err);
+              }
+            }
           }
         }
 
-        if (streamError !== undefined) {
-          output = { type: "error", category: streamError.category as never, message: streamError.message, recoverable: streamError.recoverable };
-        } else if (streamedToolCalls !== undefined) {
-          output = { type: "tool_calls", calls: streamedToolCalls, ...(streamedUsage !== undefined ? { usage: streamedUsage } : {}) };
+        yield emitAndCollect(this.#event({ ...base, type: "model_request_started", provider: "configured" }));
+
+        const modelInput = {
+          messages,
+          ...(toolDefinitions.length > 0 ? { tools: toolDefinitions } : {}),
+          ...(assembled.modelInput.options !== undefined ? { options: assembled.modelInput.options } : {})
+        };
+
+        let output: ModelOutput;
+
+        if (this.#preferStreaming && isStreamingProvider(this.#modelProvider)) {
+          let textContent = "";
+          let streamedToolCalls: ModelToolCall[] | undefined;
+          let streamedUsage: ModelUsage | undefined;
+          let streamError: { message: string; recoverable: boolean; category: string } | undefined;
+
+          for await (const streamEvent of this.#modelProvider.generateStream(modelInput)) {
+            if (streamEvent.type === "token_delta") {
+              yield emitAndCollect(this.#event({ ...base, type: "token_delta", delta: streamEvent.delta }));
+            } else if (streamEvent.type === "message_done") {
+              textContent = streamEvent.content;
+              streamedUsage = streamEvent.usage;
+            } else if (streamEvent.type === "tool_calls") {
+              streamedToolCalls = streamEvent.calls;
+              streamedUsage = streamEvent.usage;
+            } else if (streamEvent.type === "error") {
+              streamError = { category: streamEvent.category, message: streamEvent.message, recoverable: streamEvent.recoverable };
+            }
+          }
+
+          if (streamError !== undefined) {
+            output = { type: "error", category: streamError.category as never, message: streamError.message, recoverable: streamError.recoverable };
+          } else if (streamedToolCalls !== undefined) {
+            output = { type: "tool_calls", calls: streamedToolCalls, ...(streamedUsage !== undefined ? { usage: streamedUsage } : {}) };
+          } else {
+            output = { type: "message", content: textContent, ...(streamedUsage !== undefined ? { usage: streamedUsage } : {}) };
+          }
         } else {
-          output = { type: "message", content: textContent, ...(streamedUsage !== undefined ? { usage: streamedUsage } : {}) };
+          output = await this.#modelProvider.generate(modelInput);
         }
-      } else {
-        output = await this.#modelProvider.generate(modelInput);
-      }
 
-      yield this.#event({ ...base, type: "model_request_completed", provider: "configured" });
+        yield emitAndCollect(this.#event({ ...base, type: "model_request_completed", provider: "configured" }));
 
-      steps++;
+        steps++;
 
-      if (output.type === "error") {
-        yield this.#event({ ...base, type: "run_failed", error: { message: output.message, recoverable: output.recoverable } });
-        return;
-      }
+        if (output.type === "error") {
+          const ev = emitAndCollect(this.#event({ ...base, type: "run_failed", error: { message: output.message, recoverable: output.recoverable } }));
+          yield ev;
+          await this.#callAfterTurn(collectedEvents);
+          return;
+        }
 
-      if (output.type === "message") {
-        // Detect planning-only turns (model narrates a plan without taking action).
-        // Only applies when actionable user-provided tools exist (update_todos alone
-        // is not enough — the model needs real tools to act with).
-        const hasActionableTools = [...this.#tools.keys()].some((n) => n !== "update_todos");
-        if (hasActionableTools && isPlanningOnly(output.content)) {
-          stallCount++;
-          yield this.#event({ ...base, type: "planning_stall_detected", stallCount, maxRetries: this.#maxPlanningStallRetries });
+        if (output.type === "message") {
+          // Detect planning-only turns (model narrates a plan without taking action).
+          // Only applies when actionable user-provided tools exist (update_todos alone
+          // is not enough — the model needs real tools to act with).
+          const hasActionableTools = [...this.#tools.keys()].some((n) => n !== "update_todos");
+          if (hasActionableTools && isPlanningOnly(output.content)) {
+            stallCount++;
+            yield emitAndCollect(this.#event({ ...base, type: "planning_stall_detected", stallCount, maxRetries: this.#maxPlanningStallRetries }));
 
-          if (stallCount >= this.#maxPlanningStallRetries) {
-            yield this.#event({ ...base, type: "run_failed", error: { message: "Agent stopped after repeated plan-only turns without taking action.", recoverable: false } });
-            return;
+            if (stallCount >= this.#maxPlanningStallRetries) {
+              const ev = emitAndCollect(this.#event({ ...base, type: "run_failed", error: { message: "Agent stopped after repeated plan-only turns without taking action.", recoverable: false } }));
+              yield ev;
+              await this.#callAfterTurn(collectedEvents);
+              return;
+            }
+
+            messages = [
+              ...messages,
+              { role: "assistant", content: output.content },
+              { role: "user", content: PLANNING_ONLY_RETRY_INSTRUCTION }
+            ];
+            continue;
           }
 
-          messages = [
-            ...messages,
-            { role: "assistant", content: output.content },
-            { role: "user", content: PLANNING_ONLY_RETRY_INSTRUCTION }
-          ];
-          continue;
+          stallCount = 0;
+          yield emitAndCollect(this.#event({ ...base, type: "assistant_message_created", message: { role: "assistant", content: output.content } }));
+          const completedEv = emitAndCollect(this.#event({ ...base, type: "run_completed" }));
+          yield completedEv;
+          await this.#callAfterTurn(collectedEvents);
+          return;
         }
 
+        // type === "tool_calls"
         stallCount = 0;
-        yield this.#event({ ...base, type: "assistant_message_created", message: { role: "assistant", content: output.content } });
-        yield this.#event({ ...base, type: "run_completed" });
-        return;
-      }
+        messages = [...messages, { role: "assistant", content: null, toolCalls: output.calls }];
 
-      // type === "tool_calls"
-      stallCount = 0;
-      messages = [...messages, { role: "assistant", content: null, toolCalls: output.calls }];
+        const toolResultMessages: ModelMessage[] = [];
+        let hardTerminate = false;
+        let terminationError = "";
 
-      const toolResultMessages: ModelMessage[] = [];
-      let hardTerminate = false;
-      let terminationError = "";
+        for (const call of output.calls) {
+          yield emitAndCollect(this.#event({ ...base, type: "tool_call_requested", call }));
 
-      for (const call of output.calls) {
-        yield this.#event({ ...base, type: "tool_call_requested", call });
+          const tool = this.#tools.get(call.name);
+          if (tool === undefined) {
+            const errorMessage = `Tool "${call.name}" is not registered.`;
+            yield emitAndCollect(this.#event({ ...base, type: "tool_failed", callId: call.id, toolName: call.name, error: { message: errorMessage } }));
+            toolResultMessages.push({ role: "tool", toolCallId: call.id, content: `Error: ${errorMessage}` });
+            continue;
+          }
 
-        const tool = this.#tools.get(call.name);
-        if (tool === undefined) {
-          const errorMessage = `Tool "${call.name}" is not registered.`;
-          yield this.#event({ ...base, type: "tool_failed", callId: call.id, toolName: call.name, error: { message: errorMessage } });
-          toolResultMessages.push({ role: "tool", toolCallId: call.id, content: `Error: ${errorMessage}` });
-          continue;
-        }
+          const decision = this.#permissionPolicy.evaluate({
+            mode: normalizeAutonomyMode(this.#runtime?.mode),
+            action: createToolPermissionAction(call, tool.risk)
+          });
 
-        const decision = this.#permissionPolicy.evaluate({
-          mode: normalizeAutonomyMode(this.#runtime?.mode),
-          action: createToolPermissionAction(call, tool.risk)
-        });
+          yield emitAndCollect(this.#event({ ...base, type: "tool_call_permission_evaluated", callId: call.id, toolName: call.name, decision }));
 
-        yield this.#event({ ...base, type: "tool_call_permission_evaluated", callId: call.id, toolName: call.name, decision });
-
-        if (decision.decision === "deny") {
-          hardTerminate = true;
-          terminationError = `Tool call ${call.name} was denied.`;
-          break;
-        }
-
-        if (decision.decision === "ask") {
-          yield this.#event({ ...base, type: "approval_requested", callId: call.id, toolName: call.name, decision });
-
-          const resolution =
-            this.#approvalResolver === undefined
-              ? { approved: false, reason: "No approval resolver was configured." }
-              : await this.#approvalResolver.resolve({ call, decision });
-
-          yield this.#event({ ...base, type: "approval_resolved", callId: call.id, toolName: call.name, resolution });
-
-          if (!resolution.approved) {
+          if (decision.decision === "deny") {
             hardTerminate = true;
             terminationError = `Tool call ${call.name} was denied.`;
             break;
           }
+
+          if (decision.decision === "ask") {
+            yield emitAndCollect(this.#event({ ...base, type: "approval_requested", callId: call.id, toolName: call.name, decision }));
+
+            const resolution =
+              this.#approvalResolver === undefined
+                ? { approved: false, reason: "No approval resolver was configured." }
+                : await this.#approvalResolver.resolve({ call, decision });
+
+            yield emitAndCollect(this.#event({ ...base, type: "approval_resolved", callId: call.id, toolName: call.name, resolution }));
+
+            if (!resolution.approved) {
+              hardTerminate = true;
+              terminationError = `Tool call ${call.name} was denied.`;
+              break;
+            }
+          }
+
+          // beforeToolCall hook
+          if (this.#hooks?.beforeToolCall !== undefined) {
+            let hookResult: void | "abort" = undefined;
+            try {
+              hookResult = await this.#hooks.beforeToolCall(call);
+            } catch (err) {
+              if (typeof process !== "undefined" && process.env["NODE_ENV"] !== "production") {
+                console.warn("[AgentRuntime] beforeToolCall hook threw:", err);
+              }
+            }
+            if (hookResult === "abort") {
+              const abortMessage = "Tool call aborted by hook.";
+              yield emitAndCollect(this.#event({ ...base, type: "tool_failed", callId: call.id, toolName: call.name, error: { message: abortMessage } }));
+              toolResultMessages.push({ role: "tool", toolCallId: call.id, content: `Error: ${abortMessage}` });
+              continue;
+            }
+          }
+
+          yield emitAndCollect(this.#event({ ...base, type: "tool_started", callId: call.id, toolName: call.name }));
+
+          let result: Awaited<ReturnType<typeof tool.execute>>;
+          try {
+            result = await tool.execute(call.input, {
+              workspaceRoot: this.#runtime?.workspace ?? process.cwd()
+            });
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Unknown tool execution error.";
+            yield emitAndCollect(this.#event({ ...base, type: "tool_failed", callId: call.id, toolName: call.name, error: { message: errorMessage } }));
+            toolResultMessages.push({ role: "tool", toolCallId: call.id, content: `Error: ${errorMessage}` });
+            continue;
+          }
+
+          yield emitAndCollect(this.#event({ ...base, type: "tool_completed", callId: call.id, toolName: call.name, result }));
+          toolResultMessages.push({ role: "tool", toolCallId: call.id, content: JSON.stringify(result) });
+
+          // afterToolCall hook
+          if (this.#hooks?.afterToolCall !== undefined) {
+            try {
+              await this.#hooks.afterToolCall(call, result);
+            } catch (err) {
+              if (typeof process !== "undefined" && process.env["NODE_ENV"] !== "production") {
+                console.warn("[AgentRuntime] afterToolCall hook threw:", err);
+              }
+            }
+          }
         }
 
-        yield this.#event({ ...base, type: "tool_started", callId: call.id, toolName: call.name });
-
-        let result: Awaited<ReturnType<typeof tool.execute>>;
-        try {
-          result = await tool.execute(call.input, {
-            workspaceRoot: this.#runtime?.workspace ?? process.cwd()
-          });
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : "Unknown tool execution error.";
-          yield this.#event({ ...base, type: "tool_failed", callId: call.id, toolName: call.name, error: { message: errorMessage } });
-          toolResultMessages.push({ role: "tool", toolCallId: call.id, content: `Error: ${errorMessage}` });
-          continue;
+        if (hardTerminate) {
+          const ev = emitAndCollect(this.#event({ ...base, type: "run_failed", error: { message: terminationError, recoverable: false } }));
+          yield ev;
+          await this.#callAfterTurn(collectedEvents);
+          return;
         }
 
-        yield this.#event({ ...base, type: "tool_completed", callId: call.id, toolName: call.name, result });
-        toolResultMessages.push({ role: "tool", toolCallId: call.id, content: JSON.stringify(result) });
+        // Emit todos_updated if update_todos was called this batch.
+        if (output.calls.some((c) => c.name === "update_todos")) {
+          yield emitAndCollect(this.#event({ ...base, type: "todos_updated", todos: [...this.#currentTodos] }));
+        }
+
+        messages = [...messages, ...toolResultMessages];
       }
 
-      if (hardTerminate) {
-        yield this.#event({ ...base, type: "run_failed", error: { message: terminationError, recoverable: false } });
-        return;
-      }
-
-      // Emit todos_updated if update_todos was called this batch.
-      if (output.calls.some((c) => c.name === "update_todos")) {
-        yield this.#event({ ...base, type: "todos_updated", todos: [...this.#currentTodos] });
-      }
-
-      messages = [...messages, ...toolResultMessages];
+      const stepLimitEv = emitAndCollect(this.#event({ ...base, type: "run_failed", error: { message: `Agent loop reached the step limit of ${this.#maxSteps}.`, recoverable: false } }));
+      yield stepLimitEv;
+      await this.#callAfterTurn(collectedEvents);
+    } finally {
+      release?.();
     }
+  }
 
-    yield this.#event({ ...base, type: "run_failed", error: { message: `Agent loop reached the step limit of ${this.#maxSteps}.`, recoverable: false } });
+  async #callAfterTurn(events: RuntimeEvent[]): Promise<void> {
+    if (this.#hooks?.afterTurn === undefined) return;
+    try {
+      await this.#hooks.afterTurn(events);
+    } catch (err) {
+      if (typeof process !== "undefined" && process.env["NODE_ENV"] !== "production") {
+        console.warn("[AgentRuntime] afterTurn hook threw:", err);
+      }
+    }
   }
 
   #buildContextToolSummaries(): ContextToolSummary[] {
