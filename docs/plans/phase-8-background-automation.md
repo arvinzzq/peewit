@@ -7,14 +7,14 @@ Simplified Chinese version: [phase-8-background-automation.zh-CN.md](./phase-8-b
 
 ## Progress
 
-Status: In Progress
+Status: Complete
 
-Planned commits:
+Completed commits:
 
-- [ ] Part A: Design docs — background automation and task queue
-- [ ] Part B: `packages/scheduler` — task store, task definition types, and BackgroundApprovalResolver
-- [ ] Part C: `apps/cli` — `run` and `tasks` commands for background task execution
-- [ ] Part D: Mark Phase 8 complete
+- [x] Part A: Design docs — background automation and task queue: `e9fbe10`
+- [x] Part B: `packages/scheduler` — task store, task definition types, and BackgroundApprovalResolver: `8f70213`
+- [x] Part C: `apps/cli` — `run` and `tasks` commands for background task execution: `4bbc661`
+- [x] Part D: Mark Phase 8 complete
 
 ## 1. Purpose
 

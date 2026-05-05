@@ -7,14 +7,14 @@ English version: [phase-8-background-automation.md](./phase-8-background-automat
 
 ## 进度
 
-状态：进行中
+状态：完成
 
-计划提交：
+已完成提交：
 
-- [ ] Part A: 设计文档 — 后台自动化和 task queue
-- [ ] Part B: `packages/scheduler` — task store、task definition types 和 BackgroundApprovalResolver
-- [ ] Part C: `apps/cli` — 后台任务执行的 `run` 和 `tasks` 命令
-- [ ] Part D: 标记 Phase 8 完成
+- [x] Part A: 设计文档 — 后台自动化和 task queue: `e9fbe10`
+- [x] Part B: `packages/scheduler` — task store、task definition types 和 BackgroundApprovalResolver: `8f70213`
+- [x] Part C: `apps/cli` — 后台任务执行的 `run` 和 `tasks` 命令: `4bbc661`
+- [x] Part D: 标记 Phase 8 完成
 
 ## 1. 目的
 
