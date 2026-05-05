@@ -1,0 +1,477 @@
+import React, { useState, useEffect, useRef, useCallback } from "react";
+
+// ─── Types ─────────────────────────────────────────────────────────────────────
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+interface TodoItem {
+  content: string;
+  status: "pending" | "in_progress" | "completed";
+}
+
+interface PendingApproval {
+  callId: string;
+  toolName: string;
+  risk: string;
+  reason: string;
+}
+
+interface RuntimeEventData {
+  type: string;
+  delta?: string;
+  toolName?: string;
+  todos?: TodoItem[];
+  call?: { id: string; name: string };
+  decision?: { risk: string; reason: string };
+  message?: { content: string };
+  error?: { message: string };
+}
+
+// ─── API helpers ───────────────────────────────────────────────────────────────
+
+async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText })) as { error: string };
+    throw new Error(err.error ?? res.statusText);
+  }
+  return res.json() as Promise<T>;
+}
+
+// ─── Styles ────────────────────────────────────────────────────────────────────
+
+const css = {
+  app: {
+    display: "flex",
+    flexDirection: "column" as const,
+    height: "100vh",
+    background: "#0f1117",
+    color: "#e2e8f0",
+    fontFamily: "system-ui, -apple-system, sans-serif"
+  },
+  header: {
+    padding: "12px 20px",
+    borderBottom: "1px solid #1e2433",
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    background: "#161b27"
+  },
+  title: { fontSize: "18px", fontWeight: 700, color: "#7c8cf8" },
+  status: { fontSize: "12px", color: "#64748b" },
+  messages: {
+    flex: 1,
+    overflowY: "auto" as const,
+    padding: "20px",
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: "16px"
+  },
+  msgUser: {
+    alignSelf: "flex-end" as const,
+    maxWidth: "70%",
+    background: "#1e3a5f",
+    borderRadius: "12px 12px 4px 12px",
+    padding: "10px 14px"
+  },
+  msgAssistant: {
+    alignSelf: "flex-start" as const,
+    maxWidth: "80%",
+    background: "#1a2035",
+    borderRadius: "4px 12px 12px 12px",
+    padding: "10px 14px",
+    whiteSpace: "pre-wrap" as const
+  },
+  streamingMsg: {
+    alignSelf: "flex-start" as const,
+    maxWidth: "80%",
+    background: "#1a2035",
+    borderRadius: "4px 12px 12px 12px",
+    padding: "10px 14px",
+    whiteSpace: "pre-wrap" as const,
+    borderLeft: "2px solid #7c8cf8"
+  },
+  cursor: { display: "inline-block", background: "#7c8cf8", width: "8px", height: "1em", verticalAlign: "text-bottom", animation: "blink 1s step-end infinite" },
+  toolStatus: {
+    alignSelf: "flex-start" as const,
+    color: "#f59e0b",
+    fontSize: "13px",
+    padding: "6px 12px",
+    background: "#1c1a0e",
+    borderRadius: "6px"
+  },
+  todos: {
+    alignSelf: "flex-start" as const,
+    background: "#0f1a1f",
+    borderRadius: "8px",
+    padding: "10px 14px",
+    fontSize: "13px",
+    color: "#94a3b8"
+  },
+  approvalOverlay: {
+    position: "fixed" as const,
+    inset: 0,
+    background: "rgba(0,0,0,0.7)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 100
+  },
+  approvalCard: {
+    background: "#1a2035",
+    border: "1px solid #f59e0b",
+    borderRadius: "12px",
+    padding: "24px",
+    maxWidth: "440px",
+    width: "90%"
+  },
+  approvalTitle: { color: "#f59e0b", fontWeight: 700, marginBottom: "12px", fontSize: "16px" },
+  approvalField: { marginBottom: "8px", fontSize: "14px" },
+  approvalButtons: { display: "flex", gap: "10px", marginTop: "20px" },
+  btnApprove: {
+    flex: 1,
+    padding: "10px",
+    background: "#166534",
+    color: "#dcfce7",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: 600
+  },
+  btnDeny: {
+    flex: 1,
+    padding: "10px",
+    background: "#7f1d1d",
+    color: "#fecaca",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: 600
+  },
+  inputRow: {
+    padding: "12px 20px",
+    borderTop: "1px solid #1e2433",
+    display: "flex",
+    gap: "8px",
+    background: "#161b27"
+  },
+  input: {
+    flex: 1,
+    background: "#0f1117",
+    border: "1px solid #2d3748",
+    borderRadius: "8px",
+    padding: "10px 14px",
+    color: "#e2e8f0",
+    fontSize: "15px",
+    outline: "none"
+  },
+  sendBtn: {
+    padding: "10px 20px",
+    background: "#7c8cf8",
+    color: "#0f1117",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: 700,
+    fontSize: "15px"
+  },
+  sendBtnDisabled: {
+    padding: "10px 20px",
+    background: "#2d3748",
+    color: "#64748b",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "not-allowed",
+    fontWeight: 700,
+    fontSize: "15px"
+  },
+  tracePanel: {
+    background: "#0a0d16",
+    borderTop: "1px solid #1e2433",
+    padding: "8px 20px",
+    fontSize: "11px",
+    color: "#475569",
+    maxHeight: "80px",
+    overflowY: "auto" as const
+  }
+};
+
+// ─── App component ────────────────────────────────────────────────────────────
+
+export default function App() {
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
+  const [currentTool, setCurrentTool] = useState<string | null>(null);
+  const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [pendingApproval, setPendingApproval] = useState<PendingApproval | null>(null);
+  const [traceLog, setTraceLog] = useState<string[]>([]);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-create session on mount
+  useEffect(() => {
+    apiPost<{ sessionId: string }>("/api/sessions", {})
+      .then(({ sessionId }) => setSessionId(sessionId))
+      .catch((err: unknown) => setError((err instanceof Error ? err.message : String(err))));
+  }, []);
+
+  // Scroll to bottom when messages update
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, streamingText]);
+
+  const sendMessage = useCallback(
+    async (msg: string) => {
+      if (sessionId === null || isSending || msg.trim() === "") return;
+      const trimmed = msg.trim();
+
+      setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+      setInput("");
+      setIsSending(true);
+      setStreamingText("");
+      setCurrentTool(null);
+
+      try {
+        const response = await fetch(`/api/sessions/${sessionId}/turns`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: trimmed })
+        });
+
+        if (!response.ok || response.body === null) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let lastAssistantText = "";
+
+        const processLine = (line: string) => {
+          if (!line.startsWith("data: ")) return;
+          const data = line.slice(6).trim();
+          if (data === "") return;
+
+          let event: RuntimeEventData;
+          try {
+            event = JSON.parse(data) as RuntimeEventData;
+          } catch {
+            return;
+          }
+
+          setTraceLog((prev) => [...prev.slice(-19), event.type]);
+
+          if (event.type === "token_delta" && event.delta !== undefined) {
+            setStreamingText((prev) => prev + event.delta!);
+          } else if (event.type === "tool_started" && event.toolName !== undefined) {
+            setCurrentTool(event.toolName);
+          } else if (event.type === "tool_completed" || event.type === "tool_failed") {
+            setCurrentTool(null);
+          } else if (event.type === "todos_updated" && event.todos !== undefined) {
+            setTodos([...event.todos]);
+          } else if (
+            event.type === "approval_requested" &&
+            event.call !== undefined &&
+            event.decision !== undefined
+          ) {
+            setPendingApproval({
+              callId: event.call.id,
+              toolName: event.call.name,
+              risk: event.decision.risk,
+              reason: event.decision.reason
+            });
+          } else if (event.type === "approval_resolved") {
+            setPendingApproval(null);
+          } else if (event.type === "assistant_message_created" && event.message !== undefined) {
+            lastAssistantText = event.message.content;
+          }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          for (const line of lines) processLine(line.trim());
+        }
+
+        // Flush remaining
+        buffer += decoder.decode();
+        for (const line of buffer.split("\n")) processLine(line.trim());
+
+        setStreamingText("");
+        setCurrentTool(null);
+        if (lastAssistantText !== "") {
+          setMessages((prev) => [...prev, { role: "assistant", content: lastAssistantText }]);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setIsSending(false);
+      }
+    },
+    [sessionId, isSending]
+  );
+
+  const handleApprove = useCallback(async () => {
+    if (pendingApproval === null || sessionId === null) return;
+    await apiPost(`/api/sessions/${sessionId}/approvals`, {
+      callId: pendingApproval.callId,
+      approved: true,
+      reason: "Approved by user."
+    }).catch(() => {});
+    setPendingApproval(null);
+  }, [pendingApproval, sessionId]);
+
+  const handleDeny = useCallback(async () => {
+    if (pendingApproval === null || sessionId === null) return;
+    await apiPost(`/api/sessions/${sessionId}/approvals`, {
+      callId: pendingApproval.callId,
+      approved: false,
+      reason: "Denied by user."
+    }).catch(() => {});
+    setPendingApproval(null);
+  }, [pendingApproval, sessionId]);
+
+  if (error !== null) {
+    return (
+      <div style={{ ...css.app, alignItems: "center", justifyContent: "center" }}>
+        <div style={{ color: "#f87171", fontSize: "16px", maxWidth: "480px", textAlign: "center" }}>
+          <div style={{ fontSize: "24px", marginBottom: "12px" }}>⚠</div>
+          <div>{error}</div>
+          <div style={{ marginTop: "8px", fontSize: "13px", color: "#64748b" }}>
+            Make sure ARVINCLAW_API_KEY is set and the server is running.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionId === null) {
+    return (
+      <div style={{ ...css.app, alignItems: "center", justifyContent: "center" }}>
+        <div style={{ color: "#7c8cf8" }}>Starting ArvinClaw…</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={css.app}>
+      {/* Header */}
+      <div style={css.header}>
+        <div style={css.title}>ArvinClaw</div>
+        <div style={css.status}>
+          {isSending ? "Thinking…" : `Session ${sessionId.slice(-8)}`}
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div style={css.messages}>
+        {messages.map((msg, i) => (
+          <div key={i} style={msg.role === "user" ? css.msgUser : css.msgAssistant}>
+            {msg.content}
+          </div>
+        ))}
+
+        {/* Streaming current turn */}
+        {streamingText !== "" && (
+          <div style={css.streamingMsg}>
+            {streamingText}
+            <span style={css.cursor} />
+          </div>
+        )}
+
+        {/* Tool progress */}
+        {currentTool !== null && (
+          <div style={css.toolStatus}>⟳ Running: {currentTool}</div>
+        )}
+
+        {/* Todos */}
+        {todos.length > 0 && (
+          <div style={css.todos}>
+            <div style={{ fontWeight: 600, marginBottom: "6px" }}>Tasks</div>
+            {todos.map((todo, i) => (
+              <div key={i}>
+                {todo.status === "completed" ? "✓" : todo.status === "in_progress" ? "→" : "·"}{" "}
+                {todo.content}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Trace log */}
+      {traceLog.length > 0 && (
+        <div style={css.tracePanel}>{traceLog.join(" → ")}</div>
+      )}
+
+      {/* Input */}
+      <div style={css.inputRow}>
+        <input
+          style={css.input}
+          placeholder={isSending ? "Thinking…" : "Type a message…"}
+          value={input}
+          disabled={isSending || pendingApproval !== null}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              void sendMessage(input);
+            }
+          }}
+          autoFocus
+        />
+        <button
+          style={isSending ? css.sendBtnDisabled : css.sendBtn}
+          disabled={isSending || pendingApproval !== null}
+          onClick={() => void sendMessage(input)}
+        >
+          Send
+        </button>
+      </div>
+
+      {/* Approval overlay */}
+      {pendingApproval !== null && (
+        <div style={css.approvalOverlay}>
+          <div style={css.approvalCard}>
+            <div style={css.approvalTitle}>⚠ Approval Required</div>
+            <div style={css.approvalField}>
+              <strong>Tool:</strong> {pendingApproval.toolName}
+            </div>
+            <div style={css.approvalField}>
+              <strong>Risk:</strong>{" "}
+              <span style={{ color: pendingApproval.risk === "high" ? "#f87171" : "#f59e0b" }}>
+                {pendingApproval.risk}
+              </span>
+            </div>
+            <div style={{ ...css.approvalField, color: "#94a3b8" }}>{pendingApproval.reason}</div>
+            <div style={css.approvalButtons}>
+              <button style={css.btnApprove} onClick={() => void handleApprove()}>
+                Approve
+              </button>
+              <button style={css.btnDeny} onClick={() => void handleDeny()}>
+                Deny
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`@keyframes blink { 50% { opacity: 0; } }`}</style>
+    </div>
+  );
+}

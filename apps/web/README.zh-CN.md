@@ -1,0 +1,34 @@
+# Web App
+
+## Architecture Summary
+
+这个目录拥有 ArvinClaw 的浏览器端 UI 适配器。
+它通过 HTTP/SSE 暴露 Agent Core 并提供 React 前端服务。
+它是一个适配器——不拥有提示词组装、工具执行或权限策略。
+
+## File Inventory
+
+| File | Role | Purpose |
+| --- | --- | --- |
+| `package.json` | Package manifest | 声明 web 应用、构建脚本、Hono、React 和 workspace 包依赖。 |
+| `tsconfig.json` | TypeScript config | 编译服务端和客户端 TypeScript；composite 用于项目引用。 |
+| `vite.config.ts` | Vite config | 打包 React 前端；开发模式下将 /api/* 代理到 Hono。 |
+| `public/index.html` | HTML shell | 由 Vite 提供服务的单页应用入口。 |
+| `src/server.ts` | Hono API server | POST /api/sessions（创建）、GET /api/sessions（列出）、POST /api/sessions/:id/turns（SSE 流）、POST /api/sessions/:id/approvals（解析审批）；生产环境下提供静态客户端文件。 |
+| `src/client/main.tsx` | React entry | 将 `<App>` 挂载到 DOM。 |
+| `src/client/App.tsx` | Chat UI | 完整聊天组件：SSE 流式显示、审批 Modal、Todos 面板、Trace 日志条。 |
+
+## 开发
+
+```sh
+# 同时启动服务器和 Vite
+pnpm --filter @arvinclaw/web run dev
+```
+
+开发模式下在浏览器打开 `http://localhost:5173`——API 请求会自动代理到 3120 端口的 Hono 服务器。
+
+启动前设置 `ARVINCLAW_API_KEY`（或 `OPENROUTER_API_KEY` + `ARVINCLAW_MODEL`）。
+
+## Update Reminder
+
+目录结构变化时更新此文件。
