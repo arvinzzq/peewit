@@ -1100,7 +1100,7 @@ export class CliChatSession {
       new AgentRuntime({
         contextAssembler: createCliContextAssembler(config, new Date().toISOString().slice(0, 10)),
         modelProvider: provider,
-        systemInstruction: "You are ArvinClaw, a personal general-purpose agent. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require user approval. ",
+        systemInstruction: `You are ArvinClaw, a personal general-purpose agent. Today's date is ${new Date().toISOString().slice(0, 10)}. Answer questions from your knowledge and context first — only use tools when the task genuinely requires reading files, writing files, running commands, or fetching web content.`,
         runtime: {
           mode: "confirm",
           workspace: config.workspace.root,
@@ -1166,7 +1166,7 @@ export class CliChatSession {
       new AgentRuntime({
         contextAssembler: createCliContextAssembler(config, currentDate),
         modelProvider: configuredProvider,
-        systemInstruction: "You are ArvinClaw, a personal general-purpose agent. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require user approval. ",
+        systemInstruction: `You are ArvinClaw, a personal general-purpose agent. Today's date is ${currentDate}. Answer questions from your knowledge and context first — only use tools when the task genuinely requires reading files, writing files, running commands, or fetching web content.`,
         runtime: {
           mode: config.runtime.defaultMode,
           workspace: config.workspace.root,
@@ -1468,7 +1468,10 @@ export function renderToolResult(result: import("@arvinclaw/tools").ToolExecutio
     const out = [(result as { stdout?: string }).stdout, (result as { stderr?: string }).stderr].filter(Boolean).join("\n");
     return out || "(no output)";
   }
-  if ("error" in result) return `Error: ${(result as { error: string }).error}`;
+  if ("error" in result) {
+    const err = (result as { error: unknown }).error;
+    return `Error: ${typeof err === "object" && err !== null && "message" in err ? (err as { message: string }).message : String(err)}`;
+  }
   return JSON.stringify(result, null, 2);
 }
 
