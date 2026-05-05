@@ -386,7 +386,7 @@ async function runBackgroundTask(
   const runtime = new AgentRuntime({
     contextAssembler: createCliContextAssembler(config, currentDate),
     modelProvider: configuredProvider,
-    systemInstruction: "You are ArvinClaw, a personal general-purpose agent running a background task. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require approval.",
+    systemInstruction: "You are ArvinClaw, a personal general-purpose agent running a background task. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require approval. ",
     runtime: {
       mode,
       workspace: config.workspace.root,
@@ -521,7 +521,7 @@ async function runDaemonTask(
   const runtime = new AgentRuntime({
     contextAssembler: createCliContextAssembler(config, currentDate),
     modelProvider: provider,
-    systemInstruction: "You are ArvinClaw, a personal general-purpose agent running a scheduled background task. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require approval.",
+    systemInstruction: "You are ArvinClaw, a personal general-purpose agent running a scheduled background task. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require approval. ",
     runtime: {
       mode,
       workspace: config.workspace.root,
@@ -1100,7 +1100,7 @@ export class CliChatSession {
       new AgentRuntime({
         contextAssembler: createCliContextAssembler(config, new Date().toISOString().slice(0, 10)),
         modelProvider: provider,
-        systemInstruction: "You are ArvinClaw, a personal general-purpose agent. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require user approval.",
+        systemInstruction: "You are ArvinClaw, a personal general-purpose agent. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require user approval. ",
         runtime: {
           mode: "confirm",
           workspace: config.workspace.root,
@@ -1166,7 +1166,7 @@ export class CliChatSession {
       new AgentRuntime({
         contextAssembler: createCliContextAssembler(config, currentDate),
         modelProvider: configuredProvider,
-        systemInstruction: "You are ArvinClaw, a personal general-purpose agent. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require user approval.",
+        systemInstruction: "You are ArvinClaw, a personal general-purpose agent. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require user approval. ",
         runtime: {
           mode: config.runtime.defaultMode,
           workspace: config.workspace.root,
@@ -1456,6 +1456,22 @@ export function renderRedactedConfig(config: RedactedConfigView): string[] {
   ];
 }
 
+function renderToolResult(result: import("@arvinclaw/tools").ToolExecutionResult): string {
+  if ("entries" in result && Array.isArray(result.entries)) {
+    return result.entries.map((e: { name: string; type: string }) => `  ${e.type === "directory" ? "📁" : "📄"} ${e.name}`).join("\n");
+  }
+  if ("content" in result && typeof result.content === "string") {
+    const lines = result.content.split("\n");
+    return lines.length > 30 ? lines.slice(0, 30).join("\n") + `\n  … (${lines.length - 30} more lines)` : result.content;
+  }
+  if ("stdout" in result) {
+    const out = [(result as { stdout?: string }).stdout, (result as { stderr?: string }).stderr].filter(Boolean).join("\n");
+    return out || "(no output)";
+  }
+  if ("error" in result) return `Error: ${(result as { error: string }).error}`;
+  return JSON.stringify(result, null, 2);
+}
+
 export function renderCompactTrace(events: RuntimeEvent[]): string[] {
   return events.map((event, index) => `${index + 1}. ${traceEventLabel(event)} (${event.type})`);
 }
@@ -1485,11 +1501,11 @@ function traceEventLabel(event: RuntimeEvent): string {
     case "approval_resolved":
       return "Resolved approval";
     case "tool_started":
-      return "Started tool";
+      return `Tool: ${event.toolName}`;
     case "tool_completed":
-      return "Completed tool";
+      return `Result [${event.toolName}]:\n${renderToolResult(event.result)}`;
     case "tool_failed":
-      return "Failed tool";
+      return `Tool failed [${event.toolName}]: ${event.error.message}`;
     case "assistant_message_created":
       return "Created assistant message";
     case "run_completed":

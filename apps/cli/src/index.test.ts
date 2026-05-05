@@ -830,8 +830,8 @@ describe("runCli", () => {
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe("");
       expect(result.stdout).toContain("Assistant: Read README through the built-in file tool.");
-      expect(result.stdout).toContain("7. Started tool (tool_started)");
-      expect(result.stdout).toContain("8. Completed tool (tool_completed)");
+      expect(result.stdout).toContain("tool_started)");
+      expect(result.stdout).toContain("tool_completed)");
       expect(result.stdout).toContain("12. Completed run (run_completed)");
     } finally {
       await rm(workspace, { force: true, recursive: true });
@@ -874,8 +874,8 @@ describe("runCli", () => {
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe("");
       expect(result.stdout).toContain("Assistant: Read the web page content.");
-      expect(result.stdout).toContain("7. Started tool (tool_started)");
-      expect(result.stdout).toContain("8. Completed tool (tool_completed)");
+      expect(result.stdout).toContain("tool_started)");
+      expect(result.stdout).toContain("tool_completed)");
       expect(result.stdout).toContain("12. Completed run (run_completed)");
     } finally {
       // no cleanup needed; no temp files created
@@ -1079,9 +1079,9 @@ describe("runCli", () => {
       "3. Evaluated tool permission (tool_call_permission_evaluated)",
       "4. Requested approval (approval_requested)",
       "5. Resolved approval (approval_resolved)",
-      "6. Started tool (tool_started)",
-      "7. Completed tool (tool_completed)",
-      "8. Failed tool (tool_failed)",
+      "6. Tool: read_file (tool_started)",
+      "7. Result [read_file]:\nHello (tool_completed)",
+      "8. Tool failed [missing_tool]: Tool missing_tool is not registered. (tool_failed)",
       "9. Completed run (run_completed)"
     ]);
   });
