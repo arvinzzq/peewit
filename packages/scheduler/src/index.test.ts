@@ -1,8 +1,8 @@
-import { describe, test, expect, afterEach } from "vitest";
+import { describe, test, expect, afterEach, vi } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { JsonlTaskStore, BackgroundApprovalResolver, type TaskRunRecord } from "./index.js";
+import { JsonlTaskStore, BackgroundApprovalResolver, CronScheduler, matchesCron, type TaskRunRecord } from "./index.js";
 import type { ApprovalRequest } from "@arvinclaw/core";
 
 describe("JsonlTaskStore", () => {
@@ -168,5 +168,109 @@ describe("BackgroundApprovalResolver", () => {
     const resolver = new BackgroundApprovalResolver();
     const resolution = await resolver.resolve(fakeRequest);
     expect(resolution.approved).toBe(false);
+  });
+});
+
+describe("matchesCron", () => {
+  test("matches all fields wildcard", () => {
+    // Any date should match "* * * * *"
+    expect(matchesCron("* * * * *", new Date("2026-05-05T14:30:00.000Z"))).toBe(true);
+    expect(matchesCron("* * * * *", new Date("2026-01-01T00:00:00.000Z"))).toBe(true);
+  });
+
+  test("matches specific minute and hour", () => {
+    // Build a date whose local getHours()=9, getMinutes()=30
+    const matching = new Date();
+    matching.setHours(9, 30, 0, 0);
+    expect(matchesCron("30 9 * * *", matching)).toBe(true);
+  });
+
+  test("returns false for wrong hour", () => {
+    // Local hour=9, minute=30 — cron "30 10 * * *" requires hour 10
+    const wrongHour = new Date();
+    wrongHour.setHours(9, 30, 0, 0);
+    expect(matchesCron("30 10 * * *", wrongHour)).toBe(false);
+  });
+
+  test("returns false for invalid expression (wrong parts count)", () => {
+    expect(matchesCron("* * * *", new Date())).toBe(false);
+    expect(matchesCron("", new Date())).toBe(false);
+    expect(matchesCron("* * * * * *", new Date())).toBe(false);
+  });
+});
+
+describe("CronScheduler", () => {
+  test("runs a task when cron matches", async () => {
+    // Use a fixed date; "* * * * *" matches any minute
+    const fixedDate = new Date();
+    const runnerCalls: string[] = [];
+    const tasks = [{ name: "my-task", goal: "do work", cron: "* * * * *" }];
+    const runner = vi.fn(async (task) => { runnerCalls.push(task.name); });
+
+    const scheduler = new CronScheduler(tasks, runner, {
+      checkIntervalMs: 60_000,
+      getNow: () => fixedDate
+    });
+
+    scheduler.start();
+    // Wait for the immediate tick to complete
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    scheduler.stop();
+
+    expect(runner).toHaveBeenCalledOnce();
+    expect(runnerCalls).toEqual(["my-task"]);
+  });
+
+  test("does not run a task twice in the same minute", async () => {
+    const fixedDate = new Date();
+    const runner = vi.fn(async () => undefined);
+    const tasks = [{ name: "dedup-task", goal: "run once", cron: "* * * * *" }];
+
+    const scheduler = new CronScheduler(tasks, runner, {
+      checkIntervalMs: 1,
+      getNow: () => fixedDate
+    });
+
+    scheduler.start();
+    // Wait long enough for multiple ticks
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    scheduler.stop();
+
+    // Even with multiple ticks, only one call per minute
+    expect(runner).toHaveBeenCalledOnce();
+  });
+
+  test("does not run non-matching cron tasks", async () => {
+    // Use a date at local hour=10, minute=5; cron "30 9 * * *" requires hour=9, minute=30
+    const fixedDate = new Date();
+    fixedDate.setHours(10, 5, 0, 0);
+    const runner = vi.fn(async () => undefined);
+    const tasks = [{ name: "no-match-task", goal: "never runs", cron: "30 9 * * *" }];
+
+    const scheduler = new CronScheduler(tasks, runner, {
+      checkIntervalMs: 60_000,
+      getNow: () => fixedDate
+    });
+
+    scheduler.start();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    scheduler.stop();
+
+    expect(runner).not.toHaveBeenCalled();
+  });
+
+  test("start/stop lifecycle", async () => {
+    const runner = vi.fn(async () => undefined);
+    const tasks = [{ name: "lifecycle-task", goal: "test lifecycle", cron: "* * * * *" }];
+    const scheduler = new CronScheduler(tasks, runner, {
+      checkIntervalMs: 60_000,
+      getNow: () => new Date()
+    });
+
+    expect(scheduler.isRunning).toBe(false);
+    scheduler.start();
+    expect(scheduler.isRunning).toBe(true);
+    scheduler.stop();
+    expect(scheduler.isRunning).toBe(false);
   });
 });
