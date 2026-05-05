@@ -1,11 +1,11 @@
 /**
- * INPUT: System instructions, runtime metadata, tool summaries, skill index, permission guidance, workspace prompt files, recent conversation messages, and user messages.
- * OUTPUT: Provider-neutral model input assembled from named sections, conversation history, and a per-section context assembly report.
+ * INPUT: System instructions, runtime metadata, tool summaries, skill index, permission guidance, workspace prompt files, recent conversation messages, user messages, compaction options, and model provider for summarization.
+ * OUTPUT: Provider-neutral model input assembled from named sections, conversation history, a per-section context assembly report, and compacted message histories via compactMessages.
  * POS: Context assembly layer; decides what the model sees before provider formatting.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
-import type { ModelInput, ModelMessage } from "@arvinclaw/models";
+import type { ModelInput, ModelMessage, ModelProvider } from "@arvinclaw/models";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -183,4 +183,62 @@ export class DefaultContextAssembler implements ContextAssembler {
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error;
+}
+
+// ─── Compaction ────────────────────────────────────────────────────────────────
+
+export interface CompactionOptions {
+  maxMessages: number;
+  keepRecent: number;
+  summarySystemPrompt: string;
+}
+
+export const DEFAULT_COMPACTION_OPTIONS: CompactionOptions = {
+  maxMessages: 30,
+  keepRecent: 12,
+  summarySystemPrompt:
+    "You are a conversation summarizer. Produce a concise factual summary of the conversation history. Preserve tool calls made, decisions reached, key facts discovered, and current task state. Be brief."
+};
+
+export async function compactMessages(
+  messages: ModelMessage[],
+  modelProvider: ModelProvider,
+  options?: Partial<CompactionOptions>
+): Promise<ModelMessage[]> {
+  const opts: CompactionOptions = { ...DEFAULT_COMPACTION_OPTIONS, ...options };
+
+  if (messages.length <= opts.maxMessages) {
+    return messages;
+  }
+
+  const old = messages.slice(0, messages.length - opts.keepRecent);
+  const recent = messages.slice(-opts.keepRecent);
+
+  if (old.length === 0) {
+    return messages;
+  }
+
+  const transcript = old
+    .map((m) => `${m.role.toUpperCase()}: ${m.content ?? "(tool call)"}`)
+    .join("\n");
+
+  try {
+    const output = await modelProvider.generate({
+      messages: [
+        { role: "system", content: opts.summarySystemPrompt },
+        { role: "user", content: `Conversation to summarize:\n\n${transcript}` }
+      ]
+    });
+
+    if (output.type !== "message" || !output.content) {
+      return messages;
+    }
+
+    return [
+      { role: "system", content: `Conversation summary:\n${output.content}` },
+      ...recent
+    ];
+  } catch {
+    return messages;
+  }
 }

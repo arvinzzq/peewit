@@ -2,7 +2,8 @@ import { describe, expect, test } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DefaultContextAssembler, type ContextAssembler } from "./index.js";
+import { FakeModelProvider } from "@arvinclaw/models";
+import { DefaultContextAssembler, compactMessages, type ContextAssembler } from "./index.js";
 
 describe("context assembler sections", () => {
   test("assembles provider-ready messages in deterministic section order", async () => {
@@ -270,6 +271,53 @@ describe("workspace section", () => {
     } finally {
       await rm(workspace, { force: true, recursive: true });
     }
+  });
+});
+
+describe("compactMessages", () => {
+  test("returns messages unchanged when under maxMessages threshold", async () => {
+    const messages = Array.from({ length: 5 }, (_, i) => ({
+      role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+      content: `Message ${i}`
+    }));
+    const provider = new FakeModelProvider([]);
+    const result = await compactMessages(messages, provider, { maxMessages: 10 });
+    expect(result).toEqual(messages);
+  });
+
+  test("replaces old messages with summary when over threshold", async () => {
+    const messages = [
+      { role: "system" as const, content: "You are a helpful assistant." },
+      ...Array.from({ length: 14 }, (_, i) => ({
+        role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+        content: `Turn ${i}`
+      }))
+    ];
+    // 15 total messages, maxMessages=10, keepRecent=5
+    const provider = new FakeModelProvider([{ type: "message", content: "Summary of old conversation." }]);
+    const result = await compactMessages(messages, provider, { maxMessages: 10, keepRecent: 5 });
+
+    // Should be 1 summary system message + 5 recent messages = 6
+    expect(result).toHaveLength(6);
+    expect(result[0]?.role).toBe("system");
+    expect(result[0]?.content).toContain("Conversation summary:");
+    expect(result[0]?.content).toContain("Summary of old conversation.");
+    // Verify the 5 recent messages are preserved
+    for (let i = 1; i <= 5; i++) {
+      expect(result[i]).toEqual(messages[messages.length - 5 + (i - 1)]);
+    }
+  });
+
+  test("returns original messages when model call fails", async () => {
+    const messages = Array.from({ length: 15 }, (_, i) => ({
+      role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+      content: `Message ${i}`
+    }));
+    const provider = new FakeModelProvider([
+      { type: "error", category: "unknown", message: "Model failed", recoverable: false }
+    ]);
+    const result = await compactMessages(messages, provider, { maxMessages: 10, keepRecent: 5 });
+    expect(result).toEqual(messages);
   });
 });
 

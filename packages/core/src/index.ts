@@ -6,11 +6,13 @@
  * Update this header and the parent directory docs when responsibilities change.
  */
 import type {
+  CompactionOptions,
   ContextAssembler,
   ContextRuntimeMetadata,
   ContextSkillSummary,
   ContextToolSummary
 } from "@arvinclaw/context";
+import { compactMessages } from "@arvinclaw/context";
 import { isStreamingProvider } from "@arvinclaw/models";
 import type { ModelMessage, ModelOutput, ModelProvider, ModelUsage, ModelToolCall, ModelToolDefinition } from "@arvinclaw/models";
 import {
@@ -251,6 +253,7 @@ export interface AgentRuntimeDependencies {
   systemInstruction: string;
   runtime?: ContextRuntimeMetadata;
   preferStreaming?: boolean;
+  compaction?: Partial<CompactionOptions>;
   createRunId?: () => string;
   createEventId?: () => string;
   now?: () => string;
@@ -281,6 +284,7 @@ export class AgentRuntime {
   readonly #systemInstruction: string;
   readonly #runtime: ContextRuntimeMetadata | undefined;
   readonly #preferStreaming: boolean;
+  readonly #compaction: Partial<CompactionOptions> | undefined;
   readonly #createRunId: () => string;
   readonly #createEventId: () => string;
   readonly #now: () => string;
@@ -297,6 +301,7 @@ export class AgentRuntime {
     this.#systemInstruction = dependencies.systemInstruction;
     this.#runtime = dependencies.runtime;
     this.#preferStreaming = dependencies.preferStreaming ?? false;
+    this.#compaction = dependencies.compaction;
     this.#createRunId = dependencies.createRunId ?? randomId("run");
     this.#createEventId = dependencies.createEventId ?? randomId("evt");
     this.#now = dependencies.now ?? (() => new Date().toISOString());
@@ -339,6 +344,10 @@ export class AgentRuntime {
     this.#currentTodos = [];
 
     while (steps < this.#maxSteps) {
+      if (this.#compaction !== undefined) {
+        messages = await compactMessages(messages, this.#modelProvider, this.#compaction);
+      }
+
       yield this.#event({ ...base, type: "model_request_started", provider: "configured" });
 
       const modelInput = {
