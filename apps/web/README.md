@@ -14,7 +14,7 @@ It is an adapter — it does not own prompt assembly, tool execution, or permiss
 | `tsconfig.json` | TypeScript config | Compiles server and client TypeScript; composite for project references. |
 | `vite.config.ts` | Vite config | Bundles the React frontend; proxies /api/* to Hono in development. |
 | `public/index.html` | HTML shell | Single-page app entry point served by Vite. |
-| `src/server.ts` | Hono API server | POST /api/sessions (create or resume), GET /api/sessions (list from JsonlSessionStore), GET /api/sessions/:id (single session metadata), GET /api/sessions/:id/messages (messages), POST /api/sessions/:id/turns (SSE stream), POST /api/sessions/:id/approvals (resolve), GET /api/gateway/sessions (list active sessions from module-level SessionGateway); registers sessions in SessionGateway on creation, touches lastActivityAt after each turn; serves static client in production. |
+| `src/server.ts` | Hono API server | POST /api/sessions (create or resume), GET /api/sessions (list from JsonlSessionStore), GET /api/sessions/:id (single session metadata), GET /api/sessions/:id/messages (messages), POST /api/sessions/:id/turns (SSE stream), POST /api/sessions/:id/approvals (resolve), GET /api/gateway/sessions (list active sessions from module-level SessionGateway), GET /ws/:id (WebSocket endpoint — client sends `turn`/`approval` frames, server streams runtime events as JSON frames); registers sessions in SessionGateway on creation, touches lastActivityAt after each turn; serves static client in production. |
 | `src/client/main.tsx` | React entry | Mounts `<App>` into the DOM. |
 | `src/client/App.tsx` | Chat UI | Sessions page (list, new, resume) and chat view: SSE streaming display, approval modal, todos panel, trace log strip. |
 

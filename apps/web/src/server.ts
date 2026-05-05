@@ -1,7 +1,7 @@
 /**
- * INPUT: HTTP requests, env vars (ARVINCLAW_API_KEY, ARVINCLAW_MODEL, etc.), runtime events from AgentRuntime.
- * OUTPUT: JSON API (sessions CRUD, turns SSE stream, approval resolution, gateway sessions endpoint), static client files in production.
- * POS: Web adapter layer; exposes AgentRuntime over HTTP/SSE without owning agent logic.
+ * INPUT: HTTP requests, WebSocket frames, env vars (ARVINCLAW_API_KEY, ARVINCLAW_MODEL, etc.), runtime events from AgentRuntime.
+ * OUTPUT: JSON API (sessions CRUD, turns SSE stream, approval resolution, gateway sessions endpoint), WebSocket endpoint (/ws/:id) for bidirectional session communication, static client files in production.
+ * POS: Web adapter layer; exposes AgentRuntime over HTTP/SSE/WebSocket without owning agent logic.
  *
  * Session storage: one shared JsonlSessionStore at resolveSessionsDirectory(config).
  * Transient runtime state (runtime, approvalResolver, traceStore) is held in the sessions Map.
@@ -11,6 +11,7 @@
  */
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
+import { WebSocketServer } from "ws";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { WEB_CAPABILITIES, filterToolsByProfile, type ToolProfile } from "@arvinclaw/adapters";
@@ -400,4 +401,79 @@ const port = Number(process.env["PORT"] ?? 3120);
 
 console.log(`ArvinClaw web server starting on http://localhost:${port}`);
 
-serve({ fetch: app.fetch, port });
+const server = serve({ fetch: app.fetch, port });
+
+// ─── WebSocket endpoint: GET /ws/:id ─────────────────────────────────────────
+// Bidirectional session communication over WebSocket.
+// Client sends { type: "turn", message } or { type: "approval", callId, approved, reason }.
+// Server streams runtime events as JSON frames.
+
+const wss = new WebSocketServer({ noServer: true });
+
+server.on("upgrade", (request, socket, head) => {
+  const url = request.url ?? "";
+  const match = /^\/ws\/([^/?#]+)/.exec(url);
+  if (match === null) {
+    socket.destroy();
+    return;
+  }
+
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    const sessionId = match[1] as string;
+    const session = sessions.get(sessionId);
+
+    if (session === undefined) {
+      ws.send(JSON.stringify({ type: "error", message: "Session not found." }));
+      ws.close();
+      return;
+    }
+
+    ws.send(JSON.stringify({ type: "connected", sessionId }));
+
+    ws.on("message", (data) => {
+      void (async () => {
+        const currentSession = sessions.get(sessionId);
+        if (currentSession === undefined) { ws.close(); return; }
+
+        let msg: { type: string; message?: string; callId?: string; approved?: boolean; reason?: string };
+        try {
+          msg = JSON.parse(String(data)) as typeof msg;
+        } catch {
+          ws.send(JSON.stringify({ type: "error", message: "Invalid JSON." }));
+          return;
+        }
+
+        if (msg.type === "turn" && msg.message !== undefined) {
+          const userMessage = msg.message;
+          let config: EffectiveConfig;
+          try {
+            config = loadConfig({ env: process.env as Record<string, string | undefined> });
+          } catch {
+            ws.send(JSON.stringify({ type: "error", message: "Config error." }));
+            return;
+          }
+          const store = getOrCreateSharedStore(config);
+          const recentRaw = await store.listMessages(sessionId, { limit: 12 });
+          const recentMessages = recentRaw.map((m) => ({ role: m.role, content: m.content }));
+
+          for await (const runtimeEvent of currentSession.runtime.runTurn({ sessionId, recentMessages, message: userMessage })) {
+            await currentSession.traceStore.append(runtimeEvent);
+            await store.appendTraceEvent({ sessionId, event: runtimeEvent });
+            ws.send(JSON.stringify(runtimeEvent));
+            if (runtimeEvent.type === "run_completed" || runtimeEvent.type === "run_failed") break;
+          }
+
+          await store.appendMessage({ sessionId, role: "user", content: userMessage });
+        } else if (msg.type === "approval" && msg.callId !== undefined) {
+          currentSession.approvalResolver.settle(msg.callId, {
+            approved: msg.approved ?? false,
+            reason: msg.reason ?? (msg.approved ? "Approved." : "Denied.")
+          });
+        }
+      })();
+    });
+
+    // Session stays alive; only the WS connection closed
+    ws.on("close", () => { /* no-op */ });
+  });
+});

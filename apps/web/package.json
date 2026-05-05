@@ -22,11 +22,13 @@
     "@hono/node-server": "^1.14.4",
     "hono": "^4.7.10",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "ws": "^8.20.0"
   },
   "devDependencies": {
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.5",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.5.2",
     "concurrently": "^9.1.2",
     "tsx": "^4.19.4",
