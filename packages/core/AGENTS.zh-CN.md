@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-保持这个 package 专注于 runtime coordination、short-term context handoff、model-requested tool-call events、permission evaluation events、approval resolution events、executable tool orchestration、共享 runtime contracts 和 trace storage interfaces。它可以编排注入依赖，但不应该读取环境变量、渲染 CLI output、收集 approval UI 或直接调用厂商 API。
+保持这个 package 专注于 runtime coordination、short-term context handoff、model-requested tool-call events、permission evaluation events、approval resolution events、executable tool orchestration、共享 runtime contracts、trace storage interfaces，以及用于进程内 sub-agent spawning 的 `SubagentFactory` / `createSpawnSubagentTool`。它可以编排注入依赖，但不应该读取环境变量、渲染 CLI output、收集 approval UI 或直接调用厂商 API。
 
 ## When Files Change
 

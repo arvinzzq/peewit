@@ -11,7 +11,9 @@ import {
   createRuntimeEvent,
   isTerminalRuntimeEvent,
   runtimeEventTypes,
-  type RuntimeEvent
+  createSpawnSubagentTool,
+  type RuntimeEvent,
+  type SubagentFactory
 } from "./index.js";
 
 describe("runtime event contracts", () => {
@@ -941,6 +943,55 @@ describe("streaming path", () => {
 
     const events = await collect(runtime.runTurn({ message: "Hi." }));
     expect(events.map((e) => e.type)).not.toContain("token_delta");
+  });
+});
+
+describe("createSpawnSubagentTool", () => {
+  test("returns ok:true with sub-agent result text when sub-agent completes successfully", async () => {
+    const subProvider = new FakeModelProvider([{ type: "message", content: "Sub-agent result." }]);
+    const factory: SubagentFactory = {
+      create: (_goal) =>
+        new AgentRuntime({
+          contextAssembler: new DefaultContextAssembler(),
+          modelProvider: subProvider,
+          systemInstruction: "You are a sub-agent.",
+          createRunId: () => "sub_run_1",
+          createEventId: (() => { let n = 0; return () => `sub_evt_${++n}`; })(),
+          now: () => "2026-05-05T10:00:00.000Z"
+        })
+    };
+
+    const tool = createSpawnSubagentTool(factory);
+    const result = await tool.execute({ goal: "Do a subtask." }, { workspaceRoot: "/workspace" });
+
+    expect(result).toEqual({ type: "spawn_subagent_result", ok: true, result: "Sub-agent result." });
+  });
+
+  test("returns ok:false with error message when sub-agent run fails", async () => {
+    const subProvider = new FakeModelProvider([
+      {
+        type: "error",
+        category: "network",
+        message: "Sub-agent network error.",
+        recoverable: false
+      }
+    ]);
+    const factory: SubagentFactory = {
+      create: (_goal) =>
+        new AgentRuntime({
+          contextAssembler: new DefaultContextAssembler(),
+          modelProvider: subProvider,
+          systemInstruction: "You are a sub-agent.",
+          createRunId: () => "sub_run_fail",
+          createEventId: (() => { let n = 0; return () => `sub_evt_fail_${++n}`; })(),
+          now: () => "2026-05-05T10:00:00.000Z"
+        })
+    };
+
+    const tool = createSpawnSubagentTool(factory);
+    const result = await tool.execute({ goal: "Do a failing subtask." }, { workspaceRoot: "/workspace" });
+
+    expect(result).toEqual({ type: "spawn_subagent_result", ok: false, error: "Sub-agent network error." });
   });
 });
 

@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-Keep this package focused on runtime coordination, short-term context handoff, model-requested tool-call events, permission evaluation events, approval resolution events, executable tool orchestration, shared runtime contracts, and trace storage interfaces. It may orchestrate injected dependencies, but it should not read environment variables, render CLI output, collect approval UI, or call vendor APIs directly.
+Keep this package focused on runtime coordination, short-term context handoff, model-requested tool-call events, permission evaluation events, approval resolution events, executable tool orchestration, shared runtime contracts, trace storage interfaces, and the `SubagentFactory` / `createSpawnSubagentTool` for in-process sub-agent spawning. It may orchestrate injected dependencies, but it should not read environment variables, render CLI output, collect approval UI, or call vendor APIs directly.
 
 ## When Files Change
 

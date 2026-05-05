@@ -1,6 +1,6 @@
 /**
  * INPUT: ContextAssembler, ModelProvider (optionally StreamingModelProvider), PermissionPolicy, optional ApprovalResolver, executable tools, maxSteps, maxPlanningStallRetries, runtime metadata, user turn input, and optional recent conversation messages.
- * OUTPUT: AgentRuntime, runtime event contracts (including token_delta for streaming), in-memory trace store, todos_updated event, planning_stall_detected event, tool-call request events, permission evaluation events, approval resolution events, and tool lifecycle events.
+ * OUTPUT: AgentRuntime, SubagentFactory interface, createSpawnSubagentTool, runtime event contracts (including token_delta for streaming), in-memory trace store, todos_updated event, planning_stall_detected event, tool-call request events, permission evaluation events, approval resolution events, and tool lifecycle events.
  * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -20,7 +20,7 @@ import {
   type PermissionPolicy,
   type PermissionRiskLevel
 } from "@arvinclaw/permissions";
-import { createUpdateTodosTool, type ExecutableTool, type TodoItem, type ToolExecutionResult } from "@arvinclaw/tools";
+import { createUpdateTodosTool, type ExecutableTool, type TodoItem, type ToolExecutionResult, type SpawnSubagentResult } from "@arvinclaw/tools";
 
 export const corePackageName = "@arvinclaw/core";
 
@@ -552,4 +552,51 @@ function normalizeAutonomyMode(mode: string | undefined): AutonomyMode {
 
 function isPlanningOnly(content: string): boolean {
   return PLAN_PROMISE_RE.test(content) || PLAN_HEADING_RE.test(content) || PLAN_BULLET_RE.test(content);
+}
+
+// SubagentFactory creates a new AgentRuntime for a sub-agent goal.
+export interface SubagentFactory {
+  create(goal: string): AgentRuntime;
+}
+
+// createSpawnSubagentTool returns an ExecutableTool that spawns a sub-agent.
+// The tool lives in core (not tools) to avoid circular imports since
+// AgentRuntime is defined here.
+export function createSpawnSubagentTool(factory: SubagentFactory): ExecutableTool {
+  return {
+    name: "spawn_subagent",
+    description: "Spawn a focused sub-agent to handle a complex subtask and return its result. Use when the current task requires a separate focused execution context.",
+    risk: "medium",
+    inputSchema: {
+      type: "object",
+      properties: {
+        goal: { type: "string", description: "The complete goal for the sub-agent." },
+        context: { type: "string", description: "Optional background context to share." }
+      },
+      required: ["goal"]
+    },
+    async execute(rawInput, _execContext): Promise<SpawnSubagentResult> {
+      const input = rawInput as { goal: string; context?: string };
+
+      const subRuntime = factory.create(input.goal);
+      let assistantText = "";
+      let failed = false;
+      let errorMsg = "";
+
+      for await (const event of subRuntime.runTurn({ message: input.goal })) {
+        if (event.type === "assistant_message_created") {
+          assistantText = event.message.content;
+        }
+        if (event.type === "run_failed") {
+          failed = true;
+          errorMsg = event.error.message;
+        }
+      }
+
+      if (failed) {
+        return { type: "spawn_subagent_result", ok: false, error: errorMsg };
+      }
+      return { type: "spawn_subagent_result", ok: true, result: assistantText };
+    }
+  };
 }

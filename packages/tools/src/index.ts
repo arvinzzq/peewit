@@ -1,6 +1,6 @@
 /**
  * INPUT: Tool definitions, input schemas, risk metadata, registration requests, tool execution input, and workspace file system access.
- * OUTPUT: Tool contracts, registry lookup/listing behavior, executable read-only file tools, guarded write_file tool, guarded shell tool, read_web_page tool, update_todos task tracker, append_daily_memory tool, normalized tool results, and registry errors.
+ * OUTPUT: Tool contracts, registry lookup/listing behavior, executable read-only file tools, guarded write_file tool, guarded shell tool, read_web_page tool, update_todos task tracker, append_daily_memory tool, SpawnSubagentResult type for sub-agent spawning, normalized tool results, and registry errors.
  * POS: Tool system layer; exposes capabilities without making permission decisions.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -88,6 +88,13 @@ export interface AppendDailyMemoryResult {
   summary: string;
 }
 
+export interface SpawnSubagentResult {
+  type: "spawn_subagent_result";
+  ok: boolean;
+  result?: string;
+  error?: string;
+}
+
 export type ToolExecutionResult =
   | ReadFileToolResult
   | ListDirectoryToolResult
@@ -96,6 +103,7 @@ export type ToolExecutionResult =
   | ReadWebPageToolResult
   | UpdateTodosResult
   | AppendDailyMemoryResult
+  | SpawnSubagentResult
   | ToolExecutionFailure;
 
 export type TodoStatus = "pending" | "in_progress" | "completed";
