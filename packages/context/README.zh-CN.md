@@ -13,8 +13,8 @@
 | --- | --- | --- |
 | `package.json` | Package manifest | 声明 context package exports 和对 models 的依赖。 |
 | `tsconfig.json` | TypeScript config | 使用对 models 的 reference 构建 context。 |
-| `src/index.ts` | Context assembler | 导出 context assembly contracts、基于具名 sections 的 assembler、tool summary 和 skill index 输入、permission guidance、可选的 workspace prompt file loading、用于防止 context overflow 的 `compactMessages`、`CompactionOptions` 和 `DEFAULT_COMPACTION_OPTIONS`。 |
-| `src/index.test.ts` | Context tests | 保护 section ordering、section inclusion 和 omission、tooling section format、safety section format、skills section format、workspace prompt loading、short-term conversation history、assembly reports 和 `compactMessages` compaction 行为。 |
+| `src/index.ts` | Context assembler | 导出 context assembly contracts、基于具名 sections 的 assembler、tool summary 和 skill index 输入、permission guidance、可选的 workspace prompt file loading、用于 full/minimal/none 组装控制的 `PromptMode` 类型、用于防止 context overflow 的 `compactMessages`、`CompactionOptions` 和 `DEFAULT_COMPACTION_OPTIONS`。 |
+| `src/index.test.ts` | Context tests | 保护 section ordering、section inclusion 和 omission、tooling section format、safety section format、skills section format、workspace prompt loading、short-term conversation history、assembly reports、prompt mode 行为（full/minimal/none）和 `compactMessages` compaction 行为。 |
 
 ## Update Reminder
 

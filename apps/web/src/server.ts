@@ -152,7 +152,8 @@ async function createWebSession(config: EffectiveConfig, existingSessionId?: str
     tools,
     skillIndex,
     preferStreaming: true,
-    approvalResolver
+    approvalResolver,
+    ...(config.runtime.promptMode !== undefined ? { promptMode: config.runtime.promptMode } : {})
   });
 
   let id: string;

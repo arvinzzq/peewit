@@ -13,8 +13,8 @@ It produces a per-section assembly report so callers can inspect what was includ
 | --- | --- | --- |
 | `package.json` | Package manifest | Declares context package exports and dependency on models. |
 | `tsconfig.json` | TypeScript config | Builds context with a reference to models. |
-| `src/index.ts` | Context assembler | Exports context assembly contracts, section-based assembler with named sections, tool summary and skill index inputs, permission guidance, optional workspace prompt file loading, `compactMessages` for context overflow prevention, `CompactionOptions`, and `DEFAULT_COMPACTION_OPTIONS`. |
-| `src/index.test.ts` | Context tests | Protects section ordering, section inclusion and omission, tooling section format, safety section format, skills section format, workspace prompt loading, short-term conversation history, assembly reports, and `compactMessages` compaction behavior. |
+| `src/index.ts` | Context assembler | Exports context assembly contracts, section-based assembler with named sections, tool summary and skill index inputs, permission guidance, optional workspace prompt file loading, `PromptMode` type for full/minimal/none assembly control, `compactMessages` for context overflow prevention, `CompactionOptions`, and `DEFAULT_COMPACTION_OPTIONS`. |
+| `src/index.test.ts` | Context tests | Protects section ordering, section inclusion and omission, tooling section format, safety section format, skills section format, workspace prompt loading, short-term conversation history, assembly reports, prompt mode behavior (full/minimal/none), and `compactMessages` compaction behavior. |
 
 ## Update Reminder
 

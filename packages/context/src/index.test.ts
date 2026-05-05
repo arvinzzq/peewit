@@ -274,6 +274,71 @@ describe("workspace section", () => {
   });
 });
 
+describe("prompt modes", () => {
+  test("assembles full prompt in full mode", async () => {
+    const assembler = new DefaultContextAssembler();
+
+    const result = await assembler.assemble({
+      systemInstruction: "You are ArvinClaw.",
+      runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-03" },
+      tools: [{ name: "read_file", description: "Read a file.", risk: "low" }],
+      permissionGuidance: "Low-risk: automatic.",
+      skillIndex: [{ name: "research", description: "Use when investigating." }],
+      userMessage: "Hello.",
+      promptMode: "full"
+    });
+
+    const systemContent = result.modelInput.messages[0]?.content as string;
+    expect(systemContent).toContain("<identity>");
+    expect(systemContent).toContain("<runtime>");
+    expect(systemContent).toContain("<tooling>");
+    expect(systemContent).toContain("<safety>");
+    expect(systemContent).toContain("<skills>");
+    expect(result.report.includedSections).toContain("identity");
+    expect(result.report.includedSections).toContain("runtime");
+  });
+
+  test("assembles only identity section in minimal mode", async () => {
+    const assembler = new DefaultContextAssembler();
+
+    const result = await assembler.assemble({
+      systemInstruction: "You are ArvinClaw.",
+      runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-03" },
+      tools: [{ name: "read_file", description: "Read a file.", risk: "low" }],
+      permissionGuidance: "Low-risk: automatic.",
+      skillIndex: [{ name: "research", description: "Use when investigating." }],
+      userMessage: "Hello.",
+      promptMode: "minimal"
+    });
+
+    const systemContent = result.modelInput.messages[0]?.content as string;
+    expect(systemContent).toContain("<identity>");
+    expect(systemContent).not.toContain("<runtime>");
+    expect(systemContent).not.toContain("<tooling>");
+    expect(systemContent).not.toContain("<safety>");
+    expect(systemContent).not.toContain("<skills>");
+    expect(result.report.includedSections).toContain("identity");
+    expect(result.report.includedSections).not.toContain("runtime");
+  });
+
+  test("produces no system instruction in none mode", async () => {
+    const assembler = new DefaultContextAssembler();
+
+    const result = await assembler.assemble({
+      systemInstruction: "You are ArvinClaw.",
+      userMessage: "Hello.",
+      promptMode: "none"
+    });
+
+    // No system message in the output
+    const messages = result.modelInput.messages;
+    expect(messages.every((m) => m.role !== "system")).toBe(true);
+    expect(messages[messages.length - 1]).toEqual({ role: "user", content: "Hello." });
+    expect(result.report.includedSections).not.toContain("identity");
+    expect(result.report.includedSections).toContain("user_message");
+  });
+});
+
 describe("compactMessages", () => {
   test("returns messages unchanged when under maxMessages threshold", async () => {
     const messages = Array.from({ length: 5 }, (_, i) => ({

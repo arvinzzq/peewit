@@ -1,6 +1,6 @@
 /**
- * INPUT: User config, project config, ArvinClaw env overrides, memory policy settings, provider-specific env shortcuts (OPENROUTER_API_KEY, ANTHROPIC_API_KEY), model provider selection, and sessions directory resolution requests.
- * OUTPUT: EffectiveConfig with provider selection (openai-compatible or anthropic), memory policy, redacted config views, validation errors, and resolved sessions directory paths.
+ * INPUT: User config, project config, ArvinClaw env overrides, memory policy settings, provider-specific env shortcuts (OPENROUTER_API_KEY, ANTHROPIC_API_KEY), model provider selection, ARVINCLAW_PROMPT_MODE env var, and sessions directory resolution requests.
+ * OUTPUT: EffectiveConfig with provider selection (openai-compatible or anthropic), memory policy, PromptMode type, redacted config views, validation errors, and resolved sessions directory paths.
  * POS: Configuration boundary; keeps config loading separate from runtime behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -21,6 +21,7 @@ export type AutonomyMode = "observe" | "confirm" | "auto";
 export type TraceVerbosity = "explainable" | "debug";
 export type LongTermMemoryFilePolicy = "disabled" | "read-only" | "write";
 export type MemoryWritePolicy = "disabled";
+export type PromptMode = "full" | "minimal" | "none";
 
 export interface EffectiveConfig {
   model: {
@@ -36,6 +37,7 @@ export interface EffectiveConfig {
   runtime: {
     defaultMode: AutonomyMode;
     maxSteps: number;
+    promptMode?: PromptMode;
   };
   trace: {
     verbosity: TraceVerbosity;
@@ -226,6 +228,9 @@ function applyEnv(config: EffectiveConfig, env: Record<string, string | undefine
   if (env.ARVINCLAW_API_KEY !== undefined) {
     config.secrets.apiKey = env.ARVINCLAW_API_KEY;
   }
+  if (env.ARVINCLAW_PROMPT_MODE !== undefined) {
+    config.runtime.promptMode = env.ARVINCLAW_PROMPT_MODE as PromptMode;
+  }
 }
 
 function validateConfig(config: EffectiveConfig): void {
@@ -264,6 +269,12 @@ function validateConfig(config: EffectiveConfig): void {
       `Invalid memory.writes "${String(config.memory.writes)}". Only disabled is supported.`
     );
   }
+
+  if (config.runtime.promptMode !== undefined && !isPromptMode(config.runtime.promptMode)) {
+    throw new ConfigValidationError(
+      `Invalid runtime.promptMode "${String(config.runtime.promptMode)}". Expected full, minimal, or none.`
+    );
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -280,6 +291,10 @@ function isTraceVerbosity(value: unknown): value is TraceVerbosity {
 
 function isLongTermMemoryFilePolicy(value: unknown): value is LongTermMemoryFilePolicy {
   return value === "disabled" || value === "read-only" || value === "write";
+}
+
+function isPromptMode(value: unknown): value is PromptMode {
+  return value === "full" || value === "minimal" || value === "none";
 }
 
 /**

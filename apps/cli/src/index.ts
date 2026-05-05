@@ -330,7 +330,8 @@ async function runBackgroundTask(
     },
     tools: createCliBuiltInTools(options, config),
     preferStreaming: false,
-    approvalResolver
+    approvalResolver,
+    ...(config.runtime.promptMode !== undefined ? { promptMode: config.runtime.promptMode } : {})
   });
 
   const events: RuntimeEvent[] = [];
@@ -819,7 +820,8 @@ export class CliChatSession {
         tools: allTools,
         skillIndex,
         preferStreaming: sessionOptions.preferStreaming ?? false,
-        approvalResolver
+        approvalResolver,
+        ...(config.runtime.promptMode !== undefined ? { promptMode: config.runtime.promptMode } : {})
       }),
       redactedConfig(config),
       new InMemoryRuntimeTraceStore(),

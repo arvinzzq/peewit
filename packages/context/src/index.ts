@@ -1,6 +1,6 @@
 /**
- * INPUT: System instructions, runtime metadata, tool summaries, skill index, permission guidance, workspace prompt files, recent conversation messages, user messages, compaction options, and model provider for summarization.
- * OUTPUT: Provider-neutral model input assembled from named sections, conversation history, a per-section context assembly report, and compacted message histories via compactMessages.
+ * INPUT: System instructions, runtime metadata, tool summaries, skill index, permission guidance, workspace prompt files, recent conversation messages, user messages, prompt mode, compaction options, and model provider for summarization.
+ * OUTPUT: Provider-neutral model input assembled from named sections, conversation history, a per-section context assembly report, compacted message histories via compactMessages, and PromptMode type for full/minimal/none assembly control.
  * POS: Context assembly layer; decides what the model sees before provider formatting.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -10,6 +10,8 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 export const contextPackageName = "@arvinclaw/context";
+
+export type PromptMode = "full" | "minimal" | "none";
 
 export interface ContextRuntimeMetadata {
   mode: string;
@@ -38,6 +40,7 @@ export interface ContextAssemblyInput {
   permissionGuidance?: string;
   recentMessages?: ModelMessage[];
   userMessage: string;
+  promptMode?: PromptMode;
 }
 
 export interface ContextSectionReport {
@@ -76,57 +79,82 @@ export class DefaultContextAssembler implements ContextAssembler {
   }
 
   async assemble(input: ContextAssemblyInput): Promise<ContextAssemblyResult> {
+    const mode = input.promptMode ?? "full";
     const sectionReports: ContextSectionReport[] = [];
     const systemParts: string[] = [];
 
-    // identity: who ArvinClaw is
+    if (mode === "none") {
+      // No system instruction at all
+      const recentMessages = input.recentMessages ?? [];
+      if (recentMessages.length > 0) {
+        sectionReports.push({ name: "conversation_history", included: true });
+      }
+      sectionReports.push({ name: "user_message", included: true });
+
+      const includedSections = sectionReports.filter((s) => s.included).map((s) => s.name);
+      const omittedSections = sectionReports.filter((s) => !s.included).map((s) => s.name);
+
+      return {
+        modelInput: {
+          messages: [
+            ...recentMessages.map((message) => ({ ...message })),
+            { role: "user", content: input.userMessage }
+          ]
+        },
+        report: { includedSections, omittedSections, sections: sectionReports }
+      };
+    }
+
+    // identity: who ArvinClaw is (always included in full and minimal)
     systemParts.push(`<identity>\n${input.systemInstruction}\n</identity>`);
     sectionReports.push({ name: "identity", included: true });
 
-    // runtime: current mode, workspace, date
-    if (input.runtime) {
-      systemParts.push(
-        "",
-        `<runtime>\n- Mode: ${input.runtime.mode}\n- Workspace: ${input.runtime.workspace}\n- Date: ${input.runtime.currentDate}\n</runtime>`
-      );
-      sectionReports.push({ name: "runtime", included: true });
-    } else {
-      sectionReports.push({ name: "runtime", included: false, reason: "No runtime metadata provided." });
-    }
+    if (mode === "full") {
+      // runtime: current mode, workspace, date
+      if (input.runtime) {
+        systemParts.push(
+          "",
+          `<runtime>\n- Mode: ${input.runtime.mode}\n- Workspace: ${input.runtime.workspace}\n- Date: ${input.runtime.currentDate}\n</runtime>`
+        );
+        sectionReports.push({ name: "runtime", included: true });
+      } else {
+        sectionReports.push({ name: "runtime", included: false, reason: "No runtime metadata provided." });
+      }
 
-    // tooling: available tools with name, description, risk level
-    if (input.tools !== undefined && input.tools.length > 0) {
-      const toolLines = input.tools.map((t) => `- ${t.name} [${t.risk}]: ${t.description}`).join("\n");
-      systemParts.push("", `<tooling>\n${toolLines}\n</tooling>`);
-      sectionReports.push({ name: "tooling", included: true });
-    } else {
-      sectionReports.push({ name: "tooling", included: false, reason: "No tools registered." });
-    }
+      // tooling: available tools with name, description, risk level
+      if (input.tools !== undefined && input.tools.length > 0) {
+        const toolLines = input.tools.map((t) => `- ${t.name} [${t.risk}]: ${t.description}`).join("\n");
+        systemParts.push("", `<tooling>\n${toolLines}\n</tooling>`);
+        sectionReports.push({ name: "tooling", included: true });
+      } else {
+        sectionReports.push({ name: "tooling", included: false, reason: "No tools registered." });
+      }
 
-    // safety: permission policy guidance
-    if (input.permissionGuidance !== undefined && input.permissionGuidance.length > 0) {
-      systemParts.push("", `<safety>\n${input.permissionGuidance}\n</safety>`);
-      sectionReports.push({ name: "safety", included: true });
-    } else {
-      sectionReports.push({ name: "safety", included: false, reason: "No permission guidance provided." });
-    }
+      // safety: permission policy guidance
+      if (input.permissionGuidance !== undefined && input.permissionGuidance.length > 0) {
+        systemParts.push("", `<safety>\n${input.permissionGuidance}\n</safety>`);
+        sectionReports.push({ name: "safety", included: true });
+      } else {
+        sectionReports.push({ name: "safety", included: false, reason: "No permission guidance provided." });
+      }
 
-    // skills: compact skill index (name + description as routing trigger)
-    if (input.skillIndex !== undefined && input.skillIndex.length > 0) {
-      const skillLines = input.skillIndex.map((s) => `- ${s.name}: ${s.description}`).join("\n");
-      systemParts.push("", `<skills>\n${skillLines}\n</skills>`);
-      sectionReports.push({ name: "skills", included: true });
-    } else {
-      sectionReports.push({ name: "skills", included: false, reason: "No skills loaded." });
-    }
+      // skills: compact skill index (name + description as routing trigger)
+      if (input.skillIndex !== undefined && input.skillIndex.length > 0) {
+        const skillLines = input.skillIndex.map((s) => `- ${s.name}: ${s.description}`).join("\n");
+        systemParts.push("", `<skills>\n${skillLines}\n</skills>`);
+        sectionReports.push({ name: "skills", included: true });
+      } else {
+        sectionReports.push({ name: "skills", included: false, reason: "No skills loaded." });
+      }
 
-    // workspace: AGENTS.md, SOUL.md, and other prompt files
-    const workspaceContent = await this.#loadWorkspacePromptSections(input.runtime?.workspace);
-    if (workspaceContent.length > 0) {
-      systemParts.push("", `<workspace>${workspaceContent.join("\n")}\n</workspace>`);
-      sectionReports.push({ name: "workspace", included: true });
-    } else if (this.#workspacePromptFiles.length > 0) {
-      sectionReports.push({ name: "workspace", included: false, reason: "No workspace prompt files found." });
+      // workspace: AGENTS.md, SOUL.md, and other prompt files
+      const workspaceContent = await this.#loadWorkspacePromptSections(input.runtime?.workspace);
+      if (workspaceContent.length > 0) {
+        systemParts.push("", `<workspace>${workspaceContent.join("\n")}\n</workspace>`);
+        sectionReports.push({ name: "workspace", included: true });
+      } else if (this.#workspacePromptFiles.length > 0) {
+        sectionReports.push({ name: "workspace", included: false, reason: "No workspace prompt files found." });
+      }
     }
 
     // conversation history

@@ -178,6 +178,26 @@ describe("loadConfig", () => {
       })
     ).toThrow(ConfigValidationError);
   });
+
+  test("supports ARVINCLAW_PROMPT_MODE env var", () => {
+    const config = loadConfig({
+      env: {
+        ARVINCLAW_PROMPT_MODE: "minimal"
+      }
+    });
+
+    expect(config.runtime.promptMode).toBe("minimal");
+  });
+
+  test("rejects invalid prompt mode values", () => {
+    expect(() =>
+      loadConfig({
+        env: {
+          ARVINCLAW_PROMPT_MODE: "invalid"
+        }
+      })
+    ).toThrow(ConfigValidationError);
+  });
 });
 
 describe("resolveSessionsDirectory", () => {

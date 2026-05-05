@@ -10,7 +10,8 @@ import type {
   ContextAssembler,
   ContextRuntimeMetadata,
   ContextSkillSummary,
-  ContextToolSummary
+  ContextToolSummary,
+  PromptMode
 } from "@arvinclaw/context";
 import { compactMessages } from "@arvinclaw/context";
 import { isStreamingProvider } from "@arvinclaw/models";
@@ -254,6 +255,7 @@ export interface AgentRuntimeDependencies {
   runtime?: ContextRuntimeMetadata;
   preferStreaming?: boolean;
   compaction?: Partial<CompactionOptions>;
+  promptMode?: PromptMode;
   createRunId?: () => string;
   createEventId?: () => string;
   now?: () => string;
@@ -285,6 +287,7 @@ export class AgentRuntime {
   readonly #runtime: ContextRuntimeMetadata | undefined;
   readonly #preferStreaming: boolean;
   readonly #compaction: Partial<CompactionOptions> | undefined;
+  readonly #promptMode: PromptMode | undefined;
   readonly #createRunId: () => string;
   readonly #createEventId: () => string;
   readonly #now: () => string;
@@ -302,6 +305,7 @@ export class AgentRuntime {
     this.#runtime = dependencies.runtime;
     this.#preferStreaming = dependencies.preferStreaming ?? false;
     this.#compaction = dependencies.compaction;
+    this.#promptMode = dependencies.promptMode;
     this.#createRunId = dependencies.createRunId ?? randomId("run");
     this.#createEventId = dependencies.createEventId ?? randomId("evt");
     this.#now = dependencies.now ?? (() => new Date().toISOString());
@@ -327,6 +331,7 @@ export class AgentRuntime {
       permissionGuidance: DEFAULT_PERMISSION_GUIDANCE,
       ...(this.#skillIndex.length > 0 ? { skillIndex: this.#skillIndex } : {}),
       ...(input.recentMessages ? { recentMessages: input.recentMessages } : {}),
+      ...(this.#promptMode !== undefined ? { promptMode: this.#promptMode } : {}),
       userMessage: input.message
     });
 
