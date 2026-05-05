@@ -13,7 +13,7 @@ import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { WEB_CAPABILITIES } from "@arvinclaw/adapters";
+import { WEB_CAPABILITIES, filterToolsByProfile, type ToolProfile } from "@arvinclaw/adapters";
 import { loadConfig, resolveSessionsDirectory, type EffectiveConfig } from "@arvinclaw/config";
 import { DefaultContextAssembler } from "@arvinclaw/context";
 import {
@@ -127,7 +127,7 @@ async function createWebSession(config: EffectiveConfig, existingSessionId?: str
   const skillIndex = skillDefinitions.map(toSkillSummary);
   const skillFileMap = new Map(skillDefinitions.map((s) => [s.name, s.filePath]));
 
-  const tools = [
+  const allWebTools = [
     createReadFileTool(),
     createListDirectoryTool(),
     createWriteFileTool(),
@@ -136,13 +136,17 @@ async function createWebSession(config: EffectiveConfig, existingSessionId?: str
   ];
 
   if (config.memory.longTermFiles === "read-only" || config.memory.longTermFiles === "write") {
-    tools.push(createMemorySearchTool(config.workspace.root));
-    tools.push(createMemoryGetTool(config.workspace.root));
+    allWebTools.push(createMemorySearchTool(config.workspace.root));
+    allWebTools.push(createMemoryGetTool(config.workspace.root));
   }
 
   if (skillFileMap.size > 0) {
-    tools.push(createLoadSkillTool(skillFileMap));
+    allWebTools.push(createLoadSkillTool(skillFileMap));
   }
+
+  const tools = config.runtime.toolProfile !== undefined
+    ? filterToolsByProfile(allWebTools, config.runtime.toolProfile as ToolProfile)
+    : allWebTools;
 
   const runtime = new AgentRuntime({
     contextAssembler: new DefaultContextAssembler({

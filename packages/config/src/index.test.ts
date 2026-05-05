@@ -218,6 +218,27 @@ describe("loadConfig", () => {
       })
     ).toThrow(ConfigValidationError);
   });
+
+  test("supports ARVINCLAW_TOOL_PROFILE env var", () => {
+    for (const profile of ["coding", "full", "messaging", "background"] as const) {
+      const config = loadConfig({
+        env: {
+          ARVINCLAW_TOOL_PROFILE: profile
+        }
+      });
+      expect(config.runtime.toolProfile).toBe(profile);
+    }
+  });
+
+  test("rejects invalid tool profile value", () => {
+    expect(() =>
+      loadConfig({
+        env: {
+          ARVINCLAW_TOOL_PROFILE: "ninja"
+        }
+      })
+    ).toThrow(ConfigValidationError);
+  });
 });
 
 describe("resolveSessionsDirectory", () => {

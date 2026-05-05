@@ -13,7 +13,7 @@ import { DefaultContextAssembler } from "@arvinclaw/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, createSpawnSubagentTool, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore, type SubagentFactory } from "@arvinclaw/core";
 import { SessionGateway, type GatewaySession } from "@arvinclaw/gateway";
 import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
-import { CLI_CAPABILITIES } from "@arvinclaw/adapters";
+import { CLI_CAPABILITIES, filterToolsByProfile, type ToolProfile } from "@arvinclaw/adapters";
 import { BackgroundApprovalResolver, JsonlTaskStore, type TaskRunRecord } from "@arvinclaw/scheduler";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
 import { SkillLoader, SkillManager, toSkillSummary, type SkillDefinition } from "@arvinclaw/skills";
@@ -319,6 +319,13 @@ async function runBackgroundTask(
   const approvalResolver = new BackgroundApprovalResolver(mode);
   const currentDate = new Date().toISOString().slice(0, 10);
 
+  const backgroundTools = (() => {
+    const allTools = createCliBuiltInTools(options, config);
+    return config.runtime.toolProfile !== undefined
+      ? filterToolsByProfile(allTools, config.runtime.toolProfile as ToolProfile)
+      : allTools;
+  })();
+
   const runtime = new AgentRuntime({
     contextAssembler: createCliContextAssembler(config, currentDate),
     modelProvider: configuredProvider,
@@ -328,7 +335,7 @@ async function runBackgroundTask(
       workspace: config.workspace.root,
       currentDate
     },
-    tools: createCliBuiltInTools(options, config),
+    tools: backgroundTools,
     preferStreaming: false,
     approvalResolver,
     ...(config.runtime.promptMode !== undefined ? { promptMode: config.runtime.promptMode } : {})
@@ -795,7 +802,10 @@ export class CliChatSession {
       })
     };
 
-    const allTools = [...builtInTools, createSpawnSubagentTool(factory)];
+    const allToolsRaw = [...builtInTools, createSpawnSubagentTool(factory)];
+    const allTools = config.runtime.toolProfile !== undefined
+      ? filterToolsByProfile(allToolsRaw, config.runtime.toolProfile as ToolProfile)
+      : allToolsRaw;
 
     const now = new Date().toISOString();
     const gatewaySession: GatewaySession = {

@@ -1,6 +1,6 @@
 /**
- * INPUT: User config, project config, env overrides (ARVINCLAW_PROMPT_MODE, ARVINCLAW_EXECUTION_CONTRACT, OPENROUTER_API_KEY, ANTHROPIC_API_KEY, and others), memory policy settings, and sessions directory resolution requests.
- * OUTPUT: EffectiveConfig (including ExecutionContract), PromptMode, redacted config views, ConfigValidationError, and resolveSessionsDirectory helper.
+ * INPUT: User config, project config, env overrides (ARVINCLAW_PROMPT_MODE, ARVINCLAW_EXECUTION_CONTRACT, ARVINCLAW_TOOL_PROFILE, OPENROUTER_API_KEY, ANTHROPIC_API_KEY, and others), memory policy settings, and sessions directory resolution requests.
+ * OUTPUT: EffectiveConfig (including ExecutionContract and toolProfile), PromptMode, redacted config views, ConfigValidationError, and resolveSessionsDirectory helper.
  * POS: Configuration boundary; keeps config loading separate from runtime behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -23,6 +23,7 @@ export type LongTermMemoryFilePolicy = "disabled" | "read-only" | "write";
 export type MemoryWritePolicy = "disabled";
 export type PromptMode = "full" | "minimal" | "none";
 export type ExecutionContract = "default" | "strict-agentic";
+export type ToolProfileConfig = "coding" | "full" | "messaging" | "background";
 
 export interface EffectiveConfig {
   model: {
@@ -40,6 +41,7 @@ export interface EffectiveConfig {
     maxSteps: number;
     promptMode?: PromptMode;
     executionContract?: ExecutionContract;
+    toolProfile?: ToolProfileConfig;
   };
   trace: {
     verbosity: TraceVerbosity;
@@ -236,6 +238,9 @@ function applyEnv(config: EffectiveConfig, env: Record<string, string | undefine
   if (env.ARVINCLAW_EXECUTION_CONTRACT !== undefined) {
     config.runtime.executionContract = env.ARVINCLAW_EXECUTION_CONTRACT as ExecutionContract;
   }
+  if (env.ARVINCLAW_TOOL_PROFILE !== undefined) {
+    config.runtime.toolProfile = env.ARVINCLAW_TOOL_PROFILE as ToolProfileConfig;
+  }
 }
 
 function validateConfig(config: EffectiveConfig): void {
@@ -286,6 +291,12 @@ function validateConfig(config: EffectiveConfig): void {
       `Invalid runtime.executionContract "${String(config.runtime.executionContract)}". Expected default or strict-agentic.`
     );
   }
+
+  if (config.runtime.toolProfile !== undefined && !isToolProfileConfig(config.runtime.toolProfile)) {
+    throw new ConfigValidationError(
+      `Invalid runtime.toolProfile "${String(config.runtime.toolProfile)}". Expected coding, full, messaging, or background.`
+    );
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -310,6 +321,10 @@ function isPromptMode(value: unknown): value is PromptMode {
 
 function isExecutionContract(value: unknown): value is ExecutionContract {
   return value === "default" || value === "strict-agentic";
+}
+
+function isToolProfileConfig(value: unknown): value is ToolProfileConfig {
+  return value === "coding" || value === "full" || value === "messaging" || value === "background";
 }
 
 /**
