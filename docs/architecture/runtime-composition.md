@@ -62,20 +62,29 @@ The CLI entry point may own application startup, but it should delegate setup de
 
 ## 5. Dependency Direction
 
-Recommended direction:
+Dependencies flow inward. Adapters own composition; core packages stay entry-point agnostic.
 
 ```text
-apps/cli
-  -> packages/config
-  -> packages/models
-  -> packages/tools
-  -> packages/permissions
-  -> packages/context
-  -> packages/sessions
-  -> packages/core
+apps/cli ──────────────────────────────────────────┐
+apps/web ──────────────────────────────────────────┤
+         │                                          │
+         ├──▶ @arvinclaw/core ◀── @arvinclaw/scheduler
+         │         │
+         │         ├──▶ @arvinclaw/context ──▶ @arvinclaw/models
+         │         ├──▶ @arvinclaw/models
+         │         ├──▶ @arvinclaw/permissions
+         │         └──▶ @arvinclaw/tools
+         │
+         ├──▶ @arvinclaw/config
+         ├──▶ @arvinclaw/sessions
+         ├──▶ @arvinclaw/gateway ──▶ @arvinclaw/adapters
+         ├──▶ @arvinclaw/adapters
+         ├──▶ @arvinclaw/skills
+         ├──▶ @arvinclaw/taskflow
+         └──▶ @arvinclaw/scheduler ──▶ @arvinclaw/core (types only)
 ```
 
-`packages/core` should depend on interfaces and domain types, not adapter-specific startup code.
+`packages/core` depends on interfaces and domain types from `context`, `models`, `permissions`, and `tools`. It must not depend on any adapter, config, sessions, gateway, or scheduler code.
 
 ## 6. Effective Configuration
 

@@ -330,31 +330,103 @@ Initial defaults can be conservative:
 
 The exact numbers can be chosen during implementation.
 
-## 15. Minimal Interfaces
+## 15. Implemented Interfaces and Event Types
 
-The implementation plan should refine these interfaces, but the architecture expects concepts like:
+The following reflects the actual implemented contracts as of Phase 10.
+
+### RuntimeEvent Types
+
+The runtime emits exactly 17 event types in order:
 
 ```ts
-interface AgentRuntime {
-  runTurn(input: AgentTurnInput): AsyncIterable<RuntimeEvent>;
+type RuntimeEventType =
+  | "run_started"                    // user message received
+  | "context_assembled"              // system prompt + history built
+  | "todos_updated"                  // model called update_todos
+  | "planning_stall_detected"        // plan-only turn with no tool calls
+  | "model_request_started"          // about to call ModelProvider
+  | "token_delta"                    // streaming token chunk
+  | "model_request_completed"        // model call finished
+  | "tool_call_requested"            // model requested a tool
+  | "tool_call_permission_evaluated" // PermissionPolicy returned a decision
+  | "approval_requested"             // adapter must ask user
+  | "approval_resolved"              // user decision received
+  | "tool_started"                   // tool.execute() called
+  | "tool_completed"                 // tool returned a result
+  | "tool_failed"                    // tool threw an error
+  | "assistant_message_created"      // final text response assembled
+  | "run_completed"                  // turn finished successfully
+  | "run_failed";                    // turn failed
+```
+
+### Core Interfaces
+
+```ts
+// Agent runtime — the central orchestrator
+class AgentRuntime {
+  constructor(config: {
+    contextAssembler: ContextAssembler;
+    modelProvider: ModelProvider;
+    systemInstruction: string;
+    runtime: { mode: AutonomyMode; workspace: string; currentDate: string };
+    tools: ExecutableTool[];
+    skillIndex?: ContextSkillSummary[];
+    permissionPolicy?: PermissionPolicy;     // defaults to DefaultPermissionPolicy
+    approvalResolver?: ApprovalResolver;
+    maxSteps?: number;                       // default 12
+    maxPlanningStallRetries?: number;
+    preferStreaming?: boolean;
+    promptMode?: "full" | "minimal" | "none";
+    executionContract?: "default" | "strict-agentic";
+  });
+
+  runTurn(input: {
+    sessionId: string;
+    message: string;
+    recentMessages?: ModelMessage[];
+  }): AsyncGenerator<RuntimeEvent>;
 }
 
+// Model provider — vendor-agnostic interface
 interface ModelProvider {
   generate(input: ModelInput): Promise<ModelOutput>;
 }
 
-interface Tool {
-  name: string;
-  description: string;
-  execute(input: unknown, context: ToolExecutionContext): Promise<ToolResult>;
+// Streaming variant — implemented by AnthropicProvider and OpenAICompatibleProvider
+interface StreamingModelProvider extends ModelProvider {
+  generateStream(input: ModelInput): AsyncIterable<StreamEvent>;
 }
 
+// Tool — capability with risk metadata
+interface ExecutableTool {
+  name: string;
+  description: string;
+  inputSchema: ToolInputSchema;
+  risk: "low" | "medium" | "high" | "blocked";
+  execute(input: unknown, context: ToolExecutionContext): Promise<ToolExecutionResult>;
+}
+
+// Permission policy — decide without rendering UI
 interface PermissionPolicy {
-  evaluate(action: ToolAction, context: PermissionContext): PermissionDecision;
+  evaluate(input: {
+    mode: AutonomyMode;
+    action: { kind: "tool"; name: string; summary: string; risk: PermissionRiskLevel };
+  }): PermissionDecision;
+}
+
+// Approval resolver — adapter-side user interaction
+interface ApprovalResolver {
+  resolve(request: ApprovalRequest): Promise<ApprovalResolution>;
 }
 ```
 
-These are illustrative, not final implementation contracts.
+### Planning Stall Detection
+
+When the model produces a turn with no tool calls and the response text matches planning patterns (promises, step headings, bullet lists), `AgentRuntime` injects a retry instruction:
+
+> "Act now: take the first concrete tool action you can. Do not narrate a plan."
+
+After `maxPlanningStallRetries` consecutive stall turns, the run terminates with `run_failed`.
 
 ## 16. Acceptance Criteria
 

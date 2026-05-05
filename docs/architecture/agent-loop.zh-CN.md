@@ -326,29 +326,103 @@ Loop 应为每个用户 turn 或任务设置最大 step 数，避免失控执行
 
 具体数字在实现计划阶段确定。
 
-## 15. 最小接口草案
+## 15. 已实现的接口与事件类型
+
+以下内容反映 Phase 10 完成后的实际实现契约。
+
+### RuntimeEvent 类型
+
+Runtime 按顺序精确发出 17 种事件类型：
 
 ```ts
-interface AgentRuntime {
-  runTurn(input: AgentTurnInput): AsyncIterable<RuntimeEvent>;
+type RuntimeEventType =
+  | "run_started"                    // 收到用户消息
+  | "context_assembled"              // 系统提示词 + 历史记录构建完成
+  | "todos_updated"                  // 模型调用了 update_todos
+  | "planning_stall_detected"        // 纯规划 turn，无工具调用
+  | "model_request_started"          // 即将调用 ModelProvider
+  | "token_delta"                    // 流式 token 片段
+  | "model_request_completed"        // 模型调用结束
+  | "tool_call_requested"            // 模型请求了一个工具
+  | "tool_call_permission_evaluated" // PermissionPolicy 返回决策
+  | "approval_requested"             // adapter 需要询问用户
+  | "approval_resolved"              // 收到用户决策
+  | "tool_started"                   // tool.execute() 被调用
+  | "tool_completed"                 // 工具返回结果
+  | "tool_failed"                    // 工具抛出错误
+  | "assistant_message_created"      // 最终文本响应组装完成
+  | "run_completed"                  // turn 成功完成
+  | "run_failed";                    // turn 失败
+```
+
+### 核心接口
+
+```ts
+// Agent runtime — 核心编排器
+class AgentRuntime {
+  constructor(config: {
+    contextAssembler: ContextAssembler;
+    modelProvider: ModelProvider;
+    systemInstruction: string;
+    runtime: { mode: AutonomyMode; workspace: string; currentDate: string };
+    tools: ExecutableTool[];
+    skillIndex?: ContextSkillSummary[];
+    permissionPolicy?: PermissionPolicy;     // 默认 DefaultPermissionPolicy
+    approvalResolver?: ApprovalResolver;
+    maxSteps?: number;                       // 默认 12
+    maxPlanningStallRetries?: number;
+    preferStreaming?: boolean;
+    promptMode?: "full" | "minimal" | "none";
+    executionContract?: "default" | "strict-agentic";
+  });
+
+  runTurn(input: {
+    sessionId: string;
+    message: string;
+    recentMessages?: ModelMessage[];
+  }): AsyncGenerator<RuntimeEvent>;
 }
 
+// 模型 provider — 与厂商无关的接口
 interface ModelProvider {
   generate(input: ModelInput): Promise<ModelOutput>;
 }
 
-interface Tool {
-  name: string;
-  description: string;
-  execute(input: unknown, context: ToolExecutionContext): Promise<ToolResult>;
+// 流式变体 — AnthropicProvider 和 OpenAICompatibleProvider 实现
+interface StreamingModelProvider extends ModelProvider {
+  generateStream(input: ModelInput): AsyncIterable<StreamEvent>;
 }
 
+// 工具 — 带风险元数据的能力
+interface ExecutableTool {
+  name: string;
+  description: string;
+  inputSchema: ToolInputSchema;
+  risk: "low" | "medium" | "high" | "blocked";
+  execute(input: unknown, context: ToolExecutionContext): Promise<ToolExecutionResult>;
+}
+
+// 权限策略 — 决策但不渲染 UI
 interface PermissionPolicy {
-  evaluate(action: ToolAction, context: PermissionContext): PermissionDecision;
+  evaluate(input: {
+    mode: AutonomyMode;
+    action: { kind: "tool"; name: string; summary: string; risk: PermissionRiskLevel };
+  }): PermissionDecision;
+}
+
+// 审批 resolver — adapter 侧的用户交互
+interface ApprovalResolver {
+  resolve(request: ApprovalRequest): Promise<ApprovalResolution>;
 }
 ```
 
-这些是说明性接口，不是最终实现契约。
+### 规划停滞检测
+
+当模型在一次 turn 中没有调用工具，且输出文本匹配规划模式（承诺、步骤标题、列表）时，`AgentRuntime` 注入重试指令：
+
+> "立即行动：执行你能执行的第一个具体工具操作，不要只描述计划。"
+
+连续 `maxPlanningStallRetries` 次停滞后，run 以 `run_failed` 结束。
 
 ## 16. 验收标准
 

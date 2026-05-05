@@ -62,20 +62,29 @@ CLI 入口可以拥有应用启动，但应该把 setup details 委托给 packag
 
 ## 5. 依赖方向
 
-推荐方向：
+依赖向内流动。Adapter 负责组装；core 包保持与入口无关。
 
 ```text
-apps/cli
-  -> packages/config
-  -> packages/models
-  -> packages/tools
-  -> packages/permissions
-  -> packages/context
-  -> packages/sessions
-  -> packages/core
+apps/cli ──────────────────────────────────────────┐
+apps/web ──────────────────────────────────────────┤
+         │                                          │
+         ├──▶ @arvinclaw/core ◀── @arvinclaw/scheduler
+         │         │
+         │         ├──▶ @arvinclaw/context ──▶ @arvinclaw/models
+         │         ├──▶ @arvinclaw/models
+         │         ├──▶ @arvinclaw/permissions
+         │         └──▶ @arvinclaw/tools
+         │
+         ├──▶ @arvinclaw/config
+         ├──▶ @arvinclaw/sessions
+         ├──▶ @arvinclaw/gateway ──▶ @arvinclaw/adapters
+         ├──▶ @arvinclaw/adapters
+         ├──▶ @arvinclaw/skills
+         ├──▶ @arvinclaw/taskflow
+         └──▶ @arvinclaw/scheduler ──▶ @arvinclaw/core（仅类型）
 ```
 
-`packages/core` 应依赖 interfaces 和 domain types，而不是 adapter-specific startup code。
+`packages/core` 依赖 `context`、`models`、`permissions`、`tools` 的接口和领域类型。它不得依赖任何 adapter、config、sessions、gateway 或 scheduler 代码。
 
 ## 6. Effective Configuration
 

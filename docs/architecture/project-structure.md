@@ -15,24 +15,34 @@ The Agent Core owns agent behavior. User interfaces only adapt user input and ou
 
 This matters because ArvinClaw is expected to support CLI first, then Web UI, desktop app, messaging platforms, and background automation. If the first CLI implementation owns too much logic, every later entry point would need to duplicate or reverse-engineer that behavior.
 
-## 2. Proposed Layout
+## 2. Current Layout
 
 ```text
 apps/
-  cli/
+  cli/          terminal adapter (Ink + readline)
+  web/          web adapter (Hono + SSE + WebSocket)
 packages/
-  core/
-  config/
-  context/
-  models/
-  tools/
-  skills/
-  permissions/
-  sessions/
+  core/         agent runtime and event loop
+  config/       configuration loading and validation
+  context/      prompt and context assembly
+  models/       model provider abstractions and implementations
+  tools/        tool definitions and execution
+  skills/       skill discovery, parsing, and lifecycle
+  permissions/  risk classification and approval policy
+  sessions/     session and trace persistence
+  gateway/      cross-adapter session registry
+  adapters/     capability constants and tool profile filtering
+  taskflow/     cross-session task graph persistence
+  scheduler/    background task runner and cron scheduler
 docs/
   architecture/
   roadmap/
+  plans/
   product/
+  decisions/
+  research/
+scripts/
+tests/
 skills/
 ```
 
@@ -42,13 +52,24 @@ skills/
 
 The CLI app owns terminal interaction:
 
-- Parsing CLI commands
-- Running `arvinclaw chat`
-- Running future `arvinclaw run "<goal>"`
-- Rendering messages, traces, and permission prompts
+- Parsing CLI commands and routing to `chat`, `run`, `sessions`, `tasks`, `skills`, `daemon`, `taskflow`
+- Rendering messages, traces, and permission prompts via Ink (React-based terminal UI)
 - Reading user confirmation from the terminal
+- Composing all runtime dependencies and creating `AgentRuntime`
 
 The CLI should not own agent planning, tool selection, permission decisions, skill loading, model provider logic, or session persistence rules.
+
+### `apps/web`
+
+The web app owns browser-based interaction:
+
+- HTTP REST API for session lifecycle (`POST /api/sessions`, `GET /api/sessions`)
+- SSE streaming for turn events (`POST /api/sessions/:id/turns`)
+- WebSocket endpoint (`/ws/:id`) for bidirectional session communication
+- Approval resolution endpoint (`POST /api/sessions/:id/approvals`)
+- Gateway sessions endpoint (`GET /api/gateway/sessions`)
+
+The web adapter shares the same `AgentRuntime` as the CLI. It does not reimplement agent behavior.
 
 ### `packages/core`
 
@@ -146,9 +167,55 @@ The sessions package owns persistence:
 - Session records
 - Trace records
 - Conversation history
-- Future memory storage adapters
+- `InMemorySessionStore` for tests and ephemeral sessions
+- `JsonlSessionStore` for file-backed durable sessions (per-session directory with `session.json`, `messages.jsonl`, `trace.jsonl`)
 
-The first implementation can be simple local storage, but the interface should leave room for future backends.
+The interface should leave room for future backends without changing the callers.
+
+### `packages/gateway`
+
+The gateway package owns cross-adapter session coordination:
+
+- `SessionGateway` in-memory registry tracking active sessions per process
+- `register`, `unregister`, `touch`, `get`, `list`, `listByAdapter` operations
+- `GatewaySession` records carrying adapter name, capabilities, and activity timestamps
+
+Each adapter creates a process-level singleton and registers sessions as they start. This is the foundation for future multi-entry routing in Phase 10.
+
+### `packages/adapters`
+
+The adapters package owns capability declarations and tool profile filtering:
+
+- `AdapterCapabilities` interface: `streaming`, `approvalPrompts`, `background`
+- Canonical constants: `CLI_CAPABILITIES`, `WEB_CAPABILITIES`, `BACKGROUND_CAPABILITIES`
+- `ToolProfile` type: `coding`, `full`, `messaging`, `background`
+- `filterToolsByProfile(tools, profile)` for restricting tool sets per use case
+
+This package has no runtime dependencies — it exports pure type definitions and constants only.
+
+### `packages/taskflow`
+
+The taskflow package owns cross-session task graph persistence:
+
+- `TaskRecord` with status lifecycle: `queued → running → waiting → blocked → succeeded/failed/cancelled/lost`
+- `TaskRuntime` tags: `subagent`, `background`, `cli`, `cron`, `web`
+- Parent/child task relationships via `parentId`
+- `JsonlTaskFlowStore` backed by a single JSONL file
+- `list`, `get`, `create`, `update` operations
+
+This is distinct from the per-session `update_todos` tool. TaskFlow records persist across sessions and represent the agent's durable task graph.
+
+### `packages/scheduler`
+
+The scheduler package owns background task execution:
+
+- `TaskDefinition` format loaded from `*.task.json` files
+- `JsonlTaskStore` for per-run task execution history
+- `BackgroundApprovalResolver`: auto-approves in `auto` mode, auto-denies otherwise (no user present)
+- `CronScheduler`: checks cron expressions on a one-minute interval, calls runner for due tasks
+- `matchesCron(expr, date)` utility for standard 5-field cron expressions
+
+The scheduler composes with `AgentRuntime` at the CLI adapter layer. It does not own agent behavior.
 
 ### `docs`
 
@@ -167,23 +234,41 @@ The root `skills` directory contains project-local skills. These should override
 
 ## 4. Dependency Direction
 
-Dependencies should generally flow inward:
+Dependencies flow inward from adapters toward the core:
 
 ```text
-apps/* -> packages/{config,core} -> packages/{models,tools,skills,permissions,sessions}
+apps/cli ──────────────────────────────────────────┐
+apps/web ──────────────────────────────────────────┤
+         │                                          │
+         ├──▶ @arvinclaw/core ◀── @arvinclaw/scheduler
+         │         │
+         │         ├──▶ @arvinclaw/context ──▶ @arvinclaw/models
+         │         ├──▶ @arvinclaw/models
+         │         ├──▶ @arvinclaw/permissions
+         │         └──▶ @arvinclaw/tools
+         │
+         ├──▶ @arvinclaw/config
+         ├──▶ @arvinclaw/sessions
+         ├──▶ @arvinclaw/gateway ──▶ @arvinclaw/adapters
+         ├──▶ @arvinclaw/adapters
+         ├──▶ @arvinclaw/skills
+         ├──▶ @arvinclaw/taskflow
+         └──▶ @arvinclaw/scheduler ──▶ @arvinclaw/core (types only)
 ```
 
-Important boundaries:
+Hard boundaries — these must never be crossed:
 
-- `packages/core` must not import from `apps/cli`.
-- `packages/config` must not import from `apps/cli`.
-- `packages/models` must not import from `apps/cli`.
-- `packages/tools` must not import from `apps/cli`.
-- `packages/permissions` must not import from `apps/cli`.
-- `packages/skills` must not import from `apps/cli`.
-- `packages/sessions` must not import from `apps/cli`.
+| Package | Must NOT import |
+| --- | --- |
+| `core` | `apps/cli`, `apps/web`, any adapter code |
+| `context` | `core`, `permissions`, `tools` |
+| `models` | `core`, `context`, `tools` |
+| `tools` | `core`, `context`, `permissions` |
+| `permissions` | any internal package |
+| `sessions` | any internal package |
+| `adapters` | any internal package |
 
-The CLI can depend on core packages, but core packages must stay entry-point agnostic.
+The `apps/` adapters wire everything together. All internal packages stay entry-point agnostic.
 
 ## 5. Adapter Pattern
 
