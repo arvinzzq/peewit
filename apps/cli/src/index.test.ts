@@ -1218,4 +1218,84 @@ describe("runCli", () => {
       await rm(directory, { force: true, recursive: true });
     }
   });
+
+  test("daemon requires API key", async () => {
+    const result = await runCli(["daemon", "--once"], "0.0.0", { env: {} });
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("ARVINCLAW_API_KEY");
+  });
+
+  test("daemon --once reports missing tasks directory", async () => {
+    // Create an isolated parent dir so sessionsDir/tasks does not exist
+    const parentDir = await mkdtemp(join(tmpdir(), "arvinclaw-daemon-parent-"));
+    const directory = join(parentDir, "sessions");
+    await mkdir(directory, { recursive: true });
+    try {
+      const result = await runCli(["daemon", "--once"], "0.0.0", {
+        env: { ARVINCLAW_API_KEY: "fake-key" },
+        sessionsDirectory: directory
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("No tasks directory found at");
+    } finally {
+      await rm(parentDir, { recursive: true, force: true });
+    }
+  });
+
+  test("daemon --once runs cron tasks from tasks directory", async () => {
+    const parentDir = await mkdtemp(join(tmpdir(), "arvinclaw-daemon-parent-"));
+    const directory = join(parentDir, "sessions");
+    await mkdir(directory, { recursive: true });
+    try {
+      const { dirname: pathDirname } = await import("node:path");
+      const tasksDir = join(pathDirname(directory), "tasks");
+      await mkdir(tasksDir, { recursive: true });
+      await writeFile(
+        join(tasksDir, "morning.task.json"),
+        JSON.stringify({ name: "morning-check", goal: "check morning status", cron: "* * * * *" }),
+        "utf8"
+      );
+
+      const fakeOutputs = [{ type: "message" as const, content: "Morning check done." }];
+      const result = await runCli(["daemon", "--once"], "0.0.0", {
+        env: { ARVINCLAW_API_KEY: "fake-key" },
+        sessionsDirectory: directory,
+        fakeModelOutputs: fakeOutputs
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("morning-check");
+      expect(result.stdout).toContain("Done.");
+    } finally {
+      await rm(parentDir, { recursive: true, force: true });
+    }
+  });
+
+  test("daemon --once skips tasks without cron field", async () => {
+    const parentDir = await mkdtemp(join(tmpdir(), "arvinclaw-daemon-parent-"));
+    const directory = join(parentDir, "sessions");
+    await mkdir(directory, { recursive: true });
+    try {
+      const { dirname: pathDirname } = await import("node:path");
+      const tasksDir = join(pathDirname(directory), "tasks");
+      await mkdir(tasksDir, { recursive: true });
+      // Task without a cron field — should be skipped
+      await writeFile(
+        join(tasksDir, "manual.task.json"),
+        JSON.stringify({ name: "manual-task", goal: "run manually" }),
+        "utf8"
+      );
+
+      const fakeOutputs = [{ type: "message" as const, content: "Should not run." }];
+      const result = await runCli(["daemon", "--once"], "0.0.0", {
+        env: { ARVINCLAW_API_KEY: "fake-key" },
+        sessionsDirectory: directory,
+        fakeModelOutputs: fakeOutputs
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).not.toContain("manual-task");
+      expect(result.stdout).toContain("Done.");
+    } finally {
+      await rm(parentDir, { recursive: true, force: true });
+    }
+  });
 });

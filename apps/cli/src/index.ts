@@ -1,11 +1,12 @@
 /**
  * INPUT: CLI args, config, model providers, skill loader, session/trace stores, built-in tools, optional fake outputs and line reader.
- * OUTPUT: Chat, approvals, tool execution, todos, skill management subcommands, session/task listings, trace, redacted config, stdout/stderr, gateway session registration.
+ * OUTPUT: Chat, approvals, tool execution, todos, skill management subcommands, session/task listings, daemon cron scheduling, trace, redacted config, stdout/stderr, gateway session registration.
  * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
 import { createInterface } from "node:readline";
+import { readdir, readFile, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, redactedConfig, resolveSessionsDirectory, type EffectiveConfig, type RedactedConfigView } from "@arvinclaw/config";
@@ -14,7 +15,7 @@ import { AgentRuntime, InMemoryRuntimeTraceStore, createSpawnSubagentTool, type 
 import { SessionGateway, type GatewaySession } from "@arvinclaw/gateway";
 import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
 import { CLI_CAPABILITIES, filterToolsByProfile, type ToolProfile } from "@arvinclaw/adapters";
-import { BackgroundApprovalResolver, JsonlTaskStore, type TaskRunRecord } from "@arvinclaw/scheduler";
+import { BackgroundApprovalResolver, CronScheduler, JsonlTaskStore, type TaskDefinition, type TaskRunRecord } from "@arvinclaw/scheduler";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
 import { SkillLoader, SkillManager, toSkillSummary, type SkillDefinition } from "@arvinclaw/skills";
 import { createAppendDailyMemoryTool, createListDirectoryTool, createLoadSkillTool, createMemoryGetTool, createMemorySearchTool, createReadFileTool, createReadWebPageTool, createShellTool, createWriteFileTool, type SkillFileMap } from "@arvinclaw/tools";
@@ -72,6 +73,9 @@ Commands:
               Mark an installed skill as trusted
   skills review <name>
               Show full skill metadata and permission declarations
+  daemon      Start the task scheduler daemon (runs scheduled tasks)
+  daemon --once
+              Run all due tasks once and exit
   --help      Show this help message
   --version   Show the CLI version
 `;
@@ -140,6 +144,11 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
 
   if (command === "skills") {
     return runSkillsCommand(rest, options);
+  }
+
+  if (command === "daemon") {
+    const once = rest.includes("--once");
+    return runDaemon(options, once);
   }
 
   return {
@@ -406,6 +415,166 @@ async function runListTasks(options: RunCliOptions, limit?: number): Promise<Cli
     stdout: lines.join("\n") + "\n",
     stderr: ""
   };
+}
+
+async function loadTaskDefinitions(tasksDir: string): Promise<TaskDefinition[] | null> {
+  // Returns null if the tasks directory does not exist
+  try {
+    await stat(tasksDir);
+  } catch {
+    return null;
+  }
+
+  const entries = await readdir(tasksDir);
+  const taskFiles = entries.filter((e) => e.endsWith(".task.json"));
+  const tasks: TaskDefinition[] = [];
+
+  for (const file of taskFiles) {
+    const content = await readFile(join(tasksDir, file), "utf8");
+    tasks.push(JSON.parse(content) as TaskDefinition);
+  }
+
+  return tasks;
+}
+
+async function runDaemonTask(
+  task: TaskDefinition,
+  config: EffectiveConfig,
+  options: RunCliOptions,
+  taskStore: JsonlTaskStore
+): Promise<void> {
+  const runId = `run_${crypto.randomUUID()}`;
+  const sessionId = createSessionId();
+  const mode = task.mode ?? "auto";
+  const record: TaskRunRecord = {
+    id: runId,
+    taskName: task.name,
+    goal: task.goal,
+    sessionId,
+    startedAt: new Date().toISOString(),
+    status: "running",
+    assistantText: ""
+  };
+  await taskStore.saveRun(record);
+
+  const provider = options.fakeModelOutputs
+    ? new FakeModelProvider(options.fakeModelOutputs)
+    : createConfiguredProvider(config, options);
+  const approvalResolver = new BackgroundApprovalResolver(mode);
+  const currentDate = new Date().toISOString().slice(0, 10);
+
+  const backgroundTools = (() => {
+    const allTools = createCliBuiltInTools(options, config);
+    return config.runtime.toolProfile !== undefined
+      ? filterToolsByProfile(allTools, config.runtime.toolProfile as ToolProfile)
+      : allTools;
+  })();
+
+  const runtime = new AgentRuntime({
+    contextAssembler: createCliContextAssembler(config, currentDate),
+    modelProvider: provider,
+    systemInstruction: "You are ArvinClaw, a personal general-purpose agent running a scheduled background task. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require approval.",
+    runtime: {
+      mode,
+      workspace: config.workspace.root,
+      currentDate
+    },
+    tools: backgroundTools,
+    preferStreaming: false,
+    approvalResolver,
+    ...(task.maxSteps !== undefined ? { maxSteps: task.maxSteps } : {}),
+    ...(config.runtime.promptMode !== undefined ? { promptMode: config.runtime.promptMode } : {})
+  });
+
+  const events: RuntimeEvent[] = [];
+
+  for await (const event of runtime.runTurn({ sessionId, message: task.goal })) {
+    events.push(event);
+  }
+
+  const assistantMessageEvent = events.find((e) => e.type === "assistant_message_created");
+  const assistantText =
+    assistantMessageEvent?.type === "assistant_message_created"
+      ? assistantMessageEvent.message.content
+      : "No assistant message was produced.";
+
+  const failedEvent = events.find((e) => e.type === "run_failed");
+  const status = failedEvent ? "failed" : "completed";
+
+  const updates: Partial<TaskRunRecord> = {
+    status,
+    assistantText,
+    completedAt: new Date().toISOString(),
+    ...(failedEvent?.type === "run_failed" ? { errorMessage: failedEvent.error.message } : {})
+  };
+  await taskStore.updateRun(runId, updates);
+}
+
+async function runDaemon(options: RunCliOptions, once: boolean): Promise<CliResult> {
+  const config = loadConfig(options.env ? { env: options.env } : {});
+
+  if (config.secrets.apiKey === undefined) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: "Missing ARVINCLAW_API_KEY or OPENROUTER_API_KEY. Set one to run the daemon.\n"
+    };
+  }
+
+  const effectiveConfig = options.sessionsDirectory
+    ? { ...config, sessions: { directory: options.sessionsDirectory } }
+    : config;
+  const sessionsDir = resolveSessionsDirectory(effectiveConfig, options.env);
+  const tasksDir = join(dirname(sessionsDir), "tasks");
+  const taskStore = new JsonlTaskStore(join(sessionsDir, "task-runs.jsonl"));
+
+  const tasks = await loadTaskDefinitions(tasksDir);
+  if (tasks === null) {
+    return {
+      exitCode: 0,
+      stdout: `No tasks directory found at ${tasksDir}.\n`,
+      stderr: ""
+    };
+  }
+
+  const cronTasks = tasks.filter((t) => t.cron !== undefined);
+
+  if (once) {
+    const now = new Date();
+    const output: string[] = [];
+    for (const task of cronTasks) {
+      output.push(`Running: ${task.name}`);
+      await runDaemonTask(task, config, options, taskStore);
+    }
+    output.push("Done.");
+    return {
+      exitCode: 0,
+      stdout: output.join("\n") + "\n",
+      stderr: ""
+    };
+  }
+
+  // Continuous daemon mode: start scheduler and wait for SIGTERM/SIGINT
+  const runner = async (task: TaskDefinition) => {
+    await runDaemonTask(task, config, options, taskStore);
+  };
+
+  const scheduler = new CronScheduler(cronTasks, runner);
+  scheduler.start();
+
+  return new Promise<CliResult>((resolve) => {
+    const shutdown = () => {
+      scheduler.stop();
+      resolve({
+        exitCode: 0,
+        stdout: "Daemon stopped.\n",
+        stderr: ""
+      });
+    };
+
+    process.once("SIGTERM", shutdown);
+    process.once("SIGINT", shutdown);
+  });
 }
 
 function resolveSkillsDirectory(config: EffectiveConfig, options: RunCliOptions): string {
