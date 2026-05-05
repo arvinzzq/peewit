@@ -1,6 +1,6 @@
 /**
- * INPUT: Tool definitions, input schemas, risk metadata, registration requests, tool execution input, and workspace file system access.
- * OUTPUT: Tool contracts, registry lookup/listing behavior, executable read-only file tools, guarded write_file tool, guarded shell tool, read_web_page tool, update_todos task tracker, append_daily_memory tool, SpawnSubagentResult type for sub-agent spawning, normalized tool results, and registry errors.
+ * INPUT: Tool definitions, input schemas, risk metadata, registration requests, tool execution input, workspace file system access, and skill file map for on-demand skill loading.
+ * OUTPUT: Tool contracts, registry lookup/listing behavior, executable read-only file tools, guarded write_file tool, guarded shell tool, read_web_page tool, update_todos task tracker, append_daily_memory tool, load_skill on-demand tool, SpawnSubagentResult type for sub-agent spawning, normalized tool results, SkillFileMap type, LoadSkillResult type, and registry errors.
  * POS: Tool system layer; exposes capabilities without making permission decisions.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -95,6 +95,14 @@ export interface SpawnSubagentResult {
   error?: string;
 }
 
+export interface LoadSkillResult {
+  ok: boolean;
+  content?: string;
+  error?: string;
+}
+
+export type SkillFileMap = Map<string, string>;
+
 export type ToolExecutionResult =
   | ReadFileToolResult
   | ListDirectoryToolResult
@@ -104,6 +112,7 @@ export type ToolExecutionResult =
   | UpdateTodosResult
   | AppendDailyMemoryResult
   | SpawnSubagentResult
+  | LoadSkillResult
   | ToolExecutionFailure;
 
 export type TodoStatus = "pending" | "in_progress" | "completed";
@@ -628,6 +637,35 @@ export function createUpdateTodosTool(onUpdate?: (todos: TodoItem[]) => void): E
 
       onUpdate?.(todos);
       return { ok: true };
+    }
+  };
+}
+
+export function createLoadSkillTool(skillFileMap: SkillFileMap): ExecutableTool {
+  return {
+    name: "load_skill",
+    description: "Load the full instructions for a named skill. Call this when you need to follow a skill's detailed guidance. Available skills are listed in the <skills> section.",
+    risk: "low",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "The exact skill name to load." }
+      },
+      required: ["name"]
+    },
+    async execute(rawInput): Promise<LoadSkillResult> {
+      const { name } = rawInput as { name: string };
+      const filePath = skillFileMap.get(name);
+      if (filePath === undefined) {
+        return { ok: false, error: `Skill "${name}" not found. Check the skills list for available names.` };
+      }
+      try {
+        const { readFile } = await import("node:fs/promises");
+        const content = await readFile(filePath, "utf-8");
+        return { ok: true, content };
+      } catch {
+        return { ok: false, error: `Could not read skill file for "${name}".` };
+      }
     }
   };
 }

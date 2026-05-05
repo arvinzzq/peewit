@@ -17,7 +17,7 @@ import { CLI_CAPABILITIES } from "@arvinclaw/adapters";
 import { BackgroundApprovalResolver, JsonlTaskStore, type TaskRunRecord } from "@arvinclaw/scheduler";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
 import { SkillLoader, SkillManager, toSkillSummary, type SkillDefinition } from "@arvinclaw/skills";
-import { createAppendDailyMemoryTool, createListDirectoryTool, createReadFileTool, createReadWebPageTool, createShellTool, createWriteFileTool } from "@arvinclaw/tools";
+import { createAppendDailyMemoryTool, createListDirectoryTool, createLoadSkillTool, createReadFileTool, createReadWebPageTool, createShellTool, createWriteFileTool, type SkillFileMap } from "@arvinclaw/tools";
 
 export const cliPackageName = "@arvinclaw/cli";
 
@@ -776,11 +776,12 @@ export class CliChatSession {
 
     const skillDefinitions = await new SkillLoader().load({ workspaceRoot: config.workspace.root });
     const skillIndex = skillDefinitions.map(toSkillSummary);
+    const skillFileMap = new Map(skillDefinitions.map((s) => [s.name, s.filePath]));
 
     const configuredProvider = createConfiguredProvider(config, options);
     const approvalResolver = sessionOptions.approvalResolver ?? createCliApprovalResolver(options, approvalPromptLog);
 
-    const builtInTools = createCliBuiltInTools(options, config);
+    const builtInTools = createCliBuiltInTools(options, config, skillFileMap);
 
     const factory: SubagentFactory = {
       create: (goal) => new AgentRuntime({
@@ -932,7 +933,7 @@ function createCliApprovalResolver(options: RunCliOptions, approvalPromptLog: st
   };
 }
 
-function createCliBuiltInTools(options: RunCliOptions, config?: EffectiveConfig) {
+function createCliBuiltInTools(options: RunCliOptions, config?: EffectiveConfig, skillFileMap?: SkillFileMap) {
   const tools = [
     createReadFileTool(),
     createListDirectoryTool(),
@@ -943,6 +944,10 @@ function createCliBuiltInTools(options: RunCliOptions, config?: EffectiveConfig)
 
   if (config?.memory.longTermFiles === "write") {
     tools.push(createAppendDailyMemoryTool());
+  }
+
+  if (skillFileMap !== undefined && skillFileMap.size > 0) {
+    tools.push(createLoadSkillTool(skillFileMap));
   }
 
   return tools;

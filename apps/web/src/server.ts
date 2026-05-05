@@ -36,6 +36,7 @@ import {
 import { SkillLoader, toSkillSummary } from "@arvinclaw/skills";
 import {
   createListDirectoryTool,
+  createLoadSkillTool,
   createReadFileTool,
   createReadWebPageTool,
   createShellTool,
@@ -122,6 +123,7 @@ async function createWebSession(config: EffectiveConfig, existingSessionId?: str
 
   const skillDefinitions = await new SkillLoader().load({ workspaceRoot: config.workspace.root });
   const skillIndex = skillDefinitions.map(toSkillSummary);
+  const skillFileMap = new Map(skillDefinitions.map((s) => [s.name, s.filePath]));
 
   const tools = [
     createReadFileTool(),
@@ -130,6 +132,10 @@ async function createWebSession(config: EffectiveConfig, existingSessionId?: str
     createShellTool(),
     createReadWebPageTool()
   ];
+
+  if (skillFileMap.size > 0) {
+    tools.push(createLoadSkillTool(skillFileMap));
+  }
 
   const runtime = new AgentRuntime({
     contextAssembler: new DefaultContextAssembler({

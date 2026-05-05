@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import {
   createAppendDailyMemoryTool,
   createListDirectoryTool,
+  createLoadSkillTool,
   createReadFileTool,
   createReadWebPageTool,
   createShellTool,
@@ -859,5 +860,46 @@ describe("append_daily_memory tool", () => {
     } finally {
       await import("node:fs/promises").then((fs) => fs.rm(workspace, { recursive: true, force: true }));
     }
+  });
+});
+
+describe("createLoadSkillTool", () => {
+  const ctx = { workspaceRoot: "/ws" };
+
+  test("returns skill content for a known skill name", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-skills-"));
+    try {
+      const filePath = join(dir, "SKILL.md");
+      await writeFile(filePath, "# Skill instructions here");
+
+      const skillFileMap = new Map([["my-skill", filePath]]);
+      const tool = createLoadSkillTool(skillFileMap);
+
+      const result = await tool.execute({ name: "my-skill" }, ctx);
+
+      expect(result).toMatchObject({ ok: true, content: "# Skill instructions here" });
+    } finally {
+      await import("node:fs/promises").then((fs) => fs.rm(dir, { recursive: true, force: true }));
+    }
+  });
+
+  test("returns error for unknown skill name", async () => {
+    const skillFileMap = new Map([["other-skill", "/some/path.md"]]);
+    const tool = createLoadSkillTool(skillFileMap);
+
+    const result = await tool.execute({ name: "missing-skill" }, ctx);
+
+    expect(result).toMatchObject({ ok: false });
+    expect((result as { error?: string }).error).toContain("missing-skill");
+  });
+
+  test("returns error when file cannot be read", async () => {
+    const skillFileMap = new Map([["bad-skill", "/nonexistent/path/SKILL.md"]]);
+    const tool = createLoadSkillTool(skillFileMap);
+
+    const result = await tool.execute({ name: "bad-skill" }, ctx);
+
+    expect(result).toMatchObject({ ok: false });
+    expect((result as { error?: string }).error).toContain("bad-skill");
   });
 });
