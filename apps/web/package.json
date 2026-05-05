@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -b && vite build",
-    "dev": "concurrently \"tsx watch src/server.ts\" \"vite --port 5173\"",
+    "dev": "concurrently \"node --env-file=../../.env --import tsx --watch src/server.ts\" \"vite --port 5173\"",
     "start": "node dist/server.js",
     "typecheck": "tsc -b --noEmit"
   },

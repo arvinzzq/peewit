@@ -6,7 +6,7 @@
   "description": "OpenClaw-inspired personal general-purpose agent for learning and real use.",
   "packageManager": "pnpm@10.14.0",
   "scripts": {
-    "cli": "tsx apps/cli/src/index.ts",
+    "cli": "tsx --env-file=.env apps/cli/src/index.ts",
     "docs:check": "tsx scripts/check-docs.ts",
     "typecheck": "tsc -b",
     "test": "vitest run --passWithNoTests",

@@ -180,9 +180,10 @@ async function createWebSession(config: EffectiveConfig, existingSessionId?: str
     }
     id = existingSessionId;
   } else {
-    // Create a new session
-    id = `session_${crypto.randomUUID()}`;
-    await store.createSession({ title: id });
+    // Create a new session — use the store's generated ID so the JSONL file
+    // name matches the ID used for all subsequent store operations.
+    const record = await store.createSession({ title: `session_${crypto.randomUUID()}` });
+    id = record.id;
   }
 
   const sessionRuntime: WebSessionRuntime = { id, runtime, traceStore, approvalResolver };
