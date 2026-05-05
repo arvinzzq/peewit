@@ -1,6 +1,6 @@
 # Phase 10: Full Personal Agent Platform
 
-Status: In Progress
+Status: Complete
 Date: 2026-05-05
 
 Simplified Chinese version: [phase-10-full-platform.zh-CN.md](./phase-10-full-platform.zh-CN.md)
@@ -36,11 +36,11 @@ Register `spawn_subagent` tool in CLI sessions. Register sessions in `SessionGat
 
 ## 3. Commit Sequence
 
-1. `docs: add Phase 10 design — full personal agent platform`
-2. `feat(core,tools): add spawn_subagent tool and SubagentFactory interface`
-3. `feat(gateway): add SessionGateway registry for multi-adapter session tracking`
-4. `feat(cli,web): wire spawn_subagent tool and register sessions in SessionGateway`
-5. `docs: mark Phase 10 complete`
+1. `docs: add Phase 10 design — full personal agent platform` — 8245a6f
+2. `feat(core,tools): add spawn_subagent tool and SubagentFactory interface` — 04eb4af
+3. `feat(gateway): add SessionGateway registry for multi-adapter session tracking` — 2103895
+4. `feat(cli,web): wire spawn_subagent tool and register sessions in SessionGateway` — ae43765
+5. `docs: mark Phase 10 complete` — (this commit)
 
 ## 4. Acceptance Criteria
 

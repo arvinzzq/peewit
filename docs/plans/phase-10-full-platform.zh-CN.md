@@ -1,6 +1,6 @@
 # Phase 10：完整个人 Agent 平台
 
-状态：进行中
+状态：Complete
 日期：2026-05-05
 
 English version: [phase-10-full-platform.md](./phase-10-full-platform.md)
@@ -36,11 +36,11 @@ English version: [phase-10-full-platform.md](./phase-10-full-platform.md)
 
 ## 3. 提交序列
 
-1. `docs: add Phase 10 design — full personal agent platform`
-2. `feat(core,tools): add spawn_subagent tool and SubagentFactory interface`
-3. `feat(gateway): add SessionGateway registry for multi-adapter session tracking`
-4. `feat(cli,web): wire spawn_subagent tool and register sessions in SessionGateway`
-5. `docs: mark Phase 10 complete`
+1. `docs: add Phase 10 design — full personal agent platform` — 8245a6f
+2. `feat(core,tools): add spawn_subagent tool and SubagentFactory interface` — 04eb4af
+3. `feat(gateway): add SessionGateway registry for multi-adapter session tracking` — 2103895
+4. `feat(cli,web): wire spawn_subagent tool and register sessions in SessionGateway` — ae43765
+5. `docs: mark Phase 10 complete` — (本次提交)
 
 ## 4. 验收标准
 
