@@ -1,5 +1,8 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { SkillLoader, parseSKILLMd, toSkillSummary, type SkillDefinition } from "./index.js";
+import { SkillLoader, SkillManager, parseSKILLMd, toSkillSummary, type SkillDefinition } from "./index.js";
 
 describe("parseSKILLMd", () => {
   test("parses valid SKILL.md frontmatter and body", () => {
@@ -53,6 +56,52 @@ describe("parseSKILLMd", () => {
     expect(result?.name).toBe("research");
     expect(result?.description).toBe("skill");
     expect(result?.body).toBe("body");
+  });
+
+  test("parses version field", () => {
+    const content = "---\nname: my-skill\ndescription: A skill.\nversion: 1.2.0\n---\nbody";
+    const result = parseSKILLMd(content);
+    expect(result?.version).toBe("1.2.0");
+  });
+
+  test("parses origin field", () => {
+    const content = "---\nname: my-skill\ndescription: A skill.\norigin: https://example.com/skill.md\n---\nbody";
+    const result = parseSKILLMd(content);
+    expect(result?.origin).toBe("https://example.com/skill.md");
+  });
+
+  test("parses permissions as comma-separated string", () => {
+    const content = "---\nname: my-skill\ndescription: A skill.\npermissions: filesystem, shell\n---\nbody";
+    const result = parseSKILLMd(content);
+    expect(result?.permissions).toEqual(["filesystem", "shell"]);
+  });
+
+  test("parses permissions as YAML array", () => {
+    const content = [
+      "---",
+      "name: my-skill",
+      "description: A skill.",
+      "permissions:",
+      "  - filesystem",
+      "  - shell",
+      "---",
+      "body"
+    ].join("\n");
+    const result = parseSKILLMd(content);
+    expect(result?.permissions).toEqual(["filesystem", "shell"]);
+  });
+
+  test("parses all extended fields together", () => {
+    const content = "---\nname: my-skill\ndescription: A skill.\nversion: 1.2.0\norigin: https://example.com\npermissions: filesystem, shell\n---\nbody";
+    const result = parseSKILLMd(content);
+    expect(result).toMatchObject({
+      name: "my-skill",
+      description: "A skill.",
+      version: "1.2.0",
+      origin: "https://example.com",
+      permissions: ["filesystem", "shell"],
+      body: "body"
+    });
   });
 });
 
@@ -121,15 +170,15 @@ describe("SkillLoader", () => {
       userSkillsDir: "/user/skills",
       readDir: async (p) => {
         if (p === "/ws/skills") return ["research"];
-        if (p === "/user/skills") return ["research", "custom-user"];
+        if (p === "/user/skills") return ["research.md", "custom-user.md"];
         return [];
       },
       readFile: async (p) => {
         if (p === "/ws/skills/research/SKILL.md")
           return "---\nname: research\ndescription: Workspace version.\n---\n";
-        if (p === "/user/skills/research/SKILL.md")
+        if (p === "/user/skills/research.md")
           return "---\nname: research\ndescription: User version.\n---\n";
-        if (p === "/user/skills/custom-user/SKILL.md")
+        if (p === "/user/skills/custom-user.md")
           return "---\nname: custom-user\ndescription: User custom skill.\n---\n";
         throw Object.assign(new Error(), { code: "ENOENT" });
       }
@@ -172,6 +221,209 @@ describe("SkillLoader", () => {
     expect(skills.find((s) => s.name === "good-skill")).toBeDefined();
     expect(skills.find((s) => s.name === "bad-skill")).toBeUndefined();
   });
+
+  test("skips disabled user skills via manifest", async () => {
+    const manifest = JSON.stringify({
+      skills: [{ name: "disabled-skill", filePath: "/user/skills/disabled-skill.md", installedAt: "2026-01-01T00:00:00.000Z", trusted: true, enabled: false }]
+    });
+
+    const loader = new SkillLoader();
+    const skills = await loader.load({
+      userSkillsDir: "/user/skills",
+      readDir: async (p) => (p === "/user/skills" ? ["disabled-skill.md", "enabled-skill.md"] : []),
+      readFile: async (p) => {
+        if (p === "/user/skills/skills-index.json") return manifest;
+        if (p === "/user/skills/disabled-skill.md")
+          return "---\nname: disabled-skill\ndescription: Should be skipped.\n---\nbody";
+        if (p === "/user/skills/enabled-skill.md")
+          return "---\nname: enabled-skill\ndescription: Should be loaded.\n---\nbody";
+        throw Object.assign(new Error(), { code: "ENOENT" });
+      }
+    });
+
+    expect(skills.find((s) => s.name === "disabled-skill")).toBeUndefined();
+    expect(skills.find((s) => s.name === "enabled-skill")).toBeDefined();
+  });
+
+  test("marks user skills as untrusted when not in manifest", async () => {
+    const manifest = JSON.stringify({ skills: [] });
+
+    const loader = new SkillLoader();
+    const skills = await loader.load({
+      userSkillsDir: "/user/skills",
+      readDir: async (p) => (p === "/user/skills" ? ["new-skill.md"] : []),
+      readFile: async (p) => {
+        if (p === "/user/skills/skills-index.json") return manifest;
+        if (p === "/user/skills/new-skill.md")
+          return "---\nname: new-skill\ndescription: New user skill.\n---\nbody";
+        throw Object.assign(new Error(), { code: "ENOENT" });
+      }
+    });
+
+    const skill = skills.find((s) => s.name === "new-skill");
+    expect(skill?.trusted).toBe(false);
+  });
+});
+
+describe("SkillManager", () => {
+  async function makeTmpDir(): Promise<string> {
+    return mkdtemp(join(tmpdir(), "arvinclaw-test-"));
+  }
+
+  async function cleanup(dir: string): Promise<void> {
+    await rm(dir, { recursive: true, force: true });
+  }
+
+  test("install copies file and creates manifest entry", async () => {
+    const tmpDir = await makeTmpDir();
+    const srcDir = await makeTmpDir();
+    try {
+      const srcPath = join(srcDir, "my-skill.md");
+      await writeFile(srcPath, "---\nname: my-skill\ndescription: A skill.\n---\nbody", "utf8");
+
+      const manager = new SkillManager(tmpDir);
+      const entry = await manager.install(srcPath);
+
+      expect(entry.name).toBe("my-skill");
+      expect(entry.trusted).toBe(false);
+      expect(entry.enabled).toBe(true);
+
+      const manifest = await manager.loadManifest();
+      expect(manifest.skills).toHaveLength(1);
+      expect(manifest.skills[0]?.name).toBe("my-skill");
+    } finally {
+      await cleanup(tmpDir);
+      await cleanup(srcDir);
+    }
+  });
+
+  test("install with version and origin preserves origin in manifest", async () => {
+    const tmpDir = await makeTmpDir();
+    const srcDir = await makeTmpDir();
+    try {
+      const srcPath = join(srcDir, "versioned.md");
+      await writeFile(srcPath, "---\nname: versioned\ndescription: A versioned skill.\nversion: 2.0.0\norigin: https://example.com/versioned.md\n---\nbody", "utf8");
+
+      const manager = new SkillManager(tmpDir);
+      const entry = await manager.install(srcPath);
+
+      expect(entry.origin).toBe("https://example.com/versioned.md");
+    } finally {
+      await cleanup(tmpDir);
+      await cleanup(srcDir);
+    }
+  });
+
+  test("disable sets enabled: false in manifest", async () => {
+    const tmpDir = await makeTmpDir();
+    const srcDir = await makeTmpDir();
+    try {
+      const srcPath = join(srcDir, "my-skill.md");
+      await writeFile(srcPath, "---\nname: my-skill\ndescription: A skill.\n---\nbody", "utf8");
+
+      const manager = new SkillManager(tmpDir);
+      await manager.install(srcPath);
+      await manager.disable("my-skill");
+
+      const manifest = await manager.loadManifest();
+      expect(manifest.skills[0]?.enabled).toBe(false);
+    } finally {
+      await cleanup(tmpDir);
+      await cleanup(srcDir);
+    }
+  });
+
+  test("enable sets enabled: true in manifest", async () => {
+    const tmpDir = await makeTmpDir();
+    const srcDir = await makeTmpDir();
+    try {
+      const srcPath = join(srcDir, "my-skill.md");
+      await writeFile(srcPath, "---\nname: my-skill\ndescription: A skill.\n---\nbody", "utf8");
+
+      const manager = new SkillManager(tmpDir);
+      await manager.install(srcPath);
+      await manager.disable("my-skill");
+      await manager.enable("my-skill");
+
+      const manifest = await manager.loadManifest();
+      expect(manifest.skills[0]?.enabled).toBe(true);
+    } finally {
+      await cleanup(tmpDir);
+      await cleanup(srcDir);
+    }
+  });
+
+  test("trust sets trusted: true in manifest", async () => {
+    const tmpDir = await makeTmpDir();
+    const srcDir = await makeTmpDir();
+    try {
+      const srcPath = join(srcDir, "my-skill.md");
+      await writeFile(srcPath, "---\nname: my-skill\ndescription: A skill.\n---\nbody", "utf8");
+
+      const manager = new SkillManager(tmpDir);
+      await manager.install(srcPath);
+      await manager.trust("my-skill");
+
+      const manifest = await manager.loadManifest();
+      expect(manifest.skills[0]?.trusted).toBe(true);
+    } finally {
+      await cleanup(tmpDir);
+      await cleanup(srcDir);
+    }
+  });
+
+  test("review returns SkillDefinition with trust and enabled state", async () => {
+    const tmpDir = await makeTmpDir();
+    const srcDir = await makeTmpDir();
+    try {
+      const srcPath = join(srcDir, "my-skill.md");
+      await writeFile(srcPath, "---\nname: my-skill\ndescription: A skill.\nversion: 1.0.0\npermissions: filesystem\n---\nbody text", "utf8");
+
+      const manager = new SkillManager(tmpDir);
+      await manager.install(srcPath);
+      const def = await manager.review("my-skill");
+
+      expect(def?.name).toBe("my-skill");
+      expect(def?.trusted).toBe(false);
+      expect(def?.enabled).toBe(true);
+      expect(def?.version).toBe("1.0.0");
+      expect(def?.permissions).toEqual(["filesystem"]);
+    } finally {
+      await cleanup(tmpDir);
+      await cleanup(srcDir);
+    }
+  });
+
+  test("listEntries returns manifest entries", async () => {
+    const tmpDir = await makeTmpDir();
+    const srcDir = await makeTmpDir();
+    try {
+      const srcPath = join(srcDir, "skill-a.md");
+      await writeFile(srcPath, "---\nname: skill-a\ndescription: A.\n---\nbody", "utf8");
+
+      const manager = new SkillManager(tmpDir);
+      await manager.install(srcPath);
+      const entries = await manager.listEntries();
+
+      expect(entries).toHaveLength(1);
+      expect(entries[0]?.name).toBe("skill-a");
+    } finally {
+      await cleanup(tmpDir);
+      await cleanup(srcDir);
+    }
+  });
+
+  test("throws when enable/disable/trust called for unknown skill", async () => {
+    const tmpDir = await makeTmpDir();
+    try {
+      const manager = new SkillManager(tmpDir);
+      await expect(manager.enable("nonexistent")).rejects.toThrow("not found");
+      await expect(manager.disable("nonexistent")).rejects.toThrow("not found");
+      await expect(manager.trust("nonexistent")).rejects.toThrow("not found");
+    } finally {
+      await cleanup(tmpDir);
+    }
+  });
 });
 
 describe("toSkillSummary", () => {
@@ -180,7 +432,8 @@ describe("toSkillSummary", () => {
       name: "research",
       description: "Use when investigating external information or comparing sources.",
       body: "Long body text...",
-      source: "built-in"
+      source: "built-in",
+      filePath: ""
     };
 
     expect(toSkillSummary(skill)).toEqual({
