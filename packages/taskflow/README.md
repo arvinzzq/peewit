@@ -1,20 +1,113 @@
 # TaskFlow Package
 
-## Architecture Summary
+Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
-This directory owns the persistent cross-session task graph boundary.
-It stores task records across sessions, tracks task lifecycle state, and supports parent/child relationships for sub-task hierarchies.
-It keeps task graph persistence separate from runtime orchestration, session storage, and CLI rendering.
+## Architecture Overview
+
+`@arvinclaw/taskflow` owns the **persistent cross-session task graph**: it stores and queries task records that span multiple sessions, adapters, and runtime types. Where `@arvinclaw/sessions` stores conversation history within a session, `@arvinclaw/taskflow` tracks the lifecycle of individual tasks across all sessions.
+
+```
+spawn_subagent_async  ──creates──▶
+CronScheduler         ──creates──▶   JsonlTaskFlowStore   ←── task graph (JSONL)
+CLI task command      ──creates──▶
+```
+
+## Core Concepts
+
+### TaskRecord
+
+```typescript
+interface TaskRecord {
+  id: string;
+  runtime: TaskRuntime;       // "subagent" | "background" | "cli" | "cron" | "web"
+  task: string;               // goal description
+  status: TaskStatus;
+  createdAt: string;
+  updatedAt: string;
+  progressSummary?: string;   // in-progress status description
+  terminalSummary?: string;   // final result description
+  parentId?: string;          // links to parent task for sub-task hierarchies
+  sessionId?: string;         // associated session ID if applicable
+}
+```
+
+### TaskStatus
+
+Seven terminal and non-terminal states:
+
+| Status | Terminal? | Meaning |
+|---|---|---|
+| `"queued"` | No | Created, not yet started |
+| `"running"` | No | Currently executing |
+| `"waiting"` | No | Paused, waiting for dependency or approval |
+| `"blocked"` | No | Cannot proceed (dependency failed) |
+| `"succeeded"` | Yes | Completed successfully |
+| `"failed"` | Yes | Completed with failure |
+| `"cancelled"` | Yes | Explicitly cancelled |
+| `"lost"` | Yes | Process died before recording a terminal status |
+
+### TaskRuntime
+
+`"subagent"` | `"background"` | `"cli"` | `"cron"` | `"web"` — identifies how the task was initiated, useful for filtering and display.
+
+### TaskFlowStore
+
+```typescript
+interface TaskFlowStore {
+  create(record: Omit<TaskRecord, "createdAt" | "updatedAt">): Promise<TaskRecord>;
+  update(id: string, updates: Partial<Pick<TaskRecord, "status" | "progressSummary" | "terminalSummary">>): Promise<TaskRecord | undefined>;
+  get(id: string): Promise<TaskRecord | undefined>;
+  list(query?: { status?: TaskStatus; parentId?: string; limit?: number }): Promise<TaskRecord[]>;
+}
+```
+
+Only `status`, `progressSummary`, and `terminalSummary` can be updated — structural fields (`id`, `runtime`, `task`, `parentId`, `sessionId`) are immutable after creation.
+
+## Implementation Principles
+
+### JsonlTaskFlowStore: Read-Modify-Write
+
+Unlike `JsonlSessionStore` (which is append-only), `JsonlTaskFlowStore` uses a **read-modify-write** pattern for updates. Every `update()` call:
+
+1. Reads all records from the JSONL file.
+2. Finds the record with the matching ID.
+3. Merges the updates and bumps `updatedAt`.
+4. Rewrites the entire file.
+
+This allows status changes to be reflected in the file without maintaining a separate index. The tradeoff is O(n) update cost, which is acceptable for task lists expected to hold hundreds of records.
+
+`create()` appends a new record line and immediately rewrites the full file (including the new record) for consistent format. The parent directory is created automatically.
+
+### Parent/Child Task Graph
+
+The `parentId` field enables tree-structured task tracking for sub-agent spawning:
+
+```
+parent task (cli)
+  └── sub-task A (subagent, parentId = parent.id)
+  └── sub-task B (subagent, parentId = parent.id)
+        └── sub-sub-task (subagent, parentId = sub-task-B.id)
+```
+
+`list({ parentId: "…" })` returns all direct children of a task. Full subtree traversal requires multiple queries.
+
+### Difference from scheduler's JsonlTaskStore
+
+`@arvinclaw/scheduler` has its own `JsonlTaskStore` for scheduler-specific `TaskRunRecord` objects (which include `assistantText`, `completedAt`, and are tightly coupled to the scheduler's run lifecycle). `@arvinclaw/taskflow`'s `JsonlTaskFlowStore` stores `TaskRecord` objects with a richer status model and parent/child relationships for general-purpose cross-session task graphs. The two stores serve different layers: scheduler tracks execution history, taskflow tracks the logical task graph.
+
+### Integration with AsyncTaskStore
+
+`@arvinclaw/core` defines a duck-typed `AsyncTaskStore` interface that `createSpawnSubagentAsyncTool` uses to record task IDs when spawning async sub-agents. `JsonlTaskFlowStore` satisfies this interface (it has a `create()` method with compatible shape), so callers can pass a `JsonlTaskFlowStore` instance as the `taskStore` option without an explicit adapter.
 
 ## File Inventory
 
 | File | Role | Purpose |
-| --- | --- | --- |
-| `package.json` | Package manifest | Declares the taskflow package, package exports, and build scripts. |
-| `tsconfig.json` | TypeScript config | Builds the taskflow package with a reference to sessions. |
-| `src/index.ts` | Task flow store | Exports `TaskRecord`, `TaskStatus`, `TaskRuntime`, `TaskFlowStore` interface, and `JsonlTaskFlowStore` with create, update, get, and list operations. |
-| `src/index.test.ts` | TaskFlow tests | Protects task record creation with timestamps, status updates, undefined on missing id, get by id, list all records, filter by status, filter by parentId, and limit. |
+|---|---|---|
+| `package.json` | Package manifest | Declares the taskflow package and exports. |
+| `tsconfig.json` | TypeScript config | Builds the taskflow package (no workspace package dependencies). |
+| `src/index.ts` | Task flow store | All exports: `TaskStatus`, `TaskRuntime`, `TaskRecord`, `TaskFlowStore`, `JsonlTaskFlowStore`, `taskflowPackageName`. |
+| `src/index.test.ts` | TaskFlow tests | Protects create with timestamps, update/get/list, status and parentId filtering, limit, and `undefined` on missing ID. |
 
 ## Update Reminder
 
-Update this file when the directory structure changes.
+Update this file when the directory structure or module responsibilities change.

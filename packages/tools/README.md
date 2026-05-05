@@ -1,20 +1,150 @@
 # Tools Package
 
-## Architecture Summary
+Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
-This directory owns the tool registry and execution boundary.
-It defines tool metadata, validates inputs, normalizes results, and wraps built-in tools such as file, shell, and web capabilities.
-It must not decide permissions; permission policy lives in `packages/permissions`.
+## Architecture Overview
+
+`@arvinclaw/tools` owns the **tool capability boundary**: it defines what tools exist, what their inputs look like, and how they execute. It does not decide whether a tool is allowed to run — that is the exclusive responsibility of `@arvinclaw/permissions`.
+
+```
+AgentRuntime
+    │ uses
+    ▼
+ExecutableTool[]    ← @arvinclaw/tools
+    │
+    ├─ read_file        (low risk)
+    ├─ list_directory   (low risk)
+    ├─ write_file       (medium risk)
+    ├─ run_shell        (high risk)
+    ├─ read_web_page    (low risk)
+    ├─ update_todos     (low risk)
+    ├─ append_daily_memory (medium risk)
+    ├─ load_skill       (low risk)
+    ├─ memory_search    (low risk)
+    ├─ memory_get       (low risk)
+    ├─ spawn_subagent   (medium risk, created in core)
+    └─ spawn_subagent_async (medium risk, created in core)
+```
+
+## Core Concepts
+
+### Tool Contracts
+
+`ToolDefinition` carries static metadata:
+
+```typescript
+interface ToolDefinition {
+  name: string;
+  description: string;       // shown to the model in the system prompt
+  inputSchema: ToolInputSchema;  // JSON schema for the model's input
+  risk: ToolRiskLevel;       // "low" | "medium" | "high" | "blocked"
+}
+```
+
+`ExecutableTool` extends `ToolDefinition` with an `execute` method:
+
+```typescript
+interface ExecutableTool extends ToolDefinition {
+  execute(input: unknown, context: ToolExecutionContext): Promise<ToolExecutionResult>;
+}
+```
+
+`ToolExecutionContext` carries `workspaceRoot: string`, the only runtime dependency injected into tool execution.
+
+### ToolExecutionResult
+
+A discriminated union covering all possible outcomes:
+
+| Result type | `ok` | Used by |
+|---|---|---|
+| `ReadFileToolResult` | `true` | `read_file` |
+| `ListDirectoryToolResult` | `true` | `list_directory` |
+| `WriteFileToolResult` | `true` | `write_file` |
+| `ShellToolResult` | `true` | `run_shell` |
+| `ReadWebPageToolResult` | `true` | `read_web_page` |
+| `UpdateTodosResult` | `true` | `update_todos` |
+| `AppendDailyMemoryResult` | `true` | `append_daily_memory` |
+| `LoadSkillResult` | `ok: boolean` | `load_skill` |
+| `MemorySearchResult` | `true` | `memory_search` |
+| `MemoryGetResult` | `true` | `memory_get` |
+| `SpawnSubagentResult` | `ok: boolean` | `spawn_subagent` (core) |
+| `SpawnSubagentAsyncResult` | _(no ok)_ | `spawn_subagent_async` (core) |
+| `ToolExecutionFailure` | `false` | any error path |
+
+### InMemoryToolRegistry
+
+A simple name-keyed `Map<string, ToolDefinition>`. All returned values are `structuredClone`d to prevent mutation of registry internals. `list()` returns tools sorted alphabetically by name for deterministic ordering.
+
+## Built-in Tools
+
+### Workspace Boundary (read_file, list_directory, write_file)
+
+All path-based tools enforce a **workspace boundary**: the resolved absolute path must start with `resolve(workspaceRoot)`. If not, the tool returns `{ ok: false, error: { code: "path_outside_workspace" } }`.
+
+`read_file` and `write_file` also block **secret-like paths** (`.env`, `.env.*`, `.netrc`, `*.key`, `*.pem`, `*.p12`, `*.pfx`, `id_rsa`, `id_ed25519`, `id_ecdsa`, `id_dsa`) before any filesystem access.
+
+### Shell Tool Safety Layers (run_shell)
+
+Three layers of protection:
+
+1. **Blocked command patterns** (`BLOCKED_COMMAND_PATTERNS`): Static regex patterns that block `rm -r*` targeting `/` or `~`, fork bombs (`:() {`), writes to block devices, and disk formatting tools (`mkfs`, `fdisk`, `parted`, `shred`).
+
+2. **Sandbox escape patterns** (`SANDBOX_ESCAPE_PATTERNS`, only when `sandboxed: true`): Rejects `/../` path traversal, `cd /`, and `cd ~` — commands that would navigate outside the workspace directory.
+
+3. **Output truncation**: stdout and stderr are capped at 4,000 characters each to prevent context window overflow.
+
+The shell always runs with `cwd = context.workspaceRoot`. Default timeout is 30 seconds; callers can override via `{ timeoutMs }`.
+
+### Web Tool (read_web_page)
+
+Fetches the URL, strips `<script>`, `<style>`, and all HTML tags, decodes HTML entities, collapses whitespace, and truncates to 8,000 characters. Only `http:` and `https:` URLs are accepted. The `fetch` function is injectable for testing.
+
+### update_todos
+
+Validates the entire todo array before accepting any updates. Constraints:
+- Each item must have a non-empty `content` string.
+- `status` must be one of `"pending"`, `"in_progress"`, `"completed"`.
+- At most one item may be `"in_progress"` at a time.
+
+An optional `onUpdate` callback is called after validation, allowing the runtime to capture the updated list and emit `todos_updated`.
+
+### append_daily_memory
+
+Appends a timestamped note to `{workspaceRoot}/memory/YYYY-MM-DD.md`. Creates the `memory/` directory if it doesn't exist. The date is injectable via `options.getCurrentDate()` for test determinism.
+
+### load_skill
+
+Accepts a `SkillFileMap` (`Map<string, string>`) mapping skill names to file paths. Reads the skill file and returns its content. This allows adapters to register available skill files at startup without the tool needing to discover them.
+
+### memory_search / memory_get
+
+Both tools operate within a `memoryDir` boundary:
+
+- `memory_search`: scans `MEMORY.md`, `USER.md`, and `memory/*.md` files; performs case-insensitive word-by-word matching across paragraphs; returns up to `maxResults` (default: 5) excerpts.
+- `memory_get`: reads a specific file by relative path. Rejects path traversal (`..`), absolute paths, and non-`.md` extensions.
+
+## Implementation Principles
+
+### Why Tools Don't Decide Permissions
+
+`ExecutableTool.risk` is metadata that describes the inherent risk level of the tool's action. The actual decision to allow, ask, or deny is made by `PermissionPolicy` in `@arvinclaw/permissions`, which combines the risk level with the current autonomy mode. This separation means:
+- Tools can be registered without knowing the current mode.
+- The permission policy can be swapped without changing tools.
+- Tests can exercise tool logic independently of permission decisions.
+
+### Defensive Input Handling
+
+Every tool validates its `input: unknown` before use. If required fields are missing or wrong type, the tool returns `{ ok: false, error: { code: "invalid_input", message: "…" } }` rather than throwing. This ensures the runtime always receives a valid `ToolExecutionResult` that it can serialize into a tool role message.
 
 ## File Inventory
 
 | File | Role | Purpose |
-| --- | --- | --- |
+|---|---|---|
 | `package.json` | Package manifest | Declares the tools package, export entrypoint, and build scripts. |
 | `tsconfig.json` | TypeScript config | Builds the tools package. |
-| `src/index.ts` | Tool registry and built-in tools | Exports tool definition contracts, executable tool contracts, risk metadata, registry lookup/listing behavior, read-only file tools, guarded write_file tool, guarded shell tool (with optional `ShellToolOptions.sandboxed` mode that rejects path-escape commands), read_web_page tool, `update_todos` task tracker tool, `append_daily_memory` tool, `load_skill` on-demand skill loader, `memory_search` and `memory_get` tools for agent memory retrieval, `createMemorySearchTool` and `createMemoryGetTool` factories, `createLoadSkillTool` factory, `ShellToolOptions` interface, `SkillFileMap` type, `LoadSkillResult` type, `MemorySearchResult` type, `MemoryGetResult` type, `TodoItem` type, `SpawnSubagentResult` type for synchronous sub-agent tool results, `SpawnSubagentAsyncResult` type for asynchronous sub-agent spawns, normalized tool results, and registry errors. |
-| `src/index.test.ts` | Tool tests | Protects registry lookup, deterministic listing, defensive copies, duplicate registration errors, read-only and write_file tools, shell tool execution, sandboxed shell tool safe/unsafe command behavior, web page fetching and HTML extraction, workspace boundaries, secret file blocking, blocked command patterns, timeout handling, HTTP and network errors, normalized failures, `update_todos` validation and callback behavior, `load_skill` file map resolution, unknown skill errors, and unreadable file errors, and `memory_search` and `memory_get` tools including path validation, case-insensitive search, maxResults limiting, and directory traversal rejection. |
+| `src/index.ts` | Tool registry and built-in tools | All exports: tool contracts, `InMemoryToolRegistry`, `ToolRegistryError`, all built-in tool factories, result types, `TodoItem`, `SkillFileMap`, `ShellToolOptions`. |
+| `src/index.test.ts` | Tool tests | Full behavioral test suite covering all tool execution paths, safety guards, workspace boundary enforcement, and registry behavior. |
 
 ## Update Reminder
 
-Update this file when the directory structure changes.
+Update this file when the directory structure or module responsibilities change.
