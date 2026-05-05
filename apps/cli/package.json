@@ -15,6 +15,7 @@
     "@arvinclaw/context": "workspace:*",
     "@arvinclaw/core": "workspace:*",
     "@arvinclaw/models": "workspace:*",
+    "@arvinclaw/scheduler": "workspace:*",
     "@arvinclaw/sessions": "workspace:*",
     "@arvinclaw/skills": "workspace:*",
     "@arvinclaw/tools": "workspace:*",

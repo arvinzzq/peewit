@@ -1,16 +1,18 @@
 /**
- * INPUT: CLI args, config (including resolveSessionsDirectory from @arvinclaw/config), model providers, skill loader, session/trace stores, context assembler, built-in tools, optional fake outputs and line reader.
- * OUTPUT: CLI results, interactive chat, approval prompts, tool execution, todos progress display, daily memory appends (when policy is write), session memory, trace output, redacted config, skill index, slash commands, and stdout/stderr.
+ * INPUT: CLI args, config (including resolveSessionsDirectory from @arvinclaw/config), model providers, skill loader, session/trace stores, context assembler, built-in tools, background task store and approval resolver, optional fake outputs and line reader.
+ * OUTPUT: CLI results, interactive chat, approval prompts, tool execution, todos progress display, daily memory appends (when policy is write), session memory, trace output, redacted config, skill index, slash commands, background task execution, task run listing, and stdout/stderr.
  * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
 import { createInterface } from "node:readline";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, redactedConfig, resolveSessionsDirectory, type EffectiveConfig, type RedactedConfigView } from "@arvinclaw/config";
 import { DefaultContextAssembler } from "@arvinclaw/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore } from "@arvinclaw/core";
 import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
+import { BackgroundApprovalResolver, JsonlTaskStore, type TaskRunRecord } from "@arvinclaw/scheduler";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
 import { SkillLoader, toSkillSummary, type SkillDefinition } from "@arvinclaw/skills";
 import { createAppendDailyMemoryTool, createListDirectoryTool, createReadFileTool, createReadWebPageTool, createShellTool, createWriteFileTool } from "@arvinclaw/tools";
@@ -47,6 +49,13 @@ Commands:
   chat --fake-interactive
               Start an interactive chat session with a fake provider
   sessions    List stored chat sessions
+  run "<goal>"
+              Run a one-shot background task
+  run "<goal>" --mode auto|confirm
+              Run with explicit autonomy mode (default: confirm)
+  tasks       List recent background task runs
+  tasks --limit N
+              Show last N runs
   --help      Show this help message
   --version   Show the CLI version
 `;
@@ -86,6 +95,31 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
 
   if (command === "sessions") {
     return runListSessions(options);
+  }
+
+  if (command === "run") {
+    const modeIndex = rest.indexOf("--mode");
+    const rawMode = modeIndex !== -1 ? rest[modeIndex + 1] : undefined;
+    const mode = rawMode === "auto" ? "auto" : rawMode === "observe" ? "observe" : "confirm";
+    const goal = rest.filter((arg) => !arg.startsWith("--") && arg !== rawMode).join(" ").trim();
+
+    if (goal === "") {
+      return {
+        exitCode: 1,
+        stdout: helpText,
+        stderr: `Missing goal for \`run\`. Usage: arvinclaw run "<goal>"\n`
+      };
+    }
+
+    return runBackgroundTask(goal, mode, options);
+  }
+
+  if (command === "tasks") {
+    const limitIndex = rest.indexOf("--limit");
+    const limitStr = limitIndex !== -1 ? rest[limitIndex + 1] : undefined;
+    const limit = limitStr !== undefined ? parseInt(limitStr, 10) : undefined;
+
+    return runListTasks(options, limit);
   }
 
   return {
@@ -216,6 +250,132 @@ async function runListSessions(options: RunCliOptions): Promise<CliResult> {
   return {
     exitCode: 0,
     stdout: ["Sessions:", ...sessions.map((session) => `${session.id}\t${session.updatedAt}${session.title ? `\t${session.title}` : ""}`)].join("\n") + "\n",
+    stderr: ""
+  };
+}
+
+async function runBackgroundTask(
+  goal: string,
+  mode: "observe" | "confirm" | "auto",
+  options: RunCliOptions
+): Promise<CliResult> {
+  const config = loadConfig(options.env ? { env: options.env } : {});
+
+  if (config.secrets.apiKey === undefined) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: "Missing ARVINCLAW_API_KEY or OPENROUTER_API_KEY. Set one to run background tasks.\n"
+    };
+  }
+
+  const effectiveConfig = options.sessionsDirectory
+    ? { ...config, sessions: { directory: options.sessionsDirectory } }
+    : config;
+  const sessionsDir = resolveSessionsDirectory(effectiveConfig, options.env);
+  const sessionId = createSessionId();
+  const taskRunId = `task_${crypto.randomUUID()}`;
+  const taskName = goal.slice(0, 40).replace(/\s+/g, "-").replace(/[^A-Za-z0-9-]/g, "").toLowerCase() || "task";
+  const startedAt = new Date().toISOString();
+
+  const sessionStore = new JsonlSessionStore({
+    directory: sessionsDir,
+    createSessionId: () => sessionId
+  });
+  const taskStore = new JsonlTaskStore(join(sessionsDir, "task-runs.jsonl"));
+
+  const initialRecord: TaskRunRecord = {
+    id: taskRunId,
+    taskName,
+    goal,
+    sessionId,
+    startedAt,
+    status: "running",
+    assistantText: ""
+  };
+  await taskStore.saveRun(initialRecord);
+
+  const configuredProvider = createConfiguredProvider(config, options);
+  const approvalResolver = new BackgroundApprovalResolver(mode);
+  const currentDate = new Date().toISOString().slice(0, 10);
+
+  const runtime = new AgentRuntime({
+    contextAssembler: createCliContextAssembler(config, currentDate),
+    modelProvider: configuredProvider,
+    systemInstruction: "You are ArvinClaw, a personal general-purpose agent running a background task. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require approval.",
+    runtime: {
+      mode,
+      workspace: config.workspace.root,
+      currentDate
+    },
+    tools: createCliBuiltInTools(options, config),
+    preferStreaming: false,
+    approvalResolver
+  });
+
+  const events: RuntimeEvent[] = [];
+  await sessionStore.createSession({ title: `task: ${goal.slice(0, 60)}` });
+
+  for await (const event of runtime.runTurn({ sessionId, message: goal })) {
+    await sessionStore.appendTraceEvent({ sessionId, event });
+    events.push(event);
+  }
+
+  const traceLines = renderCompactTrace(events);
+  const assistantMessageEvent = events.find((e) => e.type === "assistant_message_created");
+  const assistantText =
+    assistantMessageEvent?.type === "assistant_message_created"
+      ? assistantMessageEvent.message.content
+      : "No assistant message was produced.";
+
+  const failedEvent = events.find((e) => e.type === "run_failed");
+  const status = failedEvent ? "failed" : "completed";
+  const completedAt = new Date().toISOString();
+
+  const updates: Partial<TaskRunRecord> = {
+    status,
+    assistantText,
+    completedAt,
+    ...(failedEvent?.type === "run_failed" ? { errorMessage: failedEvent.error.message } : {})
+  };
+  await taskStore.updateRun(taskRunId, updates);
+
+  const traceOutput = traceLines.join("\n");
+  const resultLine = status === "completed" ? `Done: ${assistantText}` : `Failed: ${failedEvent?.type === "run_failed" ? failedEvent.error.message : "Unknown error"}`;
+
+  return {
+    exitCode: status === "completed" ? 0 : 1,
+    stdout: `Trace:\n${traceOutput}\n\n${resultLine}\n`,
+    stderr: ""
+  };
+}
+
+async function runListTasks(options: RunCliOptions, limit?: number): Promise<CliResult> {
+  const config = loadConfig(options.env ? { env: options.env } : {});
+  const effectiveConfig = options.sessionsDirectory
+    ? { ...config, sessions: { directory: options.sessionsDirectory } }
+    : config;
+  const sessionsDir = resolveSessionsDirectory(effectiveConfig, options.env);
+  const taskStore = new JsonlTaskStore(join(sessionsDir, "task-runs.jsonl"));
+
+  const runs = await taskStore.listRuns(limit !== undefined ? { limit } : {});
+
+  if (runs.length === 0) {
+    return {
+      exitCode: 0,
+      stdout: "No task runs found.\n",
+      stderr: ""
+    };
+  }
+
+  const lines = runs.map((run) => {
+    const idSuffix = run.id.slice(-8);
+    return `${idSuffix}  ${run.taskName}  ${run.status}  ${run.startedAt}`;
+  });
+
+  return {
+    exitCode: 0,
+    stdout: lines.join("\n") + "\n",
     stderr: ""
   };
 }

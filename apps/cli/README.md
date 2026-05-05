@@ -10,9 +10,9 @@ It wires CLI-visible commands, built-in file tools, and approval prompts to runt
 
 | File | Role | Purpose |
 | --- | --- | --- |
-| `package.json` | Package manifest | Declares the CLI package, executable name, build scripts, and runtime/config/session/skill/tool package dependencies. |
-| `tsconfig.json` | TypeScript config | Builds the CLI package with references to config, core, context, models, skills, and tools. |
-| `src/index.ts` | CLI adapter | Parses commands, lists and resumes stored sessions, loads skills, wires workspace prompt/memory files, registers built-in tools, runs configured/fake interactive loops, resolves approvals, persists JSONL sessions/traces, displays todos progress, and exports `CliChatSession` with `sendMessage(opts.onEvent)` and `CreateChatSessionOptions` (approvalResolver, preferStreaming). Real interactive chat routes to `src/app.tsx` via dynamic import. |
+| `package.json` | Package manifest | Declares the CLI package, executable name, build scripts, and runtime/config/session/skill/tool/scheduler package dependencies. |
+| `tsconfig.json` | TypeScript config | Builds the CLI package with references to config, core, context, models, scheduler, skills, and tools. |
+| `src/index.ts` | CLI adapter | Parses commands, lists and resumes stored sessions, loads skills, wires workspace prompt/memory files, registers built-in tools, runs configured/fake interactive loops, resolves approvals, persists JSONL sessions/traces, displays todos progress, runs one-shot background tasks (`run` command), lists task run history (`tasks` command), and exports `CliChatSession` with `sendMessage(opts.onEvent)` and `CreateChatSessionOptions` (approvalResolver, preferStreaming). Real interactive chat routes to `src/app.tsx` via dynamic import. |
 | `src/app.tsx` | Ink chat app | Full Ink-based chat UI: `ChatApp` component with streaming text (`token_delta`), tool progress spinner, approval prompts, todos panel, and text input via `useInput`. `runInkChat()` entry point used by `main()`. Session created inside component with injectable Ink approval resolver. |
 | `src/index.test.ts` | CLI tests | Protects help, version, session listing/resume, workspace prompt and long-term/daily memory handoff, configured chat, durable message/trace handoff, short-term memory handoff, fake-provider chat, built-in file and web tool execution, ask-level approval prompts, compact tool lifecycle and permission trace rendering, `/trace`, `/config` memory policy output, missing API key handling, and unknown-command behavior. |
 
