@@ -1,20 +1,20 @@
 # Phase 6 Streaming and Web UI Plan
 
-Status: In Progress
+Status: Complete
 Date: 2026-05-05
 
 Simplified Chinese version: [phase-6-streaming-and-web-ui.zh-CN.md](./phase-6-streaming-and-web-ui.zh-CN.md)
 
 ## Progress
 
-Status: In Progress
+Status: Complete
 
-Planned commits:
+Completed commits:
 
-- [ ] Part A: Streaming ModelProvider — `StreamEvent`, `StreamingModelProvider`, OpenAI + Anthropic streaming, fake streaming provider
-- [ ] Part B: Runtime streaming events — `token_delta` event, AgentRuntime streaming path
-- [ ] Part C: Ink CLI upgrade — Ink components, streaming display, richer approval prompts
-- [ ] Part D: Web UI — `apps/web`, Hono API server, SSE streaming, React frontend
+- [x] Part A: Streaming ModelProvider — `StreamEvent`, `StreamingModelProvider`, OpenAI SSE streaming, Anthropic streaming, `FakeStreamingProvider`: `d53420d`
+- [x] Part B: Runtime streaming events — `token_delta` event, `preferStreaming` opt-in, AgentRuntime streaming path: `451cb99`
+- [x] Part C: Ink CLI upgrade — `app.tsx` with Ink components (streaming text, spinner, approval prompt, todos), `onEvent` callback on `sendMessage()`, dynamic import in `main()`: `a8ad560`
+- [x] Part D: Web UI — `apps/web` Hono server with SSE turn streaming, React frontend with streaming display and approval modal: `85479a2`
 
 ## 1. Purpose
 

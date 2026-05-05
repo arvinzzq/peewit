@@ -1,20 +1,20 @@
 # Phase 6 流式输出与 Web UI 计划
 
-状态：进行中
+状态：完成
 日期：2026-05-05
 
 English version: [phase-6-streaming-and-web-ui.md](./phase-6-streaming-and-web-ui.md)
 
 ## 进度
 
-状态：进行中
+状态：完成
 
-计划提交：
+已完成提交：
 
-- [ ] Part A：流式 ModelProvider — `StreamEvent`、`StreamingModelProvider`、OpenAI + Anthropic 流式实现、Fake 流式 Provider
-- [ ] Part B：运行时流式事件 — `token_delta` 事件、AgentRuntime 流式路径
-- [ ] Part C：Ink CLI 升级 — Ink 组件、流式显示、更丰富的审批提示
-- [ ] Part D：Web UI — `apps/web`、Hono API 服务器、SSE 流式、React 前端
+- [x] Part A：流式 ModelProvider — `StreamEvent`、`StreamingModelProvider`、OpenAI SSE 流式、Anthropic 流式、`FakeStreamingProvider`：`d53420d`
+- [x] Part B：运行时流式事件 — `token_delta` 事件、`preferStreaming` 选项、AgentRuntime 流式路径：`451cb99`
+- [x] Part C：Ink CLI 升级 — `app.tsx` 含 Ink 组件（流式文本、Spinner、审批提示、Todos）、`sendMessage()` 的 `onEvent` 回调、`main()` 中的动态导入：`a8ad560`
+- [x] Part D：Web UI — `apps/web` Hono 服务器含 SSE 对话轮次流式、React 前端含流式显示和审批 Modal：`85479a2`
 
 ## 1. 目的
 
