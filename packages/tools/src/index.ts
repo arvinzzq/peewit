@@ -1,13 +1,13 @@
 /**
- * INPUT: Tool definitions, input schemas, risk metadata, registration requests, tool execution input, workspace file system access, and skill file map for on-demand skill loading.
- * OUTPUT: Tool contracts, registry lookup/listing behavior, executable read-only file tools, guarded write_file tool, guarded shell tool, read_web_page tool, update_todos task tracker, append_daily_memory tool, load_skill on-demand tool, SpawnSubagentResult type for sub-agent spawning, normalized tool results, SkillFileMap type, LoadSkillResult type, and registry errors.
+ * INPUT: Tool definitions, input schemas, risk metadata, registration requests, tool execution input, workspace file system access, skill file map for on-demand skill loading.
+ * OUTPUT: Tool contracts, registry/listing behavior, read-only file tools, write_file tool, shell tool, read_web_page, update_todos, append_daily_memory, memory_search, memory_get, load_skill tools, SkillFileMap, LoadSkillResult, MemorySearchResult, MemoryGetResult, SpawnSubagentResult types, and registry errors.
  * POS: Tool system layer; exposes capabilities without making permission decisions.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
 import { exec } from "node:child_process";
-import { readdir, readFile, writeFile as writeFileFs, mkdir } from "node:fs/promises";
-import { resolve, relative, basename, extname, dirname } from "node:path";
+import { access, readdir, readFile, writeFile as writeFileFs, mkdir } from "node:fs/promises";
+import { resolve, relative, basename, extname, dirname, join } from "node:path";
 
 export const toolsPackageName = "@arvinclaw/tools";
 
@@ -103,6 +103,18 @@ export interface LoadSkillResult {
 
 export type SkillFileMap = Map<string, string>;
 
+export interface MemorySearchResult {
+  ok: true;
+  results: Array<{ file: string; excerpt: string }>;
+  total: number;
+}
+
+export interface MemoryGetResult {
+  ok: true;
+  content?: string;
+  error?: string;
+}
+
 export type ToolExecutionResult =
   | ReadFileToolResult
   | ListDirectoryToolResult
@@ -113,6 +125,8 @@ export type ToolExecutionResult =
   | AppendDailyMemoryResult
   | SpawnSubagentResult
   | LoadSkillResult
+  | MemorySearchResult
+  | MemoryGetResult
   | ToolExecutionFailure;
 
 export type TodoStatus = "pending" | "in_progress" | "completed";
@@ -665,6 +679,131 @@ export function createLoadSkillTool(skillFileMap: SkillFileMap): ExecutableTool 
         return { ok: true, content };
       } catch {
         return { ok: false, error: `Could not read skill file for "${name}".` };
+      }
+    }
+  };
+}
+
+export function createMemorySearchTool(memoryDir: string): ExecutableTool {
+  return {
+    name: "memory_search",
+    description: "Search over memory files (MEMORY.md, USER.md, memory/YYYY-MM-DD.md) for relevant content. Returns matching excerpts.",
+    risk: "low",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string" },
+        maxResults: { type: "number" }
+      },
+      required: ["query"]
+    },
+    async execute(input): Promise<MemorySearchResult> {
+      const raw = input as { query?: unknown; maxResults?: unknown };
+      const query = typeof raw.query === "string" ? raw.query : "";
+      const maxResults = typeof raw.maxResults === "number" ? raw.maxResults : 5;
+
+      // Collect candidate files
+      const candidateFiles: string[] = [];
+
+      const rootMemoryMd = join(memoryDir, "MEMORY.md");
+      const rootUserMd = join(memoryDir, "USER.md");
+      const memorySubdir = join(memoryDir, "memory");
+
+      for (const candidatePath of [rootMemoryMd, rootUserMd]) {
+        try {
+          await access(candidatePath);
+          candidateFiles.push(candidatePath);
+        } catch {
+          // file does not exist — skip
+        }
+      }
+
+      try {
+        const entries = await readdir(memorySubdir, { recursive: true, withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isFile() && entry.name.endsWith(".md")) {
+            const dir = typeof entry.parentPath === "string" ? entry.parentPath : (entry as unknown as { path: string }).path;
+            candidateFiles.push(join(dir, entry.name));
+          }
+        }
+      } catch {
+        // memory subdir does not exist — skip
+      }
+
+      if (candidateFiles.length === 0) {
+        return { ok: true, results: [], total: 0 };
+      }
+
+      const queryWords = query.toLowerCase().split(/\s+/).filter((w) => w.length > 0);
+      const matches: Array<{ file: string; excerpt: string }> = [];
+
+      for (const filePath of candidateFiles) {
+        let content: string;
+        try {
+          content = await readFile(filePath, "utf8");
+        } catch {
+          continue;
+        }
+
+        const paragraphs = content.split(/\n\n+/);
+        const relPath = relative(memoryDir, filePath);
+
+        for (const paragraph of paragraphs) {
+          const lowerParagraph = paragraph.toLowerCase();
+          if (queryWords.some((word) => lowerParagraph.includes(word))) {
+            matches.push({ file: relPath, excerpt: paragraph.trim() });
+            if (matches.length >= maxResults) break;
+          }
+        }
+
+        if (matches.length >= maxResults) break;
+      }
+
+      return { ok: true, results: matches, total: matches.length };
+    }
+  };
+}
+
+export function createMemoryGetTool(memoryDir: string): ExecutableTool {
+  return {
+    name: "memory_get",
+    description: "Read the full contents of a specific memory file. Valid paths: MEMORY.md, USER.md, memory/YYYY-MM-DD.md",
+    risk: "low",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Relative path within the memory workspace, e.g. MEMORY.md or memory/2026-05-05.md" }
+      },
+      required: ["path"]
+    },
+    async execute(input): Promise<MemoryGetResult> {
+      const raw = input as { path?: unknown };
+      const requestedPath = typeof raw.path === "string" ? raw.path : "";
+
+      // Validate: reject path traversal, absolute paths, non-.md files
+      if (requestedPath.includes("..")) {
+        return { ok: true, error: "Path traversal is not permitted." };
+      }
+      if (requestedPath.startsWith("/")) {
+        return { ok: true, error: "Absolute paths are not permitted." };
+      }
+      if (!requestedPath.endsWith(".md")) {
+        return { ok: true, error: "Only .md files are permitted." };
+      }
+
+      const resolvedMemoryDir = resolve(memoryDir);
+      const resolvedPath = resolve(resolvedMemoryDir, requestedPath);
+
+      // Ensure the resolved path stays inside memoryDir
+      if (!resolvedPath.startsWith(resolvedMemoryDir + "/") && resolvedPath !== resolvedMemoryDir) {
+        return { ok: true, error: "Path traversal is not permitted." };
+      }
+
+      try {
+        const content = await readFile(resolvedPath, "utf8");
+        return { ok: true, content };
+      } catch {
+        return { ok: true, error: `File not found: ${requestedPath}` };
       }
     }
   };

@@ -6,6 +6,8 @@ import {
   createAppendDailyMemoryTool,
   createListDirectoryTool,
   createLoadSkillTool,
+  createMemoryGetTool,
+  createMemorySearchTool,
   createReadFileTool,
   createReadWebPageTool,
   createShellTool,
@@ -13,6 +15,8 @@ import {
   createWriteFileTool,
   InMemoryToolRegistry,
   ToolRegistryError,
+  type MemoryGetResult,
+  type MemorySearchResult,
   type TodoItem,
   type ToolDefinition,
   type WebFetchLike
@@ -859,6 +863,158 @@ describe("append_daily_memory tool", () => {
       expect(result).toMatchObject({ ok: false });
     } finally {
       await import("node:fs/promises").then((fs) => fs.rm(workspace, { recursive: true, force: true }));
+    }
+  });
+});
+
+describe("createMemorySearchTool", () => {
+  const ctx = { workspaceRoot: "/ws" };
+
+  test("returns empty results when memory directory does not exist", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memsearch-"));
+    try {
+      const tool = createMemorySearchTool(join(dir, "nonexistent"));
+      const result = await tool.execute({ query: "anything" }, ctx) as MemorySearchResult;
+      expect(result).toEqual({ ok: true, results: [], total: 0 });
+    } finally {
+      await import("node:fs/promises").then((fs) => fs.rm(dir, { recursive: true, force: true }));
+    }
+  });
+
+  test("finds matching content in MEMORY.md file", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memsearch-"));
+    try {
+      await writeFile(join(dir, "MEMORY.md"), "This is an important fact.\n\nThis paragraph is unrelated.");
+      const tool = createMemorySearchTool(dir);
+      const result = await tool.execute({ query: "important" }, ctx) as MemorySearchResult;
+      expect(result.ok).toBe(true);
+      expect(result.total).toBeGreaterThan(0);
+      expect(result.results[0]?.excerpt).toContain("important fact");
+      expect(result.results[0]?.file).toBe("MEMORY.md");
+    } finally {
+      await import("node:fs/promises").then((fs) => fs.rm(dir, { recursive: true, force: true }));
+    }
+  });
+
+  test("respects maxResults limit", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memsearch-"));
+    try {
+      const paragraphs = Array.from({ length: 10 }, (_, i) => `Paragraph ${i} about memory stuff`);
+      await writeFile(join(dir, "MEMORY.md"), paragraphs.join("\n\n"));
+      const tool = createMemorySearchTool(dir);
+      const result = await tool.execute({ query: "memory", maxResults: 3 }, ctx) as MemorySearchResult;
+      expect(result.results.length).toBeLessThanOrEqual(3);
+    } finally {
+      await import("node:fs/promises").then((fs) => fs.rm(dir, { recursive: true, force: true }));
+    }
+  });
+
+  test("is case-insensitive", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memsearch-"));
+    try {
+      await writeFile(join(dir, "MEMORY.md"), "This mentions ImportantFact uppercase.");
+      const tool = createMemorySearchTool(dir);
+      const result = await tool.execute({ query: "importantfact" }, ctx) as MemorySearchResult;
+      expect(result.total).toBeGreaterThan(0);
+    } finally {
+      await import("node:fs/promises").then((fs) => fs.rm(dir, { recursive: true, force: true }));
+    }
+  });
+
+  test("searches USER.md in addition to MEMORY.md", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memsearch-"));
+    try {
+      await writeFile(join(dir, "USER.md"), "User prefers short answers.");
+      const tool = createMemorySearchTool(dir);
+      const result = await tool.execute({ query: "prefers" }, ctx) as MemorySearchResult;
+      expect(result.total).toBeGreaterThan(0);
+      expect(result.results[0]?.file).toBe("USER.md");
+    } finally {
+      await import("node:fs/promises").then((fs) => fs.rm(dir, { recursive: true, force: true }));
+    }
+  });
+
+  test("searches daily memory files in memory/ subdirectory", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memsearch-"));
+    try {
+      await mkdir(join(dir, "memory"), { recursive: true });
+      await writeFile(join(dir, "memory", "2026-05-05.md"), "Daily note about architecture.");
+      const tool = createMemorySearchTool(dir);
+      const result = await tool.execute({ query: "architecture" }, ctx) as MemorySearchResult;
+      expect(result.total).toBeGreaterThan(0);
+      expect(result.results[0]?.file).toContain("2026-05-05.md");
+    } finally {
+      await import("node:fs/promises").then((fs) => fs.rm(dir, { recursive: true, force: true }));
+    }
+  });
+});
+
+describe("createMemoryGetTool", () => {
+  const ctx = { workspaceRoot: "/ws" };
+
+  test("returns file content for a valid path", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memget-"));
+    try {
+      await writeFile(join(dir, "MEMORY.md"), "# Memory\n\nKey fact here.");
+      const tool = createMemoryGetTool(dir);
+      const result = await tool.execute({ path: "MEMORY.md" }, ctx) as MemoryGetResult;
+      expect(result.ok).toBe(true);
+      expect(result.content).toContain("Key fact here.");
+      expect(result.error).toBeUndefined();
+    } finally {
+      await import("node:fs/promises").then((fs) => fs.rm(dir, { recursive: true, force: true }));
+    }
+  });
+
+  test("returns error for missing file", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memget-"));
+    try {
+      const tool = createMemoryGetTool(dir);
+      const result = await tool.execute({ path: "MEMORY.md" }, ctx) as MemoryGetResult;
+      expect(result.ok).toBe(true);
+      expect(result.error).toContain("File not found");
+      expect(result.content).toBeUndefined();
+    } finally {
+      await import("node:fs/promises").then((fs) => fs.rm(dir, { recursive: true, force: true }));
+    }
+  });
+
+  test("rejects path traversal attempts (..)", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memget-"));
+    try {
+      const tool = createMemoryGetTool(dir);
+      const result = await tool.execute({ path: "../etc/passwd" }, ctx) as MemoryGetResult;
+      expect(result.ok).toBe(true);
+      expect(result.error).toBeDefined();
+      expect(result.content).toBeUndefined();
+    } finally {
+      await import("node:fs/promises").then((fs) => fs.rm(dir, { recursive: true, force: true }));
+    }
+  });
+
+  test("rejects absolute paths", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memget-"));
+    try {
+      const tool = createMemoryGetTool(dir);
+      const result = await tool.execute({ path: "/etc/passwd" }, ctx) as MemoryGetResult;
+      expect(result.ok).toBe(true);
+      expect(result.error).toBeDefined();
+      expect(result.content).toBeUndefined();
+    } finally {
+      await import("node:fs/promises").then((fs) => fs.rm(dir, { recursive: true, force: true }));
+    }
+  });
+
+  test("rejects non-.md files", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memget-"));
+    try {
+      const tool = createMemoryGetTool(dir);
+      const result = await tool.execute({ path: "file.txt" }, ctx) as MemoryGetResult;
+      expect(result.ok).toBe(true);
+      expect(result.error).toBeDefined();
+      expect(result.content).toBeUndefined();
+    } finally {
+      await import("node:fs/promises").then((fs) => fs.rm(dir, { recursive: true, force: true }));
     }
   });
 });

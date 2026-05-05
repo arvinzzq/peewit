@@ -37,6 +37,8 @@ import { SkillLoader, toSkillSummary } from "@arvinclaw/skills";
 import {
   createListDirectoryTool,
   createLoadSkillTool,
+  createMemoryGetTool,
+  createMemorySearchTool,
   createReadFileTool,
   createReadWebPageTool,
   createShellTool,
@@ -132,6 +134,11 @@ async function createWebSession(config: EffectiveConfig, existingSessionId?: str
     createShellTool(),
     createReadWebPageTool()
   ];
+
+  if (config.memory.longTermFiles === "read-only" || config.memory.longTermFiles === "write") {
+    tools.push(createMemorySearchTool(config.workspace.root));
+    tools.push(createMemoryGetTool(config.workspace.root));
+  }
 
   if (skillFileMap.size > 0) {
     tools.push(createLoadSkillTool(skillFileMap));

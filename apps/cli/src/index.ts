@@ -17,7 +17,7 @@ import { CLI_CAPABILITIES } from "@arvinclaw/adapters";
 import { BackgroundApprovalResolver, JsonlTaskStore, type TaskRunRecord } from "@arvinclaw/scheduler";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
 import { SkillLoader, SkillManager, toSkillSummary, type SkillDefinition } from "@arvinclaw/skills";
-import { createAppendDailyMemoryTool, createListDirectoryTool, createLoadSkillTool, createReadFileTool, createReadWebPageTool, createShellTool, createWriteFileTool, type SkillFileMap } from "@arvinclaw/tools";
+import { createAppendDailyMemoryTool, createListDirectoryTool, createLoadSkillTool, createMemoryGetTool, createMemorySearchTool, createReadFileTool, createReadWebPageTool, createShellTool, createWriteFileTool, type SkillFileMap } from "@arvinclaw/tools";
 
 export const cliPackageName = "@arvinclaw/cli";
 
@@ -946,6 +946,12 @@ function createCliBuiltInTools(options: RunCliOptions, config?: EffectiveConfig,
 
   if (config?.memory.longTermFiles === "write") {
     tools.push(createAppendDailyMemoryTool());
+  }
+
+  if (config?.memory.longTermFiles === "read-only" || config?.memory.longTermFiles === "write") {
+    const workspaceRoot = config.workspace.root;
+    tools.push(createMemorySearchTool(workspaceRoot));
+    tools.push(createMemoryGetTool(workspaceRoot));
   }
 
   if (skillFileMap !== undefined && skillFileMap.size > 0) {
