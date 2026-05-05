@@ -83,31 +83,25 @@ The reference architecture is [OpenClaw](https://openclaw.ai). ArvinClaw impleme
 git clone https://github.com/your-username/arvinclaw
 cd arvinclaw
 pnpm install
-pnpm run check        # typecheck + tests + docs parity check
 ```
 
-Set your API key (choose one):
+**Set your API key** — copy `.env.example` to `.env` and fill in your key:
 
 ```bash
-# Anthropic (uses claude-haiku-4-5 by default)
-export ANTHROPIC_API_KEY=sk-ant-...
-
-# OpenRouter (model must be explicit)
-export OPENROUTER_API_KEY=sk-or-...
-export ARVINCLAW_MODEL=openai/gpt-4o
-
-# Any OpenAI-compatible endpoint
-export ARVINCLAW_API_KEY=...
-export ARVINCLAW_BASE_URL=https://your-provider/v1
-export ARVINCLAW_MODEL=your-model-name
+cp .env.example .env
 ```
 
-Start chatting:
+Minimal `.env` for OpenRouter:
 
 ```bash
-pnpm --filter @arvinclaw/cli start chat
-# or after building:
-arvinclaw chat
+OPENROUTER_API_KEY=sk-or-...
+ARVINCLAW_MODEL=anthropic/claude-3-haiku
+```
+
+**Start chatting** (no build step required):
+
+```bash
+pnpm cli chat
 ```
 
 ---
@@ -116,32 +110,34 @@ arvinclaw chat
 
 ### CLI
 
+The `pnpm cli` shortcut runs the CLI directly from source — no build step needed during development.
+
 ```bash
-arvinclaw chat                          # Start interactive streaming chat (Ink UI)
-arvinclaw chat --session <id>           # Named session
-arvinclaw chat --resume                 # Resume most recent session
-arvinclaw run "<goal>"                  # One-shot background task (default: confirm mode)
-arvinclaw run "<goal>" --mode auto      # Auto-approve low/medium risk tools
-arvinclaw tasks                         # List recent background task runs
-arvinclaw tasks --limit 5
-arvinclaw sessions                      # List stored sessions
-arvinclaw skills                        # List loaded skills with trust status
-arvinclaw skills install <path>         # Install a skill from a .md file
-arvinclaw skills enable <name>
-arvinclaw skills disable <name>
-arvinclaw skills trust <name>
-arvinclaw skills review <name>
-arvinclaw daemon                        # Start the cron scheduler daemon
-arvinclaw taskflow list                 # List all task flow records
-arvinclaw taskflow show <id>            # Show a specific task
-arvinclaw taskflow cancel <id>          # Cancel a running task
-arvinclaw run "<goal>" --dream          # Memory dreaming — consolidate daily notes
+pnpm cli chat                           # Start interactive streaming chat (Ink UI)
+pnpm cli chat --session <id>           # Named session
+pnpm cli chat --resume                 # Resume most recent session
+pnpm cli run "<goal>"                  # One-shot background task (default: confirm mode)
+pnpm cli run "<goal>" --mode auto      # Auto-approve low/medium risk tools
+pnpm cli tasks                         # List recent background task runs
+pnpm cli tasks --limit 5
+pnpm cli sessions                      # List stored sessions
+pnpm cli skills                        # List loaded skills with trust status
+pnpm cli skills install <path>         # Install a skill from a .md file
+pnpm cli skills enable <name>
+pnpm cli skills disable <name>
+pnpm cli skills trust <name>
+pnpm cli skills review <name>
+pnpm cli daemon                        # Start the cron scheduler daemon
+pnpm cli taskflow list                 # List all task flow records
+pnpm cli taskflow show <id>            # Show a specific task
+pnpm cli taskflow cancel <id>          # Cancel a running task
+pnpm cli run "<goal>" --dream          # Memory dreaming — consolidate daily notes
 ```
 
 ### Web UI
 
 ```bash
-pnpm --filter @arvinclaw/web run dev    # Hono on :3120, Vite on :5173
+pnpm --filter @arvinclaw/web run dev   # Hono on :3120, Vite on :5173
 ```
 
 Open `http://localhost:5173` in your browser. Create or resume sessions, send messages, watch streaming responses, approve tool actions.
@@ -210,12 +206,38 @@ File-based config: `arvinclaw.config.json` (project) and `~/.arvinclaw/config.js
 
 ## Development
 
+### Local setup
+
 ```bash
 pnpm install          # install all dependencies
-pnpm run check        # typecheck + vitest + docs parity check
+cp .env.example .env  # fill in your API key
+pnpm cli chat         # run CLI from source, no build needed
+```
+
+### Running the Web UI locally
+
+```bash
+pnpm --filter @arvinclaw/web run dev
+# Hono API server: http://localhost:3120
+# Vite dev server: http://localhost:5173
+```
+
+### Tests and checks
+
+```bash
+pnpm run check        # typecheck + vitest + docs parity check (run before every commit)
 pnpm run typecheck    # TypeScript only
 pnpm run test         # vitest only
+pnpm run test:watch   # vitest in watch mode
 pnpm run docs:check   # heading count parity (EN ↔ zh-CN)
+```
+
+### Building for production
+
+```bash
+pnpm run build                          # build all packages
+node apps/cli/dist/index.js chat        # run built CLI
+pnpm --filter @arvinclaw/web run start  # run built Web server
 ```
 
 ### Adding a tool

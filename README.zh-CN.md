@@ -83,31 +83,25 @@ ArvinClaw 是一个从零开始用 TypeScript 构建的个人通用 Agent。
 git clone https://github.com/your-username/arvinclaw
 cd arvinclaw
 pnpm install
-pnpm run check        # 类型检查 + 测试 + 双语文档一致性检查
 ```
 
-设置 API Key（三选一）：
+**设置 API Key** — 复制 `.env.example` 为 `.env` 并填入你的 Key：
 
 ```bash
-# Anthropic（默认使用 claude-haiku-4-5）
-export ANTHROPIC_API_KEY=sk-ant-...
-
-# OpenRouter（必须指定模型）
-export OPENROUTER_API_KEY=sk-or-...
-export ARVINCLAW_MODEL=openai/gpt-4o
-
-# 任何 OpenAI 兼容端点
-export ARVINCLAW_API_KEY=...
-export ARVINCLAW_BASE_URL=https://your-provider/v1
-export ARVINCLAW_MODEL=your-model-name
+cp .env.example .env
 ```
 
-开始聊天：
+OpenRouter 最简配置：
 
 ```bash
-pnpm --filter @arvinclaw/cli start chat
-# 或构建后：
-arvinclaw chat
+OPENROUTER_API_KEY=sk-or-...
+ARVINCLAW_MODEL=anthropic/claude-3-haiku
+```
+
+**开始聊天**（无需构建）：
+
+```bash
+pnpm cli chat
 ```
 
 ---
@@ -116,32 +110,34 @@ arvinclaw chat
 
 ### CLI
 
+`pnpm cli` 直接从源码运行，开发阶段无需构建。
+
 ```bash
-arvinclaw chat                          # 启动流式交互聊天（Ink UI）
-arvinclaw chat --session <id>           # 命名会话
-arvinclaw chat --resume                 # 恢复最近会话
-arvinclaw run "<目标>"                   # 一次性后台任务（默认 confirm 模式）
-arvinclaw run "<目标>" --mode auto       # 自动批准 low/medium 风险工具
-arvinclaw tasks                         # 列出最近后台任务运行记录
-arvinclaw tasks --limit 5
-arvinclaw sessions                      # 列出所有会话
-arvinclaw skills                        # 列出已加载技能（含信任状态）
-arvinclaw skills install <path>         # 从 .md 文件安装技能
-arvinclaw skills enable <name>
-arvinclaw skills disable <name>
-arvinclaw skills trust <name>
-arvinclaw skills review <name>
-arvinclaw daemon                        # 启动 Cron 调度守护进程
-arvinclaw taskflow list                 # 列出所有 TaskFlow 记录
-arvinclaw taskflow show <id>            # 查看指定任务详情
-arvinclaw taskflow cancel <id>          # 取消运行中的任务
-arvinclaw run "<目标>" --dream           # 记忆整理 — 将日记合并进 MEMORY.md
+pnpm cli chat                           # 启动流式交互聊天（Ink UI）
+pnpm cli chat --session <id>           # 命名会话
+pnpm cli chat --resume                 # 恢复最近会话
+pnpm cli run "<目标>"                   # 一次性后台任务（默认 confirm 模式）
+pnpm cli run "<目标>" --mode auto       # 自动批准 low/medium 风险工具
+pnpm cli tasks                         # 列出最近后台任务运行记录
+pnpm cli tasks --limit 5
+pnpm cli sessions                      # 列出所有会话
+pnpm cli skills                        # 列出已加载技能（含信任状态）
+pnpm cli skills install <path>         # 从 .md 文件安装技能
+pnpm cli skills enable <name>
+pnpm cli skills disable <name>
+pnpm cli skills trust <name>
+pnpm cli skills review <name>
+pnpm cli daemon                        # 启动 Cron 调度守护进程
+pnpm cli taskflow list                 # 列出所有 TaskFlow 记录
+pnpm cli taskflow show <id>            # 查看指定任务详情
+pnpm cli taskflow cancel <id>          # 取消运行中的任务
+pnpm cli run "<目标>" --dream           # 记忆整理 — 将日记合并进 MEMORY.md
 ```
 
 ### Web UI
 
 ```bash
-pnpm --filter @arvinclaw/web run dev    # Hono 在 :3120，Vite 在 :5173
+pnpm --filter @arvinclaw/web run dev   # Hono 在 :3120，Vite 在 :5173
 ```
 
 在浏览器打开 `http://localhost:5173`。创建或恢复会话、发送消息、查看流式响应、审批工具操作。
@@ -210,12 +206,38 @@ apps/
 
 ## 开发
 
+### 本地启动
+
 ```bash
 pnpm install          # 安装所有依赖
-pnpm run check        # 类型检查 + vitest + 双语文档一致性检查
+cp .env.example .env  # 填入 API Key
+pnpm cli chat         # 从源码运行 CLI，无需构建
+```
+
+### 本地运行 Web UI
+
+```bash
+pnpm --filter @arvinclaw/web run dev
+# Hono API 服务器：http://localhost:3120
+# Vite 开发服务器：http://localhost:5173
+```
+
+### 测试与检查
+
+```bash
+pnpm run check        # 类型检查 + vitest + 双语文档一致性（提交前必跑）
 pnpm run typecheck    # 仅 TypeScript
 pnpm run test         # 仅 vitest
+pnpm run test:watch   # vitest 监听模式
 pnpm run docs:check   # 双语标题数量一致性（EN ↔ zh-CN）
+```
+
+### 生产构建
+
+```bash
+pnpm run build                          # 构建所有包
+node apps/cli/dist/index.js chat        # 运行构建后的 CLI
+pnpm --filter @arvinclaw/web run start  # 运行构建后的 Web 服务器
 ```
 
 ### 添加工具
