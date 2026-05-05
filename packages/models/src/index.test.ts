@@ -281,6 +281,7 @@ type AnthropicFakeRequest = {
   messages: unknown[];
   tools?: unknown[];
   temperature?: number;
+  thinking?: { type: string; budget_tokens?: number };
 };
 
 type AnthropicFakeResponse = {
@@ -756,5 +757,57 @@ describe("AnthropicProvider streaming", () => {
       { type: "token_delta", delta: "Fallback text." },
       { type: "message_done", content: "Fallback text." }
     ]);
+  });
+
+  test("AnthropicProvider passes thinking param when budget is medium", async () => {
+    const captured: AnthropicFakeRequest[] = [];
+    const provider = new AnthropicProvider({
+      model: "claude-opus-4-7",
+      thinkingBudget: "medium",
+      client: fakeAnthropicClient(
+        { content: [{ type: "text", text: "Thinking done." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 3 } },
+        captured
+      )
+    });
+
+    await provider.generate({ messages: [{ role: "user", content: "Think hard." }] });
+
+    expect(captured[0]).toMatchObject({
+      thinking: { type: "enabled", budget_tokens: 4096 }
+    });
+  });
+
+  test("AnthropicProvider omits thinking param when budget is off", async () => {
+    const captured: AnthropicFakeRequest[] = [];
+    const provider = new AnthropicProvider({
+      model: "claude-opus-4-7",
+      thinkingBudget: "off",
+      client: fakeAnthropicClient(
+        { content: [{ type: "text", text: "No thinking." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 3 } },
+        captured
+      )
+    });
+
+    await provider.generate({ messages: [{ role: "user", content: "Go." }] });
+
+    expect(captured[0]).not.toHaveProperty("thinking");
+  });
+
+  test("AnthropicProvider passes adaptive thinking param when budget is adaptive", async () => {
+    const captured: AnthropicFakeRequest[] = [];
+    const provider = new AnthropicProvider({
+      model: "claude-opus-4-7",
+      thinkingBudget: "adaptive",
+      client: fakeAnthropicClient(
+        { content: [{ type: "text", text: "Adaptive." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 3 } },
+        captured
+      )
+    });
+
+    await provider.generate({ messages: [{ role: "user", content: "Go." }] });
+
+    expect(captured[0]).toMatchObject({
+      thinking: { type: "adaptive" }
+    });
   });
 });

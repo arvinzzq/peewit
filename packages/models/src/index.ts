@@ -1,6 +1,6 @@
 /**
- * INPUT: Provider-neutral model messages, tool definitions, request options, optional fetch implementation, and optional injectable Anthropic client.
- * OUTPUT: ModelProvider contracts, StreamingModelProvider contracts, StreamEvent types, ModelToolDefinition, tool_calls response parsing, fake provider, fake streaming provider, OpenAI-compatible provider (with streaming), and Anthropic provider (with streaming).
+ * INPUT: Provider-neutral model messages, tool definitions, request options, optional fetch implementation, optional injectable Anthropic client, and optional thinkingBudget for Anthropic extended thinking.
+ * OUTPUT: ModelProvider contracts, StreamingModelProvider contracts, StreamEvent types, ModelToolDefinition, tool_calls response parsing, fake provider, fake streaming provider, OpenAI-compatible provider (with streaming), Anthropic provider (with streaming and thinking budget support), and ThinkingBudget type.
  * POS: Model provider layer; isolates Agent Core from vendor-specific APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -531,6 +531,11 @@ interface AnthropicAPIResponse {
 
 type AnthropicSystemBlock = { type: "text"; text: string; cache_control?: { type: "ephemeral" } };
 
+type AnthropicThinkingParam =
+  | { type: "enabled"; budget_tokens: number }
+  | { type: "adaptive" }
+  | { type: "disabled" };
+
 type AnthropicBaseParams = {
   model: string;
   max_tokens: number;
@@ -538,6 +543,7 @@ type AnthropicBaseParams = {
   messages: AnthropicAPIParam[];
   tools?: AnthropicAPIToolDef[];
   temperature?: number;
+  thinking?: AnthropicThinkingParam;
 };
 
 // Minimal streaming event types compatible with the Anthropic SDK's RawMessageStreamEvent.
@@ -563,11 +569,22 @@ export interface AnthropicStreamClientLike {
   };
 }
 
+export type ThinkingBudget = "off" | "minimal" | "low" | "medium" | "high" | "max" | "adaptive";
+
+const THINKING_BUDGET_TOKENS: Record<Exclude<ThinkingBudget, "off" | "adaptive">, number> = {
+  minimal: 1024,
+  low: 2048,
+  medium: 4096,
+  high: 8192,
+  max: 16384
+};
+
 export interface AnthropicProviderConfig {
   apiKey?: string;
   model: string;
   maxTokens?: number;
   temperature?: number;
+  thinkingBudget?: ThinkingBudget;
   client?: AnthropicClientLike;
   streamClient?: AnthropicStreamClientLike;
 }
@@ -578,11 +595,13 @@ export class AnthropicProvider implements StreamingModelProvider {
   readonly #model: string;
   readonly #maxTokens: number;
   readonly #temperature: number | undefined;
+  readonly #thinkingBudget: ThinkingBudget | undefined;
 
   constructor(config: AnthropicProviderConfig) {
     this.#model = config.model;
     this.#maxTokens = config.maxTokens ?? 4096;
     this.#temperature = config.temperature;
+    this.#thinkingBudget = config.thinkingBudget;
 
     if (config.client !== undefined || config.streamClient !== undefined) {
       this.#client = config.client ?? { messages: { create: async () => { throw new Error("No client provided."); } } };
@@ -599,6 +618,14 @@ export class AnthropicProvider implements StreamingModelProvider {
     }
   }
 
+  #buildThinkingParam(): AnthropicThinkingParam | undefined {
+    const budget = this.#thinkingBudget;
+    if (budget === undefined || budget === "off") return undefined;
+    if (budget === "adaptive") return { type: "adaptive" };
+    const tokens = THINKING_BUDGET_TOKENS[budget];
+    return { type: "enabled", budget_tokens: tokens };
+  }
+
   async generate(input: ModelInput): Promise<ModelOutput> {
     try {
       const { system, messages } = translateMessagesToAnthropic(input.messages);
@@ -608,6 +635,8 @@ export class AnthropicProvider implements StreamingModelProvider {
           ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }]
           : undefined;
 
+      const thinkingParam = this.#buildThinkingParam();
+
       const response = await this.#client.messages.create({
         model: this.#model,
         max_tokens: this.#maxTokens,
@@ -616,7 +645,8 @@ export class AnthropicProvider implements StreamingModelProvider {
         ...(input.tools !== undefined && input.tools.length > 0
           ? { tools: translateToolsToAnthropic(input.tools) }
           : {}),
-        ...(this.#temperature !== undefined ? { temperature: this.#temperature } : {})
+        ...(this.#temperature !== undefined ? { temperature: this.#temperature } : {}),
+        ...(thinkingParam !== undefined ? { thinking: thinkingParam } : {})
       });
 
       const toolUseBlocks = response.content.filter(isToolUseBlock);
@@ -663,6 +693,7 @@ export class AnthropicProvider implements StreamingModelProvider {
           ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }]
           : undefined;
 
+      const thinkingParam = this.#buildThinkingParam();
       const params: AnthropicBaseParams = {
         model: this.#model,
         max_tokens: this.#maxTokens,
@@ -671,7 +702,8 @@ export class AnthropicProvider implements StreamingModelProvider {
         ...(input.tools !== undefined && input.tools.length > 0
           ? { tools: translateToolsToAnthropic(input.tools) }
           : {}),
-        ...(this.#temperature !== undefined ? { temperature: this.#temperature } : {})
+        ...(this.#temperature !== undefined ? { temperature: this.#temperature } : {}),
+        ...(thinkingParam !== undefined ? { thinking: thinkingParam } : {})
       };
 
       const stream = await this.#streamClient.messages.stream(params);

@@ -1,6 +1,6 @@
 /**
- * INPUT: CLI args, config, model providers, skill loader, session/trace stores, taskflow store, built-in tools, optional fake outputs and line reader.
- * OUTPUT: Chat, approvals, tool execution, todos, skill management subcommands, session/task/taskflow listings, daemon cron scheduling, trace, redacted config, stdout/stderr, gateway session registration.
+ * INPUT: CLI args, config (including thinkingBudget), model providers, skill loader, session/trace stores, taskflow store, built-in tools, optional fake outputs and line reader.
+ * OUTPUT: Chat, approvals, tool execution, todos, skill management subcommands, session/task/taskflow listings, daemon cron scheduling, trace, redacted config, stdout/stderr, gateway session registration, run --dream memory dreaming.
  * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -1308,7 +1308,8 @@ function createConfiguredProvider(config: EffectiveConfig, options: RunCliOption
       ...(config.secrets.apiKey !== undefined ? { apiKey: config.secrets.apiKey } : {}),
       model: config.model.model,
       temperature: config.model.temperature,
-      maxTokens: config.model.maxTokens
+      maxTokens: config.model.maxTokens,
+      ...(config.model.thinkingBudget !== undefined ? { thinkingBudget: config.model.thinkingBudget } : {})
     });
   }
   return new OpenAICompatibleProvider({

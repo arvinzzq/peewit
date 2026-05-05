@@ -106,7 +106,8 @@ function createProvider(config: EffectiveConfig): ModelProvider {
       ...(config.secrets.apiKey !== undefined ? { apiKey: config.secrets.apiKey } : {}),
       model: config.model.model,
       temperature: config.model.temperature,
-      maxTokens: config.model.maxTokens
+      maxTokens: config.model.maxTokens,
+      ...(config.model.thinkingBudget !== undefined ? { thinkingBudget: config.model.thinkingBudget } : {})
     });
   }
   return new OpenAICompatibleProvider({

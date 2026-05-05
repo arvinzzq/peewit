@@ -259,6 +259,27 @@ describe("loadConfig", () => {
 
     expect(config.runtime.sandboxed).toBe(false);
   });
+
+  test("supports ARVINCLAW_THINKING_BUDGET env var", () => {
+    for (const budget of ["off", "minimal", "low", "medium", "high", "max", "adaptive"] as const) {
+      const config = loadConfig({
+        env: {
+          ARVINCLAW_THINKING_BUDGET: budget
+        }
+      });
+      expect(config.model.thinkingBudget).toBe(budget);
+    }
+  });
+
+  test("rejects invalid thinking budget value", () => {
+    expect(() =>
+      loadConfig({
+        env: {
+          ARVINCLAW_THINKING_BUDGET: "extreme"
+        }
+      })
+    ).toThrow(ConfigValidationError);
+  });
 });
 
 describe("resolveSessionsDirectory", () => {

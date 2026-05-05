@@ -1,6 +1,6 @@
 /**
- * INPUT: User config, project config, env overrides (ARVINCLAW_PROMPT_MODE, ARVINCLAW_EXECUTION_CONTRACT, ARVINCLAW_TOOL_PROFILE, ARVINCLAW_SANDBOX, OPENROUTER_API_KEY, ANTHROPIC_API_KEY, and others), memory policy settings, and sessions directory resolution requests.
- * OUTPUT: EffectiveConfig (including ExecutionContract, toolProfile, and sandboxed flag), PromptMode, redacted config views, ConfigValidationError, and resolveSessionsDirectory helper.
+ * INPUT: User config, project config, env overrides (ARVINCLAW_PROMPT_MODE, ARVINCLAW_EXECUTION_CONTRACT, ARVINCLAW_TOOL_PROFILE, ARVINCLAW_SANDBOX, ARVINCLAW_THINKING_BUDGET, OPENROUTER_API_KEY, ANTHROPIC_API_KEY, and others), memory policy settings, and sessions directory resolution requests.
+ * OUTPUT: EffectiveConfig (including ExecutionContract, toolProfile, sandboxed flag, and thinkingBudget), PromptMode, ThinkingBudget, redacted config views, ConfigValidationError, and resolveSessionsDirectory helper.
  * POS: Configuration boundary; keeps config loading separate from runtime behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -24,6 +24,7 @@ export type MemoryWritePolicy = "disabled";
 export type PromptMode = "full" | "minimal" | "none";
 export type ExecutionContract = "default" | "strict-agentic";
 export type ToolProfileConfig = "coding" | "full" | "messaging" | "background";
+export type ThinkingBudget = "off" | "minimal" | "low" | "medium" | "high" | "max" | "adaptive";
 
 export interface EffectiveConfig {
   model: {
@@ -32,6 +33,7 @@ export interface EffectiveConfig {
     model: string;
     temperature: number;
     maxTokens: number;
+    thinkingBudget?: ThinkingBudget;
   };
   workspace: {
     root: string;
@@ -245,6 +247,9 @@ function applyEnv(config: EffectiveConfig, env: Record<string, string | undefine
   if (env.ARVINCLAW_SANDBOX !== undefined) {
     config.runtime.sandboxed = env.ARVINCLAW_SANDBOX === "true";
   }
+  if (env.ARVINCLAW_THINKING_BUDGET !== undefined) {
+    config.model.thinkingBudget = env.ARVINCLAW_THINKING_BUDGET as ThinkingBudget;
+  }
 }
 
 function validateConfig(config: EffectiveConfig): void {
@@ -301,6 +306,12 @@ function validateConfig(config: EffectiveConfig): void {
       `Invalid runtime.toolProfile "${String(config.runtime.toolProfile)}". Expected coding, full, messaging, or background.`
     );
   }
+
+  if (config.model.thinkingBudget !== undefined && !isThinkingBudget(config.model.thinkingBudget)) {
+    throw new ConfigValidationError(
+      `Invalid model.thinkingBudget "${String(config.model.thinkingBudget)}". Expected off, minimal, low, medium, high, max, or adaptive.`
+    );
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -329,6 +340,18 @@ function isExecutionContract(value: unknown): value is ExecutionContract {
 
 function isToolProfileConfig(value: unknown): value is ToolProfileConfig {
   return value === "coding" || value === "full" || value === "messaging" || value === "background";
+}
+
+function isThinkingBudget(value: unknown): value is ThinkingBudget {
+  return (
+    value === "off" ||
+    value === "minimal" ||
+    value === "low" ||
+    value === "medium" ||
+    value === "high" ||
+    value === "max" ||
+    value === "adaptive"
+  );
 }
 
 /**
