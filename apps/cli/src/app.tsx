@@ -1,6 +1,6 @@
 /**
  * INPUT: EffectiveConfig, env, session options (sessionId, resume flag).
- * OUTPUT: Ink-based interactive chat UI with streaming text, tool progress, approval prompts, and todos panel.
+ * OUTPUT: Ink-based interactive chat UI with streaming text, tool progress, approval prompts, todos panel, slash-command routing, input history (↑/↓), and Tab autocomplete.
  * POS: CLI Ink rendering layer; replaces readline stdout loop for real interactive sessions.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -18,6 +18,17 @@ import {
   type ApprovalResolution,
   type RunCliOptions
 } from "./index.js";
+
+// ─── Slash commands registry ──────────────────────────────────────────────────
+
+const SLASH_COMMANDS = [
+  { command: "/help",   description: "Show available commands" },
+  { command: "/trace",  description: "Show recent trace events" },
+  { command: "/config", description: "Show redacted configuration" },
+  { command: "/skills", description: "List loaded skills" },
+  { command: "/clear",  description: "Clear conversation display" },
+  { command: "/exit",   description: "Leave chat" },
+] as const;
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -104,11 +115,37 @@ function ApprovalPrompt({
   );
 }
 
+function SuggestionsBox({
+  suggestions,
+  selectedIndex
+}: {
+  suggestions: ReadonlyArray<{ command: string; description: string }>;
+  selectedIndex: number;
+}) {
+  if (suggestions.length === 0) return null;
+  return (
+    <Box flexDirection="column" marginBottom={1} paddingLeft={2}>
+      {suggestions.map((s, i) => (
+        <Box key={s.command}>
+          {i === selectedIndex ? (
+            <Text color="cyan" bold>{s.command}</Text>
+          ) : (
+            <Text>{s.command}</Text>
+          )}
+          <Text dimColor>{`  ${s.description}`}</Text>
+        </Box>
+      ))}
+      <Text dimColor>{"Tab to complete · ↑↓ to select"}</Text>
+    </Box>
+  );
+}
+
 // ─── Message types ─────────────────────────────────────────────────────────────
 
 type ChatMessage =
   | { role: "user" | "assistant"; content: string }
-  | { role: "tool_result"; toolName: string; content: string };
+  | { role: "tool_result"; toolName: string; content: string }
+  | { role: "slash_result"; command: string; lines: string[] };
 
 // ─── Main App component ────────────────────────────────────────────────────────
 
@@ -130,6 +167,14 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
 
+  // Input history — newest entry first
+  const [inputHistory, setInputHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [draftInput, setDraftInput] = useState("");
+
+  // Autocomplete
+  const [suggestionIndex, setSuggestionIndex] = useState(0);
+
   // Streaming state (current turn only)
   const [streamingText, setStreamingText] = useState("");
   const [currentTool, setCurrentTool] = useState<string | null>(null);
@@ -140,6 +185,17 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
     request: ApprovalRequest;
     resolve: (decision: ApprovalResolution) => void;
   } | null>(null);
+
+  // Compute matching suggestions from current input
+  const suggestions = useMemo(() => {
+    if (!input.startsWith("/")) return [] as ReadonlyArray<{ command: string; description: string }>;
+    if (input === "/") return SLASH_COMMANDS as ReadonlyArray<{ command: string; description: string }>;
+    return SLASH_COMMANDS.filter(
+      (c) => c.command.startsWith(input) && c.command !== input
+    ) as ReadonlyArray<{ command: string; description: string }>;
+  }, [input]);
+
+  const showSuggestions = suggestions.length > 0;
 
   // Approval resolver that hooks into React state
   const inkApprovalResolver = useMemo(
@@ -212,6 +268,69 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
     [session, isSending, handleEvent]
   );
 
+  // Run a slash command and append the result
+  const handleSlashCommand = useCallback(
+    async (command: string) => {
+      if (session === null) return;
+      if (command === "/clear") {
+        setMessages([]);
+        return;
+      }
+      const lines = await session.runSlashCommand(command);
+      setMessages((prev) => [...prev, { role: "slash_result", command, lines }]);
+    },
+    [session]
+  );
+
+  // Handle TextInput onChange — detects Tab (inserted as '\t') for autocomplete
+  const handleChange = useCallback(
+    (value: string) => {
+      if (value.includes("\t")) {
+        const base = value.replace(/\t/g, "");
+        const filtered = base.startsWith("/")
+          ? SLASH_COMMANDS.filter((c) => c.command.startsWith(base) && c.command !== base)
+          : [];
+        const target = filtered[suggestionIndex] ?? filtered[0];
+        setInput(target !== undefined ? target.command : base);
+        setSuggestionIndex(0);
+        setHistoryIndex(-1);
+      } else {
+        setInput(value);
+        setSuggestionIndex(0);
+        setHistoryIndex(-1);
+        setDraftInput(value);
+      }
+    },
+    [suggestionIndex]
+  );
+
+  // ↑/↓ — navigate suggestions when autocomplete is open, history otherwise
+  useInput(
+    (inputChar, key) => {
+      if (key.upArrow) {
+        if (showSuggestions) {
+          setSuggestionIndex((i) => Math.max(0, i - 1));
+        } else if (historyIndex < inputHistory.length - 1) {
+          const newIndex = historyIndex + 1;
+          setHistoryIndex(newIndex);
+          setInput(inputHistory[newIndex] ?? "");
+        }
+      } else if (key.downArrow) {
+        if (showSuggestions) {
+          setSuggestionIndex((i) => Math.min(suggestions.length - 1, i + 1));
+        } else if (historyIndex > 0) {
+          const newIndex = historyIndex - 1;
+          setHistoryIndex(newIndex);
+          setInput(inputHistory[newIndex] ?? "");
+        } else if (historyIndex === 0) {
+          setHistoryIndex(-1);
+          setInput(draftInput);
+        }
+      }
+    },
+    { isActive: !isSending && pendingApproval === null }
+  );
+
   // Ctrl+C exit handler
   useInput(
     (inputChar, key) => {
@@ -224,11 +343,24 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
     (value: string) => {
       if (isSending || pendingApproval !== null) return;
       const trimmed = value.trim();
-      if (trimmed === "/exit") { exit(); return; }
-      if (trimmed !== "") void sendMessage(trimmed);
+      if (trimmed === "") return;
+
       setInput("");
+      setHistoryIndex(-1);
+      setSuggestionIndex(0);
+
+      if (trimmed === "/exit") { exit(); return; }
+
+      if (trimmed.startsWith("/")) {
+        void handleSlashCommand(trimmed);
+        return;
+      }
+
+      // Track history for regular messages (newest first, no duplicates at head)
+      setInputHistory((prev) => (prev[0] === trimmed ? prev : [trimmed, ...prev.slice(0, 49)]));
+      void sendMessage(trimmed);
     },
-    [isSending, pendingApproval, sendMessage, exit]
+    [isSending, pendingApproval, sendMessage, exit, handleSlashCommand]
   );
 
   if (loadError !== null) {
@@ -253,7 +385,7 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
       {/* Static header — rendered once */}
       <Box marginBottom={1} flexDirection="column">
         <Text bold>{"ArvinClaw chat"}</Text>
-        <Text dimColor>{"Type /exit to leave."}</Text>
+        <Text dimColor>{"Type /help for commands or /exit to leave."}</Text>
       </Box>
 
       {/* Past messages — Static prevents re-renders */}
@@ -268,6 +400,13 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
             <Box key={i} flexDirection="column" marginBottom={1}>
               <Text color="yellow" dimColor>{`▶ ${msg.toolName}`}</Text>
               <Text dimColor>{msg.content}</Text>
+            </Box>
+          ) : msg.role === "slash_result" ? (
+            <Box key={i} flexDirection="column" marginBottom={1}>
+              <Text color="blue" dimColor>{msg.command}</Text>
+              {msg.lines.map((line, j) => (
+                <Text key={j} dimColor>{line}</Text>
+              ))}
             </Box>
           ) : (
             <Box key={i} flexDirection="column" marginBottom={1}>
@@ -296,13 +435,18 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
         />
       )}
 
+      {/* Autocomplete suggestions (above input) */}
+      {!isSending && pendingApproval === null && (
+        <SuggestionsBox suggestions={suggestions} selectedIndex={suggestionIndex} />
+      )}
+
       {/* Input box — shown when idle */}
       {!isSending && pendingApproval === null && (
         <Box>
           <Text color="cyan" bold>{"> "}</Text>
           <TextInput
             value={input}
-            onChange={setInput}
+            onChange={handleChange}
             onSubmit={handleSubmit}
             focus={pendingApproval === null && !isSending}
           />

@@ -939,6 +939,63 @@ describe("runCli", () => {
     expect(result.stdout).not.toContain("secret-api-key");
   });
 
+  test("runs slash help inside an interactive chat loop", async () => {
+    const inputs = ["/help", "/exit"];
+    const result = await runCli(["chat", "--fake-interactive"], "0.0.0", {
+      readLine: async () => inputs.shift()
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("Commands:");
+    expect(result.stdout).toContain("/trace");
+    expect(result.stdout).toContain("/clear");
+    expect(result.stdout).toContain("/exit");
+  });
+
+  test("runs slash clear inside an interactive chat loop", async () => {
+    const inputs = ["Hello", "/clear", "/exit"];
+    const result = await runCli(["chat", "--fake-interactive"], "0.0.0", {
+      readLine: async () => inputs.shift()
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("(conversation display cleared)");
+  });
+
+  test("runs slash help after a fake-provider chat turn in the same CLI run", async () => {
+    const result = await runCli(["chat", "--fake", "Hello runtime", "/help"], "0.0.0");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("Commands:");
+    expect(result.stdout).toContain("/trace");
+    expect(result.stdout).toContain("/clear");
+  });
+
+  test("chat session can return help through slash command", async () => {
+    const session = CliChatSession.createFake();
+
+    expect(await session.runSlashCommand("/help")).toEqual([
+      "Commands:",
+      "/help    Show commands",
+      "/trace   Show recent trace events",
+      "/config  Show redacted configuration",
+      "/skills  List loaded skills",
+      "/clear   Clear conversation display",
+      "/exit    Leave chat"
+    ]);
+  });
+
+  test("chat session returns unknown slash command message for unrecognised commands", async () => {
+    const session = CliChatSession.createFake();
+
+    expect(await session.runSlashCommand("/bogus")).toEqual([
+      "Unknown slash command: /bogus"
+    ]);
+  });
+
   test("chat session can return recent trace through slash command", async () => {
     const session = CliChatSession.createFake();
 

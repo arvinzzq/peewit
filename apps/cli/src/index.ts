@@ -960,8 +960,13 @@ async function runInteractiveLoop(session: CliChatSession, title: string, option
       continue;
     }
 
+    if (message === "/clear") {
+      emit("(conversation display cleared)", "");
+      continue;
+    }
+
     if (message.startsWith("/")) {
-      emit(...renderInteractiveSlashCommand(await session.runSlashCommand(message)), "");
+      emit(...renderInteractiveSlashCommand(message, await session.runSlashCommand(message)), "");
       continue;
     }
 
@@ -982,16 +987,20 @@ async function runInteractiveLoop(session: CliChatSession, title: string, option
   };
 }
 
+const SLASH_COMMAND_LABELS: Record<string, string> = {
+  "/trace":  "Recent Trace:",
+  "/config": "Config:",
+  "/skills": "Skills:",
+  "/help":   "Commands:",
+};
+
 async function renderSlashCommands(session: CliChatSession, slashCommands: string[]): Promise<string> {
   const rendered: string[] = [];
 
   for (const command of slashCommands) {
-    if (command === "/trace") {
-      rendered.push(["", "Recent Trace:", ...(await session.runSlashCommand(command))].join("\n"));
-    } else if (command === "/config") {
-      rendered.push(["", "Config:", ...(await session.runSlashCommand(command))].join("\n"));
-    } else if (command === "/skills") {
-      rendered.push(["", "Skills:", ...(await session.runSlashCommand(command))].join("\n"));
+    const label = SLASH_COMMAND_LABELS[command];
+    if (label !== undefined) {
+      rendered.push(["", label, ...(await session.runSlashCommand(command))].join("\n"));
     } else {
       rendered.push(["", `Unknown slash command: ${command}`].join("\n"));
     }
@@ -1000,18 +1009,12 @@ async function renderSlashCommands(session: CliChatSession, slashCommands: strin
   return rendered.length === 0 ? "" : `${rendered.join("\n")}\n`;
 }
 
-function renderInteractiveSlashCommand(lines: string[]): string[] {
-  const [firstLine] = lines;
-
-  if (firstLine?.startsWith("Unknown slash command")) {
+function renderInteractiveSlashCommand(command: string, lines: string[]): string[] {
+  if (lines[0]?.startsWith("Unknown slash command")) {
     return lines;
   }
-
-  if (lines.some((line) => line.startsWith("Provider:"))) {
-    return ["Config:", ...lines];
-  }
-
-  return ["Recent Trace:", ...lines];
+  const label = SLASH_COMMAND_LABELS[command];
+  return label !== undefined ? [label, ...lines] : lines;
 }
 
 function renderInteractiveHelp(): string[] {
@@ -1021,6 +1024,7 @@ function renderInteractiveHelp(): string[] {
     "/trace   Show recent trace events",
     "/config  Show redacted configuration",
     "/skills  List loaded skills",
+    "/clear   Clear conversation display",
     "/exit    Leave chat"
   ];
 }
@@ -1249,6 +1253,10 @@ export class CliChatSession {
 
     if (command === "/skills") {
       return renderSkillIndex(this.#skillDefinitions);
+    }
+
+    if (command === "/help") {
+      return renderInteractiveHelp();
     }
 
     return [`Unknown slash command: ${command}`];
