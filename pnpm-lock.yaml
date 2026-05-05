@@ -110,6 +110,8 @@ importers:
         specifier: ^6.3.5
         version: 6.4.2(@types/node@25.6.0)(lightningcss@1.32.0)(tsx@4.21.0)
 
+  packages/adapters: {}
+
   packages/config: {}
 
   packages/context:
@@ -140,6 +142,15 @@ importers:
         version: 0.92.0
 
   packages/permissions: {}
+
+  packages/scheduler:
+    dependencies:
+      '@arvinclaw/core':
+        specifier: workspace:*
+        version: link:../core
+      '@arvinclaw/sessions':
+        specifier: workspace:*
+        version: link:../sessions
 
   packages/sessions: {}
 

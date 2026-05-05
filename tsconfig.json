@@ -40,6 +40,9 @@
     },
     {
       "path": "./packages/sessions"
+    },
+    {
+      "path": "./packages/scheduler"
     }
   ]
 }
