@@ -291,6 +291,80 @@ describe("runCli", () => {
     }
   });
 
+  test("includes TOOLS.md in workspace prompt files when present", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-cli-workspace-"));
+    const inputs = ["Use tool notes", "/exit"];
+    const requests: Array<{ body: string }> = [];
+
+    try {
+      await writeFile(join(workspace, "TOOLS.md"), "Tool environment notes go here.");
+
+      const result = await runCli(["chat"], "0.0.0", {
+        env: {
+          ARVINCLAW_API_KEY: "secret-api-key",
+          ARVINCLAW_WORKSPACE_ROOT: workspace
+        },
+        sessionsDirectory: directory,
+        readLine: async () => inputs.shift(),
+        fetch: async (_url, init) => {
+          requests.push({ body: String(init?.body) });
+          return new Response(
+            JSON.stringify({ choices: [{ message: { content: "Tools-aware response" } }] }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          );
+        }
+      });
+
+      expect(result.exitCode).toBe(0);
+      const body = JSON.parse(requests[0]?.body ?? "{}");
+      expect(body.messages[0].content).toContain("### TOOLS.md");
+      expect(body.messages[0].content).toContain("Tool environment notes go here.");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+      await rm(workspace, { force: true, recursive: true });
+    }
+  });
+
+  test("skips missing workspace files gracefully", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-cli-workspace-"));
+    const inputs = ["No extra files", "/exit"];
+    const requests: Array<{ body: string }> = [];
+
+    try {
+      // workspace has no HEARTBEAT.md, TOOLS.md, IDENTITY.md, or BOOTSTRAP.md
+      await writeFile(join(workspace, "AGENTS.md"), "Base agent instructions.");
+
+      const result = await runCli(["chat"], "0.0.0", {
+        env: {
+          ARVINCLAW_API_KEY: "secret-api-key",
+          ARVINCLAW_WORKSPACE_ROOT: workspace
+        },
+        sessionsDirectory: directory,
+        readLine: async () => inputs.shift(),
+        fetch: async (_url, init) => {
+          requests.push({ body: String(init?.body) });
+          return new Response(
+            JSON.stringify({ choices: [{ message: { content: "Graceful response" } }] }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          );
+        }
+      });
+
+      expect(result.exitCode).toBe(0);
+      const body = JSON.parse(requests[0]?.body ?? "{}");
+      expect(body.messages[0].content).not.toContain("### HEARTBEAT.md");
+      expect(body.messages[0].content).not.toContain("### TOOLS.md");
+      expect(body.messages[0].content).not.toContain("### IDENTITY.md");
+      expect(body.messages[0].content).not.toContain("### BOOTSTRAP.md");
+      expect(body.messages[0].content).toContain("### AGENTS.md");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+      await rm(workspace, { force: true, recursive: true });
+    }
+  });
+
   test("sends recent session messages on later interactive turns", async () => {
     const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
     const inputs = ["First message", "Second message", "/exit"];

@@ -1016,7 +1016,14 @@ function createConfiguredSessionStore(config: EffectiveConfig, options: RunCliOp
 }
 
 function createCliContextAssembler(config: RedactedConfigView | EffectiveConfig, currentDate: string): DefaultContextAssembler {
-  const workspacePromptFiles = ["AGENTS.md", "SOUL.md"];
+  const workspacePromptFiles = [
+    "AGENTS.md",
+    "SOUL.md",
+    "TOOLS.md",
+    "IDENTITY.md",
+    "HEARTBEAT.md",
+    "BOOTSTRAP.md"
+  ];
 
   if (config.memory.longTermFiles === "read-only") {
     workspacePromptFiles.push("USER.md", "MEMORY.md", `memory/${currentDate}.md`, `memory/${previousIsoDate(currentDate)}.md`);

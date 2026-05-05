@@ -146,7 +146,7 @@ async function createWebSession(config: EffectiveConfig, existingSessionId?: str
 
   const runtime = new AgentRuntime({
     contextAssembler: new DefaultContextAssembler({
-      workspacePromptFiles: ["AGENTS.md", "SOUL.md"]
+      workspacePromptFiles: ["AGENTS.md", "SOUL.md", "TOOLS.md", "IDENTITY.md", "HEARTBEAT.md", "BOOTSTRAP.md"]
     }),
     modelProvider: createProvider(config),
     systemInstruction:
