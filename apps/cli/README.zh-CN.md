@@ -12,9 +12,9 @@
 | --- | --- | --- |
 | `package.json` | Package manifest | 声明 CLI package、executable name、build scripts 和 runtime/config/session/skill/tool/scheduler package dependencies。 |
 | `tsconfig.json` | TypeScript config | 使用对 config、core、context、models、scheduler、skills 和 tools 的 references 构建 CLI package。 |
-| `src/index.ts` | CLI adapter | 解析命令、列出并恢复 stored sessions、加载 skills、接入 workspace prompt/memory 文件、注册 built-in tools、运行 configured/fake interactive loops、resolve approvals、持久化 JSONL sessions/traces、展示 todos 进度、运行一次性后台任务（`run` 命令）、列出 task run 历史（`tasks` 命令），并导出带 `sendMessage(opts.onEvent)` 和 `CreateChatSessionOptions`（approvalResolver、preferStreaming）的 `CliChatSession`。真实交互聊天通过动态导入路由到 `src/app.tsx`。 |
+| `src/index.ts` | CLI adapter | 解析命令、列出并恢复 stored sessions、加载 skills、接入 workspace prompt/memory 文件、注册 built-in tools、运行 configured/fake interactive loops、resolve approvals、持久化 JSONL sessions/traces、展示 todos 进度、运行一次性后台任务（`run` 命令）、列出 task run 历史（`tasks` 命令）、提供 skills 子命令（`skills install/enable/disable/trust/review`，由 SkillManager 支持），并导出带 `sendMessage(opts.onEvent)` 和 `CreateChatSessionOptions`（approvalResolver、preferStreaming）的 `CliChatSession`。真实交互聊天通过动态导入路由到 `src/app.tsx`。 |
 | `src/app.tsx` | Ink 聊天应用 | 完整的 Ink 聊天 UI：`ChatApp` 组件含流式文本（`token_delta`）、工具进度 Spinner、审批提示、Todos 面板和 `useInput` 文本输入。`runInkChat()` 入口由 `main()` 调用，Session 在组件内创建并注入 Ink 审批 Resolver。 |
-| `src/index.test.ts` | CLI tests | 保护 help、version、session listing/resume、workspace prompt and long-term/daily memory handoff、configured chat、durable message/trace handoff、short-term memory handoff、fake-provider chat、built-in file and web tool execution、ask-level approval prompts、compact tool lifecycle and permission trace rendering、`/trace`、`/config` memory policy output、missing API key handling 和 unknown-command behavior。 |
+| `src/index.test.ts` | CLI tests | 保护 help、version、session listing/resume、workspace prompt and long-term/daily memory handoff、configured chat、durable message/trace handoff、short-term memory handoff、fake-provider chat、built-in file and web tool execution、ask-level approval prompts、compact tool lifecycle and permission trace rendering、`/trace`、`/config` memory policy output、missing API key handling、unknown-command behavior 和 skills install/disable/trust/review 子命令。 |
 
 ## Update Reminder
 

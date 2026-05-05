@@ -1019,4 +1019,129 @@ describe("runCli", () => {
     expect(result.stderr).toContain('Unknown command "unknown"');
     expect(result.stdout).toContain("Usage: arvinclaw");
   });
+
+  test("skills lists built-in skills", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+    try {
+      const result = await runCli(["skills"], "0.0.0", {
+        env: {},
+        sessionsDirectory: directory
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Skills:");
+      expect(result.stdout).toContain("research");
+      expect(result.stdout).toContain("built-in");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("skills install installs a skill and prints confirmation", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+    const srcDir = await mkdtemp(join(tmpdir(), "arvinclaw-skill-src-"));
+    try {
+      const srcPath = join(srcDir, "test-skill.md");
+      await writeFile(srcPath, "---\nname: test-skill\ndescription: A test skill.\n---\nbody", "utf8");
+
+      const result = await runCli(["skills", "install", srcPath], "0.0.0", {
+        env: {},
+        sessionsDirectory: directory
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Installed: test-skill");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+      await rm(srcDir, { force: true, recursive: true });
+    }
+  });
+
+  test("skills disable disables an installed skill", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+    const srcDir = await mkdtemp(join(tmpdir(), "arvinclaw-skill-src-"));
+    try {
+      const srcPath = join(srcDir, "test-skill.md");
+      await writeFile(srcPath, "---\nname: test-skill\ndescription: A test skill.\n---\nbody", "utf8");
+
+      await runCli(["skills", "install", srcPath], "0.0.0", {
+        env: {},
+        sessionsDirectory: directory
+      });
+
+      const result = await runCli(["skills", "disable", "test-skill"], "0.0.0", {
+        env: {},
+        sessionsDirectory: directory
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Disabled: test-skill");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+      await rm(srcDir, { force: true, recursive: true });
+    }
+  });
+
+  test("skills trust marks an installed skill as trusted", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+    const srcDir = await mkdtemp(join(tmpdir(), "arvinclaw-skill-src-"));
+    try {
+      const srcPath = join(srcDir, "test-skill.md");
+      await writeFile(srcPath, "---\nname: test-skill\ndescription: A test skill.\n---\nbody", "utf8");
+
+      await runCli(["skills", "install", srcPath], "0.0.0", {
+        env: {},
+        sessionsDirectory: directory
+      });
+
+      const result = await runCli(["skills", "trust", "test-skill"], "0.0.0", {
+        env: {},
+        sessionsDirectory: directory
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Trusted: test-skill");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+      await rm(srcDir, { force: true, recursive: true });
+    }
+  });
+
+  test("skills review shows skill metadata", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+    const srcDir = await mkdtemp(join(tmpdir(), "arvinclaw-skill-src-"));
+    try {
+      const srcPath = join(srcDir, "test-skill.md");
+      await writeFile(srcPath, "---\nname: test-skill\ndescription: A test skill.\nversion: 1.0.0\npermissions: filesystem\n---\nskill body text", "utf8");
+
+      await runCli(["skills", "install", srcPath], "0.0.0", {
+        env: {},
+        sessionsDirectory: directory
+      });
+
+      const result = await runCli(["skills", "review", "test-skill"], "0.0.0", {
+        env: {},
+        sessionsDirectory: directory
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Name:         test-skill");
+      expect(result.stdout).toContain("Version:      1.0.0");
+      expect(result.stdout).toContain("Permissions:  filesystem");
+      expect(result.stdout).toContain("Trusted:      false");
+      expect(result.stdout).toContain("skill body text");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+      await rm(srcDir, { force: true, recursive: true });
+    }
+  });
+
+  test("skills review returns error for unknown skill", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-cli-sessions-"));
+    try {
+      const result = await runCli(["skills", "review", "nonexistent"], "0.0.0", {
+        env: {},
+        sessionsDirectory: directory
+      });
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("not found");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
 });

@@ -1,12 +1,12 @@
 /**
- * INPUT: CLI args, config (including resolveSessionsDirectory from @arvinclaw/config), model providers, skill loader, session/trace stores, context assembler, built-in tools, background task store and approval resolver, optional fake outputs and line reader.
- * OUTPUT: CLI results, interactive chat, approval prompts, tool execution, todos progress display, daily memory appends (when policy is write), session memory, trace output, redacted config, skill index, slash commands, background task execution, task run listing, and stdout/stderr.
+ * INPUT: CLI args, config, model providers, skill loader, session/trace stores, built-in tools, optional fake outputs and line reader.
+ * OUTPUT: Chat, approvals, tool execution, todos, skill management subcommands, session/task listings, trace, redacted config, stdout/stderr.
  * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
 import { createInterface } from "node:readline";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, redactedConfig, resolveSessionsDirectory, type EffectiveConfig, type RedactedConfigView } from "@arvinclaw/config";
 import { DefaultContextAssembler } from "@arvinclaw/context";
@@ -14,7 +14,7 @@ import { AgentRuntime, InMemoryRuntimeTraceStore, type ApprovalRequest, type App
 import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@arvinclaw/models";
 import { BackgroundApprovalResolver, JsonlTaskStore, type TaskRunRecord } from "@arvinclaw/scheduler";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@arvinclaw/sessions";
-import { SkillLoader, toSkillSummary, type SkillDefinition } from "@arvinclaw/skills";
+import { SkillLoader, SkillManager, toSkillSummary, type SkillDefinition } from "@arvinclaw/skills";
 import { createAppendDailyMemoryTool, createListDirectoryTool, createReadFileTool, createReadWebPageTool, createShellTool, createWriteFileTool } from "@arvinclaw/tools";
 
 export const cliPackageName = "@arvinclaw/cli";
@@ -56,6 +56,17 @@ Commands:
   tasks       List recent background task runs
   tasks --limit N
               Show last N runs
+  skills      List all skills with source, version, trust status
+  skills install <path>
+              Install a skill from a local .md file
+  skills enable <name>
+              Enable a disabled skill
+  skills disable <name>
+              Disable an enabled skill
+  skills trust <name>
+              Mark an installed skill as trusted
+  skills review <name>
+              Show full skill metadata and permission declarations
   --help      Show this help message
   --version   Show the CLI version
 `;
@@ -120,6 +131,10 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
     const limit = limitStr !== undefined ? parseInt(limitStr, 10) : undefined;
 
     return runListTasks(options, limit);
+  }
+
+  if (command === "skills") {
+    return runSkillsCommand(rest, options);
   }
 
   return {
@@ -372,6 +387,171 @@ async function runListTasks(options: RunCliOptions, limit?: number): Promise<Cli
     const idSuffix = run.id.slice(-8);
     return `${idSuffix}  ${run.taskName}  ${run.status}  ${run.startedAt}`;
   });
+
+  return {
+    exitCode: 0,
+    stdout: lines.join("\n") + "\n",
+    stderr: ""
+  };
+}
+
+function resolveSkillsDirectory(config: EffectiveConfig, options: RunCliOptions): string {
+  const effectiveConfig = options.sessionsDirectory
+    ? { ...config, sessions: { directory: options.sessionsDirectory } }
+    : config;
+  const sessionsDir = resolveSessionsDirectory(effectiveConfig, options.env);
+  return join(dirname(sessionsDir), "skills");
+}
+
+async function runSkillsCommand(args: string[], options: RunCliOptions): Promise<CliResult> {
+  const subcommand = args[0];
+
+  if (subcommand === undefined || subcommand === "") {
+    // List all skills
+    return runSkillsList(options);
+  }
+
+  if (subcommand === "install") {
+    const sourcePath = args[1];
+    if (sourcePath === undefined || sourcePath === "") {
+      return {
+        exitCode: 1,
+        stdout: helpText,
+        stderr: "Missing path for `skills install`. Usage: arvinclaw skills install <path>\n"
+      };
+    }
+    return runSkillsInstall(sourcePath, options);
+  }
+
+  if (subcommand === "enable" || subcommand === "disable" || subcommand === "trust") {
+    const name = args[1];
+    if (name === undefined || name === "") {
+      return {
+        exitCode: 1,
+        stdout: helpText,
+        stderr: `Missing name for \`skills ${subcommand}\`. Usage: arvinclaw skills ${subcommand} <name>\n`
+      };
+    }
+    return runSkillsLifecycle(subcommand, name, options);
+  }
+
+  if (subcommand === "review") {
+    const name = args[1];
+    if (name === undefined || name === "") {
+      return {
+        exitCode: 1,
+        stdout: helpText,
+        stderr: "Missing name for `skills review`. Usage: arvinclaw skills review <name>\n"
+      };
+    }
+    return runSkillsReview(name, options);
+  }
+
+  return {
+    exitCode: 1,
+    stdout: helpText,
+    stderr: `Unknown skills subcommand "${subcommand}".\n`
+  };
+}
+
+async function runSkillsList(options: RunCliOptions): Promise<CliResult> {
+  const config = loadConfig(options.env ? { env: options.env } : {});
+  const skillsDir = resolveSkillsDirectory(config, options);
+  const loader = new SkillLoader();
+  const skills = await loader.load({
+    workspaceRoot: config.workspace.root,
+    userSkillsDir: skillsDir
+  });
+
+  const lines = renderSkillIndex(skills);
+
+  return {
+    exitCode: 0,
+    stdout: ["Skills:", ...lines].join("\n") + "\n",
+    stderr: ""
+  };
+}
+
+async function runSkillsInstall(sourcePath: string, options: RunCliOptions): Promise<CliResult> {
+  const config = loadConfig(options.env ? { env: options.env } : {});
+  const skillsDir = resolveSkillsDirectory(config, options);
+  const manager = new SkillManager(skillsDir);
+
+  try {
+    const entry = await manager.install(sourcePath);
+    return {
+      exitCode: 0,
+      stdout: `Installed: ${entry.name}\n`,
+      stderr: ""
+    };
+  } catch (error) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: `Failed to install skill: ${error instanceof Error ? error.message : String(error)}\n`
+    };
+  }
+}
+
+async function runSkillsLifecycle(
+  action: "enable" | "disable" | "trust",
+  name: string,
+  options: RunCliOptions
+): Promise<CliResult> {
+  const config = loadConfig(options.env ? { env: options.env } : {});
+  const skillsDir = resolveSkillsDirectory(config, options);
+  const manager = new SkillManager(skillsDir);
+
+  try {
+    if (action === "enable") {
+      await manager.enable(name);
+      return { exitCode: 0, stdout: `Enabled: ${name}\n`, stderr: "" };
+    } else if (action === "disable") {
+      await manager.disable(name);
+      return { exitCode: 0, stdout: `Disabled: ${name}\n`, stderr: "" };
+    } else {
+      await manager.trust(name);
+      return { exitCode: 0, stdout: `Trusted: ${name}\n`, stderr: "" };
+    }
+  } catch (error) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: `Failed to ${action} skill: ${error instanceof Error ? error.message : String(error)}\n`
+    };
+  }
+}
+
+async function runSkillsReview(name: string, options: RunCliOptions): Promise<CliResult> {
+  const config = loadConfig(options.env ? { env: options.env } : {});
+  const skillsDir = resolveSkillsDirectory(config, options);
+  const manager = new SkillManager(skillsDir);
+
+  const def = await manager.review(name);
+  if (def === undefined) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: `Skill "${name}" not found.\n`
+    };
+  }
+
+  const entries = await manager.listEntries();
+  const entry = entries.find((e) => e.name === name);
+
+  const lines = [
+    `Name:         ${def.name}`,
+    `Source:       ${def.source}`,
+    ...(def.version !== undefined ? [`Version:      ${def.version}`] : []),
+    ...(def.origin !== undefined ? [`Origin:       ${def.origin}`] : []),
+    `Permissions:  ${def.permissions !== undefined && def.permissions.length > 0 ? def.permissions.join(", ") : "(none)"}`,
+    `Trusted:      ${String(def.trusted ?? false)}`,
+    `Enabled:      ${String(def.enabled ?? true)}`,
+    ...(entry?.installedAt !== undefined ? [`Installed:    ${entry.installedAt}`] : []),
+    "",
+    "--- Body ---",
+    def.body
+  ];
 
   return {
     exitCode: 0,
@@ -821,7 +1001,31 @@ export function renderTodosProgress(events: RuntimeEvent[]): string[] {
 
 export function renderSkillIndex(skills: SkillDefinition[]): string[] {
   if (skills.length === 0) return ["No skills loaded."];
-  return skills.map((s) => `[${s.source}] ${s.name}: ${s.description}`);
+
+  const lines: string[] = [];
+  const untrustedNames: string[] = [];
+
+  for (const s of skills) {
+    const trustBadge = s.source === "user" && s.trusted === false ? " ⚠ untrusted" : "";
+    const versionBadge = s.version !== undefined ? ` v${s.version}` : "";
+    const permsBadge = s.permissions !== undefined && s.permissions.length > 0
+      ? ` [${s.permissions.join(", ")}]`
+      : "";
+    lines.push(`[${s.source}]${trustBadge}${versionBadge} ${s.name}: ${s.description}${permsBadge}`);
+
+    if (s.source === "user" && s.trusted === false) {
+      untrustedNames.push(s.name);
+    }
+  }
+
+  if (untrustedNames.length > 0) {
+    lines.push("");
+    for (const name of untrustedNames) {
+      lines.push(`This skill was installed from an external source and has not been trusted. Run \`arvinclaw skills trust ${name}\` to trust it.`);
+    }
+  }
+
+  return lines;
 }
 
 export function renderRedactedConfig(config: RedactedConfigView): string[] {
