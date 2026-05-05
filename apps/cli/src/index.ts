@@ -60,6 +60,8 @@ Commands:
               Run a one-shot background task
   run "<goal>" --mode auto|confirm
               Run with explicit autonomy mode (default: confirm)
+  run --dream
+              Run memory dreaming — consolidate daily notes into MEMORY.md
   tasks       List recent background task runs
   tasks --limit N
               Show last N runs
@@ -127,6 +129,10 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
   }
 
   if (command === "run") {
+    if (rest.includes("--dream")) {
+      return runMemoryDreaming(options);
+    }
+
     const modeIndex = rest.indexOf("--mode");
     const rawMode = modeIndex !== -1 ? rest[modeIndex + 1] : undefined;
     const mode = rawMode === "auto" ? "auto" : rawMode === "observe" ? "observe" : "confirm";
@@ -294,6 +300,34 @@ async function runListSessions(options: RunCliOptions): Promise<CliResult> {
     stdout: ["Sessions:", ...sessions.map((session) => `${session.id}\t${session.updatedAt}${session.title ? `\t${session.title}` : ""}`)].join("\n") + "\n",
     stderr: ""
   };
+}
+
+async function runMemoryDreaming(options: RunCliOptions): Promise<CliResult> {
+  const config = loadConfig(options.env ? { env: options.env } : {});
+
+  if (config.secrets.apiKey === undefined) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: "Missing ARVINCLAW_API_KEY or OPENROUTER_API_KEY. Set one to run memory dreaming.\n"
+    };
+  }
+
+  if (config.memory.longTermFiles !== "write") {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: "Memory dreaming requires ARVINCLAW_LONG_TERM_MEMORY=write\n"
+    };
+  }
+
+  const dreamGoal = `You are a memory consolidation agent.
+Review the recent daily memory files and the current MEMORY.md in the workspace.
+Identify key facts, decisions, and patterns worth preserving long-term.
+Append a consolidation summary to MEMORY.md using the write_file tool.
+Be concise and factual. Do not duplicate what is already in MEMORY.md.`;
+
+  return runBackgroundTask(dreamGoal, "auto", options);
 }
 
 async function runBackgroundTask(

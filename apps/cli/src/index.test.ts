@@ -1330,4 +1330,17 @@ describe("runCli", () => {
       await rm(parentDir, { recursive: true, force: true });
     }
   });
+
+  test("run --dream requires write memory policy", async () => {
+    const result = await runCli(["run", "--dream"], "0.0.0", {
+      env: {
+        ARVINCLAW_API_KEY: "fake-key",
+        ARVINCLAW_MODEL: "test-model"
+        // ARVINCLAW_LONG_TERM_MEMORY not set → defaults to "disabled"
+      }
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("ARVINCLAW_LONG_TERM_MEMORY=write");
+  });
 });
