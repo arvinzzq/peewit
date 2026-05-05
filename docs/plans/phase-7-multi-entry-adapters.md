@@ -7,15 +7,15 @@ Simplified Chinese version: [phase-7-multi-entry-adapters.zh-CN.md](./phase-7-mu
 
 ## Progress
 
-Status: In Progress
+Status: Complete
 
 Completed commits:
 
-- [ ] Part A: Design docs — adapter interface and gateway concept
-- [ ] Part B: `packages/adapters` — `AdapterCapabilities` interface
-- [ ] Part C: `packages/config` — `resolveSessionsDirectory()` helper
-- [ ] Part D: Web durable sessions — `JsonlSessionStore` in web server
-- [ ] Part E: Web session management UI — sessions list page
+- [x] Part A: Design docs — adapter interface and gateway concept: `33f8a89`
+- [x] Part B: `packages/adapters` — `AdapterCapabilities` interface: `7170eaa`
+- [x] Part C: `packages/config` — `resolveSessionsDirectory()` helper: `d5c752d`
+- [x] Part D: Web durable sessions — `JsonlSessionStore` in web server: `3cdfb2d`
+- [x] Part E: Web session management UI — sessions list page: `3d87c54`
 
 ## 1. Purpose
 

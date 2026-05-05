@@ -7,15 +7,15 @@ English version: [phase-7-multi-entry-adapters.md](./phase-7-multi-entry-adapter
 
 ## 进度
 
-状态：进行中
+状态：完成
 
 已完成的 commits：
 
-- [ ] Part A：设计文档 — adapter interface 和 gateway 概念
-- [ ] Part B：`packages/adapters` — `AdapterCapabilities` interface
-- [ ] Part C：`packages/config` — `resolveSessionsDirectory()` helper
-- [ ] Part D：Web durable sessions — Web server 中使用 `JsonlSessionStore`
-- [ ] Part E：Web session 管理 UI — sessions 列表页面
+- [x] Part A：设计文档 — adapter interface 和 gateway 概念：`33f8a89`
+- [x] Part B：`packages/adapters` — `AdapterCapabilities` interface：`7170eaa`
+- [x] Part C：`packages/config` — `resolveSessionsDirectory()` helper：`d5c752d`
+- [x] Part D：Web durable sessions — Web server 中使用 `JsonlSessionStore`：`3cdfb2d`
+- [x] Part E：Web session 管理 UI — sessions 列表页面：`3d87c54`
 
 ## 1. 目的
 
