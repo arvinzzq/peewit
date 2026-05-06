@@ -1,8 +1,8 @@
-# ArvinClaw Agent Guide
+# Peewit Agent Guide
 
 ## Project Role
 
-ArvinClaw is an OpenClaw-like personal general-purpose agent built from zero to one.
+Peewit is an OpenClaw-like personal general-purpose agent built from zero to one.
 It is both a real product and a learning project for agent architecture.
 Every implementation change should keep module boundaries, tests, and bilingual documentation understandable.
 

@@ -4,7 +4,7 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ## Architecture Overview
 
-`@arvinclaw/adapters` is a **capability declaration package** — it contains no runtime logic, only type definitions, constants, and a pure filtering function. Its purpose is to formalize what each surface adapter (CLI, Web, background tasks) can and cannot do, and to define which tools are appropriate for each use case.
+`@peewit/adapters` is a **capability declaration package** — it contains no runtime logic, only type definitions, constants, and a pure filtering function. Its purpose is to formalize what each surface adapter (CLI, Web, background tasks) can and cannot do, and to define which tools are appropriate for each use case.
 
 ```
 apps/cli        apps/web        background runner
@@ -12,7 +12,7 @@ apps/cli        apps/web        background runner
     └────────────────┴──────────────────┘
                      │  imports
                      ▼
-             @arvinclaw/adapters
+             @peewit/adapters
           (capabilities + tool profiles)
 ```
 
@@ -78,7 +78,7 @@ Describes the storage backend an adapter uses for sessions. Adapters do not choo
 
 ### Why This Package Exists
 
-Without a shared capability interface, each adapter would need to define its own ad-hoc flags, and the gateway would need to import adapter-specific code to answer "can session X handle approval prompts?". By centralizing in `@arvinclaw/adapters`, the gateway can check `session.capabilities.approvalPrompts` without depending on any adapter implementation.
+Without a shared capability interface, each adapter would need to define its own ad-hoc flags, and the gateway would need to import adapter-specific code to answer "can session X handle approval prompts?". By centralizing in `@peewit/adapters`, the gateway can check `session.capabilities.approvalPrompts` without depending on any adapter implementation.
 
 ### Why Tool Profiles Are Here
 

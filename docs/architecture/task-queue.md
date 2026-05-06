@@ -69,7 +69,7 @@ Phase 8 does not implement file-based task definitions. Task goals are passed di
 A future file format might look like:
 
 ```yaml
-# .arvinclaw/tasks/daily-summary.yaml
+# .peewit/tasks/daily-summary.yaml
 name: daily-summary
 goal: "Summarize the changes made to the workspace today."
 mode: confirm
@@ -92,8 +92,8 @@ interface TaskDefinition {
 ### run command
 
 ```
-arvinclaw run "<goal>"
-arvinclaw run "<goal>" --mode auto|confirm
+peewit run "<goal>"
+peewit run "<goal>" --mode auto|confirm
 ```
 
 The `run` command:
@@ -108,8 +108,8 @@ The `run` command:
 ### tasks command
 
 ```
-arvinclaw tasks
-arvinclaw tasks --limit N
+peewit tasks
+peewit tasks --limit N
 ```
 
 The `tasks` command:

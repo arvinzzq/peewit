@@ -7,9 +7,9 @@ Simplified Chinese version: [reference-systems.zh-CN.md](./reference-systems.zh-
 
 ## 1. Purpose
 
-ArvinClaw should learn from existing agent systems without copying them blindly.
+Peewit should learn from existing agent systems without copying them blindly.
 
-OpenClaw is the primary reference system because ArvinClaw's target is to implement an OpenClaw-like personal general-purpose agent from zero to one.
+OpenClaw is the primary reference system because Peewit's target is to implement an OpenClaw-like personal general-purpose agent from zero to one.
 
 Claude Code is a secondary reference system. It is useful for engineering practices around CLI workflows, project memory, permissions, hooks, subagents, and developer-agent ergonomics.
 
@@ -26,7 +26,7 @@ Implement OpenClaw-like architecture deliberately, while using Claude Code to st
 
 OpenClaw is useful because it shows how a personal agent can maintain identity, memory, tools, and long-running behavior through an agent workspace.
 
-ArvinClaw should study these OpenClaw ideas:
+Peewit should study these OpenClaw ideas:
 
 - Workspace files such as `SOUL.md`, `USER.md`, `MEMORY.md`, `AGENTS.md`, and `TOOLS.md`
 - Daily memory files such as `memory/YYYY-MM-DD.md`
@@ -40,7 +40,7 @@ ArvinClaw should study these OpenClaw ideas:
 - Background tasks and heartbeat-style automation
 - Multi-agent and multi-workspace direction
 
-These ideas define the long-term shape of ArvinClaw.
+These ideas define the long-term shape of Peewit.
 
 Detailed OpenClaw mapping: [OpenClaw Architecture Map](./openclaw-architecture-map.md)
 
@@ -50,7 +50,7 @@ Implementation research notes: [OpenClaw Implementation Notes](../research/openc
 
 Claude Code is useful because it shows how an agent can work deeply inside a codebase while keeping user control and project conventions visible.
 
-ArvinClaw should study these Claude Code ideas:
+Peewit should study these Claude Code ideas:
 
 - CLI-first developer workflow
 - Project memory through `CLAUDE.md`
@@ -61,11 +61,11 @@ ArvinClaw should study these Claude Code ideas:
 - Custom slash commands
 - Multi-surface usage over time: terminal, IDE, desktop, and web
 
-These ideas are especially relevant to ArvinClaw's early CLI, developer-agent, and engineering-quality phases.
+These ideas are especially relevant to Peewit's early CLI, developer-agent, and engineering-quality phases.
 
 ## 4. Comparison
 
-| Area | Claude Code Reference | OpenClaw Reference | ArvinClaw Direction |
+| Area | Claude Code Reference | OpenClaw Reference | Peewit Direction |
 | --- | --- | --- | --- |
 | First interface | CLI developer workflow | Messaging and personal assistant surfaces | CLI first, Web UI later, more adapters over time |
 | Project instructions | `CLAUDE.md` | `AGENTS.md` and workspace files | Start with `AGENTS.md`-style instructions, later support more workspace files |
@@ -79,7 +79,7 @@ These ideas are especially relevant to ArvinClaw's early CLI, developer-agent, a
 
 ## 5. Prompt and Workspace File Plan
 
-ArvinClaw should start from OpenClaw's workspace model and supplement it with Claude Code's engineering practices.
+Peewit should start from OpenClaw's workspace model and supplement it with Claude Code's engineering practices.
 
 Proposed prompt files:
 
@@ -101,10 +101,10 @@ MVP should not load all of these automatically. Instead:
 
 Claude Code's settings hierarchy is a useful reference.
 
-ArvinClaw should support:
+Peewit should support:
 
-- User config: `~/.arvinclaw/config.json`
-- Project config: `arvinclaw.config.json`
+- User config: `~/.peewit/config.json`
+- Project config: `peewit.config.json`
 - Future local-only project config for uncommitted preferences
 - Environment variables for secrets
 
@@ -112,7 +112,7 @@ Configuration should not become memory. It describes runtime behavior; memory de
 
 ## 7. Hook Plan
 
-Claude Code hooks are useful, but ArvinClaw should not implement hooks too early.
+Claude Code hooks are useful, but Peewit should not implement hooks too early.
 
 Future hook events may include:
 
@@ -138,7 +138,7 @@ Hooks can be powerful, so they should have tests and permission boundaries from 
 
 Claude Code's subagents are a strong reference for task-specific workers with separate context and tool permissions.
 
-ArvinClaw should defer subagents until after:
+Peewit should defer subagents until after:
 
 - Agent Loop
 - Tool System
@@ -160,7 +160,7 @@ Future subagents should have:
 
 ## 9. What Not to Copy
 
-ArvinClaw should not copy everything from either system.
+Peewit should not copy everything from either system.
 
 Do not copy too early:
 
@@ -195,8 +195,8 @@ Reference systems should influence test design as much as feature design.
 
 This reference plan is successful when:
 
-- ArvinClaw documents OpenClaw as the primary reference and Claude Code as a secondary engineering reference.
-- Borrowed ideas are mapped to ArvinClaw phases.
+- Peewit documents OpenClaw as the primary reference and Claude Code as a secondary engineering reference.
+- Borrowed ideas are mapped to Peewit phases.
 - MVP scope remains smaller than either full reference system.
 - Prompt files, memory, hooks, and subagents have staged plans.
 - Safety and testing requirements are documented before implementation.
@@ -214,7 +214,7 @@ This reference plan is successful when:
 
 ## 13. Related Documents
 
-- [Main design](../product/arvinclaw-design.md)
+- [Main design](../product/peewit-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [OpenClaw architecture map](./openclaw-architecture-map.md)
 - [Memory system](./memory-system.md)

@@ -7,9 +7,9 @@ English version: [testing-strategy.md](./testing-strategy.md)
 
 ## 1. 目的
 
-测试是 ArvinClaw 架构的一部分，不是实现之后的清理工作。
+测试是 Peewit 架构的一部分，不是实现之后的清理工作。
 
-ArvinClaw 既是可用的 Agent 产品，也是学习项目。测试应该保护行为、解释模块边界，并让未来重构更安全。
+Peewit 既是可用的 Agent 产品，也是学习项目。测试应该保护行为、解释模块边界，并让未来重构更安全。
 
 核心规则：
 
@@ -35,14 +35,14 @@ ArvinClaw 既是可用的 Agent 产品，也是学习项目。测试应该保护
 
 ## 3. 测试分层
 
-ArvinClaw 应使用分层测试。
+Peewit 应使用分层测试。
 
 | 层级 | 目的 | 示例 |
 | --- | --- | --- |
 | Unit tests | 验证隔离行为 | Config 合并、permission classification、redaction |
 | Contract tests | 验证模块接口 | Tool result shape、model output normalization |
 | Integration tests | 验证跨模块行为 | 使用 fake model 和 fake tools 的 agent loop |
-| CLI adapter tests | 验证用户可见工作流 | `arvinclaw chat`、permission prompt flow、slash commands |
+| CLI adapter tests | 验证用户可见工作流 | `peewit chat`、permission prompt flow、slash commands |
 | Golden trace tests | 验证 explainable trace shape | 已知 run 的稳定 trace event sequences |
 | Safety regression tests | 防止不安全行为回归 | Secret reads、destructive commands、prompt injection cases |
 
@@ -188,7 +188,7 @@ Testing strategy 成功标准：
 
 ## 13. 相关文档
 
-- [Main design](../product/arvinclaw-design.zh-CN.md)
+- [Main design](../product/peewit-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)
 - [Project Structure](./project-structure.zh-CN.md)
 - [Runtime Composition](./runtime-composition.zh-CN.md)

@@ -10,7 +10,7 @@ Update local README and AGENTS files when registry responsibilities or file inve
 
 ## Testing
 
-All registry operations need unit tests. Use fixed timestamps and capability constants from `@arvinclaw/adapters`. No real API keys or file system access needed — the gateway is a pure in-memory registry.
+All registry operations need unit tests. Use fixed timestamps and capability constants from `@peewit/adapters`. No real API keys or file system access needed — the gateway is a pure in-memory registry.
 
 ## Boundaries
 

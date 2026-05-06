@@ -7,9 +7,9 @@ English version: [documentation-system.md](./documentation-system.md)
 
 ## 1. 目的
 
-本文档定义 ArvinClaw 文档如何组织、更新、拆分、翻译和 review。
+本文档定义 Peewit 文档如何组织、更新、拆分、翻译和 review。
 
-文档是产品的一部分。它应该帮助用户操作 ArvinClaw，也帮助学习者理解通用 Agent 背后的架构。
+文档是产品的一部分。它应该帮助用户操作 Peewit，也帮助学习者理解通用 Agent 背后的架构。
 
 核心规则：
 
@@ -91,7 +91,7 @@ Research documents 记录：
 - 推论
 - 开放问题
 - 参考系统模式
-- 对 ArvinClaw 的影响
+- 对 Peewit 的影响
 
 Research 应区分官方来源和推论。
 
@@ -184,5 +184,5 @@ Documentation system 成功标准：
 - [Documentation Index](../README.zh-CN.md)
 - [Development Workflow](./dev-workflow.zh-CN.md)
 - [Testing Strategy](./testing-strategy.zh-CN.md)
-- [Main Design](../product/arvinclaw-design.zh-CN.md)
+- [Main Design](../product/peewit-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)

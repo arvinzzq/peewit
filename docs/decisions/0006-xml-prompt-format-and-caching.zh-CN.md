@@ -7,7 +7,7 @@ English version: [0006-xml-prompt-format-and-caching.md](./0006-xml-prompt-forma
 
 ## 背景
 
-ArvinClaw 的 context assembler（Phase 3）产生基于 sections 的 system prompt。在回顾 OpenClaw 源码研究后，出现了两个问题：
+Peewit 的 context assembler（Phase 3）产生基于 sections 的 system prompt。在回顾 OpenClaw 源码研究后，出现了两个问题：
 
 1. Sections 应该用普通 Markdown 标题还是 XML tags 作为分隔符？
 2. `AnthropicProvider` 是否应该利用 Anthropic 的 prompt caching API？
@@ -20,7 +20,7 @@ Context assembler 输出示例：
 
 ```xml
 <identity>
-ArvinClaw 是一个受 OpenClaw 启发的个人通用 Agent...
+Peewit 是一个受 OpenClaw 启发的个人通用 Agent...
 </identity>
 
 <safety>

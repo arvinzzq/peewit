@@ -7,11 +7,11 @@ Simplified Chinese version: [sandboxing.zh-CN.md](./sandboxing.zh-CN.md)
 
 ## 1. Purpose
 
-This document describes ArvinClaw's current sandbox state, the restrictions applied to shell and file tools, workspace-boundary enforcement, the blocked command policy, and Phase 10 additions.
+This document describes Peewit's current sandbox state, the restrictions applied to shell and file tools, workspace-boundary enforcement, the blocked command policy, and Phase 10 additions.
 
 ## 2. Current Sandbox State
 
-ArvinClaw's sandbox is implemented through tool-level guards in `packages/tools`. There is no OS-level process isolation. The sandbox is a set of input validation and path restriction rules enforced before any filesystem or shell operation.
+Peewit's sandbox is implemented through tool-level guards in `packages/tools`. There is no OS-level process isolation. The sandbox is a set of input validation and path restriction rules enforced before any filesystem or shell operation.
 
 The current sandbox protections are:
 
@@ -25,7 +25,7 @@ The current sandbox protections are:
 
 The `run_shell` tool runs shell commands in the `workspaceRoot` directory using Node.js `child_process.exec`. Restrictions:
 
-- Command runs as the same user as the ArvinClaw process — no privilege escalation.
+- Command runs as the same user as the Peewit process — no privilege escalation.
 - The working directory is always `workspaceRoot`; the model cannot change it with `cd` in a persistent way.
 - Timeout is enforced via the `exec` `timeout` option; killed processes return an error.
 

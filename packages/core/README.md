@@ -4,17 +4,17 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ## Architecture Overview
 
-`@arvinclaw/core` is the agent runtime orchestration layer. It sits at the center of the package graph, consuming all other domain packages and exposing a single unified runtime to adapters (CLI, Web) above it.
+`@peewit/core` is the agent runtime orchestration layer. It sits at the center of the package graph, consuming all other domain packages and exposing a single unified runtime to adapters (CLI, Web) above it.
 
 ```
 CLI / Web adapter
         │
         ▼
-   AgentRuntime          ← @arvinclaw/core
-  ├─ ContextAssembler    (@arvinclaw/context)
-  ├─ ModelProvider       (@arvinclaw/models)
-  ├─ PermissionPolicy    (@arvinclaw/permissions)
-  └─ ExecutableTool[]    (@arvinclaw/tools)
+   AgentRuntime          ← @peewit/core
+  ├─ ContextAssembler    (@peewit/context)
+  ├─ ModelProvider       (@peewit/models)
+  ├─ PermissionPolicy    (@peewit/permissions)
+  └─ ExecutableTool[]    (@peewit/tools)
 ```
 
 The core must remain **adapter-agnostic** (no terminal rendering, no HTTP) and **vendor-agnostic** (no Anthropic or OpenAI SDK imports). Adapters call `AgentRuntime.runTurn()` and consume `RuntimeEvent` objects from its async generator.

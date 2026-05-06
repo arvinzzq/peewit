@@ -9,7 +9,7 @@ Simplified Chinese version: [agent-loop.zh-CN.md](./agent-loop.zh-CN.md)
 
 The agent loop is the runtime cycle that turns a user goal into actions and results.
 
-In ArvinClaw, the loop should be simple enough to learn from, but structured enough to evolve into a real general-purpose agent platform.
+In Peewit, the loop should be simple enough to learn from, but structured enough to evolve into a real general-purpose agent platform.
 
 The MVP loop should answer these questions:
 
@@ -281,19 +281,19 @@ OpenClaw's execute-first philosophy: the model acts immediately and tracks progr
 
 The model calls `update_plan` during execution to maintain a structured list of task steps and their statuses. This is a full-replace, model-called tool — no infra orchestration. Schema: `{step, status: pending|in_progress|completed}[]`. This is structurally identical to Claude Code's `TodoWrite`.
 
-ArvinClaw Phase 4 implements an equivalent `update_todos` tool following the same pattern.
+Peewit Phase 4 implements an equivalent `update_todos` tool following the same pattern.
 
 **2. Planning stall detection**
 
 OpenClaw's `pi-embedded-runner` detects "planning-only" turns — model responses that contain planning text (promises, step headings, bullet lists) without executing any tool call. On detection, it injects a retry instruction: *"Act now: take the first concrete tool action you can."* After N retries without action, the run terminates with an error.
 
-ArvinClaw Phase 4 adds equivalent stall detection in `AgentRuntime`.
+Peewit Phase 4 adds equivalent stall detection in `AgentRuntime`.
 
 **For long-horizon task decomposition: subagents**
 
 OpenClaw's primary mechanism for truly complex tasks is `sessions_spawn` — spawning background subagents in separate sessions. Subagents run isolated, announce results when complete (push-based), and support an orchestrator pattern (depth up to 2).
 
-This belongs to ArvinClaw Phase 7+ when multi-session infrastructure and a gateway exist.
+This belongs to Peewit Phase 7+ when multi-session infrastructure and a gateway exist.
 
 Source: `docs/research/openclaw-implementation-notes.md` Section 8 (third research pass, 2026-05-04).
 
@@ -443,7 +443,7 @@ The first agent loop implementation should be considered successful when:
 
 ## 17. Related Documents
 
-- [Main design](../product/arvinclaw-design.md)
+- [Main design](../product/peewit-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [Project structure](./project-structure.md)
 - [CLI adapter](./cli-adapter.md)

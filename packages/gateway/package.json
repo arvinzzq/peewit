@@ -1,5 +1,5 @@
 {
-  "name": "@arvinclaw/gateway",
+  "name": "@peewit/gateway",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -16,6 +16,6 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@arvinclaw/adapters": "workspace:*"
+    "@peewit/adapters": "workspace:*"
   }
 }

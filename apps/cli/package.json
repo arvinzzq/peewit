@@ -1,27 +1,27 @@
 {
-  "name": "@arvinclaw/cli",
+  "name": "@peewit/cli",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "bin": {
-    "arvinclaw": "./dist/index.js"
+    "peewit": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@arvinclaw/adapters": "workspace:*",
-    "@arvinclaw/config": "workspace:*",
-    "@arvinclaw/context": "workspace:*",
-    "@arvinclaw/core": "workspace:*",
-    "@arvinclaw/gateway": "workspace:*",
-    "@arvinclaw/models": "workspace:*",
-    "@arvinclaw/scheduler": "workspace:*",
-    "@arvinclaw/sessions": "workspace:*",
-    "@arvinclaw/skills": "workspace:*",
-    "@arvinclaw/taskflow": "workspace:*",
-    "@arvinclaw/tools": "workspace:*",
+    "@peewit/adapters": "workspace:*",
+    "@peewit/config": "workspace:*",
+    "@peewit/context": "workspace:*",
+    "@peewit/core": "workspace:*",
+    "@peewit/gateway": "workspace:*",
+    "@peewit/models": "workspace:*",
+    "@peewit/scheduler": "workspace:*",
+    "@peewit/sessions": "workspace:*",
+    "@peewit/skills": "workspace:*",
+    "@peewit/taskflow": "workspace:*",
+    "@peewit/tools": "workspace:*",
     "dotenv": "^17.4.2",
     "ink": "^7.0.1",
     "ink-text-input": "^6.0.0",

@@ -7,7 +7,7 @@ Simplified Chinese version: [session-storage.zh-CN.md](./session-storage.zh-CN.m
 
 ## 1. Purpose
 
-Session storage persists the conversation and execution history of ArvinClaw.
+Session storage persists the conversation and execution history of Peewit.
 
 The MVP needs session storage so users can continue a CLI conversation, inspect recent trace events, and understand what happened in previous turns.
 
@@ -17,7 +17,7 @@ MVP includes session memory, but not a full long-term memory system.
 
 ## 2. Session Memory vs Long-Term Memory
 
-ArvinClaw should distinguish session memory from long-term memory.
+Peewit should distinguish session memory from long-term memory.
 
 | Concept | MVP Status | Meaning |
 | --- | --- | --- |
@@ -38,7 +38,7 @@ Long-term memory is deferred to a later phase because it introduces more design 
 
 Without session storage, every CLI run is stateless. That makes the product less useful and makes the learning goal weaker because users cannot inspect how a task unfolded.
 
-Session storage gives ArvinClaw:
+Session storage gives Peewit:
 
 - Conversation continuity
 - Trace inspection
@@ -76,7 +76,7 @@ The MVP should use a simple local file-based backend.
 Suggested location:
 
 ```text
-~/.arvinclaw/sessions/
+~/.peewit/sessions/
 ```
 
 Project-local session storage can be considered later, but user-local storage is a safer default for personal CLI usage.
@@ -218,7 +218,7 @@ The CLI should eventually support:
 
 MVP can start with:
 
-- Create session on `arvinclaw chat`
+- Create session on `peewit chat`
 - Persist messages and trace events
 - `/trace` for current session
 - Future command for session listing
@@ -258,7 +258,7 @@ The MVP session storage should be considered successful when:
 
 ## 17. Related Documents
 
-- [Main design](../product/arvinclaw-design.md)
+- [Main design](../product/peewit-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [Agent loop](./agent-loop.md)
 - [Execution trace](./execution-trace.md)

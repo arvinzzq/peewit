@@ -25,7 +25,7 @@ Hooks observe and react. They do not drive or block the agent loop. Hook errors 
 
 ## 2. Hook Types
 
-ArvinClaw defines five hook types aligned with the agent lifecycle:
+Peewit defines five hook types aligned with the agent lifecycle:
 
 | Hook | Fires When | Receives |
 | --- | --- | --- |
@@ -153,7 +153,7 @@ const hooks: AgentHooks = {
 
 OpenClaw implements hooks as injection points at turn boundaries and tool call boundaries. Key alignments:
 
-| OpenClaw concept | ArvinClaw equivalent |
+| OpenClaw concept | Peewit equivalent |
 | --- | --- |
 | Pre-turn injection | `beforeTurn` hook |
 | Post-turn injection | `afterTurn` hook |
@@ -161,7 +161,7 @@ OpenClaw implements hooks as injection points at turn boundaries and tool call b
 | Post-tool injection | `afterToolCall` hook |
 | Error isolation | Hook errors logged, never propagated |
 
-OpenClaw's hooks are used for memory consolidation triggers, channel-specific logging, and policy audit trails. ArvinClaw adopts the same pattern with explicit TypeScript interfaces.
+OpenClaw's hooks are used for memory consolidation triggers, channel-specific logging, and policy audit trails. Peewit adopts the same pattern with explicit TypeScript interfaces.
 
 ## 7. Acceptance Criteria
 

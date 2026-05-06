@@ -1,8 +1,8 @@
-# ArvinClaw — Claude Code Instructions
+# Peewit — Claude Code Instructions
 
 ## Project Context
 
-ArvinClaw is an OpenClaw-inspired personal general-purpose agent in TypeScript (pnpm monorepo). It is both a real usable product and an architecture learning project. CLI is the first adapter, not the agent's identity.
+Peewit is an OpenClaw-inspired personal general-purpose agent in TypeScript (pnpm monorepo). It is both a real usable product and an architecture learning project. CLI is the first adapter, not the agent's identity.
 
 Key docs:
 - Architecture: `docs/architecture/`

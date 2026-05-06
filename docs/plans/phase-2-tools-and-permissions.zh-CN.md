@@ -39,7 +39,7 @@ English version: [phase-2-tools-and-permissions.md](./phase-2-tools-and-permissi
 
 ## 1. 目的
 
-Phase 2 给 ArvinClaw 增加第一批真实外部动作能力。
+Phase 2 给 Peewit 增加第一批真实外部动作能力。
 
 目标是让 Agent 可以检查文件、在批准后写文件、在批准后运行 shell commands，并通过安全的 tool 和 permission boundaries 读取 Web 内容。
 

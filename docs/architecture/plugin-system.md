@@ -4,7 +4,7 @@ Simplified Chinese version: [plugin-system.zh-CN.md](./plugin-system.zh-CN.md)
 
 ## 1. Purpose
 
-The plugin system gives users a managed way to install, enable, disable, and inspect skills that are not bundled with ArvinClaw. It records provenance, version, and trust status so that users always know where a skill came from and whether they have reviewed it.
+The plugin system gives users a managed way to install, enable, disable, and inspect skills that are not bundled with Peewit. It records provenance, version, and trust status so that users always know where a skill came from and whether they have reviewed it.
 
 ## 2. Scope
 
@@ -38,19 +38,19 @@ Skill body text injected into the system prompt.
 Skills installed by the user live at:
 
 ```
-~/.arvinclaw/skills/<name>.md
+~/.peewit/skills/<name>.md
 ```
 
-This is the sibling directory of the sessions directory (`~/.arvinclaw/sessions/`).
+This is the sibling directory of the sessions directory (`~/.peewit/sessions/`).
 
-Workspace skills live at `<workspaceRoot>/skills/<name>/SKILL.md` and are always trusted. Built-in skills are embedded in the `@arvinclaw/skills` package binary.
+Workspace skills live at `<workspaceRoot>/skills/<name>/SKILL.md` and are always trusted. Built-in skills are embedded in the `@peewit/skills` package binary.
 
 ## 5. Manifest File
 
 The manifest tracks installed user skills and their lifecycle state:
 
 ```
-~/.arvinclaw/skills/skills-index.json
+~/.peewit/skills/skills-index.json
 ```
 
 Example content:
@@ -60,7 +60,7 @@ Example content:
   "skills": [
     {
       "name": "my-skill",
-      "filePath": "/Users/arvin/.arvinclaw/skills/my-skill.md",
+      "filePath": "/Users/arvin/.peewit/skills/my-skill.md",
       "installedAt": "2026-05-05T10:00:00.000Z",
       "origin": "/path/to/source.md",
       "trusted": false,
@@ -82,7 +82,7 @@ The trust model provides visibility and control:
 - **Built-in skills** are always trusted (shipped with the package).
 - **User-installed skills** start as `trusted: false`.
 - A skill with `trusted: false` is still loaded (for usability) but the CLI displays a prominent warning.
-- The user explicitly trusts a skill with `arvinclaw skills trust <name>`.
+- The user explicitly trusts a skill with `peewit skills trust <name>`.
 
 The `trusted` flag does not grant extra capabilities; it only suppresses the warning.
 
@@ -91,13 +91,13 @@ The `trusted` flag does not grant extra capabilities; it only suppresses the war
 ```
 install → (trusted: false, enabled: true)
   ↓
-review (arvinclaw skills review <name>)
+review (peewit skills review <name>)
   ↓
-trust (arvinclaw skills trust <name>) → trusted: true
+trust (peewit skills trust <name>) → trusted: true
   ↓
-disable (arvinclaw skills disable <name>) → enabled: false
+disable (peewit skills disable <name>) → enabled: false
   ↓
-enable (arvinclaw skills enable <name>) → enabled: true
+enable (peewit skills enable <name>) → enabled: true
 ```
 
 ## 8. SkillManager API
@@ -126,7 +126,7 @@ class SkillManager {
 Loading order (highest to lowest precedence):
 
 1. Workspace skills (`<root>/skills/<name>/SKILL.md`)
-2. User-installed skills (`~/.arvinclaw/skills/<name>.md`)
+2. User-installed skills (`~/.peewit/skills/<name>.md`)
 3. Built-in skills
 
 Disabled user skills are skipped entirely. If a user skill has the same name as a built-in skill, the user skill takes precedence (subject to the disabled check).

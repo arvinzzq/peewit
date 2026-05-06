@@ -53,7 +53,7 @@ Phase 3 也解决 Phase 2 的一个遗漏：tool definitions 目前完全绕过 
 
 OpenClaw 对齐说明：
 
-Phase 3 使 ArvinClaw 与 OpenClaw 的核心 prompt assembly 概念对齐：每次 model call 之前，都会接收一个有明确命名 section 的结构化 context 文档。Tools、skills 和 safety guidance 是一等的 section，而非事后补丁。
+Phase 3 使 Peewit 与 OpenClaw 的核心 prompt assembly 概念对齐：每次 model call 之前，都会接收一个有明确命名 section 的结构化 context 文档。Tools、skills 和 safety guidance 是一等的 section，而非事后补丁。
 
 参考：[Prompt Assembly](../architecture/prompt-assembly.md)、[Context Engine](../architecture/context-engine.md)、[Skill System](../architecture/skill-system.md)
 
@@ -202,7 +202,7 @@ ANTHROPIC_API_KEY
 - `SkillSummary`：name、description、when（compact，用于 context index）。
 - `SkillLoader.load(options)` 按优先级顺序扫描 skill 目录：
   1. `<workspace>/skills/`
-  2. `~/.arvinclaw/skills/`
+  2. `~/.peewit/skills/`
   3. 内置 skills
 - SKILL.md 格式：h1 name，description、when、steps、safety notes 各节。
 - 内置 skills：`research`、`project-inspector`、`safe-shell`。

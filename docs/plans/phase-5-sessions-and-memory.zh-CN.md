@@ -31,7 +31,7 @@ English version: [phase-5-sessions-and-memory.md](./phase-5-sessions-and-memory.
 
 ## 1. 目的
 
-这个阶段让 ArvinClaw 拥有 short-term 和 durable memory。
+这个阶段让 Peewit 拥有 short-term 和 durable memory。
 
 OpenClaw-like 目标是一个用户可见的 Agent workspace，其中 sessions、memory、identity、user preferences 和 daily notes 都可以由用户检查和控制。
 
@@ -89,11 +89,11 @@ pnpm run cli chat --session my_session
 pnpm run cli chat --resume
 ```
 
-如果未指定 session，CLI 会创建一个通用的 `session_<id>` session。Session ID 是 agent-level identifier，不应该编码 CLI 或 Web UI 这样的 entry adapter。默认 storage directory 是 `~/.arvinclaw/sessions`。
+如果未指定 session，CLI 会创建一个通用的 `session_<id>` session。Session ID 是 agent-level identifier，不应该编码 CLI 或 Web UI 这样的 entry adapter。默认 storage directory 是 `~/.peewit/sessions`。
 
-Configured CLI chat 也会在文件存在时，从 configured workspace root 加载 `AGENTS.md` 和 read-only `SOUL.md`。Workspace root 可以通过 `ARVINCLAW_WORKSPACE_ROOT` 设置。
+Configured CLI chat 也会在文件存在时，从 configured workspace root 加载 `AGENTS.md` 和 read-only `SOUL.md`。Workspace root 可以通过 `PEEWIT_WORKSPACE_ROOT` 设置。
 
-Long-term memory files 默认保持 disabled。`ARVINCLAW_LONG_TERM_MEMORY=read-only` 会在文件存在时，从 configured workspace root 加载 `USER.md`、`MEMORY.md`、`memory/<today>.md` 和 `memory/<yesterday>.md`，但 memory writes 仍保持 disabled。
+Long-term memory files 默认保持 disabled。`PEEWIT_LONG_TERM_MEMORY=read-only` 会在文件存在时，从 configured workspace root 加载 `USER.md`、`MEMORY.md`、`memory/<today>.md` 和 `memory/<yesterday>.md`，但 memory writes 仍保持 disabled。
 
 ## 5. Durable Session Storage
 
@@ -102,7 +102,7 @@ Durable target 是类似 OpenClaw replayable session 方向的 JSONL session sto
 初始 storage shape：
 
 ```text
-~/.arvinclaw/sessions/
+~/.peewit/sessions/
   <session-id>.jsonl
 ```
 

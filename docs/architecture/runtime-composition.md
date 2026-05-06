@@ -7,7 +7,7 @@ Simplified Chinese version: [runtime-composition.zh-CN.md](./runtime-composition
 
 ## 1. Purpose
 
-Runtime composition defines how an ArvinClaw application entry point wires together configuration, model providers, tools, permissions, context, sessions, trace, and Agent Core.
+Runtime composition defines how an Peewit application entry point wires together configuration, model providers, tools, permissions, context, sessions, trace, and Agent Core.
 
 Core rule:
 
@@ -68,20 +68,20 @@ Dependencies flow inward. Adapters own composition; core packages stay entry-poi
 apps/cli ──────────────────────────────────────────┐
 apps/web ──────────────────────────────────────────┤
          │                                          │
-         ├──▶ @arvinclaw/core ◀── @arvinclaw/scheduler
+         ├──▶ @peewit/core ◀── @peewit/scheduler
          │         │
-         │         ├──▶ @arvinclaw/context ──▶ @arvinclaw/models
-         │         ├──▶ @arvinclaw/models
-         │         ├──▶ @arvinclaw/permissions
-         │         └──▶ @arvinclaw/tools
+         │         ├──▶ @peewit/context ──▶ @peewit/models
+         │         ├──▶ @peewit/models
+         │         ├──▶ @peewit/permissions
+         │         └──▶ @peewit/tools
          │
-         ├──▶ @arvinclaw/config
-         ├──▶ @arvinclaw/sessions
-         ├──▶ @arvinclaw/gateway ──▶ @arvinclaw/adapters
-         ├──▶ @arvinclaw/adapters
-         ├──▶ @arvinclaw/skills
-         ├──▶ @arvinclaw/taskflow
-         └──▶ @arvinclaw/scheduler ──▶ @arvinclaw/core (types only)
+         ├──▶ @peewit/config
+         ├──▶ @peewit/sessions
+         ├──▶ @peewit/gateway ──▶ @peewit/adapters
+         ├──▶ @peewit/adapters
+         ├──▶ @peewit/skills
+         ├──▶ @peewit/taskflow
+         └──▶ @peewit/scheduler ──▶ @peewit/core (types only)
 ```
 
 `packages/core` depends on interfaces and domain types from `context`, `models`, `permissions`, and `tools`. It must not depend on any adapter, config, sessions, gateway, or scheduler code.

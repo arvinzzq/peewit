@@ -1,13 +1,13 @@
-# ArvinClaw Design Draft
+# Peewit Design Draft
 
 Status: Draft
 Date: 2026-05-02
 
-Simplified Chinese version: [arvinclaw-design.zh-CN.md](./arvinclaw-design.zh-CN.md)
+Simplified Chinese version: [peewit-design.zh-CN.md](./peewit-design.zh-CN.md)
 
 ## 1. Project Intent
 
-ArvinClaw is intended to become a real, usable personal general-purpose agent product, while also serving as a learning project for understanding the architecture and implementation principles behind systems like OpenClaw.
+Peewit is intended to become a real, usable personal general-purpose agent product, while also serving as a learning project for understanding the architecture and implementation principles behind systems like OpenClaw.
 
 The project should not be a toy demo. Each phase should produce something usable, and each important module should include documentation that explains its role in a general agent system.
 
@@ -19,7 +19,7 @@ Compatibility decision: [docs/decisions/0002-openclaw-aligned-not-identical.md](
 
 ## 2. Product Goals
 
-ArvinClaw should eventually support multiple user entry points:
+Peewit should eventually support multiple user entry points:
 
 - CLI
 - Web UI
@@ -121,7 +121,7 @@ Detailed CLI adapter note: [docs/architecture/cli-adapter.md](../architecture/cl
 
 ## 4.1 Repository Structure
 
-ArvinClaw should use a lightweight monorepo from the beginning.
+Peewit should use a lightweight monorepo from the beginning.
 
 Detailed architecture note: [docs/architecture/project-structure.md](../architecture/project-structure.md)
 
@@ -166,7 +166,7 @@ The monorepo should remain lightweight during MVP work. It should not start with
 
 ## 5. Autonomy Modes
 
-ArvinClaw should support multiple execution modes because product usage and learning usage need different levels of visibility and interruption.
+Peewit should support multiple execution modes because product usage and learning usage need different levels of visibility and interruption.
 
 | Mode | Primary Use | Behavior |
 | --- | --- | --- |
@@ -260,7 +260,7 @@ The MVP skill system should load local skills only. It should not include a mark
 Proposed skill precedence:
 
 1. Project skills: `<workspace>/skills`
-2. User skills: `~/.arvinclaw/skills`
+2. User skills: `~/.peewit/skills`
 3. Built-in skills
 
 Skills should primarily influence agent behavior and instructions. Real actions must still pass through tools and the permission system.
@@ -293,7 +293,7 @@ Provider selection is controlled through `model.provider` in configuration:
 Secrets are provided through environment variables:
 
 ```text
-ARVINCLAW_API_KEY       openai-compatible
+PEEWIT_API_KEY       openai-compatible
 OPENROUTER_API_KEY      OpenRouter shortcut
 ANTHROPIC_API_KEY       anthropic
 ```
@@ -308,8 +308,8 @@ The MVP should use configuration files for non-sensitive settings and environmen
 
 Configuration layers:
 
-- Project config: `arvinclaw.config.json` in the current workspace
-- User config: `~/.arvinclaw/config.json`
+- Project config: `peewit.config.json` in the current workspace
+- User config: `~/.peewit/config.json`
 - Environment variables for secrets and overrides
 
 Example non-sensitive configuration:
@@ -324,9 +324,9 @@ Example non-sensitive configuration:
 - Enabled tools
 - Permission policy defaults
 
-Secrets should not be written into project configuration files. API keys should be provided through environment variables such as `ARVINCLAW_API_KEY`.
+Secrets should not be written into project configuration files. API keys should be provided through environment variables such as `PEEWIT_API_KEY`.
 
-The `arvinclaw config` command should show the effective configuration while hiding secret values. A future interactive `/config` slash command may show the same redacted view inside chat.
+The `peewit config` command should show the effective configuration while hiding secret values. A future interactive `/config` slash command may show the same redacted view inside chat.
 
 Future versions may support encrypted local secret storage or OS keychain integration.
 
@@ -358,7 +358,7 @@ The loop should support:
 
 ## 9.1 Context Assembly
 
-ArvinClaw should treat context assembly as a first-class architecture module, following OpenClaw's separation between runtime orchestration and context construction.
+Peewit should treat context assembly as a first-class architecture module, following OpenClaw's separation between runtime orchestration and context construction.
 
 Detailed architecture note for prompt assembly: [docs/architecture/prompt-assembly.md](../architecture/prompt-assembly.md)
 
@@ -366,7 +366,7 @@ Detailed architecture note for context engine: [docs/architecture/context-engine
 
 Phase 3 context assembly implements a section-based system prompt with these named sections:
 
-- Identity: who ArvinClaw is
+- Identity: who Peewit is
 - Runtime: current mode, workspace, date
 - Tooling: available tool names, descriptions, and risk levels
 - Safety: permission policy guidance
@@ -423,8 +423,8 @@ The CLI should default to the explainable trace. A later debug option can expose
 
 The CLI should eventually support both:
 
-- Interactive chat mode, such as `arvinclaw chat`
-- Single task mode, such as `arvinclaw run "<goal>"`
+- Interactive chat mode, such as `peewit chat`
+- Single task mode, such as `peewit run "<goal>"`
 
 Confirmed MVP direction:
 
@@ -446,7 +446,7 @@ The CLI should make the execution trace visible enough for learning without expo
 
 ## 11. Roadmap
 
-The roadmap should evolve ArvinClaw from a small but usable CLI MVP into a full personal agent platform.
+The roadmap should evolve Peewit from a small but usable CLI MVP into a full personal agent platform.
 
 Detailed roadmap: [docs/roadmap/overview.md](../roadmap/overview.md)
 
@@ -483,7 +483,7 @@ Suggested documentation structure:
 ```text
 docs/
   product/
-    arvinclaw-design.md
+    peewit-design.md
   architecture/
     agent-loop.md
     model-provider.md

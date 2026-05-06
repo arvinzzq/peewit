@@ -9,7 +9,7 @@ Simplified Chinese version: [workspace-files.zh-CN.md](./workspace-files.zh-CN.m
 
 Workspace files are the visible, editable surfaces where an OpenClaw-like agent stores instructions, identity, memory, and environment notes.
 
-ArvinClaw should support this model because it makes agent behavior inspectable and learnable.
+Peewit should support this model because it makes agent behavior inspectable and learnable.
 
 The core rule:
 
@@ -19,7 +19,7 @@ Workspace files can influence agent behavior, but they must not bypass tools, pe
 
 OpenClaw uses workspace files as a central part of the agent's home.
 
-ArvinClaw needs a clear workspace-file policy so that:
+Peewit needs a clear workspace-file policy so that:
 
 - Prompt loading is predictable.
 - Users can inspect and edit agent context.
@@ -30,7 +30,7 @@ ArvinClaw needs a clear workspace-file policy so that:
 
 ## 3. Planned Files
 
-ArvinClaw should support these OpenClaw-like files over time.
+Peewit should support these OpenClaw-like files over time.
 
 | File | Purpose | MVP Status |
 | --- | --- | --- |
@@ -47,7 +47,7 @@ MVP should not load all files automatically.
 
 ## 4. Workspace Location
 
-ArvinClaw should distinguish:
+Peewit should distinguish:
 
 - Workspace directory: editable agent/project context
 - User data directory: sessions, credentials, cache, local state
@@ -58,9 +58,9 @@ Suggested defaults:
 <project>/
   AGENTS.md
   skills/
-  arvinclaw.config.json
+  peewit.config.json
 
-~/.arvinclaw/
+~/.peewit/
   sessions/
   config.json
 ```

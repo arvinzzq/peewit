@@ -123,9 +123,9 @@ Minimal packages should include exports only when useful for tests.
 
 Phase 0 CLI behavior:
 
-- `arvinclaw --help` shows available commands.
-- `arvinclaw --version` shows package version.
-- `arvinclaw chat` may print a friendly not-yet-implemented message or start a stub shell if Phase 1 is not started.
+- `peewit --help` shows available commands.
+- `peewit --version` shows package version.
+- `peewit chat` may print a friendly not-yet-implemented message or start a stub shell if Phase 1 is not started.
 
 The CLI shell must not contain prompt assembly, model calls, tool execution, or permission decisions.
 

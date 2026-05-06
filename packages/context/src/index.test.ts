@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { FakeModelProvider } from "@arvinclaw/models";
+import { FakeModelProvider } from "@peewit/models";
 import { DefaultContextAssembler, compactMessages, type ContextAssembler } from "./index.js";
 
 describe("context assembler sections", () => {
@@ -10,7 +10,7 @@ describe("context assembler sections", () => {
     const assembler: ContextAssembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
-      systemInstruction: "You are ArvinClaw.",
+      systemInstruction: "You are Peewit.",
       runtime: {
         mode: "confirm",
         workspace: "/workspace/project",
@@ -24,7 +24,7 @@ describe("context assembler sections", () => {
         role: "system",
         content: [
           "<identity>",
-          "You are ArvinClaw.",
+          "You are Peewit.",
           "</identity>",
           "",
           "<runtime>",
@@ -50,7 +50,7 @@ describe("context assembler sections", () => {
     const assembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
-      systemInstruction: "You are ArvinClaw.",
+      systemInstruction: "You are Peewit.",
       userMessage: "Hello."
     });
 
@@ -66,7 +66,7 @@ describe("context assembler sections", () => {
     const assembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
-      systemInstruction: "You are ArvinClaw.",
+      systemInstruction: "You are Peewit.",
       userMessage: "Hello."
     });
 
@@ -81,7 +81,7 @@ describe("context assembler sections", () => {
     const assembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
-      systemInstruction: "You are ArvinClaw.",
+      systemInstruction: "You are Peewit.",
       recentMessages: [
         { role: "user", content: "What did we discuss?" },
         { role: "assistant", content: "We discussed session memory." }
@@ -106,7 +106,7 @@ describe("tooling section", () => {
     const assembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
-      systemInstruction: "You are ArvinClaw.",
+      systemInstruction: "You are Peewit.",
       tools: [
         { name: "read_file", description: "Read a workspace file.", risk: "low" },
         { name: "run_shell", description: "Run a shell command.", risk: "high" }
@@ -127,7 +127,7 @@ describe("tooling section", () => {
     const assembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
-      systemInstruction: "You are ArvinClaw.",
+      systemInstruction: "You are Peewit.",
       userMessage: "Hello."
     });
 
@@ -140,7 +140,7 @@ describe("tooling section", () => {
     const assembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
-      systemInstruction: "You are ArvinClaw.",
+      systemInstruction: "You are Peewit.",
       tools: [],
       userMessage: "Hello."
     });
@@ -154,7 +154,7 @@ describe("safety section", () => {
     const assembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
-      systemInstruction: "You are ArvinClaw.",
+      systemInstruction: "You are Peewit.",
       permissionGuidance: "Low-risk actions run automatically. High-risk require approval.",
       userMessage: "Hello."
     });
@@ -170,7 +170,7 @@ describe("safety section", () => {
     const assembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
-      systemInstruction: "You are ArvinClaw.",
+      systemInstruction: "You are Peewit.",
       userMessage: "Hello."
     });
 
@@ -185,7 +185,7 @@ describe("skills section", () => {
     const assembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
-      systemInstruction: "You are ArvinClaw.",
+      systemInstruction: "You are Peewit.",
       skillIndex: [
         { name: "research", description: "Use when investigating external information or comparing sources." },
         { name: "safe-shell", description: "Use when planning to run shell commands." }
@@ -205,7 +205,7 @@ describe("skills section", () => {
     const assembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
-      systemInstruction: "You are ArvinClaw.",
+      systemInstruction: "You are Peewit.",
       userMessage: "Hello."
     });
 
@@ -217,7 +217,7 @@ describe("skills section", () => {
 
 describe("workspace section", () => {
   test("loads configured workspace prompt files into the system message", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-context-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-context-workspace-"));
 
     try {
       await writeFile(join(workspace, "AGENTS.md"), "Use project conventions.");
@@ -228,7 +228,7 @@ describe("workspace section", () => {
       });
 
       const result = await assembler.assemble({
-        systemInstruction: "You are ArvinClaw.",
+        systemInstruction: "You are Peewit.",
         runtime: {
           mode: "confirm",
           workspace,
@@ -252,7 +252,7 @@ describe("workspace section", () => {
   });
 
   test("omits workspace section when no prompt files are found", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-context-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-context-workspace-"));
 
     try {
       const assembler = new DefaultContextAssembler({
@@ -260,7 +260,7 @@ describe("workspace section", () => {
       });
 
       const result = await assembler.assemble({
-        systemInstruction: "You are ArvinClaw.",
+        systemInstruction: "You are Peewit.",
         runtime: { mode: "confirm", workspace, currentDate: "2026-05-03" },
         userMessage: "Hello."
       });
@@ -279,7 +279,7 @@ describe("prompt modes", () => {
     const assembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
-      systemInstruction: "You are ArvinClaw.",
+      systemInstruction: "You are Peewit.",
       runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-03" },
       tools: [{ name: "read_file", description: "Read a file.", risk: "low" }],
       permissionGuidance: "Low-risk: automatic.",
@@ -302,7 +302,7 @@ describe("prompt modes", () => {
     const assembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
-      systemInstruction: "You are ArvinClaw.",
+      systemInstruction: "You are Peewit.",
       runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-03" },
       tools: [{ name: "read_file", description: "Read a file.", risk: "low" }],
       permissionGuidance: "Low-risk: automatic.",
@@ -325,7 +325,7 @@ describe("prompt modes", () => {
     const assembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
-      systemInstruction: "You are ArvinClaw.",
+      systemInstruction: "You are Peewit.",
       userMessage: "Hello.",
       promptMode: "none"
     });
@@ -391,7 +391,7 @@ describe("full context assembly", () => {
     const assembler = new DefaultContextAssembler();
 
     const result = await assembler.assemble({
-      systemInstruction: "You are ArvinClaw.",
+      systemInstruction: "You are Peewit.",
       runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-03" },
       tools: [{ name: "read_file", description: "Read a file.", risk: "low" }],
       permissionGuidance: "Low-risk: automatic. High-risk: approval required.",

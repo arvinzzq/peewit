@@ -5,9 +5,9 @@
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
-import type { AdapterCapabilities } from "@arvinclaw/adapters";
+import type { AdapterCapabilities } from "@peewit/adapters";
 
-export const gatewayPackageName = "@arvinclaw/gateway";
+export const gatewayPackageName = "@peewit/gateway";
 
 export interface GatewaySession {
   id: string;

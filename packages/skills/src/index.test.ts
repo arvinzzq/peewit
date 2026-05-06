@@ -267,7 +267,7 @@ describe("SkillLoader", () => {
 
 describe("SkillManager", () => {
   async function makeTmpDir(): Promise<string> {
-    return mkdtemp(join(tmpdir(), "arvinclaw-test-"));
+    return mkdtemp(join(tmpdir(), "peewit-test-"));
   }
 
   async function cleanup(dir: string): Promise<void> {

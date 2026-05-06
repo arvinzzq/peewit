@@ -22,7 +22,7 @@ model_response
   → model may call update_plan at any point to track step progress
 ```
 
-ArvinClaw Phase 4 implements this with two deliverables:
+Peewit Phase 4 implements this with two deliverables:
 
 1. `update_todos` tool — model-called, full-replace step tracker
 2. Planning stall detection in `AgentRuntime` — detect and retry plan-only turns

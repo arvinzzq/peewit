@@ -4,10 +4,10 @@ English version: [README.md](./README.md)
 
 ## 架构概述
 
-`@arvinclaw/models` 定义 **Provider 无关的模型契约**，并在其背后实现具体的 Provider。所有需要调用 LLM 的包都只依赖 `ModelProvider` 接口——绝不直接依赖 vendor SDK。
+`@peewit/models` 定义 **Provider 无关的模型契约**，并在其背后实现具体的 Provider。所有需要调用 LLM 的包都只依赖 `ModelProvider` 接口——绝不直接依赖 vendor SDK。
 
 ```
-@arvinclaw/core
+@peewit/core
     │  使用
     ▼
 ModelProvider（接口）

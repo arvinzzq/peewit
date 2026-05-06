@@ -23,37 +23,37 @@ importers:
 
   apps/cli:
     dependencies:
-      '@arvinclaw/adapters':
+      '@peewit/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
-      '@arvinclaw/config':
+      '@peewit/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@arvinclaw/context':
+      '@peewit/context':
         specifier: workspace:*
         version: link:../../packages/context
-      '@arvinclaw/core':
+      '@peewit/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@arvinclaw/gateway':
+      '@peewit/gateway':
         specifier: workspace:*
         version: link:../../packages/gateway
-      '@arvinclaw/models':
+      '@peewit/models':
         specifier: workspace:*
         version: link:../../packages/models
-      '@arvinclaw/scheduler':
+      '@peewit/scheduler':
         specifier: workspace:*
         version: link:../../packages/scheduler
-      '@arvinclaw/sessions':
+      '@peewit/sessions':
         specifier: workspace:*
         version: link:../../packages/sessions
-      '@arvinclaw/skills':
+      '@peewit/skills':
         specifier: workspace:*
         version: link:../../packages/skills
-      '@arvinclaw/taskflow':
+      '@peewit/taskflow':
         specifier: workspace:*
         version: link:../../packages/taskflow
-      '@arvinclaw/tools':
+      '@peewit/tools':
         specifier: workspace:*
         version: link:../../packages/tools
       dotenv:
@@ -75,36 +75,36 @@ importers:
 
   apps/web:
     dependencies:
-      '@arvinclaw/adapters':
-        specifier: workspace:*
-        version: link:../../packages/adapters
-      '@arvinclaw/config':
-        specifier: workspace:*
-        version: link:../../packages/config
-      '@arvinclaw/context':
-        specifier: workspace:*
-        version: link:../../packages/context
-      '@arvinclaw/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@arvinclaw/gateway':
-        specifier: workspace:*
-        version: link:../../packages/gateway
-      '@arvinclaw/models':
-        specifier: workspace:*
-        version: link:../../packages/models
-      '@arvinclaw/sessions':
-        specifier: workspace:*
-        version: link:../../packages/sessions
-      '@arvinclaw/skills':
-        specifier: workspace:*
-        version: link:../../packages/skills
-      '@arvinclaw/tools':
-        specifier: workspace:*
-        version: link:../../packages/tools
       '@hono/node-server':
         specifier: ^1.14.4
         version: 1.19.14(hono@4.12.16)
+      '@peewit/adapters':
+        specifier: workspace:*
+        version: link:../../packages/adapters
+      '@peewit/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@peewit/context':
+        specifier: workspace:*
+        version: link:../../packages/context
+      '@peewit/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@peewit/gateway':
+        specifier: workspace:*
+        version: link:../../packages/gateway
+      '@peewit/models':
+        specifier: workspace:*
+        version: link:../../packages/models
+      '@peewit/sessions':
+        specifier: workspace:*
+        version: link:../../packages/sessions
+      '@peewit/skills':
+        specifier: workspace:*
+        version: link:../../packages/skills
+      '@peewit/tools':
+        specifier: workspace:*
+        version: link:../../packages/tools
       hono:
         specifier: ^4.7.10
         version: 4.12.16
@@ -146,28 +146,28 @@ importers:
 
   packages/context:
     dependencies:
-      '@arvinclaw/models':
+      '@peewit/models':
         specifier: workspace:*
         version: link:../models
 
   packages/core:
     dependencies:
-      '@arvinclaw/context':
+      '@peewit/context':
         specifier: workspace:*
         version: link:../context
-      '@arvinclaw/models':
+      '@peewit/models':
         specifier: workspace:*
         version: link:../models
-      '@arvinclaw/permissions':
+      '@peewit/permissions':
         specifier: workspace:*
         version: link:../permissions
-      '@arvinclaw/tools':
+      '@peewit/tools':
         specifier: workspace:*
         version: link:../tools
 
   packages/gateway:
     dependencies:
-      '@arvinclaw/adapters':
+      '@peewit/adapters':
         specifier: workspace:*
         version: link:../adapters
 
@@ -181,10 +181,10 @@ importers:
 
   packages/scheduler:
     dependencies:
-      '@arvinclaw/core':
+      '@peewit/core':
         specifier: workspace:*
         version: link:../core
-      '@arvinclaw/sessions':
+      '@peewit/sessions':
         specifier: workspace:*
         version: link:../sessions
 
@@ -194,7 +194,7 @@ importers:
 
   packages/taskflow:
     dependencies:
-      '@arvinclaw/sessions':
+      '@peewit/sessions':
         specifier: workspace:*
         version: link:../sessions
 

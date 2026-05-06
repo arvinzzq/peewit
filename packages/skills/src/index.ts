@@ -9,7 +9,7 @@ import { copyFile, mkdir, readFile as fsReadFile, readdir, writeFile } from "nod
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 
-export const skillsPackageName = "@arvinclaw/skills";
+export const skillsPackageName = "@peewit/skills";
 
 export type SkillSource = "built-in" | "user" | "workspace";
 
@@ -97,7 +97,7 @@ export class SkillLoader {
     }
 
     // 2. User skills — consult manifest for enabled/trusted
-    const userDir = options.userSkillsDir ?? join(homedir(), ".arvinclaw", "skills");
+    const userDir = options.userSkillsDir ?? join(homedir(), ".peewit", "skills");
     const manifest = await loadManifestFromDir(userDir, options.readFile);
     for (const skill of await this.#loadFromDir(userDir, "user", options, manifest)) {
       add(skill);

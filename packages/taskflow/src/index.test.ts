@@ -10,7 +10,7 @@ function makeTempPath(dir: string, filename: string): string {
 
 describe("JsonlTaskFlowStore", () => {
   test("creates a task record with timestamps", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-taskflow-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-taskflow-"));
     try {
       const store = new JsonlTaskFlowStore(makeTempPath(dir, "tasks.jsonl"));
       const record = await store.create({
@@ -33,7 +33,7 @@ describe("JsonlTaskFlowStore", () => {
   });
 
   test("updates task status", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-taskflow-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-taskflow-"));
     try {
       const store = new JsonlTaskFlowStore(makeTempPath(dir, "tasks.jsonl"));
       await store.create({
@@ -54,7 +54,7 @@ describe("JsonlTaskFlowStore", () => {
   });
 
   test("returns undefined when updating nonexistent id", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-taskflow-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-taskflow-"));
     try {
       const store = new JsonlTaskFlowStore(makeTempPath(dir, "tasks.jsonl"));
       const result = await store.update("nonexistent_id", { status: "failed" });
@@ -66,7 +66,7 @@ describe("JsonlTaskFlowStore", () => {
   });
 
   test("gets a task by id", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-taskflow-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-taskflow-"));
     try {
       const store = new JsonlTaskFlowStore(makeTempPath(dir, "tasks.jsonl"));
       await store.create({
@@ -87,7 +87,7 @@ describe("JsonlTaskFlowStore", () => {
   });
 
   test("returns undefined for get with unknown id", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-taskflow-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-taskflow-"));
     try {
       const store = new JsonlTaskFlowStore(makeTempPath(dir, "tasks.jsonl"));
       const found = await store.get("no_such_id");
@@ -99,7 +99,7 @@ describe("JsonlTaskFlowStore", () => {
   });
 
   test("lists all records", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-taskflow-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-taskflow-"));
     try {
       const store = new JsonlTaskFlowStore(makeTempPath(dir, "tasks.jsonl"));
       await store.create({ id: "t1", runtime: "cli", task: "First task", status: "queued" });
@@ -116,7 +116,7 @@ describe("JsonlTaskFlowStore", () => {
   });
 
   test("filters by status", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-taskflow-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-taskflow-"));
     try {
       const store = new JsonlTaskFlowStore(makeTempPath(dir, "tasks.jsonl"));
       await store.create({ id: "s1", runtime: "cli", task: "Queued task", status: "queued" });
@@ -133,7 +133,7 @@ describe("JsonlTaskFlowStore", () => {
   });
 
   test("filters by parentId (sub-tasks)", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-taskflow-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-taskflow-"));
     try {
       const store = new JsonlTaskFlowStore(makeTempPath(dir, "tasks.jsonl"));
       await store.create({ id: "parent_1", runtime: "cli", task: "Parent task", status: "running" });
@@ -151,7 +151,7 @@ describe("JsonlTaskFlowStore", () => {
   });
 
   test("respects limit", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-taskflow-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-taskflow-"));
     try {
       const store = new JsonlTaskFlowStore(makeTempPath(dir, "tasks.jsonl"));
       for (let i = 1; i <= 5; i++) {

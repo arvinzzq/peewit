@@ -9,7 +9,7 @@ English version: [model-provider.md](./model-provider.md)
 
 Model Provider 层用于隔离 Agent Core 与具体 LLM 厂商和 SDK。
 
-ArvinClaw 应该可以先接入一个 OpenAI-compatible provider，后续再支持 Anthropic、Gemini、Ollama、本地模型或其他托管模型，而不需要重写 Agent Loop。
+Peewit 应该可以先接入一个 OpenAI-compatible provider，后续再支持 Anthropic、Gemini、Ollama、本地模型或其他托管模型，而不需要重写 Agent Loop。
 
 核心规则：
 
@@ -52,8 +52,8 @@ OpenAICompatibleProvider
 
 Model Provider 层负责：
 
-- 把 ArvinClaw 的模型输入转换成 provider 请求格式
-- 把 provider 输出转换成 ArvinClaw 模型输出
+- 把 Peewit 的模型输入转换成 provider 请求格式
+- 把 provider 输出转换成 Peewit 模型输出
 - 归一化工具调用
 - 归一化最终 assistant message
 - 归一化 provider 错误
@@ -178,8 +178,8 @@ Provider-specific 错误应归一化为少量类别：
 
 模型配置来自合并后的有效配置：
 
-- 项目配置：`arvinclaw.config.json`
-- 用户配置：`~/.arvinclaw/config.json`
+- 项目配置：`peewit.config.json`
+- 用户配置：`~/.peewit/config.json`
 - 环境变量
 
 示例：
@@ -199,16 +199,16 @@ Provider-specific 错误应归一化为少量类别：
 密钥不应存进项目配置。API key 应来自环境变量，例如：
 
 ```text
-ARVINCLAW_API_KEY
+PEEWIT_API_KEY
 OPENROUTER_API_KEY
 ```
 
 未来可支持 provider-specific key：
 
 ```text
-ARVINCLAW_OPENAI_API_KEY
-ARVINCLAW_ANTHROPIC_API_KEY
-ARVINCLAW_GEMINI_API_KEY
+PEEWIT_OPENAI_API_KEY
+PEEWIT_ANTHROPIC_API_KEY
+PEEWIT_GEMINI_API_KEY
 ```
 
 ## 10. 能力 Metadata
@@ -285,14 +285,14 @@ MVP Model Provider 层成功标准：
 
 - Agent Core 调用 `ModelProvider` 接口。
 - OpenAI-compatible provider 可以发送消息并收到归一化响应。
-- 工具调用归一化为 ArvinClaw 内部结构。
+- 工具调用归一化为 Peewit 内部结构。
 - Provider 错误足够归一化，CLI 能解释。
 - API key 从环境变量加载，不写入项目配置。
 - 新 provider 可以在不改 Agent Core 主循环的情况下加入。
 
 ## 15. 相关文档
 
-- [主设计](../product/arvinclaw-design.zh-CN.md)
+- [主设计](../product/peewit-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)
 - [Configuration System](./configuration-system.zh-CN.md)
 - [Agent Loop](./agent-loop.zh-CN.md)

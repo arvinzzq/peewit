@@ -109,7 +109,7 @@ type ThinkingBudget =
 
 OpenClaw uses `executionContract: "strict-agentic"` for autonomous coding and task execution sessions. Key alignments:
 
-| OpenClaw concept | ArvinClaw equivalent |
+| OpenClaw concept | Peewit equivalent |
 | --- | --- |
 | `executionContract: "strict-agentic"` | `ExecutionContract = "strict-agentic"` |
 | `promptMode: "minimal"` | `PromptMode = "minimal"` |

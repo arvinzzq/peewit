@@ -105,14 +105,14 @@ Compaction failure must never cause an agent turn to fail. Degraded context is b
 
 OpenClaw implements context compaction as part of its `context-engine-maintenance` subsystem. Key alignments:
 
-| OpenClaw concept | ArvinClaw equivalent |
+| OpenClaw concept | Peewit equivalent |
 | --- | --- |
 | `context-engine-maintenance` | `compactIfNeeded()` in `AgentRuntime` |
 | Hard limit threshold | `maxMessages` in `CompactionOptions` |
 | Summary injection | Synthetic assistant message prepended to recent messages |
 | Fail-safe passthrough | Error catch + return original messages |
 
-OpenClaw's compaction also tracks a `compactionCount` per session for observability. ArvinClaw should do the same via trace events.
+OpenClaw's compaction also tracks a `compactionCount` per session for observability. Peewit should do the same via trace events.
 
 ## 8. Acceptance Criteria
 

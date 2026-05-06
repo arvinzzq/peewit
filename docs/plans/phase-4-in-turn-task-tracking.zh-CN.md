@@ -22,7 +22,7 @@ model_response
   → 模型可以在任意时刻调用 update_plan 追踪步骤进度
 ```
 
-ArvinClaw Phase 4 通过两个交付物实现这一模式：
+Peewit Phase 4 通过两个交付物实现这一模式：
 
 1. `update_todos` tool — 模型调用的全量替换步骤追踪器
 2. `AgentRuntime` 中的规划停滞检测 — 检测并重试 plan-only turns

@@ -18,7 +18,7 @@ English version: [phase-8-background-automation.md](./phase-8-background-automat
 
 ## 1. 目的
 
-Phase 8 为 ArvinClaw 添加后台任务执行能力。
+Phase 8 为 Peewit 添加后台任务执行能力。
 
 Phase 1–7 证明了 agent 可以在终端或浏览器 session 中交互式运行。Phase 8 将 agent 扩展为可以在无前台用户连接的情况下运行任务。
 
@@ -69,7 +69,7 @@ mode = "observe"  → 自动拒绝（无用户在场）
 
 在 `auto` 模式下，resolver 信任模型只请求适当的工具。在 `confirm` 和 `observe` 模式下，由于没有用户可以咨询，resolver 拒绝任何需要交互审批的工具。
 
-此 resolver 与 `@arvinclaw/core` 中现有的 `ApprovalResolver` 接口集成。无需更改 `AgentRuntime`。
+此 resolver 与 `@peewit/core` 中现有的 `ApprovalResolver` 接口集成。无需更改 `AgentRuntime`。
 
 ### Task Definition 格式
 
@@ -117,12 +117,12 @@ run 命令调用
 
 ## 5. 验收标准
 
-- `arvinclaw run "<goal>"` 执行任务并打印紧凑 trace。
-- `arvinclaw run "<goal>" --mode auto` 使用自动审批策略。
-- `arvinclaw tasks` 列出带状态的最近任务运行。
+- `peewit run "<goal>"` 执行任务并打印紧凑 trace。
+- `peewit run "<goal>" --mode auto` 使用自动审批策略。
+- `peewit tasks` 列出带状态的最近任务运行。
 - 后台任务将运行记录持久化到 `task-runs.jsonl`。
 - 危险动作在后台模式下遵守 permission policy。
-- 失败的后台任务在 `arvinclaw tasks` 输出中可见。
+- 失败的后台任务在 `peewit tasks` 输出中可见。
 
 ## 6. 非目标
 

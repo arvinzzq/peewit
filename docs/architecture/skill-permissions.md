@@ -35,17 +35,17 @@ Unknown values are stored as-is and displayed to the user. They do not block loa
 
 When a user installs a skill, the CLI workflow is:
 
-1. `arvinclaw skills install <path>` — copies file, records `trusted: false`.
-2. `arvinclaw skills review <name>` — shows full metadata including declared permissions.
+1. `peewit skills install <path>` — copies file, records `trusted: false`.
+2. `peewit skills review <name>` — shows full metadata including declared permissions.
 3. User reads the permissions and skill body.
-4. `arvinclaw skills trust <name>` — records `trusted: true` in the manifest.
+4. `peewit skills trust <name>` — records `trusted: true` in the manifest.
 
 Until the skill is trusted, every listing command shows a warning:
 
 ```
 ⚠ untrusted  my-skill  [filesystem, shell]
 This skill was installed from an external source and has not been trusted.
-Run `arvinclaw skills trust my-skill` to trust it.
+Run `peewit skills trust my-skill` to trust it.
 ```
 
 ## 4. Why Skill Text Is the Security Surface
@@ -56,21 +56,21 @@ Skills are plain text injected verbatim into the system prompt before the user's
 - Ask the model to read or exfiltrate files.
 - Override safety instructions with conflicting directives.
 
-The trust flag communicates "I have read this skill and consider it safe." It does not enforce isolation or sandbox the text. The actual tool permission decisions still go through the `@arvinclaw/permissions` package regardless of skill trust.
+The trust flag communicates "I have read this skill and consider it safe." It does not enforce isolation or sandbox the text. The actual tool permission decisions still go through the `@peewit/permissions` package regardless of skill trust.
 
 ## 5. CLI Review Commands
 
 ```
-arvinclaw skills             List all skills — shows version, trust badge, permissions
-arvinclaw skills install <path>
+peewit skills             List all skills — shows version, trust badge, permissions
+peewit skills install <path>
                              Install a skill from a local .md file
-arvinclaw skills enable <name>
+peewit skills enable <name>
                              Enable a disabled skill
-arvinclaw skills disable <name>
+peewit skills disable <name>
                              Disable an enabled skill
-arvinclaw skills trust <name>
+peewit skills trust <name>
                              Mark an installed skill as trusted
-arvinclaw skills review <name>
+peewit skills review <name>
                              Show full skill metadata and permission declarations
 ```
 

@@ -4,13 +4,13 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ## Architecture Overview
 
-`@arvinclaw/tools` owns the **tool capability boundary**: it defines what tools exist, what their inputs look like, and how they execute. It does not decide whether a tool is allowed to run — that is the exclusive responsibility of `@arvinclaw/permissions`.
+`@peewit/tools` owns the **tool capability boundary**: it defines what tools exist, what their inputs look like, and how they execute. It does not decide whether a tool is allowed to run — that is the exclusive responsibility of `@peewit/permissions`.
 
 ```
 AgentRuntime
     │ uses
     ▼
-ExecutableTool[]    ← @arvinclaw/tools
+ExecutableTool[]    ← @peewit/tools
     │
     ├─ read_file        (low risk)
     ├─ list_directory   (low risk)
@@ -127,7 +127,7 @@ Both tools operate within a `memoryDir` boundary:
 
 ### Why Tools Don't Decide Permissions
 
-`ExecutableTool.risk` is metadata that describes the inherent risk level of the tool's action. The actual decision to allow, ask, or deny is made by `PermissionPolicy` in `@arvinclaw/permissions`, which combines the risk level with the current autonomy mode. This separation means:
+`ExecutableTool.risk` is metadata that describes the inherent risk level of the tool's action. The actual decision to allow, ask, or deny is made by `PermissionPolicy` in `@peewit/permissions`, which combines the risk level with the current autonomy mode. This separation means:
 - Tools can be registered without knowing the current mode.
 - The permission policy can be swapped without changing tools.
 - Tests can exercise tool logic independently of permission decisions.

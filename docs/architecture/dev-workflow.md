@@ -7,9 +7,9 @@ Simplified Chinese version: [dev-workflow.zh-CN.md](./dev-workflow.zh-CN.md)
 
 ## 1. Purpose
 
-This document defines how ArvinClaw development work should be planned, implemented, tested, documented, and committed.
+This document defines how Peewit development work should be planned, implemented, tested, documented, and committed.
 
-ArvinClaw is a product and a learning project. The workflow should make progress steady without hiding decisions, risks, or test gaps.
+Peewit is a product and a learning project. The workflow should make progress steady without hiding decisions, risks, or test gaps.
 
 Core rule:
 
@@ -17,7 +17,7 @@ Every meaningful change should be understandable, tested according to risk, docu
 
 ## 2. Work Modes
 
-ArvinClaw work should move through these modes:
+Peewit work should move through these modes:
 
 1. Discussion and design.
 2. Design documentation.

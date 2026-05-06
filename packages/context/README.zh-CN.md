@@ -4,7 +4,7 @@ English version: [README.md](./README.md)
 
 ## 架构概述
 
-`@arvinclaw/context` 负责 **Provider 无关的 context 组装**。它的工作是在任何 provider 特定格式化发生之前，决定模型看到什么内容。它接受原始输入（系统指令、运行时元数据、工具摘要、技能索引、权限指导、对话历史、用户消息），并生成可供任何 `ModelProvider` 使用的 `ModelInput`。
+`@peewit/context` 负责 **Provider 无关的 context 组装**。它的工作是在任何 provider 特定格式化发生之前，决定模型看到什么内容。它接受原始输入（系统指令、运行时元数据、工具摘要、技能索引、权限指导、对话历史、用户消息），并生成可供任何 `ModelProvider` 使用的 `ModelInput`。
 
 该包不感知所选用哪个模型、哪个 Adapter 负责渲染、或工具实际执行什么。它只负责将具名 section 排列成系统提示，并构建扁平的消息数组。
 

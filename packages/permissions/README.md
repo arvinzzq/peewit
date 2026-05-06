@@ -4,7 +4,7 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ## Architecture Overview
 
-`@arvinclaw/permissions` owns the **permission policy boundary**: given a tool action and the current autonomy mode, it produces a decision (`allow`, `ask`, or `deny`) with a human-readable reason. It never executes tools, renders UI, or calls APIs. Its only output is a `PermissionDecision`.
+`@peewit/permissions` owns the **permission policy boundary**: given a tool action and the current autonomy mode, it produces a decision (`allow`, `ask`, or `deny`) with a human-readable reason. It never executes tools, renders UI, or calls APIs. Its only output is a `PermissionDecision`.
 
 ```
 AgentRuntime

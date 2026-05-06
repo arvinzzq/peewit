@@ -7,7 +7,7 @@ English version: [phase-10-full-platform.md](./phase-10-full-platform.md)
 
 ## 1. 目标
 
-将 ArvinClaw 打造为完整个人 Agent 平台：多入口、多模型、多 Agent、可观察，并足够安全以支持日常使用。
+将 Peewit 打造为完整个人 Agent 平台：多入口、多模型、多 Agent、可观察，并足够安全以支持日常使用。
 
 ## 2. 各部分
 

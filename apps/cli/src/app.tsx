@@ -8,9 +8,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { render, Box, Text, useInput, useApp, useAnimation, Static } from "ink";
 import TextInput from "ink-text-input";
-import { loadConfig, type EffectiveConfig } from "@arvinclaw/config";
-import type { RuntimeEvent } from "@arvinclaw/core";
-import type { TodoItem } from "@arvinclaw/tools";
+import { loadConfig, type EffectiveConfig } from "@peewit/config";
+import type { RuntimeEvent } from "@peewit/core";
+import type { TodoItem } from "@peewit/tools";
 import {
   CliChatSession,
   renderToolResult,
@@ -375,7 +375,7 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
   if (session === null) {
     return (
       <Box>
-        <Spinner label="Loading ArvinClaw…" />
+        <Spinner label="Loading Peewit…" />
       </Box>
     );
   }
@@ -384,7 +384,7 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
     <Box flexDirection="column">
       {/* Static header — rendered once */}
       <Box marginBottom={1} flexDirection="column">
-        <Text bold>{"ArvinClaw chat"}</Text>
+        <Text bold>{"Peewit chat"}</Text>
         <Text dimColor>{"Type /help for commands or /exit to leave."}</Text>
       </Box>
 
@@ -485,7 +485,7 @@ export async function runInkChat({ args, env, sessionsDirectory }: InkChatArgs):
 
   if (config.secrets.apiKey === undefined) {
     process.stderr.write(
-      "Missing ARVINCLAW_API_KEY or OPENROUTER_API_KEY. Set one to start `arvinclaw chat`, or use `arvinclaw chat --fake-interactive` for local learning.\n"
+      "Missing PEEWIT_API_KEY or OPENROUTER_API_KEY. Set one to start `peewit chat`, or use `peewit chat --fake-interactive` for local learning.\n"
     );
     process.exitCode = 1;
     return;

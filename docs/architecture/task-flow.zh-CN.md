@@ -154,10 +154,10 @@ TaskFlow 观察并记录外部驱动的执行。Agent 在完成步骤时更新 T
 
 ## 6. 存储
 
-初始实现在 workspace 的 `.arvinclaw/flows/` 下为每个 flow 使用 JSONL 文件：
+初始实现在 workspace 的 `.peewit/flows/` 下为每个 flow 使用 JSONL 文件：
 
 ```
-.arvinclaw/
+.peewit/
   flows/
     <flowId>.jsonl   # 每个 flow 一个 append-only 事件日志
 ```
@@ -199,11 +199,11 @@ interface TaskFlowStore {
 
 OpenClaw 实现了类似 TaskFlow 的持久任务图。关键对齐：
 
-| OpenClaw 概念 | ArvinClaw 等效 |
+| OpenClaw 概念 | Peewit 等效 |
 | --- | --- |
 | 带状态生命周期的 `TaskRecord` | `TaskRecord` 类型 |
 | 带父子关系的 `TaskFlow` | 带 `parentFlowId`/`childFlowIds` 的 `TaskFlow` 类型 |
-| JSONL 事件日志存储 | `.arvinclaw/flows/<flowId>.jsonl` |
+| JSONL 事件日志存储 | `.peewit/flows/<flowId>.jsonl` |
 | SQLite 迁移路径 | 计划在未来阶段 |
 | 死 session 的 `lost` 状态 | `"lost"` 状态 |
 | 跨 session 状态的 `stateJson` | `stateJson: string` 字段 |

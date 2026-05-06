@@ -9,7 +9,7 @@ Simplified Chinese version: [prompt-assembly.zh-CN.md](./prompt-assembly.zh-CN.m
 
 Prompt assembly builds the model-facing instructions and context for an agent run.
 
-OpenClaw research shows that prompt construction is a core architecture concern, not a CLI detail. ArvinClaw should follow that direction by making prompt assembly explicit, testable, trace-visible, and independent from entry adapters.
+OpenClaw research shows that prompt construction is a core architecture concern, not a CLI detail. Peewit should follow that direction by making prompt assembly explicit, testable, trace-visible, and independent from entry adapters.
 
 The core rule:
 
@@ -28,7 +28,7 @@ That causes problems:
 - Sensitive content may enter context without redaction.
 - Future context engine and compaction work becomes harder.
 
-Prompt assembly gives ArvinClaw a controlled boundary for all model-facing context.
+Prompt assembly gives Peewit a controlled boundary for all model-facing context.
 
 ## 3. Inputs
 
@@ -79,7 +79,7 @@ This structure lets different model providers render the final request in provid
 
 MVP should start with a small stable set of sections:
 
-- Identity: what ArvinClaw is
+- Identity: what Peewit is
 - Runtime: current mode, workspace, date, and model context
 - Safety: permission policy and blocked behavior
 - Tools: available tool summary
@@ -107,7 +107,7 @@ Later phases can add OpenClaw-like sections:
 - Runtime
 - Reasoning guidance
 
-ArvinClaw should add sections only when their behavior can be documented and tested.
+Peewit should add sections only when their behavior can be documented and tested.
 
 ## 7. Skill Index
 
@@ -242,7 +242,7 @@ Example:
 
 ```xml
 <identity>
-ArvinClaw is an OpenClaw-inspired personal general-purpose agent...
+Peewit is an OpenClaw-inspired personal general-purpose agent...
 </identity>
 
 <tooling>
@@ -284,7 +284,7 @@ Decision record: [0006 — XML Prompt Format and Caching](../decisions/0006-xml-
 
 ## 18. Related Documents
 
-- [Main design](../product/arvinclaw-design.md)
+- [Main design](../product/peewit-design.md)
 - [OpenClaw implementation notes](../research/openclaw-implementation-notes.md)
 - [OpenClaw architecture map](./openclaw-architecture-map.md)
 - [Context engine](./context-engine.md)

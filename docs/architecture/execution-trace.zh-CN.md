@@ -9,7 +9,7 @@ English version: [execution-trace.md](./execution-trace.md)
 
 Execution trace 是 Agent 在任务期间做了什么的可见记录。
 
-ArvinClaw 应该既是有用的产品，也是学习项目。Trace 是连接这两个目标的桥梁：它让用户理解 Agent 如何解释目标、选择工具、处理权限、观察结果并得出答案。
+Peewit 应该既是有用的产品，也是学习项目。Trace 是连接这两个目标的桥梁：它让用户理解 Agent 如何解释目标、选择工具、处理权限、观察结果并得出答案。
 
 核心规则：
 
@@ -19,7 +19,7 @@ Trace 解释执行。它绝不能暴露隐藏模型推理。
 
 没有 trace，Agent 会像黑盒。用户可能看到最终答案，但不知道发生了什么、工具是否安全使用，或 Agent 为什么停止。
 
-Execution trace 给 ArvinClaw 提供：
+Execution trace 给 Peewit 提供：
 
 - 用户信任
 - 可调试性
@@ -30,7 +30,7 @@ Execution trace 给 ArvinClaw 提供：
 
 ## 3. Trace Levels
 
-ArvinClaw 应支持多个 trace levels。
+Peewit 应支持多个 trace levels。
 
 | Level | 用途 | 内容 |
 | --- | --- | --- |
@@ -261,7 +261,7 @@ MVP Execution Trace 成功标准：
 
 ## 17. 相关文档
 
-- [主设计](../product/arvinclaw-design.zh-CN.md)
+- [主设计](../product/peewit-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)
 - [Agent Loop](./agent-loop.zh-CN.md)
 - [Tool System](./tool-system.zh-CN.md)

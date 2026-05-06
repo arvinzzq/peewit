@@ -4,7 +4,7 @@ English version: [README.md](./README.md)
 
 ## 架构概述
 
-`@arvinclaw/config` 负责**配置加载和验证**。它将默认配置、用户配置、项目配置和环境变量覆盖合并为单一的 `EffectiveConfig` 对象，驱动所有运行时行为。它还在配置显示到 trace 或 CLI 输出前将密钥进行脱敏处理。
+`@peewit/config` 负责**配置加载和验证**。它将默认配置、用户配置、项目配置和环境变量覆盖合并为单一的 `EffectiveConfig` 对象，驱动所有运行时行为。它还在配置显示到 trace 或 CLI 输出前将密钥进行脱敏处理。
 
 ```
 defaults
@@ -43,8 +43,8 @@ EffectiveConfig   ←─── CLI 和 Web Adapter 消费
 四层按顺序合并，后层覆盖前层：
 
 1. **默认值**：硬编码——`openai-compatible` provider、`gpt-4.1-mini`、`confirm` 模式、`maxSteps: 12`。
-2. **用户配置**：通常为 `~/.arvinclaw/config.json`——个人偏好。
-3. **项目配置**：通常为工作区中的 `.arvinclaw/config.json`——项目特定覆盖。
+2. **用户配置**：通常为 `~/.peewit/config.json`——个人偏好。
+3. **项目配置**：通常为工作区中的 `.peewit/config.json`——项目特定覆盖。
 4. **环境变量**：最高优先级，最后应用。
 
 ### 环境变量参考
@@ -53,21 +53,21 @@ EffectiveConfig   ←─── CLI 和 Web Adapter 消费
 |---|---|
 | `OPENROUTER_API_KEY` | 设置 provider 为 openai-compatible、baseURL 为 OpenRouter、设置 API key |
 | `ANTHROPIC_API_KEY` | 设置 provider 为 anthropic、model 为默认 Haiku、设置 API key |
-| `ARVINCLAW_API_KEY` | 仅设置 API key（不改变 provider） |
-| `ARVINCLAW_MODEL` | 覆盖 model 名称 |
-| `ARVINCLAW_BASE_URL` | 覆盖 model base URL |
-| `ARVINCLAW_DEFAULT_MODE` | 覆盖运行时自主模式（observe/confirm/auto） |
-| `ARVINCLAW_WORKSPACE_ROOT` | 覆盖工作区根目录 |
-| `ARVINCLAW_LONG_TERM_MEMORY` | 覆盖 memory.longTermFiles 策略 |
-| `ARVINCLAW_PROMPT_MODE` | 覆盖 promptMode（full/minimal/none） |
-| `ARVINCLAW_EXECUTION_CONTRACT` | 覆盖执行契约（default/strict-agentic） |
-| `ARVINCLAW_TOOL_PROFILE` | 覆盖工具配置（coding/full/messaging/background） |
-| `ARVINCLAW_SANDBOX` | `"true"` 时启用 shell 沙箱模式 |
-| `ARVINCLAW_THINKING_BUDGET` | 设置 Anthropic thinking budget |
+| `PEEWIT_API_KEY` | 仅设置 API key（不改变 provider） |
+| `PEEWIT_MODEL` | 覆盖 model 名称 |
+| `PEEWIT_BASE_URL` | 覆盖 model base URL |
+| `PEEWIT_DEFAULT_MODE` | 覆盖运行时自主模式（observe/confirm/auto） |
+| `PEEWIT_WORKSPACE_ROOT` | 覆盖工作区根目录 |
+| `PEEWIT_LONG_TERM_MEMORY` | 覆盖 memory.longTermFiles 策略 |
+| `PEEWIT_PROMPT_MODE` | 覆盖 promptMode（full/minimal/none） |
+| `PEEWIT_EXECUTION_CONTRACT` | 覆盖执行契约（default/strict-agentic） |
+| `PEEWIT_TOOL_PROFILE` | 覆盖工具配置（coding/full/messaging/background） |
+| `PEEWIT_SANDBOX` | `"true"` 时启用 shell 沙箱模式 |
+| `PEEWIT_THINKING_BUDGET` | 设置 Anthropic thinking budget |
 
 ### Provider 选择快捷方式
 
-设置 `OPENROUTER_API_KEY` 自动配置 OpenRouter base URL 并切换到 `openai-compatible` provider（仍需 `ARVINCLAW_MODEL`）。设置 `ANTHROPIC_API_KEY` 自动配置 `anthropic` provider 和默认 Haiku 模型。这些快捷方式识别用户通常在 shell profile 中设置的密钥变量，避免需要额外的 `ARVINCLAW_API_KEY` 变量。
+设置 `OPENROUTER_API_KEY` 自动配置 OpenRouter base URL 并切换到 `openai-compatible` provider（仍需 `PEEWIT_MODEL`）。设置 `ANTHROPIC_API_KEY` 自动配置 `anthropic` provider 和默认 Haiku 模型。这些快捷方式识别用户通常在 shell profile 中设置的密钥变量，避免需要额外的 `PEEWIT_API_KEY` 变量。
 
 ### 验证
 
@@ -81,7 +81,7 @@ EffectiveConfig   ←─── CLI 和 Web Adapter 消费
 
 ### resolveSessionsDirectory
 
-将 `~/` 展开为 `$HOME`，确保默认的 `~/.arvinclaw/sessions` 在任何机器上正确解析。CLI 和 Web Adapter 都调用此辅助函数，保证始终指向相同目录。
+将 `~/` 展开为 `$HOME`，确保默认的 `~/.peewit/sessions` 在任何机器上正确解析。CLI 和 Web Adapter 都调用此辅助函数，保证始终指向相同目录。
 
 ## 实现原理
 
@@ -91,7 +91,7 @@ EffectiveConfig   ←─── CLI 和 Web Adapter 消费
 
 ### 为何独立一个包
 
-配置加载与所有其他领域关注点无关，不依赖 `@arvinclaw/core`、`@arvinclaw/models` 或任何其他工作区包。这意味着 CLI 或纯配置命令（`arvinclaw config show`）可以导入 `@arvinclaw/config` 而无需拉取整个运行时栈。
+配置加载与所有其他领域关注点无关，不依赖 `@peewit/core`、`@peewit/models` 或任何其他工作区包。这意味着 CLI 或纯配置命令（`peewit config show`）可以导入 `@peewit/config` 而无需拉取整个运行时栈。
 
 ## 文件清单
 

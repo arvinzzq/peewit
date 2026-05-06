@@ -13,7 +13,7 @@ This document describes the gateway's intended role so that Phase 7–9 decision
 
 ## 2. Why a Gateway
 
-A single `AgentRuntime` works well when there is one session per process. As ArvinClaw grows toward a personal agent platform, several problems emerge:
+A single `AgentRuntime` works well when there is one session per process. As Peewit grows toward a personal agent platform, several problems emerge:
 
 - Multiple adapters (CLI, Web, desktop, background) need to reach the same agent sessions.
 - Multiple agent runtimes may operate concurrently — one per workspace, one per context, background tasks.
@@ -70,7 +70,7 @@ The `SessionGateway` class is a simple in-memory registry:
 - **`list()`** — returns all active sessions.
 - **`listByAdapter(adapterName: string)`** — returns sessions for one adapter surface.
 
-The `GatewaySession` record carries: `id`, `adapterName`, `capabilities` (from `@arvinclaw/adapters`), `registeredAt`, and `lastActivityAt`.
+The `GatewaySession` record carries: `id`, `adapterName`, `capabilities` (from `@peewit/adapters`), `registeredAt`, and `lastActivityAt`.
 
 The CLI adapter registers sessions in `CliChatSession.createConfigured()` and unregisters them in `close()`. The Web adapter registers sessions in `createWebSession()`. The Web server exposes `GET /api/gateway/sessions` so callers can inspect the registry.
 

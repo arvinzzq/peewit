@@ -77,7 +77,7 @@ describe("tool registry", () => {
 
 describe("read-only file tools", () => {
   test("reads a file inside the workspace", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     await writeFile(join(workspace, "README.md"), "Hello from a workspace file.");
     const tool = createReadFileTool();
 
@@ -98,7 +98,7 @@ describe("read-only file tools", () => {
   });
 
   test("lists directory entries inside the workspace in name order", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     await writeFile(join(workspace, "b.txt"), "b");
     await writeFile(join(workspace, "a.txt"), "a");
     await mkdir(join(workspace, "docs"));
@@ -134,7 +134,7 @@ describe("read-only file tools", () => {
   });
 
   test("rejects paths outside the workspace", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createReadFileTool();
 
     const result = await tool.execute(
@@ -158,7 +158,7 @@ describe("read-only file tools", () => {
 
 describe("read_file safety", () => {
   test("rejects input with missing path field", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createReadFileTool();
 
     const result = await tool.execute({}, { workspaceRoot: workspace });
@@ -173,7 +173,7 @@ describe("read_file safety", () => {
   });
 
   test("rejects input with non-string path", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createReadFileTool();
 
     const result = await tool.execute({ path: 42 }, { workspaceRoot: workspace });
@@ -188,7 +188,7 @@ describe("read_file safety", () => {
   });
 
   test("blocks .env files", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     await writeFile(join(workspace, ".env"), "SECRET=abc123");
     const tool = createReadFileTool();
 
@@ -204,7 +204,7 @@ describe("read_file safety", () => {
   });
 
   test("blocks .env.production files", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     await writeFile(join(workspace, ".env.production"), "SECRET=abc123");
     const tool = createReadFileTool();
 
@@ -220,7 +220,7 @@ describe("read_file safety", () => {
   });
 
   test("blocks .pem private key files", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     await writeFile(join(workspace, "server.pem"), "-----BEGIN PRIVATE KEY-----");
     const tool = createReadFileTool();
 
@@ -236,7 +236,7 @@ describe("read_file safety", () => {
   });
 
   test("blocks id_rsa SSH key files", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     await writeFile(join(workspace, "id_rsa"), "-----BEGIN RSA PRIVATE KEY-----");
     const tool = createReadFileTool();
 
@@ -252,7 +252,7 @@ describe("read_file safety", () => {
   });
 
   test("returns ENOENT error for missing file", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createReadFileTool();
 
     const result = await tool.execute({ path: "missing.txt" }, { workspaceRoot: workspace });
@@ -269,7 +269,7 @@ describe("read_file safety", () => {
 
 describe("list_directory safety", () => {
   test("rejects input with missing path field", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createListDirectoryTool();
 
     const result = await tool.execute({}, { workspaceRoot: workspace });
@@ -284,7 +284,7 @@ describe("list_directory safety", () => {
   });
 
   test("rejects paths outside the workspace", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createListDirectoryTool();
 
     const result = await tool.execute({ path: "../outside" }, { workspaceRoot: workspace });
@@ -299,7 +299,7 @@ describe("list_directory safety", () => {
   });
 
   test("returns ENOENT error for missing directory", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createListDirectoryTool();
 
     const result = await tool.execute({ path: "missing-dir" }, { workspaceRoot: workspace });
@@ -322,7 +322,7 @@ describe("write_file tool", () => {
   });
 
   test("writes a file inside the workspace", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createWriteFileTool();
 
     const result = await tool.execute(
@@ -338,7 +338,7 @@ describe("write_file tool", () => {
   });
 
   test("creates parent directories when needed", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createWriteFileTool();
 
     const result = await tool.execute(
@@ -354,7 +354,7 @@ describe("write_file tool", () => {
   });
 
   test("rejects paths outside the workspace", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createWriteFileTool();
 
     const result = await tool.execute(
@@ -372,7 +372,7 @@ describe("write_file tool", () => {
   });
 
   test("blocks writing to .env files", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createWriteFileTool();
 
     const result = await tool.execute(
@@ -390,7 +390,7 @@ describe("write_file tool", () => {
   });
 
   test("blocks writing to .pem files", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createWriteFileTool();
 
     const result = await tool.execute(
@@ -408,7 +408,7 @@ describe("write_file tool", () => {
   });
 
   test("rejects input with missing content field", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createWriteFileTool();
 
     const result = await tool.execute(
@@ -426,7 +426,7 @@ describe("write_file tool", () => {
   });
 
   test("rejects input with missing path field", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createWriteFileTool();
 
     const result = await tool.execute(
@@ -452,7 +452,7 @@ describe("shell tool", () => {
   });
 
   test("runs a command and captures stdout", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createShellTool();
 
     const result = await tool.execute({ command: "echo hello" }, { workspaceRoot: workspace });
@@ -466,7 +466,7 @@ describe("shell tool", () => {
   });
 
   test("runs in the workspace directory", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createShellTool();
 
     const result = await tool.execute({ command: "pwd" }, { workspaceRoot: workspace });
@@ -479,7 +479,7 @@ describe("shell tool", () => {
   });
 
   test("captures non-zero exit code as ok result", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createShellTool();
 
     const result = await tool.execute({ command: "false" }, { workspaceRoot: workspace });
@@ -491,7 +491,7 @@ describe("shell tool", () => {
   });
 
   test("captures stderr output", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createShellTool();
 
     const result = await tool.execute({ command: "echo errout >&2" }, { workspaceRoot: workspace });
@@ -504,7 +504,7 @@ describe("shell tool", () => {
   });
 
   test("returns timeout error when command exceeds limit", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createShellTool();
 
     const result = await tool.execute(
@@ -522,7 +522,7 @@ describe("shell tool", () => {
   });
 
   test("blocks rm -rf / pattern", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createShellTool();
 
     const result = await tool.execute({ command: "rm -rf /" }, { workspaceRoot: workspace });
@@ -537,7 +537,7 @@ describe("shell tool", () => {
   });
 
   test("blocks rm -rf ~ pattern", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createShellTool();
 
     const result = await tool.execute({ command: "rm -rf ~" }, { workspaceRoot: workspace });
@@ -552,7 +552,7 @@ describe("shell tool", () => {
   });
 
   test("blocks fork bomb pattern", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createShellTool();
 
     const result = await tool.execute({ command: ":(){ :|:& };:" }, { workspaceRoot: workspace });
@@ -567,7 +567,7 @@ describe("shell tool", () => {
   });
 
   test("blocks mkfs commands", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createShellTool();
 
     const result = await tool.execute({ command: "mkfs.ext4 /dev/sda" }, { workspaceRoot: workspace });
@@ -582,7 +582,7 @@ describe("shell tool", () => {
   });
 
   test("does not block safe rm within workspace", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     await writeFile(join(workspace, "temp.txt"), "delete me");
     const tool = createShellTool();
 
@@ -595,7 +595,7 @@ describe("shell tool", () => {
   });
 
   test("rejects input with missing command field", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createShellTool();
 
     const result = await tool.execute({}, { workspaceRoot: workspace });
@@ -610,7 +610,7 @@ describe("shell tool", () => {
   });
 
   test("rejects input with non-string command", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-workspace-"));
     const tool = createShellTool();
 
     const result = await tool.execute({ command: 42 }, { workspaceRoot: workspace });
@@ -627,7 +627,7 @@ describe("shell tool", () => {
 
 describe("sandboxed shell tool", () => {
   test("sandboxed shell tool executes safe commands successfully", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-sandbox-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-sandbox-"));
     const tool = createShellTool({ sandboxed: true });
 
     const result = await tool.execute({ command: "echo hello" }, { workspaceRoot: workspace });
@@ -640,7 +640,7 @@ describe("sandboxed shell tool", () => {
   });
 
   test("sandboxed shell tool rejects commands with path traversal", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-sandbox-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-sandbox-"));
     const tool = createShellTool({ sandboxed: true });
 
     const result = await tool.execute(
@@ -658,7 +658,7 @@ describe("sandboxed shell tool", () => {
   });
 
   test("sandboxed shell tool rejects cd / commands", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-sandbox-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-sandbox-"));
     const tool = createShellTool({ sandboxed: true });
 
     const result = await tool.execute({ command: "cd / && ls" }, { workspaceRoot: workspace });
@@ -673,7 +673,7 @@ describe("sandboxed shell tool", () => {
   });
 
   test("sandboxed shell tool rejects cd ~ commands", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-sandbox-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-sandbox-"));
     const tool = createShellTool({ sandboxed: true });
 
     const result = await tool.execute({ command: "cd ~" }, { workspaceRoot: workspace });
@@ -688,7 +688,7 @@ describe("sandboxed shell tool", () => {
   });
 
   test("non-sandboxed shell tool allows all commands", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-tools-sandbox-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-tools-sandbox-"));
     const tool = createShellTool({ sandboxed: false });
 
     // A command with /../ in a path but sandboxed:false should not be rejected
@@ -889,7 +889,7 @@ describe("update_todos tool", () => {
 
 describe("append_daily_memory tool", () => {
   test("appends a note to today's daily memory file", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-memory-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-memory-"));
     try {
       const tool = createAppendDailyMemoryTool({ getCurrentDate: () => "2026-05-04" });
       const result = await tool.execute({ content: "Learned about update_todos." }, { workspaceRoot: workspace });
@@ -903,7 +903,7 @@ describe("append_daily_memory tool", () => {
   });
 
   test("appends multiple notes to the same file", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-memory-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-memory-"));
     try {
       const tool = createAppendDailyMemoryTool({ getCurrentDate: () => "2026-05-04" });
       await tool.execute({ content: "First note." }, { workspaceRoot: workspace });
@@ -918,7 +918,7 @@ describe("append_daily_memory tool", () => {
   });
 
   test("creates the memory directory if it does not exist", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-memory-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-memory-"));
     try {
       const tool = createAppendDailyMemoryTool({ getCurrentDate: () => "2026-05-04" });
       const result = await tool.execute({ content: "Note." }, { workspaceRoot: workspace });
@@ -929,7 +929,7 @@ describe("append_daily_memory tool", () => {
   });
 
   test("returns error for empty content", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "arvinclaw-memory-"));
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-memory-"));
     try {
       const tool = createAppendDailyMemoryTool();
       const result = await tool.execute({ content: "   " }, { workspaceRoot: workspace });
@@ -944,7 +944,7 @@ describe("createMemorySearchTool", () => {
   const ctx = { workspaceRoot: "/ws" };
 
   test("returns empty results when memory directory does not exist", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memsearch-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-memsearch-"));
     try {
       const tool = createMemorySearchTool(join(dir, "nonexistent"));
       const result = await tool.execute({ query: "anything" }, ctx) as MemorySearchResult;
@@ -955,7 +955,7 @@ describe("createMemorySearchTool", () => {
   });
 
   test("finds matching content in MEMORY.md file", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memsearch-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-memsearch-"));
     try {
       await writeFile(join(dir, "MEMORY.md"), "This is an important fact.\n\nThis paragraph is unrelated.");
       const tool = createMemorySearchTool(dir);
@@ -970,7 +970,7 @@ describe("createMemorySearchTool", () => {
   });
 
   test("respects maxResults limit", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memsearch-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-memsearch-"));
     try {
       const paragraphs = Array.from({ length: 10 }, (_, i) => `Paragraph ${i} about memory stuff`);
       await writeFile(join(dir, "MEMORY.md"), paragraphs.join("\n\n"));
@@ -983,7 +983,7 @@ describe("createMemorySearchTool", () => {
   });
 
   test("is case-insensitive", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memsearch-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-memsearch-"));
     try {
       await writeFile(join(dir, "MEMORY.md"), "This mentions ImportantFact uppercase.");
       const tool = createMemorySearchTool(dir);
@@ -995,7 +995,7 @@ describe("createMemorySearchTool", () => {
   });
 
   test("searches USER.md in addition to MEMORY.md", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memsearch-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-memsearch-"));
     try {
       await writeFile(join(dir, "USER.md"), "User prefers short answers.");
       const tool = createMemorySearchTool(dir);
@@ -1008,7 +1008,7 @@ describe("createMemorySearchTool", () => {
   });
 
   test("searches daily memory files in memory/ subdirectory", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memsearch-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-memsearch-"));
     try {
       await mkdir(join(dir, "memory"), { recursive: true });
       await writeFile(join(dir, "memory", "2026-05-05.md"), "Daily note about architecture.");
@@ -1026,7 +1026,7 @@ describe("createMemoryGetTool", () => {
   const ctx = { workspaceRoot: "/ws" };
 
   test("returns file content for a valid path", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memget-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-memget-"));
     try {
       await writeFile(join(dir, "MEMORY.md"), "# Memory\n\nKey fact here.");
       const tool = createMemoryGetTool(dir);
@@ -1040,7 +1040,7 @@ describe("createMemoryGetTool", () => {
   });
 
   test("returns error for missing file", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memget-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-memget-"));
     try {
       const tool = createMemoryGetTool(dir);
       const result = await tool.execute({ path: "MEMORY.md" }, ctx) as MemoryGetResult;
@@ -1053,7 +1053,7 @@ describe("createMemoryGetTool", () => {
   });
 
   test("rejects path traversal attempts (..)", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memget-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-memget-"));
     try {
       const tool = createMemoryGetTool(dir);
       const result = await tool.execute({ path: "../etc/passwd" }, ctx) as MemoryGetResult;
@@ -1066,7 +1066,7 @@ describe("createMemoryGetTool", () => {
   });
 
   test("rejects absolute paths", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memget-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-memget-"));
     try {
       const tool = createMemoryGetTool(dir);
       const result = await tool.execute({ path: "/etc/passwd" }, ctx) as MemoryGetResult;
@@ -1079,7 +1079,7 @@ describe("createMemoryGetTool", () => {
   });
 
   test("rejects non-.md files", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-memget-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-memget-"));
     try {
       const tool = createMemoryGetTool(dir);
       const result = await tool.execute({ path: "file.txt" }, ctx) as MemoryGetResult;
@@ -1096,7 +1096,7 @@ describe("createLoadSkillTool", () => {
   const ctx = { workspaceRoot: "/ws" };
 
   test("returns skill content for a known skill name", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "arvinclaw-skills-"));
+    const dir = await mkdtemp(join(tmpdir(), "peewit-skills-"));
     try {
       const filePath = join(dir, "SKILL.md");
       await writeFile(filePath, "# Skill instructions here");

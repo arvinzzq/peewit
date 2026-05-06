@@ -109,7 +109,7 @@ type ThinkingBudget =
 
 OpenClaw 对自主编码和任务执行 session 使用 `executionContract: "strict-agentic"`。关键对齐：
 
-| OpenClaw 概念 | ArvinClaw 等效 |
+| OpenClaw 概念 | Peewit 等效 |
 | --- | --- |
 | `executionContract: "strict-agentic"` | `ExecutionContract = "strict-agentic"` |
 | `promptMode: "minimal"` | `PromptMode = "minimal"` |

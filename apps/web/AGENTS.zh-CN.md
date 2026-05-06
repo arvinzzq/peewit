@@ -17,4 +17,4 @@ API 接口或文件清单变更时，更新 README 和 AGENTS 文件。服务器
 
 ## Development
 
-运行 `pnpm --filter @arvinclaw/web run dev` 同时启动 Hono 和 Vite。需要设置 ARVINCLAW_API_KEY。
+运行 `pnpm --filter @peewit/web run dev` 同时启动 Hono 和 Vite。需要设置 PEEWIT_API_KEY。

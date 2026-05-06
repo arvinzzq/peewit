@@ -12,7 +12,7 @@ import {
 
 describe("adaptersPackageName", () => {
   test("has expected package name", () => {
-    expect(adaptersPackageName).toBe("@arvinclaw/adapters");
+    expect(adaptersPackageName).toBe("@peewit/adapters");
   });
 });
 

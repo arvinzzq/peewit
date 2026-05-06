@@ -4,10 +4,10 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ## Architecture Overview
 
-`@arvinclaw/models` defines the **provider-neutral model contract** and implements concrete providers behind it. All other packages that need to call an LLM depend only on the `ModelProvider` interface — never on a vendor SDK directly.
+`@peewit/models` defines the **provider-neutral model contract** and implements concrete providers behind it. All other packages that need to call an LLM depend only on the `ModelProvider` interface — never on a vendor SDK directly.
 
 ```
-@arvinclaw/core
+@peewit/core
     │  uses
     ▼
 ModelProvider (interface)

@@ -4,7 +4,7 @@ English version: [README.md](./README.md)
 
 ## 架构概述
 
-`@arvinclaw/taskflow` 负责**持久化的跨会话任务图**：存储和查询跨多个会话、Adapter 和运行时类型的任务记录。`@arvinclaw/sessions` 存储会话内的对话历史，而 `@arvinclaw/taskflow` 追踪所有会话中各个任务的生命周期。
+`@peewit/taskflow` 负责**持久化的跨会话任务图**：存储和查询跨多个会话、Adapter 和运行时类型的任务记录。`@peewit/sessions` 存储会话内的对话历史，而 `@peewit/taskflow` 追踪所有会话中各个任务的生命周期。
 
 ```
 spawn_subagent_async  ──创建──▶
@@ -87,11 +87,11 @@ interface TaskRecord {
 
 ### 与 scheduler 的 JsonlTaskStore 的区别
 
-`@arvinclaw/scheduler` 有自己的 `JsonlTaskStore`，用于调度器特定的 `TaskRunRecord` 对象（包含 `assistantText`、`completedAt`，与调度器运行生命周期紧密耦合）。`@arvinclaw/taskflow` 的 `JsonlTaskFlowStore` 存储 `TaskRecord`，具有更丰富的状态模型和父子关系，用于通用的跨会话任务图。两个存储服务于不同层次：调度器追踪执行历史，taskflow 追踪逻辑任务图。
+`@peewit/scheduler` 有自己的 `JsonlTaskStore`，用于调度器特定的 `TaskRunRecord` 对象（包含 `assistantText`、`completedAt`，与调度器运行生命周期紧密耦合）。`@peewit/taskflow` 的 `JsonlTaskFlowStore` 存储 `TaskRecord`，具有更丰富的状态模型和父子关系，用于通用的跨会话任务图。两个存储服务于不同层次：调度器追踪执行历史，taskflow 追踪逻辑任务图。
 
 ### 与 AsyncTaskStore 的集成
 
-`@arvinclaw/core` 定义了鸭子类型的 `AsyncTaskStore` 接口，供 `createSpawnSubagentAsyncTool` 在派生异步子 Agent 时记录任务 ID。`JsonlTaskFlowStore` 满足此接口（具有兼容签名的 `create()` 方法），调用者可直接将 `JsonlTaskFlowStore` 实例作为 `taskStore` 选项传入，无需显式适配器。
+`@peewit/core` 定义了鸭子类型的 `AsyncTaskStore` 接口，供 `createSpawnSubagentAsyncTool` 在派生异步子 Agent 时记录任务 ID。`JsonlTaskFlowStore` 满足此接口（具有兼容签名的 `create()` 方法），调用者可直接将 `JsonlTaskFlowStore` 实例作为 `taskStore` 选项传入，无需显式适配器。
 
 ## 文件清单
 

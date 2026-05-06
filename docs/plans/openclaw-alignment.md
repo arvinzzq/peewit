@@ -7,9 +7,9 @@ Simplified Chinese version: [openclaw-alignment.zh-CN.md](./openclaw-alignment.z
 
 ## 1. Purpose
 
-Phases 0–10 established ArvinClaw as a working personal agent platform aligned with OpenClaw's core architecture.
+Phases 0–10 established Peewit as a working personal agent platform aligned with OpenClaw's core architecture.
 
-This document tracked the remaining gaps between ArvinClaw and OpenClaw's production behavior across Iterations 1–7. All 18 gaps are now closed.
+This document tracked the remaining gaps between Peewit and OpenClaw's production behavior across Iterations 1–7. All 18 gaps are now closed.
 
 This document is archived. New architectural gaps or improvements should be tracked in a successor roadmap document.
 
@@ -29,7 +29,7 @@ This document is archived. New architectural gaps or improvements should be trac
 | 10 | Hooks system | 🟡 Medium | 3 | ✅ Complete | `eb555f5` |
 | 11 | Tool profiles (coding / full / messaging / background) | 🟡 Medium | 4 | ✅ Complete | `5021b64` |
 | 12 | Sandbox enforcement (workspace-boundary shell) | 🟡 Medium | 4 | ✅ Complete | `68befac` |
-| 13 | Cron daemon (`arvinclaw daemon`) | 🟡 Medium | 5 | ✅ Complete | `6f47106` |
+| 13 | Cron daemon (`peewit daemon`) | 🟡 Medium | 5 | ✅ Complete | `6f47106` |
 | 14 | TaskFlow (persistent cross-session task graph) | 🟢 Low | 6 | ✅ Complete | `ebcd52b` |
 | 15 | Async subagents (push-based, fork context mode) | 🟢 Low | 6 | ✅ Complete | `a7b1fc2` |
 | 16 | WebSocket support | 🟢 Low | 7 | ✅ Complete | `ee000d4` |
@@ -42,11 +42,11 @@ This document is archived. New architectural gaps or improvements should be trac
 
 ### Gap 1: Context Compaction
 
-Long conversations overflow the model's context window. ArvinClaw currently passes all messages on every turn without any management.
+Long conversations overflow the model's context window. Peewit currently passes all messages on every turn without any management.
 
 OpenClaw solution: `context-engine-maintenance.ts` summarizes old messages using the model when the context exceeds a threshold. The summary replaces old messages and is injected as a system message.
 
-ArvinClaw design:
+Peewit design:
 - Add `compactMessages(messages, modelProvider, options)` to `packages/context`
 - `CompactionOptions`: `maxMessages` (default 30), `keepRecent` (default 12), `summarySystemPrompt`
 - `AgentRuntimeDependencies.compaction?: Partial<CompactionOptions>` — opt-in
@@ -57,11 +57,11 @@ Architecture doc: [context-compaction.md](../architecture/context-compaction.md)
 
 ### Gap 2: Skill Body On-Demand Loading
 
-ArvinClaw currently injects full SKILL.md content into every prompt. With many skills, this wastes tokens on content the model may not need.
+Peewit currently injects full SKILL.md content into every prompt. With many skills, this wastes tokens on content the model may not need.
 
 OpenClaw solution: inject only the compact skill index (name + description). The model calls a `load_skill(name)` tool when it needs a skill's full instructions.
 
-ArvinClaw design:
+Peewit design:
 - Add `createLoadSkillTool(skillFileMap: Map<string, string>)` to `packages/tools`
 - `skillFileMap` maps skill name → absolute file path (already available via `SkillDefinition.filePath`)
 - Tool risk: low. Returns file content or an error.
@@ -72,14 +72,14 @@ Architecture doc: [skill-system.md](../architecture/skill-system.md) (update)
 
 ### Gap 3: Prompt Modes
 
-OpenClaw supports three prompt rendering modes. ArvinClaw always renders all sections.
+OpenClaw supports three prompt rendering modes. Peewit always renders all sections.
 
-ArvinClaw design:
+Peewit design:
 - Add `promptMode: "full" | "minimal" | "none"` to `ContextAssemblerInput` in `packages/context`
 - `none`: send no system instruction at all
 - `minimal`: include identity section only
 - `full`: all sections (current behavior, remain default)
-- Surface as `ARVINCLAW_PROMPT_MODE` env var and `runtime.promptMode` config field
+- Surface as `PEEWIT_PROMPT_MODE` env var and `runtime.promptMode` config field
 
 Architecture doc: [execution-contract.md](../architecture/execution-contract.md)
 
@@ -93,7 +93,7 @@ The agent cannot currently query its memory. Long-term memory is passively loade
 
 OpenClaw solution: `memory_search` tool performs full-text search over memory files, returning relevant excerpts.
 
-ArvinClaw design:
+Peewit design:
 - Add `createMemorySearchTool(memoryDir: string)` to `packages/tools`
 - Input: `{ query: string, maxResults?: number }` (default 5 results)
 - Searches all `.md` files in `memoryDir`, splits into paragraphs, returns paragraphs containing query words
@@ -107,7 +107,7 @@ Architecture doc: [memory-system.md](../architecture/memory-system.md) (update)
 
 The agent cannot read a specific memory file by name.
 
-ArvinClaw design:
+Peewit design:
 - Add `createMemoryGetTool(memoryDir: string)` to `packages/tools`
 - Input: `{ filename: string }` — e.g. `"MEMORY.md"` or `"memory/2026-05-05.md"`
 - Validates filename: no `..` traversal, must end in `.md`
@@ -116,9 +116,9 @@ ArvinClaw design:
 
 ### Gap 6: Additional Workspace Files
 
-OpenClaw loads `TOOLS.md`, `IDENTITY.md`, `HEARTBEAT.md`, `BOOTSTRAP.md` as bootstrap files. ArvinClaw currently loads only `AGENTS.md` and `SOUL.md`.
+OpenClaw loads `TOOLS.md`, `IDENTITY.md`, `HEARTBEAT.md`, `BOOTSTRAP.md` as bootstrap files. Peewit currently loads only `AGENTS.md` and `SOUL.md`.
 
-ArvinClaw design:
+Peewit design:
 - Add `TOOLS.md` and `IDENTITY.md` to the `workspacePromptFiles` list in `createCliContextAssembler`
 - `TOOLS.md`: loaded when present — describes agent's tool configuration notes
 - `IDENTITY.md`: loaded when present — overrides/extends agent identity
@@ -129,7 +129,7 @@ ArvinClaw design:
 
 OpenClaw supports a periodic heartbeat via `HEARTBEAT.md` that allows background monitoring.
 
-ArvinClaw design (minimal version):
+Peewit design (minimal version):
 - `HEARTBEAT.md` in workspace is loaded if present (bootstrap context)
 - The agent can write heartbeat updates via `write_file` to this path
 - A dedicated `update_heartbeat` tool can be added later for richer semantics
@@ -143,12 +143,12 @@ ArvinClaw design (minimal version):
 
 OpenClaw's `strict-agentic` execution contract increases stall detection strictness and enables `update_plan` for compatible models.
 
-ArvinClaw design:
+Peewit design:
 - Add `executionContract: "default" | "strict-agentic"` to `AgentRuntimeDependencies`
 - `strict-agentic` behavior:
   - `maxPlanningStallRetries` defaults to 3 instead of 2
   - `update_todos` is promoted in the system prompt as the primary progress mechanism
-- Surface via `ARVINCLAW_EXECUTION_CONTRACT` env var and config
+- Surface via `PEEWIT_EXECUTION_CONTRACT` env var and config
 
 Architecture doc: [execution-contract.md](../architecture/execution-contract.md)
 
@@ -156,7 +156,7 @@ Architecture doc: [execution-contract.md](../architecture/execution-contract.md)
 
 Concurrent `runTurn()` calls for the same session can race on JSONL writes and produce interleaved trace/message records.
 
-ArvinClaw design:
+Peewit design:
 - Add `SessionMutex` class to `packages/core` or `packages/sessions`
 - `async acquire(sessionId): Promise<() => void>` — returns a release function
 - `AgentRuntime` acquires the session lock before starting a turn, releases on completion
@@ -166,9 +166,9 @@ Architecture doc: [run-queue.md](../architecture/run-queue.md) (update)
 
 ### Gap 10: Hooks System
 
-OpenClaw exposes multiple hook points for extensions. ArvinClaw has no hooks.
+OpenClaw exposes multiple hook points for extensions. Peewit has no hooks.
 
-ArvinClaw design:
+Peewit design:
 - Add `AgentHooks` interface to `packages/core`:
   ```ts
   export interface AgentHooks {
@@ -194,12 +194,12 @@ Architecture doc: [hooks.md](../architecture/hooks.md)
 
 OpenClaw provides tool profiles (`coding`, `full`, `messaging`) that determine which tools are available in a session.
 
-ArvinClaw design:
+Peewit design:
 - Add `ToolProfile` type to `packages/adapters` or `packages/tools`
 - Profiles: `coding` (file + shell), `full` (all tools), `messaging` (no file/shell), `background` (file only)
 - `getToolsForProfile(profile, allTools)` returns the subset of tools for that profile
 - CLI: default `full`; background tasks: default `background`
-- Configurable via `ARVINCLAW_TOOL_PROFILE` env var
+- Configurable via `PEEWIT_TOOL_PROFILE` env var
 
 Architecture doc: [tool-profiles.md](../architecture/tool-profiles.md)
 
@@ -207,7 +207,7 @@ Architecture doc: [tool-profiles.md](../architecture/tool-profiles.md)
 
 The shell tool has no runtime boundary. A model can execute commands anywhere on the filesystem.
 
-ArvinClaw design:
+Peewit design:
 - Add `sandboxed?: boolean` option to shell tool config
 - When `sandboxed: true`: set `cwd` to `workspaceRoot`, reject paths starting with `..` or `/` outside workspace
 - `memory_get` already validates path traversal
@@ -221,10 +221,10 @@ Architecture doc: [sandboxing.md](../architecture/sandboxing.md) (update)
 
 ### Gap 13: Cron Daemon
 
-`arvinclaw run` executes one task. There is no recurring scheduler.
+`peewit run` executes one task. There is no recurring scheduler.
 
-ArvinClaw design:
-- `arvinclaw daemon` command — starts a long-running process
+Peewit design:
+- `peewit daemon` command — starts a long-running process
 - Reads task definitions from `tasks/*.task.json` in the workspace
 - Each task file can include a `cron` field (cron expression, e.g. `"0 18 * * *"`)
 - Daemon evaluates next-run times and executes tasks when due
@@ -244,13 +244,13 @@ Architecture doc: [background-automation.md](../architecture/background-automati
 
 OpenClaw has `TaskRecord` and `TaskFlow` with 7 statuses, parent/child relationships, and SQLite persistence.
 
-ArvinClaw design:
+Peewit design:
 - `packages/taskflow` — new package
 - `TaskRecord`: `{ id, runtime, task, status, progressSummary, terminalSummary }`
 - `TaskFlow`: `{ id, goal, currentStep, blockedSummary, stateJson, parentId?, status }`
 - Status: `queued | running | waiting | blocked | succeeded | failed | cancelled | lost`
 - Storage: JSONL initially, SQLite in a later iteration
-- CLI commands: `arvinclaw taskflow list`, `arvinclaw taskflow show <id>`, `arvinclaw taskflow cancel <id>`
+- CLI commands: `peewit taskflow list`, `peewit taskflow show <id>`, `peewit taskflow cancel <id>`
 
 Architecture doc: [task-flow.md](../architecture/task-flow.md)
 
@@ -260,7 +260,7 @@ Architecture doc: [task-flow.md](../architecture/task-flow.md)
 
 OpenClaw `sessions_spawn` is push-based: the main agent continues while sub-agents run in parallel, and results are delivered asynchronously.
 
-ArvinClaw design:
+Peewit design:
 - Add `spawn_subagent_async` tool variant that starts the sub-agent in a background task
 - Returns a `{ taskId }` immediately
 - The sub-agent's result is written to `TaskRecord` when complete
@@ -277,7 +277,7 @@ Architecture doc: [multi-agent-runtime.md](../architecture/multi-agent-runtime.m
 
 The Web adapter uses SSE (server-sent events), which is unidirectional. WebSocket enables bidirectional communication and is better suited for approval flows and cancellation.
 
-ArvinClaw design:
+Peewit design:
 - Add WebSocket endpoint to Hono server: `GET /ws/:sessionId`
 - Server sends runtime events as JSON frames
 - Client sends user messages and approval decisions as JSON frames
@@ -290,7 +290,7 @@ Architecture doc: [gateway.md](../architecture/gateway.md) (update)
 
 OpenClaw exposes configurable reasoning depth for Anthropic models.
 
-ArvinClaw design:
+Peewit design:
 - Add `thinkingBudget?: "off" | "minimal" | "low" | "medium" | "high" | "max" | "adaptive"` to model config
 - `AnthropicProvider` maps budget to the Anthropic extended thinking API parameters
 - Only relevant for Anthropic models that support extended thinking
@@ -302,8 +302,8 @@ Architecture doc: [execution-contract.md](../architecture/execution-contract.md)
 
 OpenClaw supports background memory consolidation: the agent reviews recent daily notes and promotes key facts to `MEMORY.md`.
 
-ArvinClaw design:
-- Dreaming is a special background task type: `arvinclaw run --dream`
+Peewit design:
+- Dreaming is a special background task type: `peewit run --dream`
 - Reads recent `memory/YYYY-MM-DD.md` files and `MEMORY.md`
 - Produces a consolidated summary and appends to or rewrites `MEMORY.md`
 - Can be scheduled via cron daemon

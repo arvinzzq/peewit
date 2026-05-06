@@ -1,4 +1,4 @@
-# ArvinClaw Roadmap
+# Peewit Roadmap
 
 Status: Draft
 Date: 2026-05-02
@@ -7,7 +7,7 @@ Simplified Chinese version: [overview.zh-CN.md](./overview.zh-CN.md)
 
 ## 1. Roadmap Principle
 
-ArvinClaw should evolve through usable product milestones, not isolated technical experiments.
+Peewit should evolve through usable product milestones, not isolated technical experiments.
 
 Reference systems: [Reference Systems](../architecture/reference-systems.md)
 
@@ -24,7 +24,7 @@ Each phase should produce:
 
 The roadmap follows a dual-track approach:
 
-- Product track: every phase should make ArvinClaw more useful.
+- Product track: every phase should make Peewit more useful.
 - Learning track: every phase should explain the agent architecture it introduces.
 - Quality track: every phase should add or update tests for the behavior it introduces.
 
@@ -77,7 +77,7 @@ Supporting architecture note: [Configuration System](../architecture/configurati
 ### Acceptance Criteria
 
 - Repository contains the agreed monorepo directory layout.
-- Project has a root README that explains what ArvinClaw is.
+- Project has a root README that explains what Peewit is.
 - Main design document links to the roadmap.
 - Architecture documentation explains why Agent Core is separate from CLI.
 
@@ -92,7 +92,7 @@ Supporting architecture note: [Configuration System](../architecture/configurati
 
 ### User Result
 
-The user can start `arvinclaw chat`, send a message, receive a model response, and see an explainable trace of the interaction.
+The user can start `peewit chat`, send a message, receive a model response, and see an explainable trace of the interaction.
 
 ### Architecture Added
 
@@ -124,7 +124,7 @@ User verification guide: [Phase 1 MVP Test Guide](../plans/phase-1-mvp-test-guid
 
 ### Acceptance Criteria
 
-- `arvinclaw chat` starts an interactive session.
+- `peewit chat` starts an interactive session.
 - The CLI can call an OpenAI-compatible model provider.
 - The Agent Core does not import CLI-specific code.
 - Each response produces a trace entry.
@@ -259,7 +259,7 @@ OpenClaw's approach (confirmed from source, 2026-05-04):
 2. **Planning stall detection** — runtime detects "I'll...", bulleted plans, step headings without tool actions, and injects a retry instruction forcing immediate execution.
 3. **Execute-first, not plan-first** — the model acts immediately and updates the plan state as it goes.
 
-ArvinClaw's `update_todos` follows the same model-called, no-infra-orchestration pattern.
+Peewit's `update_todos` follows the same model-called, no-infra-orchestration pattern.
 
 ### Learning Documents
 
@@ -327,7 +327,7 @@ Implementation plan: [Phase 5 Sessions and Memory](../plans/phase-5-sessions-and
 
 ### User Result
 
-The user can see model responses stream token by token in the terminal, and can also use ArvinClaw through a browser-based interface with chat, trace inspection, and permission approval controls.
+The user can see model responses stream token by token in the terminal, and can also use Peewit through a browser-based interface with chat, trace inspection, and permission approval controls.
 
 ### Architecture Added
 
@@ -474,7 +474,7 @@ Implementation plan: [Phase 9 Plugin and Skill Ecosystem](../plans/phase-9-plugi
 
 ### User Result
 
-ArvinClaw becomes a full personal agent platform: multi-entry, multi-model, multi-agent, extensible, observable, and safe enough for daily use.
+Peewit becomes a full personal agent platform: multi-entry, multi-model, multi-agent, extensible, observable, and safe enough for daily use.
 
 ### Architecture Added
 
@@ -510,7 +510,7 @@ Implementation plan: [Phase 10 Full Platform](../plans/phase-10-full-platform.md
 
 ## 14. OpenClaw Alignment Backlog
 
-Phases 0–10 are complete. The following gaps remain between ArvinClaw and OpenClaw's production capabilities.
+Phases 0–10 are complete. The following gaps remain between Peewit and OpenClaw's production capabilities.
 
 Full design: [OpenClaw Alignment Plan](../plans/openclaw-alignment.md)
 
@@ -528,7 +528,7 @@ Full design: [OpenClaw Alignment Plan](../plans/openclaw-alignment.md)
 | 🟡 Medium | Hooks system | 3 |
 | 🟡 Medium | Tool profiles (coding / full / messaging / background) | 4 |
 | 🟡 Medium | Sandbox enforcement (workspace-boundary shell) | 4 |
-| 🟡 Medium | Cron daemon (`arvinclaw daemon`) | 5 |
+| 🟡 Medium | Cron daemon (`peewit daemon`) | 5 |
 | 🟢 Low | TaskFlow (persistent cross-session task graph) | 6 |
 | 🟢 Low | Async subagents (push-based, fork context mode) | 6 |
 | 🟢 Low | WebSocket support | 7 |

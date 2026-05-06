@@ -70,7 +70,7 @@ Phase 7 之前，Web server 使用 `InMemorySessionStore` — 服务器重启后
 
 这意味着：
 
-- 通过 Web 创建的 session 在 `arvinclaw sessions` 中可见。
+- 通过 Web 创建的 session 在 `peewit sessions` 中可见。
 - 通过 CLI 创建的 session 可以在 Web UI 中恢复。
 - 服务器重启不会丢失 session history。
 

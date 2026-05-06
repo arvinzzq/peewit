@@ -53,7 +53,7 @@ Phase 3 also addresses a Phase 2 gap: tool definitions currently bypass the cont
 
 OpenClaw alignment note:
 
-Phase 3 brings ArvinClaw to parity with OpenClaw's core prompt assembly concept: each model call receives a structured context document with explicit, named sections. Skills, tools, and safety guidance are first-class sections, not afterthoughts.
+Phase 3 brings Peewit to parity with OpenClaw's core prompt assembly concept: each model call receives a structured context document with explicit, named sections. Skills, tools, and safety guidance are first-class sections, not afterthoughts.
 
 Reference: [Prompt Assembly](../architecture/prompt-assembly.md), [Context Engine](../architecture/context-engine.md), [Skill System](../architecture/skill-system.md)
 
@@ -202,7 +202,7 @@ ANTHROPIC_API_KEY
 - `SkillSummary`: name, description, when (compact, for context index).
 - `SkillLoader.load(options)` scans skill directories in precedence order:
   1. `<workspace>/skills/`
-  2. `~/.arvinclaw/skills/`
+  2. `~/.peewit/skills/`
   3. Built-in skills
 - SKILL.md format: h1 name, sections for description, when, steps, safety notes.
 - Built-in skills: `research`, `project-inspector`, `safe-shell`.

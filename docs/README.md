@@ -1,4 +1,4 @@
-# ArvinClaw Documentation
+# Peewit Documentation
 
 Status: Draft
 Date: 2026-05-02
@@ -7,15 +7,15 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ## 1. Purpose
 
-This directory is the product and learning documentation home for ArvinClaw.
+This directory is the product and learning documentation home for Peewit.
 
-ArvinClaw is intended to become a real personal general-purpose agent product and a learning project for understanding OpenClaw-like agent architecture. The documentation should explain both what we are building and why each module exists.
+Peewit is intended to become a real personal general-purpose agent product and a learning project for understanding OpenClaw-like agent architecture. The documentation should explain both what we are building and why each module exists.
 
 ## 2. Reading Order
 
 Recommended first reading path:
 
-1. [Main Design](./product/arvinclaw-design.md)
+1. [Main Design](./product/peewit-design.md)
 2. [Roadmap](./roadmap/overview.md)
 3. [Reference Systems](./architecture/reference-systems.md)
 4. [OpenClaw Architecture Map](./architecture/openclaw-architecture-map.md)

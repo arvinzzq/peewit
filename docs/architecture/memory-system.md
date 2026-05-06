@@ -7,9 +7,9 @@ Simplified Chinese version: [memory-system.zh-CN.md](./memory-system.zh-CN.md)
 
 ## 1. Purpose
 
-The memory system defines how ArvinClaw preserves useful context across turns, sessions, and eventually long-running personal use.
+The memory system defines how Peewit preserves useful context across turns, sessions, and eventually long-running personal use.
 
-ArvinClaw should learn from OpenClaw's file-based workspace model, but it should implement memory in phases so the MVP stays understandable, testable, and safe.
+Peewit should learn from OpenClaw's file-based workspace model, but it should implement memory in phases so the MVP stays understandable, testable, and safe.
 
 The core rule:
 
@@ -30,11 +30,11 @@ Important OpenClaw concepts to learn from:
 
 OpenClaw's docs describe memory as file-based: the model only remembers what is saved to disk. They also describe startup behavior that reads `SOUL.md`, `USER.md`, recent daily notes, and `MEMORY.md` before responding.
 
-ArvinClaw should borrow the clarity of this model while keeping initial implementation smaller.
+Peewit should borrow the clarity of this model while keeping initial implementation smaller.
 
-## 3. ArvinClaw Memory Layers
+## 3. Peewit Memory Layers
 
-ArvinClaw should use four memory-related layers.
+Peewit should use four memory-related layers.
 
 | Layer | MVP Status | Purpose |
 | --- | --- | --- |
@@ -82,7 +82,7 @@ It should not automatically become long-term memory.
 
 Long-term memory stores durable facts, preferences, decisions, and project knowledge across sessions.
 
-ArvinClaw should design for a future `MEMORY.md`, but not implement full long-term memory writes in the first MVP.
+Peewit should design for a future `MEMORY.md`, but not implement full long-term memory writes in the first MVP.
 
 Phase 5 adds an explicit policy switch for long-term memory files:
 
@@ -92,7 +92,7 @@ Phase 5 adds an explicit policy switch for long-term memory files:
 
 Long-term memory needs strong policy because it can shape future behavior persistently.
 
-Before implementing it, ArvinClaw needs answers for:
+Before implementing it, Peewit needs answers for:
 
 - What is allowed to be remembered?
 - When does the agent ask before writing memory?
@@ -103,7 +103,7 @@ Before implementing it, ArvinClaw needs answers for:
 
 ## 7. Identity and Instruction Files
 
-ArvinClaw should support workspace prompt files inspired by OpenClaw, but phase them carefully.
+Peewit should support workspace prompt files inspired by OpenClaw, but phase them carefully.
 
 Proposed files:
 
@@ -149,7 +149,7 @@ The agent must not silently modify `SOUL.md`. If self-modification is ever allow
 - Project or workflow preferences
 - Boundaries and privacy preferences
 
-Because `USER.md` may contain sensitive personal information, ArvinClaw should not implement automatic writes to it in MVP.
+Because `USER.md` may contain sensitive personal information, Peewit should not implement automatic writes to it in MVP.
 
 Future writes should require clear user approval.
 
@@ -331,7 +331,7 @@ Design principles for future implementation:
 
 Status: Planned. Not implemented in any current phase.
 
-OpenClaw alignment: OpenClaw implements memory dreaming as a scheduled agent run that uses a dedicated memory consolidation skill. ArvinClaw should follow the same pattern when implementing this feature.
+OpenClaw alignment: OpenClaw implements memory dreaming as a scheduled agent run that uses a dedicated memory consolidation skill. Peewit should follow the same pattern when implementing this feature.
 
 ## 19. Acceptance Criteria
 
@@ -349,7 +349,7 @@ The MVP memory boundary should be considered successful when:
 
 ## 20. Related Documents
 
-- [Main design](../product/arvinclaw-design.md)
+- [Main design](../product/peewit-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [Session storage](./session-storage.md)
 - [Workspace files](./workspace-files.md)

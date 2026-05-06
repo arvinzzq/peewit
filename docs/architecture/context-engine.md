@@ -7,7 +7,7 @@ Simplified Chinese version: [context-engine.zh-CN.md](./context-engine.zh-CN.md)
 
 ## 1. Purpose
 
-The context engine decides how ArvinClaw selects, compacts, and projects context into a model run.
+The context engine decides how Peewit selects, compacts, and projects context into a model run.
 
 Prompt assembly is the first deterministic implementation. The context engine is the longer-term architecture that supports compaction, memory retrieval, workspace file projection, and plugin-provided context.
 
@@ -17,7 +17,7 @@ Prompt assembly builds the request. The context engine decides what context dese
 
 ## 2. Why This Module Exists
 
-As ArvinClaw grows, model context will come from many sources:
+As Peewit grows, model context will come from many sources:
 
 - Conversation history
 - Tool observations
@@ -32,7 +32,7 @@ As ArvinClaw grows, model context will come from many sources:
 
 Without a context engine, these sources compete for model window space in ad hoc ways.
 
-The context engine gives ArvinClaw:
+The context engine gives Peewit:
 
 - Bounded context
 - Predictable ordering
@@ -270,4 +270,4 @@ MVP context assembly should be considered successful when:
 - [Memory system](./memory-system.md)
 - [Agent loop](./agent-loop.md)
 - [OpenClaw implementation notes](../research/openclaw-implementation-notes.md)
-- [Main design](../product/arvinclaw-design.md)
+- [Main design](../product/peewit-design.md)

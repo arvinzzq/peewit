@@ -7,7 +7,7 @@ English version: [multi-agent-runtime.md](./multi-agent-runtime.md)
 
 ## 1. 目的
 
-本文档描述 ArvinClaw 如何支持以协调方式运行多个 `AgentRuntime` 实例，从 Phase 10 的进程内 sub-agents 开始。
+本文档描述 Peewit 如何支持以协调方式运行多个 `AgentRuntime` 实例，从 Phase 10 的进程内 sub-agents 开始。
 
 ## 2. Sub-Agent 概念
 

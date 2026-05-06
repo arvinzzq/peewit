@@ -7,20 +7,20 @@ Simplified Chinese version: [0003-technology-stack-selection.zh-CN.md](./0003-te
 
 ## 1. Context
 
-ArvinClaw is an OpenClaw-like personal general-purpose agent built from zero to one.
+Peewit is an OpenClaw-like personal general-purpose agent built from zero to one.
 
 The project has two goals:
 
 - Build a real product that can become useful for daily work.
 - Teach the architecture of OpenClaw-like agents through readable modules, tests, and bilingual documentation.
 
-The technology stack should therefore support both product growth and learning clarity. It should stay close enough to OpenClaw to make comparison meaningful, but it should not copy production complexity before ArvinClaw needs it.
+The technology stack should therefore support both product growth and learning clarity. It should stay close enough to OpenClaw to make comparison meaningful, but it should not copy production complexity before Peewit needs it.
 
-OpenClaw's public repository is a TypeScript and Node.js project that uses pnpm workspaces for source development. Its workspace includes the root package, UI, packages, and extensions. This makes pnpm an important reference choice for ArvinClaw.
+OpenClaw's public repository is a TypeScript and Node.js project that uses pnpm workspaces for source development. Its workspace includes the root package, UI, packages, and extensions. This makes pnpm an important reference choice for Peewit.
 
 ## 2. Decision
 
-ArvinClaw will use:
+Peewit will use:
 
 | Area | Choice |
 | --- | --- |
@@ -37,7 +37,7 @@ The repository will use `pnpm-workspace.yaml` for workspace membership instead o
 
 ## 3. Why pnpm
 
-pnpm is a better long-term fit for ArvinClaw than npm workspaces because:
+pnpm is a better long-term fit for Peewit than npm workspaces because:
 
 - It matches OpenClaw's public source-development shape more closely.
 - It handles monorepos with many packages and future extensions well.
@@ -119,7 +119,7 @@ Future stack changes must include tests or checks that prove the new tool does n
 
 Positive:
 
-- ArvinClaw stays close to OpenClaw's TypeScript and pnpm workspace direction.
+- Peewit stays close to OpenClaw's TypeScript and pnpm workspace direction.
 - The project gets stricter dependency boundaries early.
 - The build path remains small enough to learn.
 - Future packages and extensions have a natural home.
@@ -136,4 +136,4 @@ Trade-offs:
 - [OpenClaw-Aligned, Not Identical](./0002-openclaw-aligned-not-identical.md)
 - [Project Structure](../architecture/project-structure.md)
 - [Development Workflow](../architecture/dev-workflow.md)
-- [Main Design](../product/arvinclaw-design.md)
+- [Main Design](../product/peewit-design.md)

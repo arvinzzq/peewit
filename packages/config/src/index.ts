@@ -1,5 +1,5 @@
 /**
- * INPUT: User config, project config, env overrides (ARVINCLAW_PROMPT_MODE, ARVINCLAW_EXECUTION_CONTRACT, ARVINCLAW_TOOL_PROFILE, ARVINCLAW_SANDBOX, ARVINCLAW_THINKING_BUDGET, OPENROUTER_API_KEY, ANTHROPIC_API_KEY, and others), memory policy settings, and sessions directory resolution requests.
+ * INPUT: User config, project config, env overrides (PEEWIT_PROMPT_MODE, PEEWIT_EXECUTION_CONTRACT, PEEWIT_TOOL_PROFILE, PEEWIT_SANDBOX, PEEWIT_THINKING_BUDGET, OPENROUTER_API_KEY, ANTHROPIC_API_KEY, and others), memory policy settings, and sessions directory resolution requests.
  * OUTPUT: EffectiveConfig (including ExecutionContract, toolProfile, sandboxed flag, and thinkingBudget), PromptMode, ThinkingBudget, redacted config views, ConfigValidationError, and resolveSessionsDirectory helper.
  * POS: Configuration boundary; keeps config loading separate from runtime behavior.
  *
@@ -7,7 +7,7 @@
  */
 import { join } from "node:path";
 
-export const configPackageName = "@arvinclaw/config";
+export const configPackageName = "@peewit/config";
 
 const openRouterDefaults = {
   baseURL: "https://openrouter.ai/api/v1"
@@ -115,7 +115,7 @@ const defaultConfig: EffectiveConfig = {
     allowLowRisk: true
   },
   sessions: {
-    directory: "~/.arvinclaw/sessions"
+    directory: "~/.peewit/sessions"
   },
   memory: {
     longTermFiles: "disabled",
@@ -217,38 +217,38 @@ function applyEnv(config: EffectiveConfig, env: Record<string, string | undefine
     config.secrets.apiKey = env.ANTHROPIC_API_KEY;
   }
 
-  if (env.ARVINCLAW_BASE_URL !== undefined) {
-    config.model.baseURL = env.ARVINCLAW_BASE_URL;
+  if (env.PEEWIT_BASE_URL !== undefined) {
+    config.model.baseURL = env.PEEWIT_BASE_URL;
   }
-  if (env.ARVINCLAW_MODEL !== undefined) {
-    config.model.model = env.ARVINCLAW_MODEL;
+  if (env.PEEWIT_MODEL !== undefined) {
+    config.model.model = env.PEEWIT_MODEL;
   }
-  if (env.ARVINCLAW_DEFAULT_MODE !== undefined) {
-    config.runtime.defaultMode = env.ARVINCLAW_DEFAULT_MODE as AutonomyMode;
+  if (env.PEEWIT_DEFAULT_MODE !== undefined) {
+    config.runtime.defaultMode = env.PEEWIT_DEFAULT_MODE as AutonomyMode;
   }
-  if (env.ARVINCLAW_WORKSPACE_ROOT !== undefined) {
-    config.workspace.root = env.ARVINCLAW_WORKSPACE_ROOT;
+  if (env.PEEWIT_WORKSPACE_ROOT !== undefined) {
+    config.workspace.root = env.PEEWIT_WORKSPACE_ROOT;
   }
-  if (env.ARVINCLAW_LONG_TERM_MEMORY !== undefined) {
-    config.memory.longTermFiles = env.ARVINCLAW_LONG_TERM_MEMORY as LongTermMemoryFilePolicy;
+  if (env.PEEWIT_LONG_TERM_MEMORY !== undefined) {
+    config.memory.longTermFiles = env.PEEWIT_LONG_TERM_MEMORY as LongTermMemoryFilePolicy;
   }
-  if (env.ARVINCLAW_API_KEY !== undefined) {
-    config.secrets.apiKey = env.ARVINCLAW_API_KEY;
+  if (env.PEEWIT_API_KEY !== undefined) {
+    config.secrets.apiKey = env.PEEWIT_API_KEY;
   }
-  if (env.ARVINCLAW_PROMPT_MODE !== undefined) {
-    config.runtime.promptMode = env.ARVINCLAW_PROMPT_MODE as PromptMode;
+  if (env.PEEWIT_PROMPT_MODE !== undefined) {
+    config.runtime.promptMode = env.PEEWIT_PROMPT_MODE as PromptMode;
   }
-  if (env.ARVINCLAW_EXECUTION_CONTRACT !== undefined) {
-    config.runtime.executionContract = env.ARVINCLAW_EXECUTION_CONTRACT as ExecutionContract;
+  if (env.PEEWIT_EXECUTION_CONTRACT !== undefined) {
+    config.runtime.executionContract = env.PEEWIT_EXECUTION_CONTRACT as ExecutionContract;
   }
-  if (env.ARVINCLAW_TOOL_PROFILE !== undefined) {
-    config.runtime.toolProfile = env.ARVINCLAW_TOOL_PROFILE as ToolProfileConfig;
+  if (env.PEEWIT_TOOL_PROFILE !== undefined) {
+    config.runtime.toolProfile = env.PEEWIT_TOOL_PROFILE as ToolProfileConfig;
   }
-  if (env.ARVINCLAW_SANDBOX !== undefined) {
-    config.runtime.sandboxed = env.ARVINCLAW_SANDBOX === "true";
+  if (env.PEEWIT_SANDBOX !== undefined) {
+    config.runtime.sandboxed = env.PEEWIT_SANDBOX === "true";
   }
-  if (env.ARVINCLAW_THINKING_BUDGET !== undefined) {
-    config.model.thinkingBudget = env.ARVINCLAW_THINKING_BUDGET as ThinkingBudget;
+  if (env.PEEWIT_THINKING_BUDGET !== undefined) {
+    config.model.thinkingBudget = env.PEEWIT_THINKING_BUDGET as ThinkingBudget;
   }
 }
 
@@ -261,7 +261,7 @@ function validateConfig(config: EffectiveConfig): void {
 
   if (config.model.model.trim().length === 0) {
     throw new ConfigValidationError(
-      "No model configured. Set ARVINCLAW_MODEL=<model-name> (e.g. ARVINCLAW_MODEL=openai/gpt-4o for OpenRouter)."
+      "No model configured. Set PEEWIT_MODEL=<model-name> (e.g. PEEWIT_MODEL=openai/gpt-4o for OpenRouter)."
     );
   }
 

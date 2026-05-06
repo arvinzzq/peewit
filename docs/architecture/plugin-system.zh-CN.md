@@ -4,7 +4,7 @@ English version: [plugin-system.md](./plugin-system.md)
 
 ## 1. 目的
 
-Plugin system 为用户提供一种受管理的方式来安装、启用、禁用和检查非 ArvinClaw 内置的 skills。它记录来源、版本和 trust 状态，以便用户随时了解某个 skill 的来源及是否已审查。
+Plugin system 为用户提供一种受管理的方式来安装、启用、禁用和检查非 Peewit 内置的 skills。它记录来源、版本和 trust 状态，以便用户随时了解某个 skill 的来源及是否已审查。
 
 ## 2. 范围
 
@@ -38,19 +38,19 @@ permissions: filesystem, shell
 用户安装的 skills 存储于：
 
 ```
-~/.arvinclaw/skills/<name>.md
+~/.peewit/skills/<name>.md
 ```
 
-这是 sessions 目录（`~/.arvinclaw/sessions/`）的同级目录。
+这是 sessions 目录（`~/.peewit/sessions/`）的同级目录。
 
-Workspace skills 存储于 `<workspaceRoot>/skills/<name>/SKILL.md`，始终受信任。内置 skills 嵌入在 `@arvinclaw/skills` package 二进制中。
+Workspace skills 存储于 `<workspaceRoot>/skills/<name>/SKILL.md`，始终受信任。内置 skills 嵌入在 `@peewit/skills` package 二进制中。
 
 ## 5. Manifest 文件
 
 Manifest 追踪已安装的用户 skills 及其生命周期状态：
 
 ```
-~/.arvinclaw/skills/skills-index.json
+~/.peewit/skills/skills-index.json
 ```
 
 示例内容：
@@ -60,7 +60,7 @@ Manifest 追踪已安装的用户 skills 及其生命周期状态：
   "skills": [
     {
       "name": "my-skill",
-      "filePath": "/Users/arvin/.arvinclaw/skills/my-skill.md",
+      "filePath": "/Users/arvin/.peewit/skills/my-skill.md",
       "installedAt": "2026-05-05T10:00:00.000Z",
       "origin": "/path/to/source.md",
       "trusted": false,
@@ -82,7 +82,7 @@ Trust 模型提供可见性和控制：
 - **内置 skills** 始终受信任（随 package 发布）。
 - **用户安装的 skills** 初始为 `trusted: false`。
 - `trusted: false` 的 skill 仍会加载（为了可用性），但 CLI 会显示明显警告。
-- 用户通过 `arvinclaw skills trust <name>` 明确信任 skill。
+- 用户通过 `peewit skills trust <name>` 明确信任 skill。
 
 `trusted` 标志不授予额外能力；它只是抑制警告。
 
@@ -91,13 +91,13 @@ Trust 模型提供可见性和控制：
 ```
 install → (trusted: false, enabled: true)
   ↓
-review (arvinclaw skills review <name>)
+review (peewit skills review <name>)
   ↓
-trust (arvinclaw skills trust <name>) → trusted: true
+trust (peewit skills trust <name>) → trusted: true
   ↓
-disable (arvinclaw skills disable <name>) → enabled: false
+disable (peewit skills disable <name>) → enabled: false
   ↓
-enable (arvinclaw skills enable <name>) → enabled: true
+enable (peewit skills enable <name>) → enabled: true
 ```
 
 ## 8. SkillManager API
@@ -126,7 +126,7 @@ class SkillManager {
 加载顺序（由高到低）：
 
 1. Workspace skills（`<root>/skills/<name>/SKILL.md`）
-2. 用户安装的 skills（`~/.arvinclaw/skills/<name>.md`）
+2. 用户安装的 skills（`~/.peewit/skills/<name>.md`）
 3. 内置 skills
 
 已禁用的用户 skills 被完全跳过。若用户 skill 与内置 skill 同名，用户 skill 优先（需通过 disabled 检查）。

@@ -9,7 +9,7 @@ Simplified Chinese version: [model-provider.zh-CN.md](./model-provider.zh-CN.md)
 
 The model provider layer isolates Agent Core from specific LLM vendors and SDKs.
 
-ArvinClaw should be able to start with one OpenAI-compatible provider, then later support Anthropic, Gemini, Ollama, local models, or other hosted models without rewriting the agent loop.
+Peewit should be able to start with one OpenAI-compatible provider, then later support Anthropic, Gemini, Ollama, local models, or other hosted models without rewriting the agent loop.
 
 The core rule:
 
@@ -54,8 +54,8 @@ Provider selection is configured through `model.provider` in the effective confi
 
 The model provider layer owns:
 
-- Translating ArvinClaw model input into provider-specific request format
-- Translating provider output into ArvinClaw model output
+- Translating Peewit model input into provider-specific request format
+- Translating provider output into Peewit model output
 - Normalizing tool calls
 - Normalizing final assistant messages
 - Normalizing provider errors
@@ -180,8 +180,8 @@ This lets Agent Core and adapters show useful messages without matching vendor-s
 
 Model configuration should come from the merged effective configuration:
 
-- Project config: `arvinclaw.config.json`
-- User config: `~/.arvinclaw/config.json`
+- Project config: `peewit.config.json`
+- User config: `~/.peewit/config.json`
 - Environment variables
 
 Example:
@@ -201,16 +201,16 @@ Example:
 Secrets should not be stored in project config. API keys should come from environment variables such as:
 
 ```text
-ARVINCLAW_API_KEY
+PEEWIT_API_KEY
 OPENROUTER_API_KEY
 ```
 
 Future versions may support provider-specific keys:
 
 ```text
-ARVINCLAW_OPENAI_API_KEY
-ARVINCLAW_ANTHROPIC_API_KEY
-ARVINCLAW_GEMINI_API_KEY
+PEEWIT_OPENAI_API_KEY
+PEEWIT_ANTHROPIC_API_KEY
+PEEWIT_GEMINI_API_KEY
 ```
 
 ## 10. Capability Metadata
@@ -289,14 +289,14 @@ The MVP model provider layer should be considered successful when:
 
 - Agent Core calls a `ModelProvider` interface.
 - The OpenAI-compatible provider can send messages and receive a normalized response.
-- Tool calls are normalized into ArvinClaw's internal shape.
+- Tool calls are normalized into Peewit's internal shape.
 - Provider errors are normalized enough for the CLI to explain them.
 - API keys are loaded from environment variables, not project config.
 - A future provider can be added without changing Agent Core's main loop.
 
 ## 15. Related Documents
 
-- [Main design](../product/arvinclaw-design.md)
+- [Main design](../product/peewit-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [Configuration System](./configuration-system.md)
 - [Agent loop](./agent-loop.md)

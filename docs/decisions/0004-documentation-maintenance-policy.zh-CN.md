@@ -7,7 +7,7 @@ English version: [0004-documentation-maintenance-policy.md](./0004-documentation
 
 ## 1. 背景
 
-ArvinClaw 既是一个可用产品，也是一个用于理解 OpenClaw-like Agent 架构的学习项目。
+Peewit 既是一个可用产品，也是一个用于理解 OpenClaw-like Agent 架构的学习项目。
 
 这让文档成为实现的一部分，而不是事后的补充。读者应该可以打开一个模块，理解它在 Agent 系统中的角色，并在阅读每一行代码之前知道哪些文件重要。
 
@@ -15,7 +15,7 @@ ArvinClaw 既是一个可用产品，也是一个用于理解 OpenClaw-like Agen
 
 ## 2. 决策
 
-ArvinClaw 将使用轻量文件说明政策：
+Peewit 将使用轻量文件说明政策：
 
 1. 每个架构模块目录都必须有本地 README 和 AGENTS 指南。
 2. 每个重要项目文档都必须保持英文和简体中文版本对齐。
@@ -71,7 +71,7 @@ ArvinClaw 将使用轻量文件说明政策：
 /**
  * INPUT: Main imports, external APIs, environment variables, or injected dependencies.
  * OUTPUT: Main exports, side effects, or public API surface.
- * POS: The file's position in the ArvinClaw architecture.
+ * POS: The file's position in the Peewit architecture.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
@@ -116,7 +116,7 @@ ArvinClaw 将使用轻量文件说明政策：
 
 ## 6. 代码注释策略
 
-ArvinClaw 应使用注释解释 architecture intent、safety boundaries 和不直观的 trade-offs。注释不应重复清晰命名和测试已经说明的内容。
+Peewit 应使用注释解释 architecture intent、safety boundaries 和不直观的 trade-offs。注释不应重复清晰命名和测试已经说明的内容。
 
 为以下内容添加简短注释：
 

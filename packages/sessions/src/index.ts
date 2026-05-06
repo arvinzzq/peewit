@@ -8,7 +8,7 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-export const sessionsPackageName = "@arvinclaw/sessions";
+export const sessionsPackageName = "@peewit/sessions";
 
 export type SessionMessageRole = "user" | "assistant" | "tool" | "system";
 

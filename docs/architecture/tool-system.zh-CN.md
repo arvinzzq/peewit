@@ -7,7 +7,7 @@ English version: [tool-system.md](./tool-system.md)
 
 ## 1. 目的
 
-Tool System 是 ArvinClaw 让 Agent 在模型之外执行动作的机制。
+Tool System 是 Peewit 让 Agent 在模型之外执行动作的机制。
 
 模型可以生成文本，而工具让 Agent 能检查文件、运行命令、读取网页、写文档，并在未来控制浏览器或执行后台任务。
 
@@ -243,7 +243,7 @@ Agent 随后可以决定重试、询问用户、选择其他工具或停止。
 - workspace 外路径风险更高。
 - 疑似 secret 文件默认 Blocked。
 
-随着 ArvinClaw 越来越自主，这个边界会更重要。
+随着 Peewit 越来越自主，这个边界会更重要。
 
 ## 14. Tool Context
 
@@ -295,7 +295,7 @@ MVP Tool System 成功标准：
 
 ## 17. 相关文档
 
-- [主设计](../product/arvinclaw-design.zh-CN.md)
+- [主设计](../product/peewit-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)
 - [Agent Loop](./agent-loop.zh-CN.md)
 - [Model Provider](./model-provider.zh-CN.md)

@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-Keep provider-specific request and response handling here. Public outputs should be normalized into ArvinClaw model types before reaching core.
+Keep provider-specific request and response handling here. Public outputs should be normalized into Peewit model types before reaching core.
 
 ## When Files Change
 

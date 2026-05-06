@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { CLI_CAPABILITIES, WEB_CAPABILITIES } from "@arvinclaw/adapters";
+import { CLI_CAPABILITIES, WEB_CAPABILITIES } from "@peewit/adapters";
 import { SessionGateway, type GatewaySession } from "./index.js";
 
 function makeSession(overrides: Partial<GatewaySession> = {}): GatewaySession {

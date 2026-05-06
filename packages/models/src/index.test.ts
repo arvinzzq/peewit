@@ -22,7 +22,7 @@ describe("model provider contract", () => {
     ]);
     const input: ModelInput = {
       messages: [
-        { role: "system", content: "You are ArvinClaw." },
+        { role: "system", content: "You are Peewit." },
         { role: "user", content: "Say hello." }
       ],
       options: {
@@ -314,13 +314,13 @@ describe("AnthropicProvider", () => {
 
     await provider.generate({
       messages: [
-        { role: "system", content: "You are ArvinClaw." },
+        { role: "system", content: "You are Peewit." },
         { role: "user", content: "Hello." }
       ]
     });
 
     expect(captured[0]?.system).toEqual([
-      { type: "text", text: "You are ArvinClaw.", cache_control: { type: "ephemeral" } }
+      { type: "text", text: "You are Peewit.", cache_control: { type: "ephemeral" } }
     ]);
     expect(captured[0]?.messages).toEqual([{ role: "user", content: "Hello." }]);
   });

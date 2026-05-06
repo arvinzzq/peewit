@@ -7,7 +7,7 @@ English version: [runtime-composition.md](./runtime-composition.md)
 
 ## 1. 目的
 
-Runtime composition 定义 ArvinClaw 应用入口如何组装 configuration、model providers、tools、permissions、context、sessions、trace 和 Agent Core。
+Runtime composition 定义 Peewit 应用入口如何组装 configuration、model providers、tools、permissions、context、sessions、trace 和 Agent Core。
 
 核心规则：
 
@@ -68,20 +68,20 @@ CLI 入口可以拥有应用启动，但应该把 setup details 委托给 packag
 apps/cli ──────────────────────────────────────────┐
 apps/web ──────────────────────────────────────────┤
          │                                          │
-         ├──▶ @arvinclaw/core ◀── @arvinclaw/scheduler
+         ├──▶ @peewit/core ◀── @peewit/scheduler
          │         │
-         │         ├──▶ @arvinclaw/context ──▶ @arvinclaw/models
-         │         ├──▶ @arvinclaw/models
-         │         ├──▶ @arvinclaw/permissions
-         │         └──▶ @arvinclaw/tools
+         │         ├──▶ @peewit/context ──▶ @peewit/models
+         │         ├──▶ @peewit/models
+         │         ├──▶ @peewit/permissions
+         │         └──▶ @peewit/tools
          │
-         ├──▶ @arvinclaw/config
-         ├──▶ @arvinclaw/sessions
-         ├──▶ @arvinclaw/gateway ──▶ @arvinclaw/adapters
-         ├──▶ @arvinclaw/adapters
-         ├──▶ @arvinclaw/skills
-         ├──▶ @arvinclaw/taskflow
-         └──▶ @arvinclaw/scheduler ──▶ @arvinclaw/core（仅类型）
+         ├──▶ @peewit/config
+         ├──▶ @peewit/sessions
+         ├──▶ @peewit/gateway ──▶ @peewit/adapters
+         ├──▶ @peewit/adapters
+         ├──▶ @peewit/skills
+         ├──▶ @peewit/taskflow
+         └──▶ @peewit/scheduler ──▶ @peewit/core（仅类型）
 ```
 
 `packages/core` 依赖 `context`、`models`、`permissions`、`tools` 的接口和领域类型。它不得依赖任何 adapter、config、sessions、gateway 或 scheduler 代码。

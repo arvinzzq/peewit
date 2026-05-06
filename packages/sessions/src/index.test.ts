@@ -170,7 +170,7 @@ describe("in-memory session store", () => {
 
 describe("jsonl session store", () => {
   test("persists sessions and replays ordered messages", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-sessions-"));
+    const directory = await mkdtemp(join(tmpdir(), "peewit-sessions-"));
 
     try {
       const store = new JsonlSessionStore({
@@ -229,7 +229,7 @@ describe("jsonl session store", () => {
   });
 
   test("rejects unsafe session ids before writing files", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-sessions-"));
+    const directory = await mkdtemp(join(tmpdir(), "peewit-sessions-"));
 
     try {
       const store = new JsonlSessionStore({
@@ -244,7 +244,7 @@ describe("jsonl session store", () => {
   });
 
   test("lists replayed JSONL sessions by most recent update first", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-sessions-"));
+    const directory = await mkdtemp(join(tmpdir(), "peewit-sessions-"));
 
     try {
       const first = new JsonlSessionStore({
@@ -284,7 +284,7 @@ describe("jsonl session store", () => {
   });
 
   test("persists trace events and replays them in order", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "arvinclaw-sessions-"));
+    const directory = await mkdtemp(join(tmpdir(), "peewit-sessions-"));
 
     try {
       const store = new JsonlSessionStore({

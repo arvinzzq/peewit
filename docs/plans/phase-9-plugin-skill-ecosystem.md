@@ -46,14 +46,14 @@ Update tests, README, AGENTS docs, and source header.
 
 Add to `apps/cli/src/index.ts`:
 
-- `arvinclaw skills` — list all skills with version, trust status, permissions
-- `arvinclaw skills install <path>` — install from local .md file
-- `arvinclaw skills enable <name>` — enable a disabled skill
-- `arvinclaw skills disable <name>` — disable an enabled skill
-- `arvinclaw skills trust <name>` — mark as trusted
-- `arvinclaw skills review <name>` — show full metadata
+- `peewit skills` — list all skills with version, trust status, permissions
+- `peewit skills install <path>` — install from local .md file
+- `peewit skills enable <name>` — enable a disabled skill
+- `peewit skills disable <name>` — disable an enabled skill
+- `peewit skills trust <name>` — mark as trusted
+- `peewit skills review <name>` — show full metadata
 
-All subcommands use `SkillManager` from `@arvinclaw/skills`.
+All subcommands use `SkillManager` from `@peewit/skills`.
 User skills directory is derived as sibling of sessions directory.
 
 ## 6. Part D — Mark Complete
@@ -66,7 +66,7 @@ Update plan and roadmap to Complete with commit hashes.
 - Permission declarations are visible before use.
 - Third-party skills cannot silently gain tool permissions.
 - Version and source metadata are recorded.
-- `arvinclaw skills trust <name>` marks a skill as trusted.
+- `peewit skills trust <name>` marks a skill as trusted.
 - Untrusted user skills display a warning in all listing commands.
 
 ## 8. Non-Goals

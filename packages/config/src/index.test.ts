@@ -26,8 +26,8 @@ describe("loadConfig", () => {
         }
       },
       env: {
-        ARVINCLAW_MODEL: "env-model",
-        ARVINCLAW_DEFAULT_MODE: "auto"
+        PEEWIT_MODEL: "env-model",
+        PEEWIT_DEFAULT_MODE: "auto"
       }
     });
 
@@ -38,7 +38,7 @@ describe("loadConfig", () => {
   test("keeps secrets available to consumers but redacts display output", () => {
     const config = loadConfig({
       env: {
-        ARVINCLAW_API_KEY: "sk-test-secret"
+        PEEWIT_API_KEY: "sk-test-secret"
       }
     });
 
@@ -51,7 +51,7 @@ describe("loadConfig", () => {
     expect(JSON.stringify(redactedConfig(config))).not.toContain("sk-test-secret");
   });
 
-  test("requires ARVINCLAW_MODEL when using OPENROUTER_API_KEY", () => {
+  test("requires PEEWIT_MODEL when using OPENROUTER_API_KEY", () => {
     expect(() =>
       loadConfig({ env: { OPENROUTER_API_KEY: "sk-or-test-secret" } })
     ).toThrow(ConfigValidationError);
@@ -61,7 +61,7 @@ describe("loadConfig", () => {
     const config = loadConfig({
       env: {
         OPENROUTER_API_KEY: "sk-or-test-secret",
-        ARVINCLAW_MODEL: "openai/gpt-4o"
+        PEEWIT_MODEL: "openai/gpt-4o"
       }
     });
 
@@ -85,11 +85,11 @@ describe("loadConfig", () => {
     expect(JSON.stringify(redactedConfig(config))).not.toContain("sk-ant-test-secret");
   });
 
-  test("lets ARVINCLAW_MODEL override the Anthropic default model", () => {
+  test("lets PEEWIT_MODEL override the Anthropic default model", () => {
     const config = loadConfig({
       env: {
         ANTHROPIC_API_KEY: "sk-ant-test-secret",
-        ARVINCLAW_MODEL: "claude-sonnet-4-6"
+        PEEWIT_MODEL: "claude-sonnet-4-6"
       }
     });
 
@@ -97,11 +97,11 @@ describe("loadConfig", () => {
     expect(config.model.model).toBe("claude-sonnet-4-6");
   });
 
-  test("lets generic ARVINCLAW_API_KEY override ANTHROPIC_API_KEY shortcut", () => {
+  test("lets generic PEEWIT_API_KEY override ANTHROPIC_API_KEY shortcut", () => {
     const config = loadConfig({
       env: {
         ANTHROPIC_API_KEY: "sk-ant-test-secret",
-        ARVINCLAW_API_KEY: "sk-override-secret"
+        PEEWIT_API_KEY: "sk-override-secret"
       }
     });
 
@@ -109,13 +109,13 @@ describe("loadConfig", () => {
     expect(config.secrets.apiKey).toBe("sk-override-secret");
   });
 
-  test("lets generic ArvinClaw model settings override OpenRouter defaults", () => {
+  test("lets generic Peewit model settings override OpenRouter defaults", () => {
     const config = loadConfig({
       env: {
         OPENROUTER_API_KEY: "sk-or-test-secret",
-        ARVINCLAW_BASE_URL: "https://custom.example/v1",
-        ARVINCLAW_MODEL: "custom/model",
-        ARVINCLAW_API_KEY: "sk-custom-secret"
+        PEEWIT_BASE_URL: "https://custom.example/v1",
+        PEEWIT_MODEL: "custom/model",
+        PEEWIT_API_KEY: "sk-custom-secret"
       }
     });
 
@@ -127,11 +127,11 @@ describe("loadConfig", () => {
   test("supports workspace root environment override", () => {
     const config = loadConfig({
       env: {
-        ARVINCLAW_WORKSPACE_ROOT: "/workspace/arvinclaw"
+        PEEWIT_WORKSPACE_ROOT: "/workspace/peewit"
       }
     });
 
-    expect(config.workspace.root).toBe("/workspace/arvinclaw");
+    expect(config.workspace.root).toBe("/workspace/peewit");
   });
 
   test("keeps long-term memory files disabled by default", () => {
@@ -144,7 +144,7 @@ describe("loadConfig", () => {
   test("supports read-only long-term memory file policy", () => {
     const config = loadConfig({
       env: {
-        ARVINCLAW_LONG_TERM_MEMORY: "read-only"
+        PEEWIT_LONG_TERM_MEMORY: "read-only"
       }
     });
 
@@ -156,14 +156,14 @@ describe("loadConfig", () => {
     expect(() =>
       loadConfig({
         env: {
-          ARVINCLAW_LONG_TERM_MEMORY: "invalid-policy"
+          PEEWIT_LONG_TERM_MEMORY: "invalid-policy"
         }
       })
     ).toThrow(ConfigValidationError);
   });
 
   test("accepts write as a valid long-term memory policy", () => {
-    const config = loadConfig({ env: { ARVINCLAW_LONG_TERM_MEMORY: "write" } });
+    const config = loadConfig({ env: { PEEWIT_LONG_TERM_MEMORY: "write" } });
     expect(config.memory.longTermFiles).toBe("write");
   });
 
@@ -179,10 +179,10 @@ describe("loadConfig", () => {
     ).toThrow(ConfigValidationError);
   });
 
-  test("supports ARVINCLAW_PROMPT_MODE env var", () => {
+  test("supports PEEWIT_PROMPT_MODE env var", () => {
     const config = loadConfig({
       env: {
-        ARVINCLAW_PROMPT_MODE: "minimal"
+        PEEWIT_PROMPT_MODE: "minimal"
       }
     });
 
@@ -193,37 +193,37 @@ describe("loadConfig", () => {
     expect(() =>
       loadConfig({
         env: {
-          ARVINCLAW_PROMPT_MODE: "invalid"
+          PEEWIT_PROMPT_MODE: "invalid"
         }
       })
     ).toThrow(ConfigValidationError);
   });
 
-  test("supports ARVINCLAW_EXECUTION_CONTRACT env var", () => {
+  test("supports PEEWIT_EXECUTION_CONTRACT env var", () => {
     const config = loadConfig({
       env: {
-        ARVINCLAW_EXECUTION_CONTRACT: "strict-agentic"
+        PEEWIT_EXECUTION_CONTRACT: "strict-agentic"
       }
     });
 
     expect(config.runtime.executionContract).toBe("strict-agentic");
   });
 
-  test("rejects invalid ARVINCLAW_EXECUTION_CONTRACT values", () => {
+  test("rejects invalid PEEWIT_EXECUTION_CONTRACT values", () => {
     expect(() =>
       loadConfig({
         env: {
-          ARVINCLAW_EXECUTION_CONTRACT: "turbo-mode"
+          PEEWIT_EXECUTION_CONTRACT: "turbo-mode"
         }
       })
     ).toThrow(ConfigValidationError);
   });
 
-  test("supports ARVINCLAW_TOOL_PROFILE env var", () => {
+  test("supports PEEWIT_TOOL_PROFILE env var", () => {
     for (const profile of ["coding", "full", "messaging", "background"] as const) {
       const config = loadConfig({
         env: {
-          ARVINCLAW_TOOL_PROFILE: profile
+          PEEWIT_TOOL_PROFILE: profile
         }
       });
       expect(config.runtime.toolProfile).toBe(profile);
@@ -234,37 +234,37 @@ describe("loadConfig", () => {
     expect(() =>
       loadConfig({
         env: {
-          ARVINCLAW_TOOL_PROFILE: "ninja"
+          PEEWIT_TOOL_PROFILE: "ninja"
         }
       })
     ).toThrow(ConfigValidationError);
   });
 
-  test("ARVINCLAW_SANDBOX=true enables sandbox mode", () => {
+  test("PEEWIT_SANDBOX=true enables sandbox mode", () => {
     const config = loadConfig({
       env: {
-        ARVINCLAW_SANDBOX: "true"
+        PEEWIT_SANDBOX: "true"
       }
     });
 
     expect(config.runtime.sandboxed).toBe(true);
   });
 
-  test("ARVINCLAW_SANDBOX=false keeps sandbox mode disabled", () => {
+  test("PEEWIT_SANDBOX=false keeps sandbox mode disabled", () => {
     const config = loadConfig({
       env: {
-        ARVINCLAW_SANDBOX: "false"
+        PEEWIT_SANDBOX: "false"
       }
     });
 
     expect(config.runtime.sandboxed).toBe(false);
   });
 
-  test("supports ARVINCLAW_THINKING_BUDGET env var", () => {
+  test("supports PEEWIT_THINKING_BUDGET env var", () => {
     for (const budget of ["off", "minimal", "low", "medium", "high", "max", "adaptive"] as const) {
       const config = loadConfig({
         env: {
-          ARVINCLAW_THINKING_BUDGET: budget
+          PEEWIT_THINKING_BUDGET: budget
         }
       });
       expect(config.model.thinkingBudget).toBe(budget);
@@ -275,7 +275,7 @@ describe("loadConfig", () => {
     expect(() =>
       loadConfig({
         env: {
-          ARVINCLAW_THINKING_BUDGET: "extreme"
+          PEEWIT_THINKING_BUDGET: "extreme"
         }
       })
     ).toThrow(ConfigValidationError);
@@ -296,11 +296,11 @@ describe("resolveSessionsDirectory", () => {
   test("expands ~/path using HOME from provided env", () => {
     const config = loadConfig();
     const result = resolveSessionsDirectory(
-      { ...config, sessions: { directory: "~/.arvinclaw/sessions" } },
+      { ...config, sessions: { directory: "~/.peewit/sessions" } },
       { HOME: "/home/testuser" }
     );
 
-    expect(result).toBe("/home/testuser/.arvinclaw/sessions");
+    expect(result).toBe("/home/testuser/.peewit/sessions");
   });
 
   test("returns ~/ path unchanged when HOME is not in env and not in process.env", () => {
@@ -311,11 +311,11 @@ describe("resolveSessionsDirectory", () => {
 
     try {
       const result = resolveSessionsDirectory(
-        { ...config, sessions: { directory: "~/.arvinclaw/sessions" } },
+        { ...config, sessions: { directory: "~/.peewit/sessions" } },
         {}
       );
 
-      expect(result).toBe("~/.arvinclaw/sessions");
+      expect(result).toBe("~/.peewit/sessions");
     } finally {
       if (originalHome !== undefined) {
         process.env.HOME = originalHome;
@@ -326,10 +326,10 @@ describe("resolveSessionsDirectory", () => {
   test("uses default config sessions directory (~/. path) when called with default config", () => {
     const config = loadConfig();
 
-    expect(config.sessions.directory).toBe("~/.arvinclaw/sessions");
+    expect(config.sessions.directory).toBe("~/.peewit/sessions");
 
     const result = resolveSessionsDirectory(config, { HOME: "/home/arvin" });
 
-    expect(result).toBe("/home/arvin/.arvinclaw/sessions");
+    expect(result).toBe("/home/arvin/.peewit/sessions");
   });
 });

@@ -7,13 +7,13 @@ Simplified Chinese version: [openclaw-architecture-map.zh-CN.md](./openclaw-arch
 
 ## 1. Purpose
 
-ArvinClaw's target is to implement an OpenClaw-like personal general-purpose agent system from zero to one.
+Peewit's target is to implement an OpenClaw-like personal general-purpose agent system from zero to one.
 
-This document maps OpenClaw concepts to ArvinClaw phases so the project can intentionally grow toward that target without overloading the MVP.
+This document maps OpenClaw concepts to Peewit phases so the project can intentionally grow toward that target without overloading the MVP.
 
 The core rule:
 
-OpenClaw is the primary architecture reference. ArvinClaw implements its core ideas in staged, testable increments.
+OpenClaw is the primary architecture reference. Peewit implements its core ideas in staged, testable increments.
 
 Implementation research notes: [OpenClaw Implementation Notes](../research/openclaw-implementation-notes.md)
 
@@ -21,9 +21,9 @@ Compatibility decision: [0002: OpenClaw-Aligned, Not Identical](../decisions/000
 
 ## 2. Mapping Summary
 
-| OpenClaw Concept | ArvinClaw Plan | Phase |
+| OpenClaw Concept | Peewit Plan | Phase |
 | --- | --- | --- |
-| Agent workspace | Local ArvinClaw workspace with prompt, memory, skill, and config files | Phase 0-1 |
+| Agent workspace | Local Peewit workspace with prompt, memory, skill, and config files | Phase 0-1 |
 | `AGENTS.md` | Project and agent operating rules | Phase 0-1 |
 | `SOUL.md` | Agent identity, values, tone, and boundaries | Phase 1-2 |
 | `USER.md` | User preferences and durable user context | Phase 5 |
@@ -47,7 +47,7 @@ Compatibility decision: [0002: OpenClaw-Aligned, Not Identical](../decisions/000
 
 OpenClaw uses an agent workspace as the visible home of identity, memory, and operational context.
 
-ArvinClaw should implement a workspace model with:
+Peewit should implement a workspace model with:
 
 - Prompt files
 - Memory files
@@ -59,7 +59,7 @@ ArvinClaw should implement a workspace model with:
 MVP should start small:
 
 ```text
-arvinclaw.config.json
+peewit.config.json
 AGENTS.md
 skills/
 docs/
@@ -76,12 +76,12 @@ TOOLS.md
 memory/
   YYYY-MM-DD.md
 skills/
-arvinclaw.config.json
+peewit.config.json
 ```
 
 ## 4. Workspace Prompt Files
 
-ArvinClaw should support OpenClaw-like prompt files with explicit scope and safety.
+Peewit should support OpenClaw-like prompt files with explicit scope and safety.
 
 | File | Responsibility | Write Policy |
 | --- | --- | --- |
@@ -95,7 +95,7 @@ Prompt files should be loaded through the context assembly pipeline, not by ad h
 
 ## 5. Memory Layers
 
-ArvinClaw should mirror OpenClaw's plain-file memory direction, but phase it carefully.
+Peewit should mirror OpenClaw's plain-file memory direction, but phase it carefully.
 
 MVP:
 
@@ -117,7 +117,7 @@ No long-term memory file should be silently updated by the agent.
 
 OpenClaw's skill/plugin direction is central to extensibility.
 
-ArvinClaw should implement:
+Peewit should implement:
 
 - Phase 3: local `SKILL.md` skill loading
 - Phase 3: built-in skills such as `research`, `project-inspector`, `task-planner`, `docs-writer`, and `safe-shell`
@@ -128,7 +128,7 @@ Skills should guide behavior. Plugins may later contribute tools, prompts, or ad
 
 ## 7. Tools and Permissions
 
-OpenClaw-like agents are powerful because they can act. ArvinClaw should make action safe from the beginning.
+OpenClaw-like agents are powerful because they can act. Peewit should make action safe from the beginning.
 
 MVP tools:
 
@@ -150,7 +150,7 @@ Every tool call should produce trace and pass through permission policy.
 
 OpenClaw-style systems rely on reading workspace context at session start.
 
-ArvinClaw should implement startup loading in stages.
+Peewit should implement startup loading in stages.
 
 MVP startup:
 
@@ -181,7 +181,7 @@ Each added source should be tested and visible in trace.
 
 OpenClaw's broader shape includes gateways and multiple user surfaces.
 
-ArvinClaw should reach this through adapters:
+Peewit should reach this through adapters:
 
 - CLI first
 - Web UI
@@ -209,7 +209,7 @@ Channels need stricter privacy and permission rules because the agent may speak 
 
 OpenClaw-style long-running agents need background behavior.
 
-ArvinClaw should implement this later through:
+Peewit should implement this later through:
 
 - Scheduler
 - Daemon mode
@@ -248,7 +248,7 @@ OpenClaw-like architecture introduces specific risks:
 - Channel privacy mistakes
 - Background automation running at the wrong time
 
-ArvinClaw should treat these as design requirements, not afterthoughts.
+Peewit should treat these as design requirements, not afterthoughts.
 
 ## 14. Testing Requirements
 
@@ -267,14 +267,14 @@ Required test areas:
 - Adapter-specific privacy behavior
 - Background task permission handling
 
-Each OpenClaw concept added to ArvinClaw should arrive with tests.
+Each OpenClaw concept added to Peewit should arrive with tests.
 
 ## 15. Acceptance Criteria
 
 This map is successful when:
 
 - OpenClaw is clearly documented as the primary reference.
-- Each major OpenClaw concept has an ArvinClaw phase.
+- Each major OpenClaw concept has an Peewit phase.
 - MVP scope remains small but points toward the full OpenClaw-like target.
 - Memory, identity, tools, permissions, gateway, channels, and background automation are staged.
 - Safety and testing requirements are documented before implementation.

@@ -20,7 +20,7 @@ English version: [phase-4-planning-and-autonomy.md](./phase-4-planning-and-auton
 
 ## 1. 目的
 
-Phase 4 使 ArvinClaw 能够在执行复杂目标之前将其分解为步骤，以可见的方式跟踪步骤进度，并在三种自主性模式（`observe`、`confirm`、`auto`）下保持一致和可预测的行为。
+Phase 4 使 Peewit 能够在执行复杂目标之前将其分解为步骤，以可见的方式跟踪步骤进度，并在三种自主性模式（`observe`、`confirm`、`auto`）下保持一致和可预测的行为。
 
 Phase 1–3 的 agent loop 已通过 tool-calling while 循环处理多步执行。Phase 4 在此之上添加一个更高层次的规划层：在执行 tools 之前，Agent 首先生成一个用户可以审查的结构化计划。
 

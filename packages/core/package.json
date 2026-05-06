@@ -1,5 +1,5 @@
 {
-  "name": "@arvinclaw/core",
+  "name": "@peewit/core",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -16,9 +16,9 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@arvinclaw/context": "workspace:*",
-    "@arvinclaw/models": "workspace:*",
-    "@arvinclaw/permissions": "workspace:*",
-    "@arvinclaw/tools": "workspace:*"
+    "@peewit/context": "workspace:*",
+    "@peewit/models": "workspace:*",
+    "@peewit/permissions": "workspace:*",
+    "@peewit/tools": "workspace:*"
   }
 }

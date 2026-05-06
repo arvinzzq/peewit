@@ -34,7 +34,7 @@ Latest verification:
 - `pnpm run cli --help`
 - `pnpm run cli chat --fake "hello"`
 - `pnpm run cli chat --fake "hello" /trace`
-- `ARVINCLAW_API_KEY=secret pnpm run cli chat --fake "hello" /config`
+- `PEEWIT_API_KEY=secret pnpm run cli chat --fake "hello" /config`
 - `printf 'Hello\n/trace\n/config\n/exit\n' | pnpm run cli chat --fake-interactive`
 - `pnpm run cli chat`
 
@@ -44,7 +44,7 @@ Next recommended slice:
 
 ## 1. Purpose
 
-Phase 1 creates the first usable ArvinClaw agent loop.
+Phase 1 creates the first usable Peewit agent loop.
 
 The goal is a CLI chat that can call a configured model, assemble context, run a simple loop, and produce an explainable trace. Tools can remain minimal or fake until Phase 2, but the loop should leave a clear path for tool calls and permissions.
 
@@ -52,7 +52,7 @@ The goal is a CLI chat that can call a configured model, assemble context, run a
 
 After Phase 1, the user should be able to:
 
-- Run `arvinclaw chat`.
+- Run `peewit chat`.
 - Send a message.
 - Receive a model response.
 - See an explainable trace for the turn.
@@ -216,7 +216,7 @@ Each commit should keep tests passing for the behavior it introduces.
 
 Phase 1 is complete when:
 
-- `arvinclaw chat` can run a message-only conversation.
+- `peewit chat` can run a message-only conversation.
 - Agent Core can call a `ModelProvider`.
 - Context assembly is owned by `packages/context`.
 - CLI does not assemble prompts.

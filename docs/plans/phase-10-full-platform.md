@@ -7,7 +7,7 @@ Simplified Chinese version: [phase-10-full-platform.zh-CN.md](./phase-10-full-pl
 
 ## 1. Goal
 
-Turn ArvinClaw into a full personal agent platform: multi-entry, multi-model, multi-agent, observable, and safe enough for daily use.
+Turn Peewit into a full personal agent platform: multi-entry, multi-model, multi-agent, observable, and safe enough for daily use.
 
 ## 2. Parts
 

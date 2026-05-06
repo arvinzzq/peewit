@@ -4,12 +4,12 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ## Architecture Overview
 
-`@arvinclaw/skills` owns **skill discovery, parsing, and lifecycle management**. Skills are reusable agent instruction files (`.md` with YAML frontmatter) that the agent can load on demand. The package provides a `SkillLoader` for discovery, a `SkillManager` for user-facing lifecycle operations (install, enable, disable, trust), and a `parseSKILLMd` parser for SKILL.md files.
+`@peewit/skills` owns **skill discovery, parsing, and lifecycle management**. Skills are reusable agent instruction files (`.md` with YAML frontmatter) that the agent can load on demand. The package provides a `SkillLoader` for discovery, a `SkillManager` for user-facing lifecycle operations (install, enable, disable, trust), and a `parseSKILLMd` parser for SKILL.md files.
 
 ```
 Skill sources (3 tiers, precedence order):
   1. workspace/skills/*/SKILL.md    ← project-specific overrides
-  2. ~/.arvinclaw/skills/*.md        ← user-installed skills (manifest-gated)
+  2. ~/.peewit/skills/*.md        ← user-installed skills (manifest-gated)
   3. built-in (hardcoded)            ← research, project-inspector, safe-shell
 
         SkillLoader.load()
@@ -42,7 +42,7 @@ Required fields: `name`, `description`. Optional: `version`, `origin`, `permissi
 
 ### SkillDefinition vs. SkillSummary
 
-`SkillDefinition` carries the full skill metadata including `body`, `filePath`, `trusted`, `enabled`, `version`, `origin`, and `permissions`. It is used by the CLI (`arvinclaw skill list`, `arvinclaw skill review`).
+`SkillDefinition` carries the full skill metadata including `body`, `filePath`, `trusted`, `enabled`, `version`, `origin`, and `permissions`. It is used by the CLI (`peewit skill list`, `peewit skill review`).
 
 `SkillSummary` is a compact projection (`name`, `description`, `source`) injected into the `<skills>` section of the context prompt. The agent sees only the skill name and description — it loads the full body on demand via the `load_skill` tool.
 
@@ -51,7 +51,7 @@ Required fields: `name`, `description`. Optional: `version`, `origin`, `permissi
 `SkillLoader.load()` applies a first-seen-wins deduplication strategy:
 
 1. **Workspace skills** (`{workspaceRoot}/skills/*/SKILL.md`) — highest precedence. Each subdirectory is a skill with a `SKILL.md` file.
-2. **User skills** (`~/.arvinclaw/skills/*.md`) — flat `.md` files tracked via `skills-index.json` manifest. Skills not in the manifest, or with `enabled: false` in the manifest, are skipped.
+2. **User skills** (`~/.peewit/skills/*.md`) — flat `.md` files tracked via `skills-index.json` manifest. Skills not in the manifest, or with `enabled: false` in the manifest, are skipped.
 3. **Built-in skills** — hardcoded in source: `research`, `project-inspector`, `safe-shell`.
 
 If a workspace skill and a user skill share the same `name`, the workspace skill wins (its entry is added first to the `seen` set).
@@ -73,7 +73,7 @@ interface SkillManifestEntry {
 }
 ```
 
-The manifest file lives at `~/.arvinclaw/skills/skills-index.json`. It is read by `SkillLoader` to filter user skills, and written by `SkillManager` when lifecycle operations are performed.
+The manifest file lives at `~/.peewit/skills/skills-index.json`. It is read by `SkillLoader` to filter user skills, and written by `SkillManager` when lifecycle operations are performed.
 
 ### Built-in Skills
 

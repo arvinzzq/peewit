@@ -1,4 +1,4 @@
-# ArvinClaw
+# Peewit
 
 > A personal general-purpose agent — OpenClaw-inspired, TypeScript, real and usable.
 
@@ -11,13 +11,13 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ---
 
-## What is ArvinClaw?
+## What is Peewit?
 
-ArvinClaw is a personal general-purpose agent built from first principles in TypeScript.
+Peewit is a personal general-purpose agent built from first principles in TypeScript.
 
 It is both a **real, usable product** and an **architecture learning project**. Every module — agent loop, tool execution, permission policy, context assembly, session storage, streaming, and multi-agent coordination — is implemented deliberately, documented thoroughly, and tested.
 
-The reference architecture is [OpenClaw](https://openclaw.ai). ArvinClaw implements its core ideas in a clean, staged, independently deployable TypeScript monorepo.
+The reference architecture is [OpenClaw](https://openclaw.ai). Peewit implements its core ideas in a clean, staged, independently deployable TypeScript monorepo.
 
 ---
 
@@ -51,7 +51,7 @@ The reference architecture is [OpenClaw](https://openclaw.ai). ArvinClaw impleme
 
 ### Skills
 - **SKILL.md format** — `name` + `description` frontmatter, full body on demand
-- **Precedence** — workspace > user (`~/.arvinclaw/skills/`) > built-in
+- **Precedence** — workspace > user (`~/.peewit/skills/`) > built-in
 - **Skill management** — install, enable, disable, trust, review via CLI
 
 ### Adapters
@@ -61,12 +61,12 @@ The reference architecture is [OpenClaw](https://openclaw.ai). ArvinClaw impleme
 - **Session Gateway** — `packages/gateway` tracks active sessions across adapters
 
 ### Background Automation
-- **One-shot tasks** — `arvinclaw run "<goal>" [--mode auto|confirm]`
-- **Cron daemon** — `arvinclaw daemon` runs scheduled tasks from `tasks/*.task.json`
+- **One-shot tasks** — `peewit run "<goal>" [--mode auto|confirm]`
+- **Cron daemon** — `peewit daemon` runs scheduled tasks from `tasks/*.task.json`
 - **TaskFlow** — persistent cross-session task graph with 8 statuses and parent/child relationships
 - **Background approval policy** — `BackgroundApprovalResolver` auto-approves or auto-denies
-- **Task history** — `arvinclaw tasks` and `arvinclaw taskflow list/show/cancel`
-- **Memory dreaming** — `arvinclaw run --dream` consolidates daily notes into `MEMORY.md`
+- **Task history** — `peewit tasks` and `peewit taskflow list/show/cancel`
+- **Memory dreaming** — `peewit run --dream` consolidates daily notes into `MEMORY.md`
 
 ### Model Providers
 - **OpenAI-compatible** — any API following OpenAI chat completions (OpenAI, OpenRouter, Ollama, etc.)
@@ -80,8 +80,8 @@ The reference architecture is [OpenClaw](https://openclaw.ai). ArvinClaw impleme
 **Requirements:** Node.js ≥ 22, pnpm
 
 ```bash
-git clone https://github.com/your-username/arvinclaw
-cd arvinclaw
+git clone https://github.com/your-username/peewit
+cd peewit
 pnpm install
 ```
 
@@ -95,7 +95,7 @@ Minimal `.env` for OpenRouter:
 
 ```bash
 OPENROUTER_API_KEY=sk-or-...
-ARVINCLAW_MODEL=anthropic/claude-3-haiku
+PEEWIT_MODEL=anthropic/claude-3-haiku
 ```
 
 **Start chatting** (no build step required):
@@ -137,7 +137,7 @@ pnpm cli run "<goal>" --dream          # Memory dreaming — consolidate daily n
 ### Web UI
 
 ```bash
-pnpm --filter @arvinclaw/web run dev   # Hono on :3120, Vite on :5173
+pnpm --filter @peewit/web run dev   # Hono on :3120, Vite on :5173
 ```
 
 Open `http://localhost:5173` in your browser. Create or resume sessions, send messages, watch streaming responses, approve tool actions.
@@ -154,7 +154,7 @@ API endpoints:
 
 ## Architecture
 
-ArvinClaw is a pnpm monorepo. Packages own a single responsibility. Adapters wire them together.
+Peewit is a pnpm monorepo. Packages own a single responsibility. Adapters wire them together.
 
 ```
 packages/
@@ -201,25 +201,25 @@ Each package has a detailed README covering architecture, core concepts, impleme
 
 ## Configuration
 
-All settings are optional. ArvinClaw has safe defaults.
+All settings are optional. Peewit has safe defaults.
 
 | Environment Variable | Description | Default |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Use Anthropic provider (claude-haiku-4-5) | — |
-| `OPENROUTER_API_KEY` | Use OpenRouter (requires `ARVINCLAW_MODEL`) | — |
-| `ARVINCLAW_API_KEY` | Generic API key | — |
-| `ARVINCLAW_BASE_URL` | Provider base URL | `https://api.openai.com/v1` |
-| `ARVINCLAW_MODEL` | Model name | `gpt-4.1-mini` |
-| `ARVINCLAW_DEFAULT_MODE` | Autonomy mode: `observe` / `confirm` / `auto` | `confirm` |
-| `ARVINCLAW_WORKSPACE_ROOT` | Working directory | `.` |
-| `ARVINCLAW_LONG_TERM_MEMORY` | Memory policy: `disabled` / `read-only` / `write` | `disabled` |
-| `ARVINCLAW_PROMPT_MODE` | Prompt rendering: `full` / `minimal` / `none` | `full` |
-| `ARVINCLAW_EXECUTION_CONTRACT` | Execution discipline: `default` / `strict-agentic` | `default` |
-| `ARVINCLAW_TOOL_PROFILE` | Tool capability set: `coding` / `full` / `messaging` / `background` | `full` |
-| `ARVINCLAW_SANDBOX` | Restrict shell to workspace root: `true` / `false` | `false` |
-| `ARVINCLAW_THINKING_BUDGET` | Anthropic reasoning depth: `off` / `minimal` / `low` / `medium` / `high` / `max` / `adaptive` | `adaptive` |
+| `OPENROUTER_API_KEY` | Use OpenRouter (requires `PEEWIT_MODEL`) | — |
+| `PEEWIT_API_KEY` | Generic API key | — |
+| `PEEWIT_BASE_URL` | Provider base URL | `https://api.openai.com/v1` |
+| `PEEWIT_MODEL` | Model name | `gpt-4.1-mini` |
+| `PEEWIT_DEFAULT_MODE` | Autonomy mode: `observe` / `confirm` / `auto` | `confirm` |
+| `PEEWIT_WORKSPACE_ROOT` | Working directory | `.` |
+| `PEEWIT_LONG_TERM_MEMORY` | Memory policy: `disabled` / `read-only` / `write` | `disabled` |
+| `PEEWIT_PROMPT_MODE` | Prompt rendering: `full` / `minimal` / `none` | `full` |
+| `PEEWIT_EXECUTION_CONTRACT` | Execution discipline: `default` / `strict-agentic` | `default` |
+| `PEEWIT_TOOL_PROFILE` | Tool capability set: `coding` / `full` / `messaging` / `background` | `full` |
+| `PEEWIT_SANDBOX` | Restrict shell to workspace root: `true` / `false` | `false` |
+| `PEEWIT_THINKING_BUDGET` | Anthropic reasoning depth: `off` / `minimal` / `low` / `medium` / `high` / `max` / `adaptive` | `adaptive` |
 
-File-based config: `arvinclaw.config.json` (project) and `~/.arvinclaw/config.json` (user).
+File-based config: `peewit.config.json` (project) and `~/.peewit/config.json` (user).
 
 ---
 
@@ -236,7 +236,7 @@ pnpm cli chat         # run CLI from source, no build needed
 ### Running the Web UI locally
 
 ```bash
-pnpm --filter @arvinclaw/web run dev
+pnpm --filter @peewit/web run dev
 # Hono API server: http://localhost:3120
 # Vite dev server: http://localhost:5173
 ```
@@ -256,7 +256,7 @@ pnpm run docs:check   # heading count parity (EN ↔ zh-CN)
 ```bash
 pnpm run build                          # build all packages
 node apps/cli/dist/index.js chat        # run built CLI
-pnpm --filter @arvinclaw/web run start  # run built Web server
+pnpm --filter @peewit/web run start  # run built Web server
 ```
 
 ### Adding a tool
@@ -290,11 +290,11 @@ All documentation exists in English and Simplified Chinese.
 
 ## OpenClaw Alignment
 
-ArvinClaw is architecturally aligned with OpenClaw but not identical. See [Decision 0002](./docs/decisions/0002-openclaw-aligned-not-identical.md) for the rationale.
+Peewit is architecturally aligned with OpenClaw but not identical. See [Decision 0002](./docs/decisions/0002-openclaw-aligned-not-identical.md) for the rationale.
 
 Current alignment:
 
-| OpenClaw Capability | ArvinClaw Status |
+| OpenClaw Capability | Peewit Status |
 |---|---|
 | Agent loop (intake → inference → tools → persist) | ✅ Complete |
 | XML-section system prompt | ✅ Complete |
@@ -307,24 +307,24 @@ Current alignment:
 | Session persistence | ✅ JSONL store |
 | Multi-adapter (CLI + Web) | ✅ Shared `AgentRuntime` |
 | `sessions_spawn` sub-agents | ✅ `spawn_subagent` tool |
-| Background tasks | ✅ `arvinclaw run` |
+| Background tasks | ✅ `peewit run` |
 | Skill install / trust / permissions | ✅ Phase 9 |
 | Session gateway | ✅ `packages/gateway` |
 | Context compaction | ✅ `compactMessages()` in `packages/context` |
 | Skill body on-demand loading | ✅ `load_skill` tool |
 | `memory_search` / `memory_get` tools | ✅ `packages/tools` |
-| Prompt modes (full / minimal / none) | ✅ `ARVINCLAW_PROMPT_MODE` |
-| Strict-agentic execution contract | ✅ `ARVINCLAW_EXECUTION_CONTRACT` |
+| Prompt modes (full / minimal / none) | ✅ `PEEWIT_PROMPT_MODE` |
+| Strict-agentic execution contract | ✅ `PEEWIT_EXECUTION_CONTRACT` |
 | Per-session write locks | ✅ `SessionMutex` in `packages/core` |
 | Hooks system | ✅ `AgentHooks` in `packages/core` |
-| Tool profiles | ✅ `ARVINCLAW_TOOL_PROFILE` |
-| Sandbox enforcement | ✅ `ARVINCLAW_SANDBOX` |
-| Cron daemon | ✅ `arvinclaw daemon` |
+| Tool profiles | ✅ `PEEWIT_TOOL_PROFILE` |
+| Sandbox enforcement | ✅ `PEEWIT_SANDBOX` |
+| Cron daemon | ✅ `peewit daemon` |
 | TaskFlow (persistent task graph) | ✅ `packages/taskflow` |
 | Async subagents | ✅ `spawn_subagent_async` tool |
 | WebSocket support | ✅ `GET /ws/:id` |
-| Thinking budget | ✅ `ARVINCLAW_THINKING_BUDGET` |
-| Memory dreaming | ✅ `arvinclaw run --dream` |
+| Thinking budget | ✅ `PEEWIT_THINKING_BUDGET` |
+| Memory dreaming | ✅ `peewit run --dream` |
 
 All 18 OpenClaw alignment gaps are closed. See [OpenClaw Alignment Plan](./docs/plans/openclaw-alignment.md) for implementation details.
 
