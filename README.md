@@ -154,29 +154,112 @@ API endpoints:
 
 ## Architecture
 
-Peewit is a pnpm monorepo. Packages own a single responsibility. Adapters wire them together.
+Peewit is a pnpm monorepo with 12 packages and 2 adapter apps, organized into four strict layers. Packages own a single responsibility. Adapters wire everything together. Nothing in the core imports from adapters. No circular dependencies.
+
+### Module Map
+
+```mermaid
+graph TD
+    subgraph AL["Adapter Layer"]
+        CLI("**apps/cli**\nInk terminal · streaming\napproval prompts · todos panel\nslash commands · daemon")
+        WEB("**apps/web**\nHono API · SSE · WebSocket\nReact frontend · session list\napproval modal")
+    end
+
+    subgraph IL["Infrastructure Layer — stateless services & storage"]
+        direction LR
+        CFG("**config**\nEffectiveConfig\nenv resolution\nprovider shortcuts")
+        SES("**sessions**\nJSONL messages\n+ trace store\nsession list/get")
+        SKL("**skills**\nSKILL.md parser\nSkillLoader precedence\ninstall/enable/trust")
+        GTW("**gateway**\nSessionGateway\ncross-adapter\nsession registry")
+        ADP("**adapters**\nAdapterCapabilities\nToolProfile enum\nfilterToolsByProfile")
+        SCH("**scheduler**\nCronScheduler\nJsonlTaskStore\nBackgroundApprovalResolver")
+        TFL("**taskflow**\nJsonlTaskFlowStore\n8-status task graph\nparent / child tasks")
+    end
+
+    subgraph CL["Agent Core Layer — turn orchestration"]
+        CORE("**core**\nAgentRuntime · runTurn\n17-event async generator\nSessionMutex · AgentHooks\nplanning stall detection\nspawn_subagent tools")
+        CTX("**context**\nDefaultContextAssembler\nXML section system prompt\nPromptMode · compactMessages")
+        PRM("**permissions**\nDefaultPermissionPolicy\nrisk × autonomy mode\nallow / ask / deny")
+        TLS("**tools**\nread_file · write_file\nlist_directory · run_shell\nread_web_page · memory tools\nload_skill · append_daily_memory")
+    end
+
+    subgraph PL["Model Provider Layer — vendor abstraction"]
+        MDL("**models**\nOpenAICompatibleProvider\nAnthropicProvider\nstreaming · thinking budget\nFakeModelProvider")
+    end
+
+    EXT(["External APIs\nOpenAI · OpenRouter · Anthropic Claude"])
+
+    CLI -->|"creates AgentRuntime,\nwires all dependencies"| CORE
+    WEB -->|"creates AgentRuntime,\nwires all dependencies"| CORE
+    CLI --> CFG & SES & SKL & GTW & ADP & SCH & TFL
+    WEB --> CFG & SES & GTW
+
+    CORE --> CTX & PRM & TLS
+    CORE -->|"ModelProvider interface"| MDL
+    CTX -->|compactMessages| MDL
+    MDL --> EXT
+```
+
+**Dependency rules:**
+- Adapters (`apps/cli`, `apps/web`) own all wiring — they create `AgentRuntime` and inject every dependency.
+- `core` never imports from apps or infrastructure packages; it only depends on `context`, `permissions`, `tools`, and the `ModelProvider` interface.
+- Infrastructure packages (`config`, `sessions`, `skills`, `gateway`, `adapters`, `scheduler`, `taskflow`) are standalone — they do not import from `core`.
+- `models` is the deepest package; nothing it imports knows about agent logic.
+
+### Turn Execution Flow
+
+What happens inside a single `AgentRuntime.runTurn()` call:
+
+```mermaid
+flowchart TD
+    START(["User message"]) --> MUTEX["SessionMutex.acquire(sessionId)"]
+    MUTEX --> BT["beforeTurn hook"]
+    BT --> CTX["context.assemble()\nsystem prompt + history\n+ tool definitions"]
+    CTX --> LOOP{{"loop — max 12 steps"}}
+
+    LOOP --> MODEL["models.generate / generateStream()\n→ emit token_delta events"]
+    MODEL --> OUT{"output type?"}
+
+    OUT -->|tool_calls| PERM["permissions.evaluate()\nrisk × autonomy mode"]
+    PERM -->|allow| BTC["beforeToolCall hook\ntools.execute()\nafterToolCall hook"]
+    PERM -->|ask| APPR["ApprovalResolver.resolve()\n→ approval prompt to user"]
+    APPR -->|approved| BTC
+    APPR -->|denied| FAIL
+    BTC --> RES["add tool results to context\n→ emit tool_* events"]
+    RES --> LOOP
+
+    OUT -->|message| STALL{"isPlanningOnly()\n5-guard chain"}
+    STALL -->|"yes, retries left"| RETRY["inject retry instruction\nstallCount++"]
+    RETRY --> LOOP
+    STALL -->|"yes, max retries hit"| FAIL(["run_failed"])
+    STALL -->|no| DONE(["assistant_message_created\nrun_completed"])
+
+    DONE --> AT["afterTurn hook"]
+    FAIL --> AT
+    AT --> REL["SessionMutex.release()"]
+```
+
+### Package List
 
 ```
 packages/
-  config/       Configuration loading, env overrides, resolveSessionsDirectory
-  context/      System prompt assembly (XML sections), prompt caching
-  core/         AgentRuntime, event system, spawn_subagent, streaming
-  models/       OpenAI-compatible + Anthropic providers, streaming
-  permissions/  Risk-based permission policy, autonomy modes
+  core/         AgentRuntime, 17-event system, spawn_subagent, streaming, stall detection
+  context/      System prompt assembly (XML sections), prompt caching, compactMessages
+  models/       OpenAI-compatible + Anthropic providers, streaming, thinking budget
+  tools/        Built-in tools, sandbox enforcement, memory tools, load_skill
+  permissions/  Risk-based permission policy, autonomy modes (observe/confirm/auto)
   sessions/     JSONL session + trace storage
-  skills/       SKILL.md parser, SkillLoader, SkillManager
-  tools/        Built-in tools, load_skill, memory_search, memory_get
-  adapters/     AdapterCapabilities interface, CLI/Web/Background constants
-  scheduler/    BackgroundApprovalResolver, JsonlTaskStore, CronScheduler
-  taskflow/     TaskRecord, JsonlTaskFlowStore — persistent task graph
+  skills/       SKILL.md parser, SkillLoader, SkillManager lifecycle
+  adapters/     AdapterCapabilities, ToolProfile, filterToolsByProfile
+  config/       Configuration loading, env overrides, provider shortcuts, redaction
+  scheduler/    CronScheduler, BackgroundApprovalResolver, JsonlTaskStore
+  taskflow/     TaskRecord, JsonlTaskFlowStore — persistent cross-session task graph
   gateway/      SessionGateway — cross-adapter session registry
 
 apps/
-  cli/          Ink-based terminal adapter (streaming, approval, todos)
-  web/          Hono server + React frontend (SSE, approval modal, sessions page)
+  cli/          Ink terminal adapter (streaming, approval prompts, todos, slash cmds)
+  web/          Hono server + React frontend (SSE, approval modal, sessions list)
 ```
-
-**Dependency rules:** Core packages do not import from apps. The adapter layer wires everything. No circular dependencies.
 
 ### Package Documentation
 

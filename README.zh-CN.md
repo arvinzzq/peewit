@@ -154,29 +154,112 @@ API 端点：
 
 ## 架构
 
-Peewit 是 pnpm monorepo。每个包只负责单一职责。适配器将它们连接在一起。
+Peewit 是一个包含 12 个 packages 和 2 个适配器应用的 pnpm monorepo，组织为四个严格分层。每个包只负责单一职责。适配器负责所有连接。核心层不向上依赖适配器。无循环依赖。
+
+### 模块关系图
+
+```mermaid
+graph TD
+    subgraph AL["适配器层"]
+        CLI("**apps/cli**\nInk 终端 · 流式输出\n审批提示 · Todos 面板\nslash 命令 · daemon")
+        WEB("**apps/web**\nHono API · SSE · WebSocket\nReact 前端 · 会话列表\n审批 Modal")
+    end
+
+    subgraph IL["基础设施层 — 无状态服务与存储"]
+        direction LR
+        CFG("**config**\nEffectiveConfig\n环境变量解析\nProvider 快捷方式")
+        SES("**sessions**\nJSONL 消息存储\n+ Trace 存储\n会话列表/读取")
+        SKL("**skills**\nSKILL.md 解析器\nSkillLoader 优先级\n安装/启用/信任")
+        GTW("**gateway**\nSessionGateway\n跨适配器\n会话注册表")
+        ADP("**adapters**\nAdapterCapabilities\nToolProfile 枚举\nfilterToolsByProfile")
+        SCH("**scheduler**\nCronScheduler\nJsonlTaskStore\nBackgroundApprovalResolver")
+        TFL("**taskflow**\nJsonlTaskFlowStore\n8 状态任务图\n父/子任务关系")
+    end
+
+    subgraph CL["Agent 核心层 — Turn 编排"]
+        CORE("**core**\nAgentRuntime · runTurn\n17 种事件异步生成器\nSessionMutex · AgentHooks\n规划停滞检测\nspawn_subagent 工具")
+        CTX("**context**\nDefaultContextAssembler\nXML 分区系统提示\nPromptMode · compactMessages")
+        PRM("**permissions**\nDefaultPermissionPolicy\n风险 × 自主模式\nallow / ask / deny")
+        TLS("**tools**\nread_file · write_file\nlist_directory · run_shell\nread_web_page · 记忆工具\nload_skill · append_daily_memory")
+    end
+
+    subgraph PL["模型 Provider 层 — 厂商抽象"]
+        MDL("**models**\nOpenAICompatibleProvider\nAnthropicProvider\n流式 · 思考预算\nFakeModelProvider")
+    end
+
+    EXT(["外部 API\nOpenAI · OpenRouter · Anthropic Claude"])
+
+    CLI -->|"创建 AgentRuntime，\n注入所有依赖"| CORE
+    WEB -->|"创建 AgentRuntime，\n注入所有依赖"| CORE
+    CLI --> CFG & SES & SKL & GTW & ADP & SCH & TFL
+    WEB --> CFG & SES & GTW
+
+    CORE --> CTX & PRM & TLS
+    CORE -->|"ModelProvider 接口"| MDL
+    CTX -->|compactMessages| MDL
+    MDL --> EXT
+```
+
+**依赖规则：**
+- 适配器（`apps/cli`、`apps/web`）拥有所有连接逻辑 — 它们创建 `AgentRuntime` 并注入全部依赖。
+- `core` 不导入 apps 或基础设施包；仅依赖 `context`、`permissions`、`tools` 和 `ModelProvider` 接口。
+- 基础设施包（`config`、`sessions`、`skills`、`gateway`、`adapters`、`scheduler`、`taskflow`）是独立的，不导入 `core`。
+- `models` 是最底层包，它不知道任何 agent 逻辑。
+
+### Turn 执行流程
+
+单次 `AgentRuntime.runTurn()` 调用的内部执行路径：
+
+```mermaid
+flowchart TD
+    START(["用户消息"]) --> MUTEX["SessionMutex.acquire(sessionId)"]
+    MUTEX --> BT["beforeTurn hook"]
+    BT --> CTX["context.assemble()\n系统提示 + 历史消息\n+ 工具定义"]
+    CTX --> LOOP{{"循环 — 最多 12 步"}}
+
+    LOOP --> MODEL["models.generate / generateStream()\n→ 发出 token_delta 事件"]
+    MODEL --> OUT{"输出类型？"}
+
+    OUT -->|tool_calls| PERM["permissions.evaluate()\n风险 × 自主模式"]
+    PERM -->|allow| BTC["beforeToolCall hook\ntools.execute()\nafterToolCall hook"]
+    PERM -->|ask| APPR["ApprovalResolver.resolve()\n→ 向用户展示审批提示"]
+    APPR -->|approved| BTC
+    APPR -->|denied| FAIL
+    BTC --> RES["工具结果加入上下文\n→ 发出 tool_* 事件"]
+    RES --> LOOP
+
+    OUT -->|message| STALL{"isPlanningOnly()\n五层守卫链"}
+    STALL -->|"是，剩余重试次数"| RETRY["注入重试指令\nstallCount++"]
+    RETRY --> LOOP
+    STALL -->|"是，已达最大重试"| FAIL(["run_failed"])
+    STALL -->|否| DONE(["assistant_message_created\nrun_completed"])
+
+    DONE --> AT["afterTurn hook"]
+    FAIL --> AT
+    AT --> REL["SessionMutex.release()"]
+```
+
+### 包列表
 
 ```
 packages/
-  config/       配置加载、环境变量覆盖、resolveSessionsDirectory
-  context/      系统提示词组装（XML 段落）、Prompt Caching
-  core/         AgentRuntime、事件系统、spawn_subagent、流式路径
-  models/       OpenAI 兼容 + Anthropic Provider、流式支持
-  permissions/  基于风险的权限策略、自主模式
-  sessions/     JSONL 会话和 Trace 存储
-  skills/       SKILL.md 解析器、SkillLoader、SkillManager
-  tools/        内置工具、load_skill、memory_search、memory_get
-  adapters/     AdapterCapabilities 接口，CLI/Web/Background 常量
-  scheduler/    BackgroundApprovalResolver、JsonlTaskStore、CronScheduler
-  taskflow/     TaskRecord、JsonlTaskFlowStore — 持久化任务图
+  core/         AgentRuntime、17 种事件系统、spawn_subagent、流式、停滞检测
+  context/      系统提示组装（XML 段落）、Prompt Caching、compactMessages
+  models/       OpenAI 兼容 + Anthropic Provider、流式、思考预算
+  tools/        内置工具、沙箱限制、记忆工具、load_skill
+  permissions/  基于风险的权限策略、自主模式（observe/confirm/auto）
+  sessions/     JSONL 会话 + Trace 存储
+  skills/       SKILL.md 解析器、SkillLoader、SkillManager 生命周期
+  adapters/     AdapterCapabilities、ToolProfile、filterToolsByProfile
+  config/       配置加载、环境变量覆盖、Provider 快捷方式、脱敏
+  scheduler/    CronScheduler、BackgroundApprovalResolver、JsonlTaskStore
+  taskflow/     TaskRecord、JsonlTaskFlowStore — 持久化跨会话任务图
   gateway/      SessionGateway — 跨适配器会话注册表
 
 apps/
-  cli/          基于 Ink 的终端适配器（流式、审批、Todos）
-  web/          Hono 服务器 + React 前端（SSE、审批 Modal、会话页）
+  cli/          Ink 终端适配器（流式、审批提示、Todos、slash 命令）
+  web/          Hono 服务器 + React 前端（SSE、审批 Modal、会话列表）
 ```
-
-**依赖规则：** Core packages 不导入 apps。适配器层负责连接所有部分。无循环依赖。
 
 ### 包文档
 
