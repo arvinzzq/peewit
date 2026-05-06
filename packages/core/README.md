@@ -61,11 +61,12 @@ run_completed | run_failed
 
 ### Planning Stall Detection
 
-When the model responds with a text message that looks like a narrated plan rather than a tool call, the runtime detects a "stall" using three heuristic regex patterns:
+When the model responds with a text message that looks like a narrated plan rather than a tool call, the runtime detects a "stall" using two heuristic regex patterns:
 
-- `PLAN_PROMISE_RE` — matches phrases like "I'll", "let me", "I'm going to"
-- `PLAN_HEADING_RE` — matches headings like "Plan:", "Steps:", "Here's what I"
-- `PLAN_BULLET_RE` — matches numbered or bulleted lists
+- `PLAN_PROMISE_RE` — matches explicit future-action commitments: "I'll", "let me", "I'm going to", "I will", "I plan to"
+- `PLAN_HEADING_RE` — matches explicit plan-section headings: "Plan:", "Steps:", "Approach:", "My plan:" (colon required to avoid false positives on result-report headers)
+
+Bullet and numbered lists are intentionally **not** a standalone stall signal — the model commonly uses list formatting when reporting tool results (e.g. "Files found:\n- a.txt\n- b.txt"), and treating these as stalls causes false-positive retry loops.
 
 On stall detection, the runtime emits `planning_stall_detected` and injects a retry instruction: _"Do not restate the plan. Act now: take the first concrete tool action you can."_ After `maxPlanningStallRetries` consecutive stalls, the run fails. The stall counter resets whenever the model successfully calls a tool or generates a non-stall message.
 

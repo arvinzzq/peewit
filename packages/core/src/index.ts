@@ -305,8 +305,11 @@ const PLANNING_ONLY_RETRY_INSTRUCTION =
   "Do not restate the plan. Act now: take the first concrete tool action you can.";
 
 const PLAN_PROMISE_RE = /\b(I['']ll|let me|I'm going to|I will|I plan to)\b/i;
-const PLAN_HEADING_RE = /^(plan|steps|approach|here['']s what I|my plan)[:\s]/im;
-const PLAN_BULLET_RE = /^(\d+\.|[-*•])\s+\w/m;
+// Require an explicit colon after the heading word — prevents matching result-report
+// headers like "Steps taken:" is fine, but "Steps: " at line start is a clear plan signal.
+// Removed "here's what I" — it's covered by PLAN_PROMISE_RE ("I'll…") and false-positives
+// on result-report phrases like "Here's what I found:".
+const PLAN_HEADING_RE = /^(plan|steps|approach|my plan)\s*:/im;
 
 export class AgentRuntime {
   readonly #contextAssembler: ContextAssembler;
@@ -696,7 +699,10 @@ function normalizeAutonomyMode(mode: string | undefined): AutonomyMode {
 }
 
 function isPlanningOnly(content: string): boolean {
-  return PLAN_PROMISE_RE.test(content) || PLAN_HEADING_RE.test(content) || PLAN_BULLET_RE.test(content);
+  // Bullet lists are NOT a reliable stall signal — the model uses them for result
+  // reporting too (e.g. "Files found:\n- a.txt\n- b.txt"). Only the promise and
+  // explicit heading patterns are specific enough to distinguish planning from acting.
+  return PLAN_PROMISE_RE.test(content) || PLAN_HEADING_RE.test(content);
 }
 
 // AsyncTaskStore is a duck-typed interface for storing async task records.

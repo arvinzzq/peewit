@@ -869,6 +869,39 @@ describe("planning stall detection", () => {
     expect(events.map((e) => e.type)).not.toContain("planning_stall_detected");
     expect(events.at(-1)?.type).toBe("run_completed");
   });
+
+  test("does not detect stall when model reports results using a bullet list", async () => {
+    // Regression: PLAN_BULLET_RE used to fire on result-reporting messages that
+    // happened to use bullet or numbered-list formatting, causing false stall loops.
+    const bulletContents = [
+      "Here are the files I found:\n- package.json\n- README.md\n- apps/",
+      "Directory listing:\n1. src/\n2. dist/\n3. node_modules/",
+      "Found these entries:\n• index.ts\n• index.test.ts",
+      "The project contains:\n- packages/ (12 packages)\n- apps/ (2 apps)",
+    ];
+
+    for (const content of bulletContents) {
+      const runtime = makeRuntime([{ type: "message", content }]);
+      const events = await collect(runtime.runTurn({ message: "List the files." }));
+      expect(events.map((e) => e.type)).not.toContain("planning_stall_detected");
+      expect(events.at(-1)?.type).toBe("run_completed");
+    }
+  });
+
+  test("does not detect stall for result-report phrases like 'here's what I found'", async () => {
+    // Regression: "here's what I" was in PLAN_HEADING_RE and fired on result reports.
+    const resultPhrases = [
+      "Here's what I found: the project name is peewit.",
+      "Here's what I discovered in the file: version 1.0.0",
+    ];
+
+    for (const content of resultPhrases) {
+      const runtime = makeRuntime([{ type: "message", content }]);
+      const events = await collect(runtime.runTurn({ message: "Check the file." }));
+      expect(events.map((e) => e.type)).not.toContain("planning_stall_detected");
+      expect(events.at(-1)?.type).toBe("run_completed");
+    }
+  });
 });
 
 describe("todos_updated event", () => {

@@ -7,6 +7,9 @@
     "vitest.config.ts",
     "scripts/**/*.ts"
   ],
+  "exclude": [
+    "scripts/test-real-api.ts"
+  ],
   "references": [
     {
       "path": "./apps/cli"

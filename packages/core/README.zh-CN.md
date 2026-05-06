@@ -61,11 +61,12 @@ run_completed | run_failed
 
 ### 规划停滞检测
 
-当模型返回看起来像是叙述计划而非实际调用工具的文本时，运行时使用三个启发式正则检测"停滞"：
+当模型返回看起来像是叙述计划而非实际调用工具的文本时，运行时使用两个启发式正则检测"停滞"：
 
-- `PLAN_PROMISE_RE` — 匹配"I'll"、"let me"、"I'm going to"等短语
-- `PLAN_HEADING_RE` — 匹配"Plan:"、"Steps:"、"Here's what I"等标题
-- `PLAN_BULLET_RE` — 匹配有序或无序列表
+- `PLAN_PROMISE_RE` — 匹配明确的未来行动承诺短语："I'll"、"let me"、"I'm going to"、"I will"、"I plan to"
+- `PLAN_HEADING_RE` — 匹配明确的计划标题行："Plan:"、"Steps:"、"Approach:"、"My plan:"（要求冒号，避免对结果汇报标题产生误判）
+
+有序/无序列表**不**单独作为停滞信号——模型在汇报工具结果时（如"Files found:\n- a.txt\n- b.txt"）也会使用列表格式，将其视为停滞会导致误判重试循环。
 
 检测到停滞后，运行时发出 `planning_stall_detected` 并注入重试指令。连续停滞达到 `maxPlanningStallRetries` 次后，运行失败。每次模型成功调用工具或产生非停滞消息后，计数器重置。
 
