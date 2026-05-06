@@ -817,7 +817,7 @@ describe("planning stall detection", () => {
     const runtime = makeRuntime(
       [
         { type: "message", content: "I'll read the file first." },
-        { type: "message", content: "Let me proceed step by step." },
+        { type: "message", content: "Let me investigate the contents next." },
       ],
       { maxPlanningStallRetries: 2 }
     );
@@ -870,16 +870,12 @@ describe("planning stall detection", () => {
     expect(events.at(-1)?.type).toBe("run_completed");
   });
 
-  test("does not detect stall when model reports results using a bullet list", async () => {
-    // Regression: PLAN_BULLET_RE used to fire on result-reporting messages that
-    // happened to use bullet or numbered-list formatting, causing false stall loops.
+  test("does not detect stall for bullet lists without promise language", async () => {
+    // Bullets alone (no promise phrase) must never trigger the stall detector.
     const bulletContents = [
-      "Here are the files I found:\n- package.json\n- README.md\n- apps/",
       "Directory listing:\n1. src/\n2. dist/\n3. node_modules/",
-      "Found these entries:\n• index.ts\n• index.test.ts",
       "The project contains:\n- packages/ (12 packages)\n- apps/ (2 apps)",
     ];
-
     for (const content of bulletContents) {
       const runtime = makeRuntime([{ type: "message", content }]);
       const events = await collect(runtime.runTurn({ message: "List the files." }));
@@ -888,19 +884,66 @@ describe("planning stall detection", () => {
     }
   });
 
-  test("does not detect stall for result-report phrases like 'here's what I found'", async () => {
-    // Regression: "here's what I" was in PLAN_HEADING_RE and fired on result reports.
-    const resultPhrases = [
-      "Here's what I found: the project name is peewit.",
-      "Here's what I discovered in the file: version 1.0.0",
+  test("does not detect stall when completion language is present (COMPLETION_RE guard)", async () => {
+    // Completion words (found, done, implemented…) signal the model already acted.
+    // Even if promise + action verb are also present, completion takes priority.
+    const completionContents = [
+      "I found the following files:\n- package.json\n- README.md",
+      "I'll show you what I found: version 1.0.0",      // promise + verb BUT "found"
+      "Done.",
+      "I've implemented the fix and verified it passes.",  // "implemented" + "verified"
+      "I ran the tests and they all passed.",             // "ran"
     ];
-
-    for (const content of resultPhrases) {
+    for (const content of completionContents) {
       const runtime = makeRuntime([{ type: "message", content }]);
-      const events = await collect(runtime.runTurn({ message: "Check the file." }));
+      const events = await collect(runtime.runTurn({ message: "Do the task." }));
       expect(events.map((e) => e.type)).not.toContain("planning_stall_detected");
       expect(events.at(-1)?.type).toBe("run_completed");
     }
+  });
+
+  test("does not detect stall when response is longer than 700 characters (length guard)", async () => {
+    // Long responses are almost certainly result reports, not plans.
+    const longContent = "I'll analyze the results. " + "x ".repeat(350);
+    const runtime = makeRuntime([{ type: "message", content: longContent }]);
+    const events = await collect(runtime.runTurn({ message: "Analyze." }));
+    expect(events.map((e) => e.type)).not.toContain("planning_stall_detected");
+    expect(events.at(-1)?.type).toBe("run_completed");
+  });
+
+  test("does not detect stall when response contains a code block (code block guard)", async () => {
+    const codeContent = "I'll write this function:\n```typescript\nfunction hello() { return 'hi'; }\n```";
+    const runtime = makeRuntime([{ type: "message", content: codeContent }]);
+    const events = await collect(runtime.runTurn({ message: "Write a function." }));
+    expect(events.map((e) => e.type)).not.toContain("planning_stall_detected");
+    expect(events.at(-1)?.type).toBe("run_completed");
+  });
+
+  test("does not detect stall for vague filler phrases without action verbs", async () => {
+    // "let me think" / "I'll consider" — promise without a concrete action verb.
+    const fillerContents = [
+      "Let me think about this.",
+      "Let me consider the options carefully.",
+      "I'll reflect on the best approach.",
+    ];
+    for (const content of fillerContents) {
+      const runtime = makeRuntime([{ type: "message", content }]);
+      const events = await collect(runtime.runTurn({ message: "Help me decide." }));
+      expect(events.map((e) => e.type)).not.toContain("planning_stall_detected");
+      expect(events.at(-1)?.type).toBe("run_completed");
+    }
+  });
+
+  test("detects stall for structured plan (heading + bullets + promise) even without action verb", async () => {
+    // Structured format is its own stall signal — action verbs are only required
+    // for unstructured promise-only messages.
+    const structuredPlan = "Steps:\n- First, I'll get started.\n- Then proceed.";
+    const runtime = makeRuntime([
+      { type: "message", content: structuredPlan },
+      { type: "message", content: "Done." }
+    ]);
+    const events = await collect(runtime.runTurn({ message: "Do the task." }));
+    expect(events.map((e) => e.type)).toContain("planning_stall_detected");
   });
 });
 
@@ -1171,8 +1214,8 @@ describe("strict-agentic execution contract", () => {
       contextAssembler: new DefaultContextAssembler(),
       modelProvider: new FakeModelProvider([
         { type: "message", content: "I'll read the file first." },
-        { type: "message", content: "Let me proceed step by step." },
-        { type: "message", content: "I will now do the work." },
+        { type: "message", content: "Let me investigate the project structure." },
+        { type: "message", content: "I will now search for the answer." },
         { type: "message", content: "Done." }
       ]),
       systemInstruction: "You are Peewit.",
@@ -1198,7 +1241,7 @@ describe("strict-agentic execution contract", () => {
       contextAssembler: new DefaultContextAssembler(),
       modelProvider: new FakeModelProvider([
         { type: "message", content: "I'll read the file first." },
-        { type: "message", content: "Let me proceed step by step." },
+        { type: "message", content: "Let me investigate the contents." },
         { type: "message", content: "Done." }
       ]),
       systemInstruction: "You are Peewit.",

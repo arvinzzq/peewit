@@ -61,12 +61,14 @@ run_completed | run_failed
 
 ### Planning Stall Detection
 
-When the model responds with a text message that looks like a narrated plan rather than a tool call, the runtime detects a "stall" using two heuristic regex patterns:
+When the model responds with a text message that looks like a narrated plan rather than a tool call, the runtime detects a "stall" using an OpenClaw-aligned guard chain:
 
-- `PLAN_PROMISE_RE` — matches explicit future-action commitments: "I'll", "let me", "I'm going to", "I will", "I plan to"
-- `PLAN_HEADING_RE` — matches explicit plan-section headings: "Plan:", "Steps:", "Approach:", "My plan:" (colon required to avoid false positives on result-report headers)
-
-Bullet and numbered lists are intentionally **not** a standalone stall signal — the model commonly uses list formatting when reporting tool results (e.g. "Files found:\n- a.txt\n- b.txt"), and treating these as stalls causes false-positive retry loops.
+1. **Length guard** (`PLAN_MAX_CHARS = 700`) — responses longer than 700 characters are almost certainly result reports, not plans.
+2. **Code block guard** — any response containing ` ``` ` is never a planning stall.
+3. **`PLAN_COMPLETION_RE`** — if the response contains completion language (`done`, `finished`, `implemented`, `found`, `here's what`, `verified`, `ran`, …) the model has already acted; never a stall. This is the primary guard against false positives on result-reporting messages.
+4. **`PLAN_PROMISE_RE`** — explicit future-action commitments ("I'll", "let me", "I'm going to", …).
+5. **`hasStructuredPlanFormat`** — structured plan = explicit heading (`Plan:`, `Steps:`, `Next steps:`) + promise language, _or_ ≥2 bullet/numbered lines + promise language. Structured format alone is sufficient for stall detection.
+6. **`PLAN_ACTION_VERB_RE`** — for unstructured (no heading/bullets) messages, a concrete action verb (`read`, `search`, `implement`, `investigate`, …) is required alongside promise language — this prevents vague filler phrases like "let me think about this" from triggering.
 
 On stall detection, the runtime emits `planning_stall_detected` and injects a retry instruction: _"Do not restate the plan. Act now: take the first concrete tool action you can."_ After `maxPlanningStallRetries` consecutive stalls, the run fails. The stall counter resets whenever the model successfully calls a tool or generates a non-stall message.
 

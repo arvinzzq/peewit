@@ -304,12 +304,29 @@ const DEFAULT_PERMISSION_GUIDANCE =
 const PLANNING_ONLY_RETRY_INSTRUCTION =
   "Do not restate the plan. Act now: take the first concrete tool action you can.";
 
-const PLAN_PROMISE_RE = /\b(I['']ll|let me|I'm going to|I will|I plan to)\b/i;
-// Require an explicit colon after the heading word — prevents matching result-report
-// headers like "Steps taken:" is fine, but "Steps: " at line start is a clear plan signal.
-// Removed "here's what I" — it's covered by PLAN_PROMISE_RE ("I'll…") and false-positives
-// on result-report phrases like "Here's what I found:".
-const PLAN_HEADING_RE = /^(plan|steps|approach|my plan)\s*:/im;
+// ── Planning stall detection (OpenClaw-aligned) ──────────────────────────────
+// Promise language — explicit future-action commitments.
+const PLAN_PROMISE_RE =
+  /\b(?:i(?:'ll| will)|let me|i(?:'m| am)\s+going to|first[, ]+i(?:'ll| will)|next[, ]+i(?:'ll| will)|i can do that)\b/i;
+
+// Completion language — presence of any of these words means the model already
+// acted or is reporting results. Takes priority: if found, never a planning stall.
+const PLAN_COMPLETION_RE =
+  /\b(?:done|finished|implemented|updated|fixed|changed|ran|verified|found|here(?:'s| is) what|blocked by|the blocker is)\b/i;
+
+// Explicit plan-section headings (colon required; "steps taken" is a result header).
+const PLAN_HEADING_RE = /^(?:plan|steps?|next steps?)\s*:/im;
+
+// Bullet / numbered list — a planning signal only when combined with promise language.
+const PLAN_BULLET_RE = /^(?:[-*•]\s+|\d+[.)]\s+)/u;
+
+// Action verbs required when no structured plan format is present — prevents
+// vague filler phrases like "let me think" from triggering the stall detector.
+const PLAN_ACTION_VERB_RE =
+  /\b(?:inspect|investigate|check|look(?:\s+into|\s+at)?|read|search|find|debug|fix|patch|update|change|edit|write|implement|run|test|verify|review|analy(?:s|z)e|summari(?:s|z)e|explain|answer|show|share|report|prepare|refactor|deploy)\b/i;
+
+// Responses longer than this are almost certainly result reports, not plans.
+const PLAN_MAX_CHARS = 700;
 
 export class AgentRuntime {
   readonly #contextAssembler: ContextAssembler;
@@ -698,11 +715,30 @@ function normalizeAutonomyMode(mode: string | undefined): AutonomyMode {
   return mode === "observe" || mode === "auto" ? mode : "confirm";
 }
 
+// True when the text has the structure of a written-out plan:
+//   (heading + promise language)  OR  (≥2 bullet lines + promise language)
+function hasStructuredPlanFormat(text: string): boolean {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return false;
+  const bulletCount = lines.filter((l) => PLAN_BULLET_RE.test(l)).length;
+  const hasPromise = lines.some((l) => PLAN_PROMISE_RE.test(l));
+  const hasHeading = PLAN_HEADING_RE.test(lines[0] ?? "");
+  return (hasHeading && hasPromise) || (bulletCount >= 2 && hasPromise);
+}
+
 function isPlanningOnly(content: string): boolean {
-  // Bullet lists are NOT a reliable stall signal — the model uses them for result
-  // reporting too (e.g. "Files found:\n- a.txt\n- b.txt"). Only the promise and
-  // explicit heading patterns are specific enough to distinguish planning from acting.
-  return PLAN_PROMISE_RE.test(content) || PLAN_HEADING_RE.test(content);
+  const text = content.trim();
+  // Empty, long (likely a result report), or contains code blocks → never a stall.
+  if (!text || text.length > PLAN_MAX_CHARS || text.includes("```")) return false;
+  // Completion language means the model already acted or is reporting results.
+  if (PLAN_COMPLETION_RE.test(text)) return false;
+  const hasStructured = hasStructuredPlanFormat(text);
+  // Without structured plan format, require explicit promise language.
+  if (!PLAN_PROMISE_RE.test(text) && !hasStructured) return false;
+  // Without structured plan format, also require an action verb — prevents vague
+  // filler ("let me think about this") from triggering the stall detector.
+  if (!hasStructured && !PLAN_ACTION_VERB_RE.test(text)) return false;
+  return true;
 }
 
 // AsyncTaskStore is a duck-typed interface for storing async task records.
