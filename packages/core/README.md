@@ -61,11 +61,17 @@ run_completed | run_failed
 
 ### Planning Stall Detection
 
-When the model responds with a text message that looks like a narrated plan rather than a tool call, the runtime detects a "stall" using an OpenClaw-aligned guard chain:
+When the model responds with a text message that looks like a narrated plan rather than a tool call, the runtime detects a "stall" using an OpenClaw-aligned guard chain. There are two levels of guards:
+
+**Turn-level guard (checked before text analysis)**
+
+- **`hadRealToolCallThisTurn`** — if any non-`update_todos` tool was called earlier in this turn, the subsequent message is reporting results, not planning. Stall detection is skipped entirely. Mirrors OpenClaw's `hasNonPlanToolActivity` check: a model that already did real work cannot be stalling.
+
+**Text-level guards (applied to the message content)**
 
 1. **Length guard** (`PLAN_MAX_CHARS = 700`) — responses longer than 700 characters are almost certainly result reports, not plans.
 2. **Code block guard** — any response containing ` ``` ` is never a planning stall.
-3. **`PLAN_COMPLETION_RE`** — if the response contains completion language (`done`, `finished`, `implemented`, `found`, `here's what`, `verified`, `ran`, …) the model has already acted; never a stall. This is the primary guard against false positives on result-reporting messages.
+3. **`PLAN_COMPLETION_RE`** — if the response contains completion language (`done`, `finished`, `implemented`, `found`, `here's what`, `verified`, `ran`, …) the model has already acted; never a stall.
 4. **`PLAN_PROMISE_RE`** — explicit future-action commitments ("I'll", "let me", "I'm going to", …).
 5. **`hasStructuredPlanFormat`** — structured plan = explicit heading (`Plan:`, `Steps:`, `Next steps:`) + promise language, _or_ ≥2 bullet/numbered lines + promise language. Structured format alone is sufficient for stall detection.
 6. **`PLAN_ACTION_VERB_RE`** — for unstructured (no heading/bullets) messages, a concrete action verb (`read`, `search`, `implement`, `investigate`, …) is required alongside promise language — this prevents vague filler phrases like "let me think about this" from triggering.

@@ -61,11 +61,17 @@ run_completed | run_failed
 
 ### 规划停滞检测
 
-当模型返回看起来像是叙述计划而非实际调用工具的文本时，运行时使用与 OpenClaw 对齐的守卫链进行检测：
+当模型返回看起来像是叙述计划而非实际调用工具的文本时，运行时使用与 OpenClaw 对齐的守卫链进行检测。守卫分为两个层次：
+
+**Turn 级守卫（在文本分析之前检查）**
+
+- **`hadRealToolCallThisTurn`**——如果本次 turn 中已有任何非 `update_todos` 工具被调用过，则后续消息是在汇报结果，而非规划。完全跳过停滞检测。对应 OpenClaw 的 `hasNonPlanToolActivity` 检查：已经做了真实工作的模型不可能在停滞。
+
+**文本级守卫（对消息内容进行分析）**
 
 1. **长度守卫**（`PLAN_MAX_CHARS = 700`）——超过 700 字符的回复几乎肯定是结果汇报，而非计划。
 2. **代码块守卫**——包含 ` ``` ` 的回复永远不是计划停滞。
-3. **`PLAN_COMPLETION_RE`**——若回复包含完成语言（`done`、`finished`、`implemented`、`found`、`here's what`、`verified`、`ran` 等），说明模型已采取行动，永远不是停滞。这是防止对结果汇报消息产生误判的主要守卫。
+3. **`PLAN_COMPLETION_RE`**——若回复包含完成语言（`done`、`finished`、`implemented`、`found`、`here's what`、`verified`、`ran` 等），说明模型已采取行动，永远不是停滞。
 4. **`PLAN_PROMISE_RE`**——明确的未来行动承诺语言（"I'll"、"let me"、"I'm going to"等）。
 5. **`hasStructuredPlanFormat`**——结构化计划 = 明确的计划标题（`Plan:`、`Steps:`、`Next steps:`）+ 承诺语言，_或_ ≥2 条 bullet/有序列表项 + 承诺语言。结构化格式单独即可作为停滞信号。
 6. **`PLAN_ACTION_VERB_RE`**——对于非结构化（无标题/列表）的消息，除承诺语言外还需要具体的动作动词（`read`、`search`、`implement`、`investigate` 等）——防止"let me think about this"这类模糊填充语触发检测。

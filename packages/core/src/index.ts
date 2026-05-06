@@ -433,6 +433,10 @@ export class AgentRuntime {
       let messages = assembled.modelInput.messages;
       let steps = 0;
       let stallCount = 0;
+      // True once any non-update_todos tool has executed in this turn.
+      // Mirrors OpenClaw's hasNonPlanToolActivity guard: if real work was done,
+      // a subsequent message is reporting results, not planning — skip stall detection.
+      let hadRealToolCallThisTurn = false;
       this.#currentTodos = [];
 
       while (steps < this.#maxSteps) {
@@ -505,10 +509,12 @@ export class AgentRuntime {
 
         if (output.type === "message") {
           // Detect planning-only turns (model narrates a plan without taking action).
-          // Only applies when actionable user-provided tools exist (update_todos alone
-          // is not enough — the model needs real tools to act with).
+          // Guards: actionable tools must exist AND no real tool was called this turn.
+          // The second guard (hadRealToolCallThisTurn) aligns with OpenClaw's
+          // hasNonPlanToolActivity check: if the model already did real work, the
+          // final message is reporting results, not a planning stall.
           const hasActionableTools = [...this.#tools.keys()].some((n) => n !== "update_todos");
-          if (hasActionableTools && isPlanningOnly(output.content)) {
+          if (hasActionableTools && !hadRealToolCallThisTurn && isPlanningOnly(output.content)) {
             stallCount++;
             yield emitAndCollect(this.#event({ ...base, type: "planning_stall_detected", stallCount, maxRetries: this.#maxPlanningStallRetries }));
 
@@ -537,6 +543,9 @@ export class AgentRuntime {
 
         // type === "tool_calls"
         stallCount = 0;
+        if (output.calls.some((c) => c.name !== "update_todos")) {
+          hadRealToolCallThisTurn = true;
+        }
         messages = [...messages, { role: "assistant", content: null, toolCalls: output.calls }];
 
         const toolResultMessages: ModelMessage[] = [];

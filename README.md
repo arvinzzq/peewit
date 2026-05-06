@@ -225,10 +225,12 @@ flowchart TD
     PERM -->|ask| APPR["ApprovalResolver.resolve()\n→ approval prompt to user"]
     APPR -->|approved| BTC
     APPR -->|denied| FAIL
-    BTC --> RES["add tool results to context\n→ emit tool_* events"]
+    BTC --> RES["add tool results to context\n→ emit tool_* events\nhadRealToolCallThisTurn = true"]
     RES --> LOOP
 
-    OUT -->|message| STALL{"isPlanningOnly()\n5-guard chain"}
+    OUT -->|message| TGUARD{"hadRealToolCallThisTurn?"}
+    TGUARD -->|"yes — skip stall check\n(model already did real work)"| DONE
+    TGUARD -->|no| STALL{"isPlanningOnly()\n6-guard chain"}
     STALL -->|"yes, retries left"| RETRY["inject retry instruction\nstallCount++"]
     RETRY --> LOOP
     STALL -->|"yes, max retries hit"| FAIL(["run_failed"])

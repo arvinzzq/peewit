@@ -225,10 +225,12 @@ flowchart TD
     PERM -->|ask| APPR["ApprovalResolver.resolve()\n→ 向用户展示审批提示"]
     APPR -->|approved| BTC
     APPR -->|denied| FAIL
-    BTC --> RES["工具结果加入上下文\n→ 发出 tool_* 事件"]
+    BTC --> RES["工具结果加入上下文\n→ 发出 tool_* 事件\nhadRealToolCallThisTurn = true"]
     RES --> LOOP
 
-    OUT -->|message| STALL{"isPlanningOnly()\n五层守卫链"}
+    OUT -->|message| TGUARD{"hadRealToolCallThisTurn?"}
+    TGUARD -->|"是——跳过停滞检测\n（模型已完成真实工作）"| DONE
+    TGUARD -->|否| STALL{"isPlanningOnly()\n六层守卫链"}
     STALL -->|"是，剩余重试次数"| RETRY["注入重试指令\nstallCount++"]
     RETRY --> LOOP
     STALL -->|"是，已达最大重试"| FAIL(["run_failed"])

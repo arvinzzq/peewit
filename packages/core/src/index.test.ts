@@ -870,6 +870,75 @@ describe("planning stall detection", () => {
     expect(events.at(-1)?.type).toBe("run_completed");
   });
 
+  test("does not detect stall after a real tool call even when message looks like a plan (hadRealToolCallThisTurn)", async () => {
+    // OpenClaw alignment: hasNonPlanToolActivity — if the model already did real work
+    // this turn, a subsequent message that uses planning-like language is reporting
+    // results, not stalling. Without this guard, a structured summary response
+    // (e.g. "I'll summarize:\n1. X\n2. Y") after read_file triggers a false stall.
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-stall-"));
+    try {
+      await writeFile(join(workspace, "README.md"), "hello");
+      const planLikeMessages = [
+        // Structured plan format (bullets + promise) — would be a stall without the guard
+        "I'll now summarize:\n1. The file says hello.\n2. That's all.",
+        // Promise + action verb — would be a stall without the guard
+        "Let me analyze what I read: the content is hello.",
+        // Plain reporting — already passes without the guard
+        "The file contains: hello.",
+      ];
+      for (const msg of planLikeMessages) {
+        const runtime = new AgentRuntime({
+          contextAssembler: new DefaultContextAssembler(),
+          modelProvider: new FakeModelProvider([
+            { type: "tool_calls", calls: [{ id: "tc1", name: "read_file", input: { path: "README.md" } }] },
+            { type: "message", content: msg }
+          ]),
+          systemInstruction: "You are Peewit.",
+          tools: [createReadFileTool()],
+          runtime: { mode: "auto", workspace, currentDate: "2026-05-04" },
+          createRunId: () => "run_post_tool",
+          createEventId: (() => { let n = 0; return () => `evt_pt_${++n}`; })(),
+          now: () => "2026-05-04T10:00:00.000Z"
+        });
+        const events = await collect(runtime.runTurn({ message: "Read and summarize." }));
+        expect(events.map((e) => e.type)).not.toContain("planning_stall_detected");
+        expect(events.at(-1)?.type).toBe("run_completed");
+      }
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("still detects stall on first message when no tool has been called yet", async () => {
+    // hadRealToolCallThisTurn must not affect the stall check before any tool call.
+    const runtime = makeRuntime([
+      { type: "message", content: "I'll read the file and then summarize it." },
+      { type: "message", content: "Done." }
+    ]);
+    const events = await collect(runtime.runTurn({ message: "Summarize the project." }));
+    expect(events.map((e) => e.type)).toContain("planning_stall_detected");
+  });
+
+  test("only update_todos calls do not set hadRealToolCallThisTurn", async () => {
+    // update_todos is a meta-tool (tracking, not work). Calling it alone must
+    // not suppress stall detection on a subsequent planning-only message.
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([
+        { type: "tool_calls", calls: [{ id: "tc1", name: "update_todos", input: { todos: [] } }] },
+        { type: "message", content: "I'll read the file and summarize it." },
+        { type: "message", content: "Done." }
+      ]),
+      systemInstruction: "You are Peewit.",
+      tools: [createReadFileTool()],
+      createRunId: () => "run_todos_only",
+      createEventId: (() => { let n = 0; return () => `evt_to_${++n}`; })(),
+      now: () => "2026-05-04T10:00:00.000Z"
+    });
+    const events = await collect(runtime.runTurn({ message: "Do the task." }));
+    expect(events.map((e) => e.type)).toContain("planning_stall_detected");
+  });
+
   test("does not detect stall for bullet lists without promise language", async () => {
     // Bullets alone (no promise phrase) must never trigger the stall detector.
     const bulletContents = [
