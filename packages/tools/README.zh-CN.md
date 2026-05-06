@@ -12,7 +12,9 @@ AgentRuntime
     ▼
 ExecutableTool[]    ← @peewit/tools
     ├─ read_file / list_directory（低风险）
-    ├─ write_file（中风险）
+    ├─ write_file（中风险）← 创建新文件或完全替换
+    ├─ edit_file（中风险） ← 精确字符串替换
+    ├─ append_file（中风险）← 在文件末尾追加内容
     ├─ run_shell（高风险）
     ├─ read_web_page（低风险）
     ├─ search_files（低风险）
@@ -55,6 +57,26 @@ Shell 始终以 `cwd = context.workspaceRoot` 运行，默认超时 30 秒，可
 ### Web 工具（read_web_page）
 
 获取 URL 内容，剥离 script/style 标签和所有 HTML 标签，解码 HTML 实体，截断至 8,000 字符。仅接受 `http:` 和 `https:` URL，`fetch` 函数可注入用于测试。
+
+### 精确编辑工具（edit_file、append_file）
+
+`edit_file` 在现有文件中替换精确的字符串——模型不会意外破坏周围的代码。输入：
+
+| 字段 | 类型 | 必填 | 默认值 |
+|---|---|---|---|
+| `path` | `string` | 是 | — |
+| `old_string` | `string` | 是 | — |
+| `new_string` | `string` | 是 | — |
+| `replace_all` | `boolean` | 否 | `false` |
+
+若 `old_string` 不存在返回 `string_not_found`；若出现多次且未设 `replace_all` 返回 `multiple_matches`。
+
+`append_file` 在不修改现有内容的前提下，向文件末尾添加内容，文件和父目录不存在时自动创建。
+
+**何时选用：**
+- `edit_file` — 修改现有代码、配置、测试用例
+- `append_file` — 添加新的 describe 块、新条目、日志
+- `write_file` — 创建新文件或有意替换全部内容
 
 ### 搜索工具（search_files）
 

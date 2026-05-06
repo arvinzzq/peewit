@@ -14,7 +14,9 @@ ExecutableTool[]    ← @peewit/tools
     │
     ├─ read_file        (low risk)
     ├─ list_directory   (low risk)
-    ├─ write_file       (medium risk)
+    ├─ write_file       (medium risk)  ← create new files or full replacement
+    ├─ edit_file        (medium risk)  ← precise string replacement in existing files
+    ├─ append_file      (medium risk)  ← add content at end of file
     ├─ run_shell        (high risk)
     ├─ read_web_page    (low risk)
     ├─ search_files     (low risk)
@@ -68,6 +70,8 @@ A discriminated union covering all possible outcomes:
 | `LoadSkillResult` | `ok: boolean` | `load_skill` |
 | `MemorySearchResult` | `true` | `memory_search` |
 | `MemoryGetResult` | `true` | `memory_get` |
+| `EditFileResult` | `true` | `edit_file` |
+| `AppendFileResult` | `true` | `append_file` |
 | `SearchFilesResult` | _(type field)_ | `search_files` |
 | `SpawnSubagentResult` | `ok: boolean` | `spawn_subagent` (core) |
 | `SpawnSubagentAsyncResult` | _(no ok)_ | `spawn_subagent_async` (core) |
@@ -100,6 +104,26 @@ The shell always runs with `cwd = context.workspaceRoot`. Default timeout is 30 
 ### Web Tool (read_web_page)
 
 Fetches the URL, strips `<script>`, `<style>`, and all HTML tags, decodes HTML entities, collapses whitespace, and truncates to 8,000 characters. Only `http:` and `https:` URLs are accepted. The `fetch` function is injectable for testing.
+
+### Precise Editing Tools (edit_file, append_file)
+
+`edit_file` replaces an exact string in an existing file — the model never accidentally destroys surrounding code. Inputs:
+
+| Field | Type | Required | Default |
+|---|---|---|---|
+| `path` | `string` | yes | — |
+| `old_string` | `string` | yes | — |
+| `new_string` | `string` | yes | — |
+| `replace_all` | `boolean` | no | `false` |
+
+Returns `string_not_found` if `old_string` is absent; `multiple_matches` if it appears more than once and `replace_all` is false. Apply the same workspace-boundary and secret-path guards as `write_file`.
+
+`append_file` adds content to the end of a file without touching existing content. Creates the file and parent directories if they do not exist.
+
+**When to use which:**
+- `edit_file` — modifying existing code, config, or test cases
+- `append_file` — adding a new describe block, new entries, logs
+- `write_file` — creating a new file or intentionally replacing everything
 
 ### Search Tool (search_files)
 

@@ -20,7 +20,7 @@ import { BackgroundApprovalResolver, CronScheduler, JsonlTaskStore, type TaskDef
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@peewit/sessions";
 import { JsonlTaskFlowStore } from "@peewit/taskflow";
 import { SkillLoader, SkillManager, toSkillSummary, type SkillDefinition } from "@peewit/skills";
-import { createAppendDailyMemoryTool, createListDirectoryTool, createLoadSkillTool, createMemoryGetTool, createMemorySearchTool, createReadFileTool, createReadWebPageTool, createSearchFilesTool, createShellTool, createWriteFileTool, type SkillFileMap } from "@peewit/tools";
+import { createAppendDailyMemoryTool, createAppendFileTool, createEditFileTool, createListDirectoryTool, createLoadSkillTool, createMemoryGetTool, createMemorySearchTool, createReadFileTool, createReadWebPageTool, createSearchFilesTool, createShellTool, createWriteFileTool, type SkillFileMap } from "@peewit/tools";
 
 export const cliPackageName = "@peewit/cli";
 
@@ -42,7 +42,13 @@ Keep narration brief; avoid restating what tool output already shows.
 - Weak or empty tool result: vary the query, path, command, or source before concluding.
 - Mutable facts require live checks: files, git state, versions, running processes, package state.
 - Final answer requires evidence: test output, lint result, file inspection, or a named concrete blocker.
-- Longer work: brief progress note, then keep going.`;
+- Longer work: brief progress note, then keep going.
+
+## File Editing
+- To modify existing code: use edit_file (precise string replacement, never loses surrounding content).
+- To add content at end of file: use append_file.
+- Use write_file only to create new files or fully replace a file's content intentionally.
+- When using edit_file, old_string must be unique — add enough surrounding context to disambiguate.`;
 
 /** Module-level SessionGateway singleton — tracks all active CLI sessions in this process. */
 const cliGateway = new SessionGateway();
@@ -1131,7 +1137,8 @@ export class CliChatSession {
           currentDate: new Date().toISOString().slice(0, 10)
         },
         tools: createCliBuiltInTools(options, config),
-        approvalResolver: createCliApprovalResolver(options, approvalPromptLog)
+        approvalResolver: createCliApprovalResolver(options, approvalPromptLog),
+        maxSteps: 20
       }),
       config,
       new InMemoryRuntimeTraceStore(),
@@ -1200,6 +1207,7 @@ export class CliChatSession {
         skillIndex,
         preferStreaming: sessionOptions.preferStreaming ?? false,
         approvalResolver,
+        maxSteps: 20,
         ...(config.runtime.promptMode !== undefined ? { promptMode: config.runtime.promptMode } : {}),
         ...(config.runtime.executionContract !== undefined ? { executionContract: config.runtime.executionContract } : {})
       }),
@@ -1324,6 +1332,8 @@ function createCliBuiltInTools(options: RunCliOptions, config?: EffectiveConfig,
     createReadFileTool(),
     createListDirectoryTool(),
     createWriteFileTool(),
+    createEditFileTool(),
+    createAppendFileTool(),
     createShellTool(config?.runtime.sandboxed !== undefined ? { sandboxed: config.runtime.sandboxed } : undefined),
     createReadWebPageTool(options.fetch),
     createSearchFilesTool()

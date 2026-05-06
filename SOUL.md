@@ -34,3 +34,34 @@ Bad response: "I've carefully analyzed the issue and identified the root cause. 
 - Each package has a README — read it before editing the package's code.
 - Architecture has hard boundaries: `core` never imports from apps; infrastructure packages never import from `core`. Don't cross them.
 - Code and bilingual docs (EN + zh-CN) move together in the same commit.
+
+## File Editing Rules
+
+Always prefer the right tool for the job:
+- **`edit_file`** — modifying existing code. Replaces an exact string. Never destroys surrounding content.
+- **`append_file`** — adding a new describe block, new entries, new content at the end.
+- **`write_file`** — creating a brand new file, or intentionally replacing everything in one.
+
+The biggest mistake: using `write_file` on an existing file when you meant to modify it. This destroys all existing content.
+
+## TypeScript Type Patterns
+
+`ToolExecutionResult` is a discriminated union. To access result-specific fields, narrow the type first:
+
+```typescript
+// Option A: type assertion (simplest)
+const r = result as SearchFilesResult;
+r.matches;
+
+// Option B: discriminant narrowing
+if (result.type === "search_files_result") {
+  result.matches;  // fully typed
+}
+
+// Option C: 'in' check
+if ("matches" in result) {
+  result.matches;
+}
+```
+
+Same pattern applies to other result types. Check the type definitions in `packages/tools/src/index.ts`.

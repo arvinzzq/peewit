@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   createAppendDailyMemoryTool,
+  createAppendFileTool,
+  createEditFileTool,
   createListDirectoryTool,
   createLoadSkillTool,
   createMemoryGetTool,
@@ -1198,5 +1200,134 @@ describe("search_files tool", () => {
     const result = await tool.execute({ pattern: "should not appear" }, { workspaceRoot });
     const r = result as SearchFilesResult;
     expect(r.matches).toHaveLength(0);
+  });
+});
+
+describe("edit_file tool", () => {
+  test("replaces unique string and returns replacements count", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-edit-"));
+    try {
+      await writeFile(join(workspace, "src.ts"), "const x = 1;\nconst y = 2;\n");
+      const tool = createEditFileTool();
+      const result = await tool.execute(
+        { path: "src.ts", old_string: "const x = 1;", new_string: "const x = 42;" },
+        { workspaceRoot: workspace }
+      );
+      expect(result).toMatchObject({ ok: true, replacements: 1 });
+      const content = await readFile(join(workspace, "src.ts"), "utf8");
+      expect(content).toBe("const x = 42;\nconst y = 2;\n");
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("returns string_not_found when old_string is absent", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-edit-"));
+    try {
+      await writeFile(join(workspace, "src.ts"), "const x = 1;\n");
+      const tool = createEditFileTool();
+      const result = await tool.execute(
+        { path: "src.ts", old_string: "const z = 999;", new_string: "const z = 0;" },
+        { workspaceRoot: workspace }
+      );
+      expect(result).toMatchObject({ ok: false, error: { code: "string_not_found" } });
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("returns multiple_matches when old_string appears more than once", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-edit-"));
+    try {
+      await writeFile(join(workspace, "src.ts"), "foo\nfoo\n");
+      const tool = createEditFileTool();
+      const result = await tool.execute(
+        { path: "src.ts", old_string: "foo", new_string: "bar" },
+        { workspaceRoot: workspace }
+      );
+      expect(result).toMatchObject({ ok: false, error: { code: "multiple_matches" } });
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("replace_all replaces every occurrence", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-edit-"));
+    try {
+      await writeFile(join(workspace, "src.ts"), "foo\nfoo\nbar\n");
+      const tool = createEditFileTool();
+      const result = await tool.execute(
+        { path: "src.ts", old_string: "foo", new_string: "baz", replace_all: true },
+        { workspaceRoot: workspace }
+      );
+      expect(result).toMatchObject({ ok: true, replacements: 2 });
+      const content = await readFile(join(workspace, "src.ts"), "utf8");
+      expect(content).toBe("baz\nbaz\nbar\n");
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects path outside workspace", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-edit-"));
+    try {
+      const tool = createEditFileTool();
+      const result = await tool.execute(
+        { path: "../outside.ts", old_string: "x", new_string: "y" },
+        { workspaceRoot: workspace }
+      );
+      expect(result).toMatchObject({ ok: false, error: { code: "path_outside_workspace" } });
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("append_file tool", () => {
+  test("appends text to existing file", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-append-"));
+    try {
+      await writeFile(join(workspace, "log.txt"), "line 1\n");
+      const tool = createAppendFileTool();
+      const result = await tool.execute(
+        { path: "log.txt", content: "line 2\n" },
+        { workspaceRoot: workspace }
+      );
+      expect(result).toMatchObject({ ok: true });
+      const content = await readFile(join(workspace, "log.txt"), "utf8");
+      expect(content).toBe("line 1\nline 2\n");
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("creates file if it does not exist", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-append-"));
+    try {
+      const tool = createAppendFileTool();
+      const result = await tool.execute(
+        { path: "new.txt", content: "hello\n" },
+        { workspaceRoot: workspace }
+      );
+      expect(result).toMatchObject({ ok: true });
+      const content = await readFile(join(workspace, "new.txt"), "utf8");
+      expect(content).toBe("hello\n");
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects path outside workspace", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "peewit-append-"));
+    try {
+      const tool = createAppendFileTool();
+      const result = await tool.execute(
+        { path: "../outside.txt", content: "data" },
+        { workspaceRoot: workspace }
+      );
+      expect(result).toMatchObject({ ok: false, error: { code: "path_outside_workspace" } });
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
   });
 });

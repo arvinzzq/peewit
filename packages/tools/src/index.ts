@@ -1,7 +1,7 @@
 /**
  * INPUT: Tool definitions, schemas, workspace FS access, skill file map, ShellToolOptions.
- * OUTPUT: Tool contracts, registry, built-in tools (file, shell with sandbox, web, memory,
- *   todos, skills, search_files), ShellToolOptions, SkillFileMap, result types, registry errors.
+ * OUTPUT: Tool contracts, registry, built-in tools (file, edit_file, append_file, shell with sandbox,
+ *   web, memory, todos, skills, search_files), ShellToolOptions, SkillFileMap, result types, registry errors.
  * POS: Tool system layer; exposes capabilities without making permission decisions.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -122,6 +122,19 @@ export interface MemoryGetResult {
   error?: string;
 }
 
+export interface EditFileResult {
+  ok: true;
+  path: string;
+  replacements: number;
+  summary: string;
+}
+
+export interface AppendFileResult {
+  ok: true;
+  path: string;
+  summary: string;
+}
+
 export interface SearchFilesMatch {
   file: string;
   line: number;
@@ -150,6 +163,8 @@ export type ToolExecutionResult =
   | MemorySearchResult
   | MemoryGetResult
   | SearchFilesResult
+  | EditFileResult
+  | AppendFileResult
   | ToolExecutionFailure;
 
 export type TodoStatus = "pending" | "in_progress" | "completed";
@@ -568,6 +583,121 @@ export function createWriteFileTool(): ExecutableTool {
       } catch (error) {
         return fileSystemError(error);
       }
+    }
+  };
+}
+
+// ── edit_file ─────────────────────────────────────────────────────────────────
+
+function countOccurrences(text: string, needle: string): number {
+  if (needle.length === 0) return 0;
+  let count = 0;
+  let pos = 0;
+  while ((pos = text.indexOf(needle, pos)) !== -1) { count++; pos += needle.length; }
+  return count;
+}
+
+export function createEditFileTool(): ExecutableTool {
+  return {
+    name: "edit_file",
+    description:
+      "Make a precise edit to an existing file by replacing an exact string. " +
+      "old_string must appear exactly once in the file unless replace_all is true. " +
+      "Prefer this over write_file when modifying existing content — it never loses surrounding code.",
+    risk: "medium",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "File path relative to workspace root." },
+        old_string: { type: "string", description: "The exact string to replace. Must be unique in the file." },
+        new_string: { type: "string", description: "The replacement string." },
+        replace_all: { type: "boolean", description: "Replace every occurrence. Default false (errors on multiple matches)." }
+      },
+      required: ["path", "old_string", "new_string"]
+    },
+    async execute(rawInput, context): Promise<EditFileResult | ToolExecutionFailure> {
+      const input = rawInput as Record<string, unknown>;
+      if (typeof input["path"] !== "string" || typeof input["old_string"] !== "string" || typeof input["new_string"] !== "string") {
+        return inputError("path, old_string, and new_string must be strings.");
+      }
+      const filePath = input["path"];
+      const oldStr = input["old_string"];
+      const newStr = input["new_string"];
+      const replaceAll = input["replace_all"] === true;
+      if (oldStr.length === 0) return inputError("old_string must not be empty.");
+
+      const abs = resolve(context.workspaceRoot, filePath);
+      if (!abs.startsWith(resolve(context.workspaceRoot) + "/") && abs !== resolve(context.workspaceRoot)) {
+        return outsideWorkspaceError();
+      }
+      if (isSecretLikePath(abs)) return secretFileError();
+
+      let content: string;
+      try {
+        content = await readFile(abs, "utf8");
+      } catch (err) {
+        return fileSystemError(err);
+      }
+
+      const count = countOccurrences(content, oldStr);
+      if (count === 0) {
+        return { ok: false, error: { code: "string_not_found", message: `old_string not found in ${filePath}.` } };
+      }
+      if (count > 1 && !replaceAll) {
+        return { ok: false, error: { code: "multiple_matches", message: `old_string appears ${count} times in ${filePath}. Use replace_all: true or add more surrounding context to make it unique.` } };
+      }
+
+      const newContent = content.split(oldStr).join(newStr);
+      try {
+        await writeFileFs(abs, newContent, "utf8");
+      } catch (err) {
+        return fileSystemError(err);
+      }
+
+      return { ok: true, path: filePath, replacements: count, summary: `Edited ${filePath}: ${count} replacement${count === 1 ? "" : "s"}.` };
+    }
+  };
+}
+
+// ── append_file ───────────────────────────────────────────────────────────────
+
+export function createAppendFileTool(): ExecutableTool {
+  return {
+    name: "append_file",
+    description:
+      "Append text to the end of a file. Creates the file (and parent directories) if it does not exist. " +
+      "Use this to add new code, tests, or entries without touching existing content.",
+    risk: "medium",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "File path relative to workspace root." },
+        content: { type: "string", description: "Text to append." }
+      },
+      required: ["path", "content"]
+    },
+    async execute(rawInput, context): Promise<AppendFileResult | ToolExecutionFailure> {
+      const input = rawInput as Record<string, unknown>;
+      if (typeof input["path"] !== "string" || typeof input["content"] !== "string") {
+        return inputError("path and content must be strings.");
+      }
+      const filePath = input["path"];
+      const text = input["content"];
+
+      const abs = resolve(context.workspaceRoot, filePath);
+      if (!abs.startsWith(resolve(context.workspaceRoot) + "/") && abs !== resolve(context.workspaceRoot)) {
+        return outsideWorkspaceError();
+      }
+      if (isSecretLikePath(abs)) return secretFileError();
+
+      try {
+        await mkdir(dirname(abs), { recursive: true });
+        await writeFileFs(abs, text, { flag: "a" });
+      } catch (err) {
+        return fileSystemError(err);
+      }
+
+      return { ok: true, path: filePath, summary: `Appended to ${filePath}.` };
     }
   };
 }
