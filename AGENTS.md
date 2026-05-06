@@ -1,36 +1,50 @@
-# Peewit Agent Guide
+# Peewit — Workspace Context
 
-## Project Role
+This is the Peewit monorepo: a TypeScript pnpm workspace implementing an OpenClaw-inspired personal agent. 12 packages + 2 adapter apps.
 
-Peewit is an OpenClaw-like personal general-purpose agent built from zero to one.
-It is both a real product and a learning project for agent architecture.
-Every implementation change should keep module boundaries, tests, and bilingual documentation understandable.
+## Essential Commands
 
-## Documentation Rules
+```bash
+pnpm run check          # typecheck + tests + docs parity — must pass before every commit
+pnpm cli chat           # interactive CLI (no build needed)
+pnpm cli run "<goal>"   # one-shot background task
+pnpm run test:watch     # tests in watch mode
+```
 
-- Keep important project docs paired as English `.md` and Simplified Chinese `.zh-CN.md`.
-- Update local module README and AGENTS files when directory structure or responsibility changes.
-- Update required source headers when a file's inputs, outputs, or architecture position changes.
-- Do not update global docs for tiny implementation-only edits unless workflow or architecture changes.
-- **Code and docs move together in the same commit.** A feature or refactor commit must include its README, AGENTS, and source header updates — never a separate catch-up commit after. A standalone `docs:` commit is only for pure documentation changes (research notes, architecture docs, plans) that precede implementation.
+## Package Map (quick orientation)
 
-## Testing Rules
+```
+packages/core        — AgentRuntime, 17-event loop, planning stall detection
+packages/context     — XML system prompt assembly, prompt caching
+packages/models      — OpenAI-compatible + Anthropic providers
+packages/tools       — read_file, write_file, search_files, run_shell, read_web_page, memory tools
+packages/permissions — allow/ask/deny policy (observe/confirm/auto × low/medium/high/blocked)
+packages/sessions    — JSONL session + trace storage
+packages/skills      — SKILL.md loader, precedence, lifecycle
+packages/adapters    — ToolProfile, AdapterCapabilities, filterToolsByProfile
+packages/config      — EffectiveConfig, env overrides
+packages/scheduler   — CronScheduler, BackgroundApprovalResolver
+packages/taskflow    — Persistent task graph, 8 statuses
+packages/gateway     — Cross-adapter session registry
+apps/cli             — Ink terminal adapter
+apps/web             — Hono API + React frontend
+```
 
-- Add or update tests when behavior changes.
-- Do not require real API keys in unit tests.
-- Prefer fake providers, fake context assemblers, and deterministic inputs.
-- Run `pnpm run check` before considering work complete.
+## Hard Boundaries (never cross)
 
-## Architecture Boundaries
+- `core` never imports from apps or infrastructure (config, sessions, etc.)
+- Infrastructure packages never import from `core`
+- `models` has no knowledge of agent logic
+- No circular dependencies
 
-- CLI adapts terminal input/output only.
-- Core orchestrates runtime behavior through injected dependencies.
-- Context assembles provider-neutral model input.
-- Models isolate provider-specific API details.
-- Tools execute capabilities but do not decide permissions.
-- Permissions decide allow, ask, deny, or block.
-- Sessions persist replayable state and traces.
+## Commit Rules
 
-## Update Reminder
+- Run `pnpm run check` first — do not commit if it fails
+- Code + bilingual docs (README.md + README.zh-CN.md) move in the same commit
+- Source file headers (INPUT/OUTPUT/POS) updated when responsibilities change
+- One logical change per commit
 
-Update this file when project-wide agent instructions change.
+## Finding Things
+
+Use `search_files` to locate code before editing. Each package has a README — read it first.
+Research notes on OpenClaw: `docs/research/openclaw-implementation-notes.md`.

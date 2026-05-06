@@ -20,9 +20,29 @@ import { BackgroundApprovalResolver, CronScheduler, JsonlTaskStore, type TaskDef
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@peewit/sessions";
 import { JsonlTaskFlowStore } from "@peewit/taskflow";
 import { SkillLoader, SkillManager, toSkillSummary, type SkillDefinition } from "@peewit/skills";
-import { createAppendDailyMemoryTool, createListDirectoryTool, createLoadSkillTool, createMemoryGetTool, createMemorySearchTool, createReadFileTool, createReadWebPageTool, createShellTool, createWriteFileTool, type SkillFileMap } from "@peewit/tools";
+import { createAppendDailyMemoryTool, createListDirectoryTool, createLoadSkillTool, createMemoryGetTool, createMemorySearchTool, createReadFileTool, createReadWebPageTool, createSearchFilesTool, createShellTool, createWriteFileTool, type SkillFileMap } from "@peewit/tools";
 
 export const cliPackageName = "@peewit/cli";
+
+// Core system instruction — adapted from OpenClaw's execution bias section.
+// Loaded as the <identity> XML section; workspace files (SOUL.md, AGENTS.md)
+// are loaded into the <workspace> section on top of this.
+const AGENT_SYSTEM_INSTRUCTION = `\
+You are Peewit, a capable coding and general-purpose agent.
+
+## Tool Call Style
+Do not narrate routine, low-risk tool calls — just call the tool.
+Narrate only when it genuinely helps: multi-step work, sensitive actions, or when explaining a non-obvious choice.
+Keep narration brief; avoid restating what tool output already shows.
+
+## Execution Bias
+- Actionable request: act in this turn, do not describe what you plan to do.
+- Non-final turn: use tools to advance, or ask for the one decision that blocks safe progress.
+- Continue until done or genuinely blocked; do not end with a plan or promise when tools can move work forward.
+- Weak or empty tool result: vary the query, path, command, or source before concluding.
+- Mutable facts require live checks: files, git state, versions, running processes, package state.
+- Final answer requires evidence: test output, lint result, file inspection, or a named concrete blocker.
+- Longer work: brief progress note, then keep going.`;
 
 /** Module-level SessionGateway singleton — tracks all active CLI sessions in this process. */
 const cliGateway = new SessionGateway();
@@ -386,7 +406,7 @@ async function runBackgroundTask(
   const runtime = new AgentRuntime({
     contextAssembler: createCliContextAssembler(config, currentDate),
     modelProvider: configuredProvider,
-    systemInstruction: "You are Peewit, a personal general-purpose agent running a background task. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require approval. ",
+    systemInstruction: AGENT_SYSTEM_INSTRUCTION,
     runtime: {
       mode,
       workspace: config.workspace.root,
@@ -521,7 +541,7 @@ async function runDaemonTask(
   const runtime = new AgentRuntime({
     contextAssembler: createCliContextAssembler(config, currentDate),
     modelProvider: provider,
-    systemInstruction: "You are Peewit, a personal general-purpose agent running a scheduled background task. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require approval. ",
+    systemInstruction: AGENT_SYSTEM_INSTRUCTION,
     runtime: {
       mode,
       workspace: config.workspace.root,
@@ -1104,7 +1124,7 @@ export class CliChatSession {
       new AgentRuntime({
         contextAssembler: createCliContextAssembler(config, new Date().toISOString().slice(0, 10)),
         modelProvider: provider,
-        systemInstruction: `You are Peewit, a personal general-purpose agent. Today's date is ${new Date().toISOString().slice(0, 10)}. Answer questions from your knowledge and context first — only use tools when the task genuinely requires reading files, writing files, running commands, or fetching web content.`,
+        systemInstruction: AGENT_SYSTEM_INSTRUCTION,
         runtime: {
           mode: "confirm",
           workspace: config.workspace.root,
@@ -1170,7 +1190,7 @@ export class CliChatSession {
       new AgentRuntime({
         contextAssembler: createCliContextAssembler(config, currentDate),
         modelProvider: configuredProvider,
-        systemInstruction: `You are Peewit, a personal general-purpose agent. Today's date is ${currentDate}. Answer questions from your knowledge and context first — only use tools when the task genuinely requires reading files, writing files, running commands, or fetching web content.`,
+        systemInstruction: AGENT_SYSTEM_INSTRUCTION,
         runtime: {
           mode: config.runtime.defaultMode,
           workspace: config.workspace.root,
@@ -1305,7 +1325,8 @@ function createCliBuiltInTools(options: RunCliOptions, config?: EffectiveConfig,
     createListDirectoryTool(),
     createWriteFileTool(),
     createShellTool(config?.runtime.sandboxed !== undefined ? { sandboxed: config.runtime.sandboxed } : undefined),
-    createReadWebPageTool(options.fetch)
+    createReadWebPageTool(options.fetch),
+    createSearchFilesTool()
   ];
 
   if (config?.memory.longTermFiles === "write") {

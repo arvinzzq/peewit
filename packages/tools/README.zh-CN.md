@@ -15,6 +15,7 @@ ExecutableTool[]    ← @peewit/tools
     ├─ write_file（中风险）
     ├─ run_shell（高风险）
     ├─ read_web_page（低风险）
+    ├─ search_files（低风险）
     ├─ update_todos / load_skill / memory_search / memory_get（低风险）
     └─ append_daily_memory（中风险）
 ```
@@ -54,6 +55,20 @@ Shell 始终以 `cwd = context.workspaceRoot` 运行，默认超时 30 秒，可
 ### Web 工具（read_web_page）
 
 获取 URL 内容，剥离 script/style 标签和所有 HTML 标签，解码 HTML 实体，截断至 8,000 字符。仅接受 `http:` 和 `https:` URL，`fetch` 函数可注入用于测试。
+
+### 搜索工具（search_files）
+
+在工作区文件中递归搜索文本或正则模式。输入：
+
+| 字段 | 类型 | 必填 | 默认值 |
+|---|---|---|---|
+| `pattern` | `string` | 是 | — |
+| `path` | `string` | 否 | 工作区根目录 |
+| `include` | `string` | 否 | 所有非二进制文件 |
+| `case_sensitive` | `boolean` | 否 | `false` |
+| `max_results` | `number` | 否 | `50` |
+
+自动跳过 `node_modules`、`.git`、`dist`、`build`、`coverage` 目录和二进制文件扩展名。超过 512 KB 的文件被跳过。`include` 中的 glob 模式支持 `*`（段内匹配）、`**`（任意深度）、`?`（单字符）。返回 `SearchFilesResult`，包含 `matches[]`、`truncated`、`matchedFiles`、`searchedFiles`。
 
 ### update_todos
 

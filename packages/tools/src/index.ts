@@ -1,13 +1,13 @@
 /**
  * INPUT: Tool definitions, schemas, workspace FS access, skill file map, ShellToolOptions.
  * OUTPUT: Tool contracts, registry, built-in tools (file, shell with sandbox, web, memory,
- *   todos, skills), ShellToolOptions, SkillFileMap, result types, registry errors.
+ *   todos, skills, search_files), ShellToolOptions, SkillFileMap, result types, registry errors.
  * POS: Tool system layer; exposes capabilities without making permission decisions.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
 import { exec } from "node:child_process";
-import { access, readdir, readFile, writeFile as writeFileFs, mkdir } from "node:fs/promises";
+import { access, readdir, readFile, stat as statFs, writeFile as writeFileFs, mkdir } from "node:fs/promises";
 import { resolve, relative, basename, extname, dirname, join } from "node:path";
 
 export const toolsPackageName = "@peewit/tools";
@@ -122,6 +122,20 @@ export interface MemoryGetResult {
   error?: string;
 }
 
+export interface SearchFilesMatch {
+  file: string;
+  line: number;
+  content: string;
+}
+
+export interface SearchFilesResult {
+  type: "search_files_result";
+  matches: SearchFilesMatch[];
+  truncated: boolean;
+  matchedFiles: number;
+  searchedFiles: number;
+}
+
 export type ToolExecutionResult =
   | ReadFileToolResult
   | ListDirectoryToolResult
@@ -135,6 +149,7 @@ export type ToolExecutionResult =
   | LoadSkillResult
   | MemorySearchResult
   | MemoryGetResult
+  | SearchFilesResult
   | ToolExecutionFailure;
 
 export type TodoStatus = "pending" | "in_progress" | "completed";
@@ -899,6 +914,139 @@ export function createAppendDailyMemoryTool(
         const message = error instanceof Error ? error.message : "Failed to write daily memory.";
         return { ok: false, error: { code: "write_error", message } };
       }
+    }
+  };
+}
+
+// ── search_files ──────────────────────────────────────────────────────────────
+
+const SEARCH_SKIP_DIRS = new Set([
+  "node_modules", ".git", "dist", "build", "coverage",
+  ".pnpm-store", ".nyc_output", ".turbo", ".cache",
+]);
+const SEARCH_BINARY_EXTS = new Set([
+  ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp", ".avif",
+  ".woff", ".woff2", ".ttf", ".eot", ".otf",
+  ".pdf", ".zip", ".tar", ".gz", ".bz2", ".7z", ".rar",
+  ".exe", ".bin", ".dll", ".so", ".dylib", ".class",
+  ".mp3", ".mp4", ".wav", ".ogg", ".webm", ".flac",
+  ".db", ".sqlite", ".sqlite3",
+]);
+const SEARCH_MAX_FILE_BYTES = 512 * 1024;
+const SEARCH_DEFAULT_MAX_RESULTS = 50;
+
+async function* walkSearchFiles(dir: string): AsyncGenerator<string> {
+  let entries;
+  try { entries = await readdir(dir, { withFileTypes: true }); } catch { return; }
+  for (const entry of entries) {
+    if (SEARCH_SKIP_DIRS.has(entry.name)) continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      yield* walkSearchFiles(full);
+    } else if (entry.isFile() && !SEARCH_BINARY_EXTS.has(extname(entry.name).toLowerCase())) {
+      yield full;
+    }
+  }
+}
+
+function matchesInclude(relPath: string, pattern: string): boolean {
+  const base = basename(relPath);
+  const hasPathSep = pattern.includes("/");
+  const target = hasPathSep ? relPath.replace(/\\/g, "/") : base;
+  const regexStr = pattern
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*\*\//g, "(.*/)?")
+    .replace(/\*\*/g, ".*")
+    .replace(/\*/g, "[^/]*")
+    .replace(/\?/g, "[^/]");
+  return new RegExp(`^${regexStr}$`).test(target);
+}
+
+export function createSearchFilesTool(): ExecutableTool {
+  return {
+    name: "search_files",
+    description:
+      "Search for a text or regex pattern across files in the workspace. Returns matching file paths, line numbers, and line content. Skips node_modules, .git, dist, and binary files.",
+    risk: "low",
+    inputSchema: {
+      type: "object",
+      properties: {
+        pattern: {
+          type: "string",
+          description: "Text or regex pattern to search for."
+        },
+        path: {
+          type: "string",
+          description: "Directory to search in, relative to workspace root. Defaults to '.' (workspace root)."
+        },
+        include: {
+          type: "string",
+          description: "Glob pattern to filter files, e.g. '*.ts' or '**/*.md'. Defaults to all non-binary files."
+        },
+        case_sensitive: {
+          type: "boolean",
+          description: "Case-sensitive search. Defaults to false."
+        },
+        max_results: {
+          type: "number",
+          description: `Maximum matching lines to return. Defaults to ${SEARCH_DEFAULT_MAX_RESULTS}.`
+        }
+      },
+      required: ["pattern"]
+    },
+    async execute(rawInput, context): Promise<SearchFilesResult> {
+      const input = rawInput as {
+        pattern: string;
+        path?: string;
+        include?: string;
+        case_sensitive?: boolean;
+        max_results?: number;
+      };
+
+      const root = context.workspaceRoot;
+      const searchDir = input.path ? resolve(root, input.path) : root;
+      const maxResults = input.max_results ?? SEARCH_DEFAULT_MAX_RESULTS;
+      const flags = input.case_sensitive === true ? "" : "i";
+
+      let regex: RegExp;
+      try {
+        regex = new RegExp(input.pattern, flags);
+      } catch {
+        const escaped = input.pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        regex = new RegExp(escaped, flags);
+      }
+
+      const matches: SearchFilesMatch[] = [];
+      let searchedFiles = 0;
+      let matchedFiles = 0;
+      let truncated = false;
+
+      outer: for await (const filePath of walkSearchFiles(searchDir)) {
+        const relPath = relative(root, filePath).replace(/\\/g, "/");
+        if (input.include !== undefined && !matchesInclude(relPath, input.include)) continue;
+
+        let text: string;
+        try {
+          const s = await statFs(filePath);
+          if (s.size > SEARCH_MAX_FILE_BYTES) continue;
+          text = await readFile(filePath, "utf8");
+        } catch { continue; }
+
+        searchedFiles++;
+        const lines = text.split("\n");
+        let hit = false;
+        for (let i = 0; i < lines.length; i++) {
+          if (regex.test(lines[i]!)) {
+            if (matches.length >= maxResults) { truncated = true; break outer; }
+            matches.push({ file: relPath, line: i + 1, content: lines[i]!.trimEnd() });
+            hit = true;
+          }
+          regex.lastIndex = 0;
+        }
+        if (hit) matchedFiles++;
+      }
+
+      return { type: "search_files_result", matches, truncated, matchedFiles, searchedFiles };
     }
   };
 }

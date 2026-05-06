@@ -93,8 +93,8 @@ export const TOOL_PROFILES: Record<ToolProfile, ToolProfileDefinition> = {
   },
   coding: {
     name: "coding",
-    description: "File system and shell tools for coding tasks.",
-    allowedTools: ["read_file", "list_directory", "write_file", "run_shell", "load_skill", "update_todos", "spawn_subagent"]
+    description: "File system, search, and shell tools for coding tasks.",
+    allowedTools: ["read_file", "list_directory", "write_file", "run_shell", "search_files", "load_skill", "update_todos", "spawn_subagent"]
   },
   messaging: {
     name: "messaging",

@@ -17,6 +17,7 @@ ExecutableTool[]    ← @peewit/tools
     ├─ write_file       (medium risk)
     ├─ run_shell        (high risk)
     ├─ read_web_page    (low risk)
+    ├─ search_files     (low risk)
     ├─ update_todos     (low risk)
     ├─ append_daily_memory (medium risk)
     ├─ load_skill       (low risk)
@@ -67,6 +68,7 @@ A discriminated union covering all possible outcomes:
 | `LoadSkillResult` | `ok: boolean` | `load_skill` |
 | `MemorySearchResult` | `true` | `memory_search` |
 | `MemoryGetResult` | `true` | `memory_get` |
+| `SearchFilesResult` | _(type field)_ | `search_files` |
 | `SpawnSubagentResult` | `ok: boolean` | `spawn_subagent` (core) |
 | `SpawnSubagentAsyncResult` | _(no ok)_ | `spawn_subagent_async` (core) |
 | `ToolExecutionFailure` | `false` | any error path |
@@ -98,6 +100,20 @@ The shell always runs with `cwd = context.workspaceRoot`. Default timeout is 30 
 ### Web Tool (read_web_page)
 
 Fetches the URL, strips `<script>`, `<style>`, and all HTML tags, decodes HTML entities, collapses whitespace, and truncates to 8,000 characters. Only `http:` and `https:` URLs are accepted. The `fetch` function is injectable for testing.
+
+### Search Tool (search_files)
+
+Recursively searches workspace files for a text or regex pattern. Inputs:
+
+| Field | Type | Required | Default |
+|---|---|---|---|
+| `pattern` | `string` | yes | — |
+| `path` | `string` | no | workspace root |
+| `include` | `string` | no | all non-binary files |
+| `case_sensitive` | `boolean` | no | `false` |
+| `max_results` | `number` | no | `50` |
+
+Automatically skips `node_modules`, `.git`, `dist`, `build`, `coverage`, and binary file extensions. Files larger than 512 KB are skipped. Glob patterns in `include` support `*` (within a segment), `**` (any depth), and `?` (single char). Returns `SearchFilesResult` with `matches[]`, `truncated`, `matchedFiles`, `searchedFiles`.
 
 ### update_todos
 
