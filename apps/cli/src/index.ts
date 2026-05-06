@@ -421,6 +421,7 @@ async function runBackgroundTask(
     tools: backgroundTools,
     preferStreaming: false,
     approvalResolver,
+    maxSteps: 20,
     ...(config.runtime.promptMode !== undefined ? { promptMode: config.runtime.promptMode } : {})
   });
 

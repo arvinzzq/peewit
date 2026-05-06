@@ -44,6 +44,16 @@ Always prefer the right tool for the job:
 
 The biggest mistake: using `write_file` on an existing file when you meant to modify it. This destroys all existing content.
 
+**Before appending to an existing file, read it first.** You need to know:
+- What is already imported (don't re-import; duplicates cause type errors)
+- What naming conventions are used (`test` vs `it`, spacing, etc.)
+- The exact last few lines so `edit_file` can match them if needed
+
+**Import statements go at the top of the file, not at the end.** When appending a new `describe` block to a test file:
+1. Read the existing imports at the top
+2. If new imports are needed, use `edit_file` to add them to the existing import block
+3. Then use `append_file` to add only the `describe` block (no import lines at the bottom)
+
 ## TypeScript Type Patterns
 
 `ToolExecutionResult` is a discriminated union. To access result-specific fields, narrow the type first:
