@@ -1,5 +1,5 @@
-import { describe, expect, test } from "vitest";
-import { mkdtemp, mkdir, writeFile, readFile } from "node:fs/promises";
+import { describe, expect, test, beforeAll, afterAll } from "vitest";
+import { mkdtemp, mkdir, rm, writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
@@ -10,6 +10,7 @@ import {
   createMemorySearchTool,
   createReadFileTool,
   createReadWebPageTool,
+  createSearchFilesTool,
   createShellTool,
   createUpdateTodosTool,
   createWriteFileTool,
@@ -17,6 +18,7 @@ import {
   ToolRegistryError,
   type MemoryGetResult,
   type MemorySearchResult,
+  type SearchFilesResult,
   type TodoItem,
   type ToolDefinition,
   type WebFetchLike
@@ -1130,5 +1132,71 @@ describe("createLoadSkillTool", () => {
 
     expect(result).toMatchObject({ ok: false });
     expect((result as { error?: string }).error).toContain("bad-skill");
+  });
+});
+
+describe("search_files tool", () => {
+  // Tests written by agent (content correct; type narrowing and append fixed manually).
+  let workspaceRoot: string;
+
+  beforeAll(async () => {
+    workspaceRoot = await mkdtemp(join(tmpdir(), "peewit-search-"));
+    await writeFile(join(workspaceRoot, "file1.txt"), "Hello world\nThis is a test file.");
+    await writeFile(join(workspaceRoot, "file2.ts"), "const greeting = 'Hello TypeScript';\nconsole.log(greeting);");
+    await writeFile(join(workspaceRoot, "file3.md"), "# Markdown file\nContains some text.");
+  });
+
+  afterAll(async () => {
+    await rm(workspaceRoot, { recursive: true, force: true });
+  });
+
+  test("basic pattern matching returns correct file and line", async () => {
+    const tool = createSearchFilesTool();
+    const result = await tool.execute({ pattern: "Hello world" }, { workspaceRoot });
+    expect(result).toMatchObject({
+      type: "search_files_result",
+      truncated: false,
+    });
+    const r = result as SearchFilesResult;
+    expect(r.matches).toHaveLength(1);
+    expect(r.matches[0]).toMatchObject({ file: "file1.txt", line: 1 });
+  });
+
+  test("case-insensitive search by default", async () => {
+    const tool = createSearchFilesTool();
+    const result = await tool.execute({ pattern: "hello" }, { workspaceRoot });
+    const r = result as SearchFilesResult;
+    expect(r.matches.length).toBeGreaterThan(0);
+  });
+
+  test("include glob filter — *.ts only matches .ts files", async () => {
+    const tool = createSearchFilesTool();
+    const result = await tool.execute({ pattern: "const", include: "*.ts" }, { workspaceRoot });
+    const r = result as SearchFilesResult;
+    expect(r.matches).toHaveLength(1);
+    expect(r.matches[0]!.file).toBe("file2.ts");
+  });
+
+  test("max_results limits number of results", async () => {
+    const tool = createSearchFilesTool();
+    const result = await tool.execute({ pattern: "Hello", max_results: 1 }, { workspaceRoot });
+    const r = result as SearchFilesResult;
+    expect(r.matches).toHaveLength(1);
+  });
+
+  test("truncated flag is true when limit is hit", async () => {
+    const tool = createSearchFilesTool();
+    const result = await tool.execute({ pattern: "Hello", max_results: 1 }, { workspaceRoot });
+    const r = result as SearchFilesResult;
+    expect(r.truncated).toBe(true);
+  });
+
+  test("skips node_modules directory", async () => {
+    const tool = createSearchFilesTool();
+    await mkdir(join(workspaceRoot, "node_modules"), { recursive: true });
+    await writeFile(join(workspaceRoot, "node_modules", "ignored.txt"), "should not appear");
+    const result = await tool.execute({ pattern: "should not appear" }, { workspaceRoot });
+    const r = result as SearchFilesResult;
+    expect(r.matches).toHaveLength(0);
   });
 });
