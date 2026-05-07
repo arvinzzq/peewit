@@ -90,7 +90,7 @@
 | 02 | models | ✅ 已完成 | [03-models.zh-CN.md](./03-models.zh-CN.md) |
 | 03 | permissions | ✅ 已完成 | [04-permissions.zh-CN.md](./04-permissions.zh-CN.md) |
 | 04 | tools | ✅ 已完成 | [05-tools.zh-CN.md](./05-tools.zh-CN.md) |
-| 05 | sessions | ⬜ 未开始 | — |
+| 05 | sessions | ✅ 已完成 | [07-sessions.zh-CN.md](./07-sessions.zh-CN.md) |
 | 06 | taskflow | ⬜ 未开始 | — |
 | 07 | context | ✅ 已完成 | [06-context.zh-CN.md](./06-context.zh-CN.md) |
 | 08 | skills | ⬜ 未开始 | — |
