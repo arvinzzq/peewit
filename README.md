@@ -210,12 +210,47 @@ Each package has a detailed README covering architecture, core concepts, impleme
 
 Vole is also an architecture learning project. The `docs/learning/` directory contains 15 bilingual module docs covering every package — design decisions, implementation walkthrough, OpenClaw alignment, and review questions.
 
-| | |
+Start with the **[Learning Guide](./docs/learning/guide.md)** for the recommended reading order, or jump directly to any module below.
+
+**Stage 1 — Mental Model**
+
+| Doc | Topic |
 |---|---|
-| **[Learning Guide](./docs/learning/guide.md)** | Stage-based curriculum — where to start and what order to follow |
-| **[Module Plan](./docs/learning/plan.md)** | Full module list with links to all learning docs |
-| **[01 — Agent Loop Mental Model](./docs/learning/01-concepts.md)** | Start here: the big picture before reading any code |
-| **[02 — Core Loop in Code](./docs/learning/02-core.md)** | How `AgentRuntime` and the 17-event loop work |
+| [01 — Agent Loop Concepts](./docs/learning/01-concepts.md) | The big picture: what an agent loop is and how the pieces fit |
+
+**Stage 2 — Core Loop**
+
+| Doc | Topic |
+|---|---|
+| [02 — Core Loop in Code](./docs/learning/02-core.md) | `AgentRuntime`, the 17-event async generator, stall detection |
+
+**Stage 3 — Foundation Modules**
+
+| Doc | Topic |
+|---|---|
+| [13 — Config](./docs/learning/13-config.md) | Env loading, three-layer merge, `EffectiveConfig`, redaction |
+| [03 — Models](./docs/learning/03-models.md) | `ModelProvider`, streaming, Anthropic vs OpenAI-compatible |
+| [04 — Permissions](./docs/learning/04-permissions.md) | Risk × autonomy mode → allow / ask / deny / block |
+| [05 — Tools](./docs/learning/05-tools.md) | Tool registry, sandbox, workspace boundary, result types |
+| [07 — Sessions](./docs/learning/07-sessions.md) | JSONL append, `#replay`, compaction boundary, mutex |
+| [08 — Taskflow](./docs/learning/08-taskflow.md) | `update_todos`, `TodoItem` state machine, `JsonlTaskFlowStore` |
+| [06 — Context](./docs/learning/06-context.md) | XML sections, prompt modes, `compactMessages`, cache hints |
+| [09 — Skills](./docs/learning/09-skills.md) | Three-source loading, progressive disclosure, `SkillManager` |
+| [10 — Scheduler](./docs/learning/10-scheduler.md) | `CronScheduler`, `BackgroundApprovalResolver`, `writeHeartbeat` |
+
+**Stage 4 — Extension Systems**
+
+| Doc | Topic |
+|---|---|
+| [11 — Adapters](./docs/learning/11-adapters.md) | `AdapterCapabilities`, tool profiles, `filterToolsByProfile` |
+| [12 — Gateway](./docs/learning/12-gateway.md) | In-process session registry, `touch`, presence vs. history |
+
+**Stage 5 — System Synthesis**
+
+| Doc | Topic |
+|---|---|
+| [14 — CLI](./docs/learning/14-cli.md) | How all packages are wired together; `CliChatSession`, `sendMessage` |
+| [15 — Web](./docs/learning/15-web.md) | `WebApprovalResolver` Promise bridge, SSE vs WebSocket, two storage tiers |
 
 All learning docs exist in English and Simplified Chinese.
 

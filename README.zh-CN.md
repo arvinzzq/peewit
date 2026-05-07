@@ -210,12 +210,47 @@ Agent 核心层（Turn 编排）
 
 Vole 也是一个架构学习项目。`docs/learning/` 目录包含 15 篇双语模块文档，覆盖每一个包——设计决策、实现走读、OpenClaw 对齐分析和复习问题。
 
-| | |
+建议从**[学习指南](./docs/learning/guide.zh-CN.md)**开始了解推荐阅读顺序，也可以直接跳到任意模块。
+
+**阶段一 — 心智模型**
+
+| 文档 | 主题 |
 |---|---|
-| **[学习指南](./docs/learning/guide.zh-CN.md)** | 分阶段课程表——从哪里开始，按什么顺序学习 |
-| **[模块计划](./docs/learning/plan.zh-CN.md)** | 完整模块列表，附所有学习文档链接 |
-| **[01 — Agent Loop 心智模型](./docs/learning/01-concepts.zh-CN.md)** | 从这里开始：读代码之前的全局视角 |
-| **[02 — 核心循环代码](./docs/learning/02-core.zh-CN.md)** | `AgentRuntime` 和 17 种事件循环的工作方式 |
+| [01 — Agent Loop 概念](./docs/learning/01-concepts.zh-CN.md) | 全局视角：Agent 循环是什么，各部分如何组合 |
+
+**阶段二 — 核心循环**
+
+| 文档 | 主题 |
+|---|---|
+| [02 — 核心循环代码](./docs/learning/02-core.zh-CN.md) | `AgentRuntime`、17 种事件异步生成器、停滞检测 |
+
+**阶段三 — 基础层模块**
+
+| 文档 | 主题 |
+|---|---|
+| [13 — Config](./docs/learning/13-config.zh-CN.md) | 环境变量加载、三层合并、`EffectiveConfig`、脱敏 |
+| [03 — Models](./docs/learning/03-models.zh-CN.md) | `ModelProvider`、流式输出、Anthropic vs OpenAI 兼容 |
+| [04 — Permissions](./docs/learning/04-permissions.zh-CN.md) | 风险 × 自主模式 → allow / ask / deny / block |
+| [05 — Tools](./docs/learning/05-tools.zh-CN.md) | 工具注册、沙箱、工作区边界、结果类型 |
+| [07 — Sessions](./docs/learning/07-sessions.zh-CN.md) | JSONL 追加写、`#replay`、压缩边界、互斥锁 |
+| [08 — Taskflow](./docs/learning/08-taskflow.zh-CN.md) | `update_todos`、`TodoItem` 状态机、`JsonlTaskFlowStore` |
+| [06 — Context](./docs/learning/06-context.zh-CN.md) | XML 段落、提示词模式、`compactMessages`、缓存提示 |
+| [09 — Skills](./docs/learning/09-skills.zh-CN.md) | 三来源加载、渐进式披露、`SkillManager` |
+| [10 — Scheduler](./docs/learning/10-scheduler.zh-CN.md) | `CronScheduler`、`BackgroundApprovalResolver`、`writeHeartbeat` |
+
+**阶段四 — 扩展系统**
+
+| 文档 | 主题 |
+|---|---|
+| [11 — Adapters](./docs/learning/11-adapters.zh-CN.md) | `AdapterCapabilities`、工具 Profile、`filterToolsByProfile` |
+| [12 — Gateway](./docs/learning/12-gateway.zh-CN.md) | 进程内会话注册表、`touch`、存在 vs 历史 |
+
+**阶段五 — 系统综合**
+
+| 文档 | 主题 |
+|---|---|
+| [14 — CLI](./docs/learning/14-cli.zh-CN.md) | 所有包的组装点；`CliChatSession`、`sendMessage` |
+| [15 — Web](./docs/learning/15-web.zh-CN.md) | `WebApprovalResolver` Promise 桥接、SSE vs WebSocket、两层存储 |
 
 所有学习文档均有英文和简体中文两个版本。
 
