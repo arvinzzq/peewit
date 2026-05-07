@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FakeModelProvider } from "@vole/models";
-import { DefaultContextAssembler, compactMessages, type ContextAssembler } from "./index.js";
+import { DefaultContextAssembler, compactMessages, thinToolMessage, type ContextAssembler } from "./index.js";
 
 describe("context assembler sections", () => {
   test("assembles provider-ready messages in deterministic section order", async () => {
@@ -377,16 +377,75 @@ describe("compactMessages", () => {
     }
   });
 
-  test("returns original messages when model call fails", async () => {
-    const messages = Array.from({ length: 15 }, (_, i) => ({
-      role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
-      content: `Message ${i}`
-    }));
+  test("returns thinned messages (not originals) when distillation model call fails", async () => {
+    // Place the large tool message early so it falls in the old portion (not recent).
+    // Layout: system + tool(old) + 8 user/assistant(old) + 5 user/assistant(recent) = 15 total
+    // maxMessages=10, keepRecent=5 → old = conversation[0..8] which includes the tool message.
+    const toolResultContent = JSON.stringify({ ok: true, content: "x".repeat(1000), summary: "Read foo.txt." });
+    const messages = [
+      { role: "system" as const, content: "System." },
+      { role: "tool" as const, content: toolResultContent, toolCallId: "tc_1" },
+      ...Array.from({ length: 13 }, (_, i) => ({
+        role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+        content: `Turn ${i}`
+      }))
+    ];
+    // 15 total (1 system + 14 conversation), maxMessages=10, keepRecent=5
+    // old = conversation[0..8] = tool + 8 user/assistant messages
     const provider = new FakeModelProvider([
       { type: "error", category: "unknown", message: "Model failed", recoverable: false }
     ]);
     const result = await compactMessages(messages, provider, { maxMessages: 10, keepRecent: 5 });
-    expect(result).toEqual(messages);
+    // Must not equal the original — tool output should be stripped from old portion
+    expect(result).not.toEqual(messages);
+    // The large raw content must be gone
+    const resultStr = JSON.stringify(result);
+    expect(resultStr).not.toContain("x".repeat(100));
+    // But the summary must still be present
+    expect(resultStr).toContain("Read foo.txt.");
+    // The 5 recent messages are verbatim
+    expect(result.slice(-5)).toEqual(messages.slice(-5));
+  });
+
+  test("thinToolMessage strips content but keeps summary and metadata", () => {
+    const large = JSON.stringify({
+      ok: true,
+      content: "A".repeat(5000),
+      summary: "Read large-file.ts.",
+      exitCode: undefined
+    });
+    const msg = { role: "tool" as const, content: large, toolCallId: "tc_1" };
+    const thinned = thinToolMessage(msg);
+    expect(thinned.role).toBe("tool");
+    const parsed = JSON.parse(thinned.content ?? "{}") as Record<string, unknown>;
+    expect(parsed["ok"]).toBe(true);
+    expect(parsed["summary"]).toBe("Read large-file.ts.");
+    expect("content" in parsed).toBe(false);
+    expect(JSON.stringify(thinned).length).toBeLessThan(large.length / 10);
+  });
+
+  test("thinToolMessage preserves non-JSON content up to 400 chars", () => {
+    const long = "x".repeat(600);
+    const msg = { role: "tool" as const, content: long, toolCallId: "tc_2" };
+    const thinned = thinToolMessage(msg);
+    expect(thinned.content?.length).toBeLessThanOrEqual(450);
+    expect(thinned.content).toContain("chars omitted");
+  });
+
+  test("recent messages are always preserved verbatim regardless of content size", async () => {
+    // Ensure keepRecent messages are returned exactly as-is, never thinned or modified.
+    const largeToolContent = JSON.stringify({ ok: true, content: "B".repeat(2000), summary: "Recent tool." });
+    const messages = [
+      { role: "system" as const, content: "System." },
+      ...Array.from({ length: 9 }, (_, i) => ({ role: "user" as const, content: `Old ${i}` })),
+      { role: "tool" as const, content: largeToolContent, toolCallId: "recent_tc" }
+    ];
+    // 11 total, maxMessages=10, keepRecent=5 → last 5 are in recent (includes the tool message)
+    const provider = new FakeModelProvider([{ type: "message", content: "Summary." }]);
+    const result = await compactMessages(messages, provider, { maxMessages: 10, keepRecent: 5 });
+    // The recent tool message must be verbatim — not thinned
+    const recentTool = result.find((m) => m.role === "tool" && m.toolCallId === "recent_tc");
+    expect(recentTool?.content).toBe(largeToolContent);
   });
 });
 

@@ -246,16 +246,37 @@ export async function compactMessages(
   const conversation = leadingSystem !== undefined ? messages.slice(1) : messages;
 
   const old = conversation.slice(0, conversation.length - opts.keepRecent);
+  // The most recent keepRecent messages are preserved verbatim — they represent
+  // the agent's current working memory and must not be altered or summarised.
   const recent = conversation.slice(-opts.keepRecent);
 
   if (old.length === 0) {
     return messages;
   }
 
-  const transcript = old
+  // Phase 1 — mechanical reduction (free, no model call):
+  // Replace tool result messages in the old portion with summary-only versions.
+  // Tool outputs (file contents, shell stdout, web pages) are the largest part of
+  // context but their raw data is no longer needed once the agent has processed them.
+  // Using summaries here makes the distillation transcript cheaper and keeps the
+  // resulting summary focused on decisions and outcomes rather than raw data.
+  const thinnedOld = old.map(thinToolMessage);
+
+  // Build the minimal representation of the old context for distillation.
+  const thinnedMessages: ModelMessage[] = [
+    ...(leadingSystem !== undefined ? [leadingSystem] : []),
+    ...thinnedOld,
+    ...recent
+  ];
+
+  const transcript = thinnedOld
     .map((m) => `${m.role.toUpperCase()}: ${m.content ?? "(tool call)"}`)
     .join("\n");
 
+  // Phase 2 — semantic reduction (one model call):
+  // Distil the thinned old context into a compact summary. On failure, fall back
+  // to the thinned-but-not-summarised messages rather than the original — this
+  // ensures tool output content is never restored to context after a failed call.
   try {
     const output = await modelProvider.generate({
       messages: [
@@ -265,7 +286,7 @@ export async function compactMessages(
     });
 
     if (output.type !== "message" || !output.content) {
-      return messages;
+      return thinnedMessages;
     }
 
     return [
@@ -274,6 +295,42 @@ export async function compactMessages(
       ...recent
     ];
   } catch {
-    return messages;
+    return thinnedMessages;
   }
+}
+
+// Replace a tool result message's large content blobs with a summary-only version.
+// Exported so adapters and tests can use it independently.
+// Tool results carry a `summary` field ("Read file foo.ts.", "Ran in 234ms exit 0.")
+// that captures what happened without the raw data. Once the agent has moved past
+// a tool call, the raw content (file text, stdout, web page) adds no value but
+// consumes significant tokens in the distillation transcript.
+export function thinToolMessage(message: ModelMessage): ModelMessage {
+  if (message.role !== "tool" || message.content === null) {
+    return message;
+  }
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(message.content) as Record<string, unknown>;
+  } catch {
+    // Not JSON — truncate raw string if very large to bound distillation cost.
+    return message.content.length > 400
+      ? { ...message, content: `${message.content.slice(0, 400)}\n[${message.content.length - 400} chars omitted]` }
+      : message;
+  }
+
+  // Build a slim version: keep operational metadata, drop large content blobs.
+  const slim: Record<string, unknown> = {};
+  if ("ok" in parsed) slim["ok"] = parsed["ok"];
+  if ("summary" in parsed && typeof parsed["summary"] === "string") slim["summary"] = parsed["summary"];
+  if ("exitCode" in parsed) slim["exitCode"] = parsed["exitCode"];
+  if ("error" in parsed) slim["error"] = parsed["error"];
+  if ("type" in parsed) slim["type"] = parsed["type"];
+  // Preserve short string results (e.g. subagent outputs under 200 chars).
+  if ("result" in parsed && typeof parsed["result"] === "string" && (parsed["result"] as string).length <= 200) {
+    slim["result"] = parsed["result"];
+  }
+
+  return { ...message, content: JSON.stringify(slim) };
 }
