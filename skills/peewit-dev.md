@@ -1,6 +1,14 @@
 ---
 name: peewit-dev
-description: Development conventions for the Peewit TypeScript monorepo — file editing workflow, test patterns, TypeScript union type narrowing, and bilingual doc rules.
+description: >
+  Development conventions for the Peewit TypeScript monorepo: file editing
+  workflow (edit_file / append_file / write_file), vitest test patterns,
+  TypeScript union type narrowing, and bilingual doc rules.
+  Use when: writing or modifying TypeScript/test files in this codebase;
+  hitting TypeScript type errors; updating bilingual docs; unsure which file
+  tool to use.
+  Skip when: read-only tasks (search, analysis, answering questions without
+  making changes); tasks unrelated to this codebase's code or docs.
 version: "1.0"
 ---
 

@@ -49,6 +49,17 @@ Granularity: one logical change per commit. Never batch unrelated changes.
 - `packages/permissions`: allow/ask/deny/block decisions only
 - `packages/sessions`: persistence only
 
+## Skill Writing Rules
+
+Workspace-local skills live in `skills/`. See `skills/README.md` for the full authoring guide.
+
+Every skill's `description` frontmatter field must answer three questions:
+1. **What** — what knowledge or capability does this skill provide?
+2. **Use when** — specific trigger conditions (concrete, not vague).
+3. **Skip when** — situations where the skill is unnecessary or wrong.
+
+The agent decides whether to load a skill based solely on the description. Without trigger and exclusion conditions, the agent cannot route correctly.
+
 ## OpenClaw Alignment
 
 Research notes are the source of truth for OpenClaw architecture decisions: `docs/research/openclaw-implementation-notes.md`. Before making architectural decisions, check whether OpenClaw has a confirmed pattern. If uncertain, do a research pass first.
