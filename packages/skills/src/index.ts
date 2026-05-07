@@ -130,18 +130,17 @@ export class SkillLoader {
 
     const skills: SkillDefinition[] = [];
     for (const entry of entries) {
-      // User skills are flat .md files; workspace skills are subdirectories with SKILL.md
-      const filePath = source === "user"
-        ? join(dirPath, entry)
-        : join(dirPath, entry, "SKILL.md");
+      // Both user and workspace skills use <name>/SKILL.md subdirectory layout.
+      // This allows each skill to co-locate additional files (templates, examples)
+      // alongside the definition. skills-index.json lives at the root of the user
+      // skills dir and is not a skill subdirectory — skip it.
+      if (entry === "skills-index.json") continue;
 
-      if (source === "user" && !entry.endsWith(".md")) continue;
-      if (source === "user" && entry === "skills-index.json") continue;
+      const filePath = join(dirPath, entry, "SKILL.md");
 
-      // Check manifest for user skills
+      // Check manifest for user skills (enabled/trusted state)
       if (source === "user" && manifest !== undefined) {
-        const entryName = entry.replace(/\.md$/, "");
-        const manifestEntry = manifest.skills.find((e) => e.name === entryName);
+        const manifestEntry = manifest.skills.find((e) => e.name === entry);
         if (manifestEntry !== undefined && manifestEntry.enabled === false) {
           continue; // skip disabled
         }
@@ -155,7 +154,7 @@ export class SkillLoader {
           let enabled: boolean | undefined;
 
           if (source === "user") {
-            const manifestEntry = manifest?.skills.find((e) => e.name === parsed.name);
+            const manifestEntry = manifest?.skills.find((e) => e.name === entry);
             trusted = manifestEntry?.trusted ?? false;
             enabled = manifestEntry?.enabled ?? true;
           }
@@ -170,7 +169,7 @@ export class SkillLoader {
           skills.push(def);
         }
       } catch {
-        // Skip unreadable or invalid skill files silently.
+        // Skip missing or invalid SKILL.md files silently.
       }
     }
     return skills;
@@ -224,8 +223,11 @@ export class SkillManager {
     const parsed = parseSKILLMd(content);
     const name = parsed?.name ?? nameWithoutExt;
 
-    await mkdir(this.#skillsDirectory, { recursive: true });
-    const destPath = join(this.#skillsDirectory, `${name}.md`);
+    // Install into <skillsDirectory>/<name>/SKILL.md so user skills share the same
+    // subdirectory layout as workspace skills, allowing co-located support files.
+    const skillDir = join(this.#skillsDirectory, name);
+    await mkdir(skillDir, { recursive: true });
+    const destPath = join(skillDir, "SKILL.md");
     await copyFile(sourcePath, destPath);
 
     const manifest = await this.loadManifest();

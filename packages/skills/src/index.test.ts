@@ -170,15 +170,15 @@ describe("SkillLoader", () => {
       userSkillsDir: "/user/skills",
       readDir: async (p) => {
         if (p === "/ws/skills") return ["research"];
-        if (p === "/user/skills") return ["research.md", "custom-user.md"];
+        if (p === "/user/skills") return ["research", "custom-user"];
         return [];
       },
       readFile: async (p) => {
         if (p === "/ws/skills/research/SKILL.md")
           return "---\nname: research\ndescription: Workspace version.\n---\n";
-        if (p === "/user/skills/research.md")
+        if (p === "/user/skills/research/SKILL.md")
           return "---\nname: research\ndescription: User version.\n---\n";
-        if (p === "/user/skills/custom-user.md")
+        if (p === "/user/skills/custom-user/SKILL.md")
           return "---\nname: custom-user\ndescription: User custom skill.\n---\n";
         throw Object.assign(new Error(), { code: "ENOENT" });
       }
@@ -224,18 +224,18 @@ describe("SkillLoader", () => {
 
   test("skips disabled user skills via manifest", async () => {
     const manifest = JSON.stringify({
-      skills: [{ name: "disabled-skill", filePath: "/user/skills/disabled-skill.md", installedAt: "2026-01-01T00:00:00.000Z", trusted: true, enabled: false }]
+      skills: [{ name: "disabled-skill", filePath: "/user/skills/disabled-skill/SKILL.md", installedAt: "2026-01-01T00:00:00.000Z", trusted: true, enabled: false }]
     });
 
     const loader = new SkillLoader();
     const skills = await loader.load({
       userSkillsDir: "/user/skills",
-      readDir: async (p) => (p === "/user/skills" ? ["disabled-skill.md", "enabled-skill.md"] : []),
+      readDir: async (p) => (p === "/user/skills" ? ["disabled-skill", "enabled-skill"] : []),
       readFile: async (p) => {
         if (p === "/user/skills/skills-index.json") return manifest;
-        if (p === "/user/skills/disabled-skill.md")
+        if (p === "/user/skills/disabled-skill/SKILL.md")
           return "---\nname: disabled-skill\ndescription: Should be skipped.\n---\nbody";
-        if (p === "/user/skills/enabled-skill.md")
+        if (p === "/user/skills/enabled-skill/SKILL.md")
           return "---\nname: enabled-skill\ndescription: Should be loaded.\n---\nbody";
         throw Object.assign(new Error(), { code: "ENOENT" });
       }
@@ -251,10 +251,10 @@ describe("SkillLoader", () => {
     const loader = new SkillLoader();
     const skills = await loader.load({
       userSkillsDir: "/user/skills",
-      readDir: async (p) => (p === "/user/skills" ? ["new-skill.md"] : []),
+      readDir: async (p) => (p === "/user/skills" ? ["new-skill"] : []),
       readFile: async (p) => {
         if (p === "/user/skills/skills-index.json") return manifest;
-        if (p === "/user/skills/new-skill.md")
+        if (p === "/user/skills/new-skill/SKILL.md")
           return "---\nname: new-skill\ndescription: New user skill.\n---\nbody";
         throw Object.assign(new Error(), { code: "ENOENT" });
       }
