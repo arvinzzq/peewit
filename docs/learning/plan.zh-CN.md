@@ -76,8 +76,8 @@
 
 | 阶段 | 主题 | 状态 | 文档 |
 |---|---|---|---|
-| 阶段一 | Agent Loop 心智模型 | ✅ 已完成 | [00-concepts.zh-CN.md](./00-concepts.zh-CN.md) |
-| 阶段二 | 核心循环代码 | ✅ 已完成 | [11-core.zh-CN.md](./11-core.zh-CN.md) |
+| 阶段一 | Agent Loop 心智模型 | ✅ 已完成 | [01-concepts.zh-CN.md](./01-concepts.zh-CN.md) |
+| 阶段二 | 核心循环代码 | ✅ 已完成 | [02-core.zh-CN.md](./02-core.zh-CN.md) |
 | 阶段三 | 基础层模块 | ⬜ 未开始 | — |
 | 阶段四 | 扩展系统 | ⬜ 未开始 | — |
 | 阶段五 | 系统综合 | ⬜ 未开始 | — |
@@ -87,7 +87,7 @@
 | # | 模块 | 状态 | 文档 |
 |---|------|------|------|
 | 01 | config | ⬜ 未开始 | — |
-| 02 | models | ⬜ 未开始 | — |
+| 02 | models | ✅ 已完成 | [03-models.zh-CN.md](./03-models.zh-CN.md) |
 | 03 | permissions | ⬜ 未开始 | — |
 | 04 | tools | ⬜ 未开始 | — |
 | 05 | sessions | ⬜ 未开始 | — |
@@ -96,7 +96,7 @@
 | 08 | skills | ⬜ 未开始 | — |
 | 09 | scheduler | ⬜ 未开始 | — |
 | 10 | adapters | ⬜ 未开始 | — |
-| 11 | core | ⬜ 未开始 | — |
+| 11 | core | ✅ 已完成 | [02-core.zh-CN.md](./02-core.zh-CN.md) |
 | 12 | gateway | ⬜ 未开始 | — |
 | 13 | apps/cli | ⬜ 未开始 | — |
 | 14 | apps/web | ⬜ 未开始 | — |

@@ -3,14 +3,14 @@
 Status: Complete
 Date: 2026-05-07
 
-Simplified Chinese version: `02-models.zh-CN.md` (create alongside this file)
+Simplified Chinese version: `03-models.zh-CN.md` (create alongside this file)
 
 Related source: `packages/models/src/index.ts`
 
 ## 0. How to Use This Document
 
 This document is part of Stage 3 (Foundation Modules) in the [learning guide](./guide.md).
-Read it after [11-core.md](./11-core.md) so you already know where `ModelProvider` is called
+Read it after [02-core.md](./02-core.md) so you already know where `ModelProvider` is called
 from inside the loop.
 
 **Before reading**: Skim `packages/models/src/index.ts` top-to-bottom once — just to see

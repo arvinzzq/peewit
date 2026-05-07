@@ -3,7 +3,7 @@
 Status: Complete
 Date: 2026-05-07
 
-English version: `00-concepts.md`
+English version: `01-concepts.md`
 
 ## 0. 如何使用本文档
 

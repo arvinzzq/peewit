@@ -3,7 +3,7 @@
 Status: Complete
 Date: 2026-05-07
 
-Simplified Chinese version: `11-core.zh-CN.md` (create alongside this file)
+Simplified Chinese version: `02-core.zh-CN.md` (create alongside this file)
 
 Related source: `packages/core/src/index.ts`
 
@@ -12,7 +12,7 @@ Related source: `packages/core/src/index.ts`
 This document is the output of Stage 2 in the [learning guide](./guide.md). It covers
 `@vole/core` — the center of the entire system. Read this before any other module doc.
 
-**Before reading**: Build the Stage 1 mental model first ([00-concepts.md](./00-concepts.md)).
+**Before reading**: Build the Stage 1 mental model first ([01-concepts.md](./01-concepts.md)).
 Then read these primary sources:
 
 1. `docs/architecture/agent-loop.md` — section 15 (interface definitions and event types)

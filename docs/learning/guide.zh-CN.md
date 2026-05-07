@@ -122,7 +122,7 @@ cd apps/cli && pnpm dev
 对下面每个模块，目标是理解*它解决了什么问题*以及*它在哪里插入循环*。从"如果这个包不存在
 会发生什么？"这个问题开始每个模块的学习。
 
-完成每个子阶段后，用 `_template.zh-CN.md` 产出 `docs/learning/0N-<name>.zh-CN.md`。
+完成每个子阶段后，用 `_template.zh-CN.md` 产出 `docs/learning/NN-<name>.zh-CN.md（N 为学习步骤编号）`。
 
 ### 6.1 Models — 模型抽象层
 
@@ -330,5 +330,5 @@ OpenClaw 功能被刻意推迟到后续阶段。
 **完整追踪一条路径**：不要广度优先读完整个 `@vole/core`，而是完整追踪一个具体输入的路径。
 跟着"用户请求执行 bash 命令"走过每个函数调用，直到工具结果被 yield 回模型。
 
-**产出文档**：每个模块学完后，写 `docs/learning/0N-<name>.zh-CN.md`。写作这个动作强制理解。
+**产出文档**：每个模块学完后，写 `docs/learning/NN-<name>.zh-CN.md（N 为学习步骤编号）`。写作这个动作强制理解。
 如果你无法解释一个设计决策，说明你还没真正理解它。

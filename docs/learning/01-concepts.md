@@ -3,7 +3,7 @@
 Status: Complete
 Date: 2026-05-07
 
-Simplified Chinese version: `00-concepts.zh-CN.md` (create alongside this file)
+Simplified Chinese version: `01-concepts.zh-CN.md` (create alongside this file)
 
 ## 0. How to Use This Document
 

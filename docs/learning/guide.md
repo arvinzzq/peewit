@@ -128,7 +128,7 @@ For each module below, the goal is to understand *what problem it solves* and *w
 into the loop*. Start every module with the question: "what would break if this package did not
 exist?"
 
-After completing each sub-stage, produce `docs/learning/0N-<name>.md` using `_template.md`.
+After completing each sub-stage, produce `docs/learning/NN-<name>.md (N = learning step number)` using `_template.md`.
 
 ### 6.1 Models — Vendor Abstraction
 
@@ -349,6 +349,6 @@ Interfaces describe what a module promises; classes describe how.
 input end-to-end. Follow "user requests bash execution" through every function call until you
 reach the tool result being yielded back to the model.
 
-**Produce the document**: After each module, write `docs/learning/0N-<name>.md`. The act of
+**Produce the document**: After each module, write `docs/learning/NN-<name>.md (N = learning step number)`. The act of
 writing forces understanding. If you cannot explain a design decision, you have not understood
 it yet.

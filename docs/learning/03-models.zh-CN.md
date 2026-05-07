@@ -3,14 +3,14 @@
 Status: Complete
 Date: 2026-05-07
 
-English version: `02-models.md`
+English version: `03-models.md`
 
 相关源码：`packages/models/src/index.ts`
 
 ## 0. 如何使用本文档
 
 本文档是[学习指南](./guide.zh-CN.md)阶段三（基础层模块）的一部分。在阅读本文档之前，
-先读 [11-core.zh-CN.md](./11-core.zh-CN.md)，这样你已经知道 `ModelProvider` 在循环中
+先读 [02-core.zh-CN.md](./02-core.zh-CN.md)，这样你已经知道 `ModelProvider` 在循环中
 的哪个位置被调用。
 
 **阅读前**：把 `packages/models/src/index.ts` 从头到尾快速扫一遍，只看导出了什么。

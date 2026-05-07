@@ -3,7 +3,7 @@
 Status: Complete
 Date: 2026-05-07
 
-English version: `11-core.md`（与本文件并列）
+English version: `02-core.md`（与本文件并列）
 
 相关源码：`packages/core/src/index.ts`
 
@@ -12,7 +12,7 @@ English version: `11-core.md`（与本文件并列）
 本文档是[学习指南](./guide.zh-CN.md)阶段二的产出。涵盖 `@vole/core`——整个系统的中心。
 在阅读其他任何模块文档之前，先读这篇。
 
-**阅读前**：先建立阶段一的心智模型（[00-concepts.zh-CN.md](./00-concepts.zh-CN.md)）。
+**阅读前**：先建立阶段一的心智模型（[01-concepts.zh-CN.md](./01-concepts.zh-CN.md)）。
 然后阅读以下一手资料：
 
 1. `docs/architecture/agent-loop.md` — 第 15 节（接口定义和事件类型）
