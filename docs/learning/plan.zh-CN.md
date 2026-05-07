@@ -1,5 +1,8 @@
 # Vole Agent — 模块学习计划
 
+**从这里开始：** [学习指南](./guide.zh-CN.md) — 阶段式学习课程。
+**模块模板：** [_template.zh-CN.md](./_template.zh-CN.md) — 每个模块文档的标准格式。
+
 对 Vole TypeScript monorepo 每个模块的系统性深度学习。
 每次学习一个模块：一起阅读源码、讨论设计决策、将实现与 OpenClaw 模式对照，
 最后将结论总结成该模块的专属文档。
@@ -22,20 +25,20 @@
 
 | # | 模块 | 源码行数 | 核心概念 | 文档 |
 |---|------|---------|---------|------|
-| 01 | `@vole/config` | 377 | 环境变量加载、配置结构、脱敏 | [→](./01-config.zh-CN.md) |
-| 02 | `@vole/models` | 871 | Provider 抽象、流式输出、token 计数 | [→](./02-models.zh-CN.md) |
-| 03 | `@vole/permissions` | 82 | allow / ask / deny / block 决策树 | [→](./03-permissions.zh-CN.md) |
-| 04 | `@vole/tools` | 1182 | 工具注册、执行、工作区沙箱 | [→](./04-tools.zh-CN.md) |
-| 05 | `@vole/sessions` | 436 | 消息持久化、互斥锁、历史压缩 | [→](./05-sessions.zh-CN.md) |
-| 06 | `@vole/taskflow` | 103 | 单次 turn 内任务追踪、todo 状态机 | [→](./06-taskflow.zh-CN.md) |
-| 07 | `@vole/context` | 272 | Prompt 组装、XML 分节、缓存提示 | [→](./07-context.zh-CN.md) |
-| 08 | `@vole/skills` | 384 | Skill 发现、惰性加载、frontmatter 路由 | [→](./08-skills.zh-CN.md) |
-| 09 | `@vole/scheduler` | 207 | Cron 后台运行、触发器生命周期 | [→](./09-scheduler.zh-CN.md) |
-| 10 | `@vole/adapters` | 123 | 工具 profile（coding / full / messaging） | [→](./10-adapters.zh-CN.md) |
-| 11 | `@vole/core` | 855 | **Agent 循环** — 整个系统的核心 | [→](./11-core.zh-CN.md) |
-| 12 | `@vole/gateway` | 49 | 会话生命周期、并发运行守卫 | [→](./12-gateway.zh-CN.md) |
-| 13 | `apps/cli` | 1597+514 | CLI 适配器、Ink 渲染、slash 命令 | [→](./13-cli.zh-CN.md) |
-| 14 | `apps/web` | — | Web 适配器、SSE 流式、REST API | [→](./14-web.zh-CN.md) |
+| 01 | `@vole/config` | 377 | 环境变量加载、配置结构、脱敏 | ⬜ |
+| 02 | `@vole/models` | 871 | Provider 抽象、流式输出、token 计数 | ⬜ |
+| 03 | `@vole/permissions` | 82 | allow / ask / deny / block 决策树 | ⬜ |
+| 04 | `@vole/tools` | 1182 | 工具注册、执行、工作区沙箱 | ⬜ |
+| 05 | `@vole/sessions` | 436 | 消息持久化、互斥锁、历史压缩 | ⬜ |
+| 06 | `@vole/taskflow` | 103 | 单次 turn 内任务追踪、todo 状态机 | ⬜ |
+| 07 | `@vole/context` | 272 | Prompt 组装、XML 分节、缓存提示 | ⬜ |
+| 08 | `@vole/skills` | 384 | Skill 发现、惰性加载、frontmatter 路由 | ⬜ |
+| 09 | `@vole/scheduler` | 207 | Cron 后台运行、触发器生命周期 | ⬜ |
+| 10 | `@vole/adapters` | 123 | 工具 profile（coding / full / messaging） | ⬜ |
+| 11 | `@vole/core` | 855 | **Agent 循环** — 整个系统的核心 | ⬜ |
+| 12 | `@vole/gateway` | 49 | 会话生命周期、并发运行守卫 | ⬜ |
+| 13 | `apps/cli` | 1597+514 | CLI 适配器、Ink 渲染、slash 命令 | ⬜ |
+| 14 | `apps/web` | — | Web 适配器、SSE 流式、REST API | ⬜ |
 
 ---
 

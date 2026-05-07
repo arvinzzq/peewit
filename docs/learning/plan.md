@@ -1,5 +1,8 @@
 # Vole Agent — Module Learning Plan
 
+**Start here:** [Learning Guide](./guide.md) — the stage-based curriculum.
+**Module template:** [_template.md](./_template.md) — the standard format for every module doc.
+
 A structured deep-dive into every module of the Vole TypeScript monorepo.
 Each session covers one module: we read the source together, discuss design decisions,
 connect the implementation to OpenClaw patterns, and summarize findings into a
@@ -23,20 +26,20 @@ Ordered by dependency: each module only uses concepts from modules above it.
 
 | # | Module | Source lines | Key concept | Doc |
 |---|--------|-------------|-------------|-----|
-| 01 | `@vole/config` | 377 | Env loading, config shape, redaction | [→](./01-config.md) |
-| 02 | `@vole/models` | 871 | Provider abstraction, streaming, token counting | [→](./02-models.md) |
-| 03 | `@vole/permissions` | 82 | Allow / ask / deny / block decision tree | [→](./03-permissions.md) |
-| 04 | `@vole/tools` | 1182 | Tool registration, execution, workspace sandbox | [→](./04-tools.md) |
-| 05 | `@vole/sessions` | 436 | Message persistence, mutex, history compaction | [→](./05-sessions.md) |
-| 06 | `@vole/taskflow` | 103 | In-turn task tracking, todo state machine | [→](./06-taskflow.md) |
-| 07 | `@vole/context` | 272 | Prompt assembly, XML sections, cache hints | [→](./07-context.md) |
-| 08 | `@vole/skills` | 384 | Skill discovery, lazy loading, frontmatter routing | [→](./08-skills.md) |
-| 09 | `@vole/scheduler` | 207 | Cron-based background runs, trigger lifecycle | [→](./09-scheduler.md) |
-| 10 | `@vole/adapters` | 123 | Tool profiles (coding / full / messaging) | [→](./10-adapters.md) |
-| 11 | `@vole/core` | 855 | **Agent loop** — the heart of everything | [→](./11-core.md) |
-| 12 | `@vole/gateway` | 49 | Session lifecycle, concurrent-run guard | [→](./12-gateway.md) |
-| 13 | `apps/cli` | 1597+514 | CLI adapter, Ink rendering, slash commands | [→](./13-cli.md) |
-| 14 | `apps/web` | — | Web adapter, SSE streaming, REST API | [→](./14-web.md) |
+| 01 | `@vole/config` | 377 | Env loading, config shape, redaction | ⬜ |
+| 02 | `@vole/models` | 871 | Provider abstraction, streaming, token counting | ⬜ |
+| 03 | `@vole/permissions` | 82 | Allow / ask / deny / block decision tree | ⬜ |
+| 04 | `@vole/tools` | 1182 | Tool registration, execution, workspace sandbox | ⬜ |
+| 05 | `@vole/sessions` | 436 | Message persistence, mutex, history compaction | ⬜ |
+| 06 | `@vole/taskflow` | 103 | In-turn task tracking, todo state machine | ⬜ |
+| 07 | `@vole/context` | 272 | Prompt assembly, XML sections, cache hints | ⬜ |
+| 08 | `@vole/skills` | 384 | Skill discovery, lazy loading, frontmatter routing | ⬜ |
+| 09 | `@vole/scheduler` | 207 | Cron-based background runs, trigger lifecycle | ⬜ |
+| 10 | `@vole/adapters` | 123 | Tool profiles (coding / full / messaging) | ⬜ |
+| 11 | `@vole/core` | 855 | **Agent loop** — the heart of everything | ⬜ |
+| 12 | `@vole/gateway` | 49 | Session lifecycle, concurrent-run guard | ⬜ |
+| 13 | `apps/cli` | 1597+514 | CLI adapter, Ink rendering, slash commands | ⬜ |
+| 14 | `apps/web` | — | Web adapter, SSE streaming, REST API | ⬜ |
 
 ---
 
