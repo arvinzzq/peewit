@@ -1,11 +1,36 @@
 # Module 11: @vole/core
 
-Status: Draft
+Status: Complete
 Date: 2026-05-07
 
 Simplified Chinese version: `11-core.zh-CN.md` (create alongside this file)
 
 Related source: `packages/core/src/index.ts`
+
+## 0. How to Use This Document
+
+This document is the output of Stage 2 in the [learning guide](./guide.md). It covers
+`@vole/core` — the center of the entire system. Read this before any other module doc.
+
+**Before reading**: Build the Stage 1 mental model first ([00-concepts.md](./00-concepts.md)).
+Then read these primary sources:
+
+1. `docs/architecture/agent-loop.md` — section 15 (interface definitions and event types)
+2. `packages/core/src/index.ts` — start with the exported `runtimeEventTypes` array, then
+   `AgentRuntimeDependencies`, then `runTurn`
+3. `packages/core/src/index.test.ts` — read test names before reading implementations;
+   the `describe` / `test` labels describe every behavior the module guarantees
+
+**Focus questions**: Answer these while reading the source:
+- What are the 17 `RuntimeEventType` values and in what order do they appear in a normal run?
+- Why does `runTurn` return `AsyncGenerator<RuntimeEvent>` instead of `Promise<RuntimeEvent[]>`?
+- Where exactly in the loop does permission evaluation happen?
+- Why is `ContextAssembler` injected rather than constructed inside `AgentRuntime`?
+- What triggers `planning_stall_detected` and what happens after it fires?
+
+**Checkpoint**: You have understood this module when you can trace a complete run — from
+`runTurn(input)` call to `run_completed` — naming every event emitted and every decision
+point the loop passes through.
 
 ## 1. What This Module Does
 

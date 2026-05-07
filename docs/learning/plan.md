@@ -78,7 +78,7 @@ Ordered by dependency: each module only uses concepts from modules above it.
 | Stage | Topic | Status | Doc |
 |---|---|---|---|
 | Stage 1 | Agent Loop Mental Model | ✅ complete | [00-concepts.md](./00-concepts.md) |
-| Stage 2 | Core Loop in Code | ⬜ not started | — |
+| Stage 2 | Core Loop in Code | ✅ complete | [11-core.md](./11-core.md) |
 | Stage 3 | Foundation Modules | ⬜ not started | — |
 | Stage 4 | Extension Systems | ⬜ not started | — |
 | Stage 5 | System Synthesis | ⬜ not started | — |

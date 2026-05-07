@@ -1,11 +1,35 @@
 # 模块 11：@vole/core
 
-Status: Draft
+Status: Complete
 Date: 2026-05-07
 
 English version: `11-core.md`（与本文件并列）
 
 相关源码：`packages/core/src/index.ts`
+
+## 0. 如何使用本文档
+
+本文档是[学习指南](./guide.zh-CN.md)阶段二的产出。涵盖 `@vole/core`——整个系统的中心。
+在阅读其他任何模块文档之前，先读这篇。
+
+**阅读前**：先建立阶段一的心智模型（[00-concepts.zh-CN.md](./00-concepts.zh-CN.md)）。
+然后阅读以下一手资料：
+
+1. `docs/architecture/agent-loop.md` — 第 15 节（接口定义和事件类型）
+2. `packages/core/src/index.ts` — 从导出的 `runtimeEventTypes` 数组开始，然后
+   `AgentRuntimeDependencies`，最后 `runTurn`
+3. `packages/core/src/index.test.ts` — 先读测试名称再读实现；`describe` / `test`
+   的标签描述了这个模块保证的每一个行为
+
+**核心问题**：阅读源码时回答这些问题：
+- 17 个 `RuntimeEventType` 值是什么，正常运行时以什么顺序出现？
+- 为什么 `runTurn` 返回 `AsyncGenerator<RuntimeEvent>` 而不是 `Promise<RuntimeEvent[]>`？
+- 权限评估在循环的哪个确切位置发生？
+- 为什么 `ContextAssembler` 是注入的而不是在 `AgentRuntime` 内部创建的？
+- 什么触发 `planning_stall_detected`，触发后发生什么？
+
+**检查点**：当你能从 `runTurn(input)` 调用追踪到 `run_completed`——说出每个发射的事件
+和循环经过的每个决策点——说明你已经掌握了这个模块。
 
 ## 1. 这个模块做什么
 
