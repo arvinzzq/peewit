@@ -164,12 +164,19 @@ sections were included and which were omitted with reasons. Core emits this info
 in the `context_assembled` event. This means trace viewers can show "the model saw these
 sections" without having to parse the raw system prompt.
 
-**Compaction uses the model provider itself**
+**Compaction is distillation, not summarisation**
 
-`compactMessages()` calls `modelProvider.generate()` to produce a summary. No special
-summarization API is needed — the same `ModelProvider` interface used by the agent loop
-is reused here. If compaction fails (network error, model error), the original messages
-are returned unchanged. The agent continues; compaction failure is silent and non-fatal.
+Compaction and summarisation have different goals. Summarisation produces a readable
+overview for a human. Compaction extracts the operationally necessary information for
+the agent to continue working. The system prompt in `compactMessages()` makes this
+explicit: *"Preserve tool calls made, decisions reached, key facts discovered, and
+current task state."* These are the things the next loop step needs — not highlights
+for a reader.
+
+`compactMessages()` calls `modelProvider.generate()` to produce this distilled context.
+No special API is needed — the same `ModelProvider` interface used by the agent loop is
+reused here. If compaction fails (network error, model error), the original messages are
+returned unchanged. The agent continues; compaction failure is silent and non-fatal.
 
 **Workspace files are loaded fresh on every call**
 
@@ -210,7 +217,14 @@ scheduler fires a pre-configured task, a large system prompt describing tools, s
 and workspace context may be unnecessary. `"none"` mode allows running the model
 with only the task message, reducing token cost.
 
-**Compaction summary becomes a system message.** The summary produced by `compactMessages`
+**Compaction is distillation, not summarisation.** Summarisation produces a human-readable
+overview of what happened. Compaction extracts the operationally necessary information for
+the agent to continue: tool calls made, decisions reached, key facts discovered, current
+task state. What a human might find interesting to review is often irrelevant to what the
+agent needs to carry forward. The distinction matters: compaction is not a recap for the
+user — it is a memory reduction for the next loop step.
+
+**Compaction summary becomes a system message.** The distilled context produced by `compactMessages`
 is inserted as `{ role: "system", content: "Conversation summary:\n..." }`. This is the
 only system message in the compacted history — the original system prompt from the current
 `assemble()` call is added separately at the start of `modelInput.messages`.

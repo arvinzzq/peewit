@@ -158,9 +158,16 @@ async function compactMessages(
 包含、哪些被省略以及原因。Core 把这个信息放入 `context_assembled` 事件。这意味着追踪
 查看器可以显示「模型看到了这些节」，而无需解析原始系统提示字符串。
 
-**压缩使用模型 provider 本身**
+**Compaction 是提炼，不是总结**
 
-`compactMessages()` 调用 `modelProvider.generate()` 产生摘要。不需要特殊的摘要 API——
+Compaction 和总结（summarisation）目标不同。总结是为人类读者提供可读的概览。Compaction
+是提取 agent 继续工作所需的操作性信息。`compactMessages()` 的 system prompt 说得很清楚：
+*"保留调用过的工具、达成的决策、发现的关键事实和当前任务状态。"*——这些是下一个循环
+步骤需要的东西，不是给读者看的要点。
+
+区分方式：总结关注「发生了什么」，Compaction 关注「我接下来还需要知道什么才能继续做」。
+
+`compactMessages()` 调用 `modelProvider.generate()` 完成这个提炼过程。不需要特殊 API——
 和 agent 循环用的是同一个 `ModelProvider` 接口。如果压缩失败（网络错误、模型错误），
 原始消息原样返回。Agent 继续运行；压缩失败是静默且非致命的。
 
@@ -199,7 +206,12 @@ async function compactMessages(
 技能和工作区 context 的大型系统提示可能是不必要的。`"none"` 模式允许只用任务消息运行
 模型，降低 token 成本。
 
-**压缩摘要成为系统消息。** `compactMessages()` 产生的摘要插入为
+**Compaction 是提炼，不是总结。** 总结产生人类可读的回顾。Compaction 提取 agent 继续
+工作所需的操作性信息：调用过的工具、达成的决策、发现的关键事实、当前任务状态。人类
+可能觉得值得回顾的内容，往往对 agent 下一步要做什么毫无意义。这个区别很重要：Compaction
+不是给用户的回顾——它是为下一个循环步骤做的记忆精简。
+
+**压缩结果成为系统消息。** `compactMessages()` 产生的提炼内容插入为
 `{ role: "system", content: "Conversation summary:\n..." }`。这是压缩历史中唯一的系统
 消息——当前 `assemble()` 调用产生的原始系统提示单独添加到 `modelInput.messages` 开头。
 
