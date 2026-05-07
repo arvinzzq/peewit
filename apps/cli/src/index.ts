@@ -1136,7 +1136,8 @@ export class CliChatSession {
         },
         tools: createCliBuiltInTools(options, config),
         approvalResolver: createCliApprovalResolver(options, approvalPromptLog),
-        maxSteps: 20
+        maxSteps: 20,
+        compaction: {}
       }),
       config,
       new InMemoryRuntimeTraceStore(),
@@ -1206,6 +1207,7 @@ export class CliChatSession {
         preferStreaming: sessionOptions.preferStreaming ?? false,
         approvalResolver,
         maxSteps: 20,
+        compaction: {},
         ...(config.runtime.promptMode !== undefined ? { promptMode: config.runtime.promptMode } : {}),
         ...(config.runtime.executionContract !== undefined ? { executionContract: config.runtime.executionContract } : {})
       }),

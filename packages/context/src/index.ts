@@ -216,17 +216,35 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 // ─── Compaction ────────────────────────────────────────────────────────────────
 
 export interface CompactionOptions {
+  /** Token-based trigger: compact when estimated token count exceeds this. Default: 60 000. */
+  maxTokens: number;
+  /** Message-count fallback: compact when message count exceeds this. Default: 400. */
   maxMessages: number;
   keepRecent: number;
   summarySystemPrompt: string;
 }
 
 export const DEFAULT_COMPACTION_OPTIONS: CompactionOptions = {
-  maxMessages: 30,
+  maxTokens: 60_000,
+  maxMessages: 400,
   keepRecent: 12,
   summarySystemPrompt:
     "You are a context distiller for an AI agent. The conversation history has grown too long and must be reduced. Extract only what the agent needs to continue working: tools called and their key outcomes, decisions reached, important facts discovered, files created or modified, errors encountered, and the current task state. Discard pleasantries, repetition, and details that no longer affect the agent's ability to proceed. Output concise factual statements only."
 };
+
+/**
+ * Rough token count estimate for a message array using chars/4 heuristic.
+ * Accurate enough for compaction triggering; avoids an API round-trip.
+ */
+export function estimateMessageTokens(messages: ModelMessage[]): number {
+  let chars = 0;
+  for (const msg of messages) {
+    if (typeof msg.content === "string") chars += msg.content.length;
+    if (msg.toolCalls !== undefined) chars += JSON.stringify(msg.toolCalls).length;
+    if (msg.toolCallId !== undefined) chars += msg.toolCallId.length;
+  }
+  return Math.ceil(chars / 4);
+}
 
 export async function compactMessages(
   messages: ModelMessage[],
@@ -235,7 +253,11 @@ export async function compactMessages(
 ): Promise<ModelMessage[]> {
   const opts: CompactionOptions = { ...DEFAULT_COMPACTION_OPTIONS, ...options };
 
-  if (messages.length <= opts.maxMessages) {
+  const shouldCompact =
+    estimateMessageTokens(messages) > opts.maxTokens ||
+    messages.length > opts.maxMessages;
+
+  if (!shouldCompact) {
     return messages;
   }
 

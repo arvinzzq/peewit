@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FakeModelProvider } from "@vole/models";
-import { DefaultContextAssembler, compactMessages, thinToolMessage, type ContextAssembler } from "./index.js";
+import { DefaultContextAssembler, compactMessages, estimateMessageTokens, thinToolMessage, type ContextAssembler } from "./index.js";
 
 describe("context assembler sections", () => {
   test("assembles provider-ready messages in deterministic section order", async () => {
@@ -336,6 +336,38 @@ describe("prompt modes", () => {
     expect(messages[messages.length - 1]).toEqual({ role: "user", content: "Hello." });
     expect(result.report.includedSections).not.toContain("identity");
     expect(result.report.includedSections).toContain("user_message");
+  });
+});
+
+describe("estimateMessageTokens", () => {
+  test("estimates token count from message content characters", () => {
+    const messages = [
+      { role: "user" as const, content: "A".repeat(400) },
+      { role: "assistant" as const, content: null, toolCalls: [{ id: "tc1", name: "bash", input: { cmd: "ls" } }] },
+      { role: "tool" as const, content: "B".repeat(400), toolCallId: "tc1" }
+    ];
+    const tokens = estimateMessageTokens(messages);
+    // 400 content + ~32 toolCalls JSON + 400 content + 3 toolCallId = ~835 chars → ceil(835/4) = 209
+    expect(tokens).toBeGreaterThan(100);
+    expect(tokens).toBeLessThan(500);
+  });
+
+  test("returns 0 for empty array", () => {
+    expect(estimateMessageTokens([])).toBe(0);
+  });
+
+  test("triggers compaction via maxTokens when token count exceeds threshold", async () => {
+    // 10 messages each with 1000 chars → ~2500 tokens, well above maxTokens: 100
+    const messages = [
+      { role: "system" as const, content: "System" },
+      ...Array.from({ length: 9 }, (_, i) => ({
+        role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+        content: "X".repeat(1000)
+      }))
+    ];
+    const provider = new FakeModelProvider([{ type: "message", content: "summary" }]);
+    const result = await compactMessages(messages, provider, { maxTokens: 100, maxMessages: 9999, keepRecent: 3 });
+    expect(result.length).toBeLessThan(messages.length);
   });
 });
 
