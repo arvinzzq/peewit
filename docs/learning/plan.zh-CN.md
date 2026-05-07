@@ -89,7 +89,7 @@
 | 01 | config | ⬜ 未开始 | — |
 | 02 | models | ✅ 已完成 | [03-models.zh-CN.md](./03-models.zh-CN.md) |
 | 03 | permissions | ✅ 已完成 | [04-permissions.zh-CN.md](./04-permissions.zh-CN.md) |
-| 04 | tools | ⬜ 未开始 | — |
+| 04 | tools | ✅ 已完成 | [05-tools.zh-CN.md](./05-tools.zh-CN.md) |
 | 05 | sessions | ⬜ 未开始 | — |
 | 06 | taskflow | ⬜ 未开始 | — |
 | 07 | context | ⬜ 未开始 | — |
