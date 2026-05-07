@@ -23,7 +23,7 @@ Core 必须保持 **adapter 无关**（不含终端渲染或 HTTP 代码）和 *
 
 ### RuntimeEvent 事件系统
 
-Agent 在一次 turn 中的每个可观测动作都会发出一个类型化的 `RuntimeEvent`，共 17 种事件类型，构成严格的生命周期状态机：
+Agent 在一次 turn 中的每个可观测动作都会发出一个类型化的 `RuntimeEvent`，共 19 种事件类型，构成严格的生命周期状态机：
 
 ```
 run_started
@@ -38,8 +38,11 @@ run_started
   → todos_updated            （本步骤调用了 update_todos 时）
   → [planning_stall_detected → ...]  （检测到停滞时）
   → assistant_message_created
+  → turn_complete            （携带本轮所有新消息）
 run_completed | run_failed
 ```
+
+`turn_complete` 仅在成功路径发出，位于 `run_completed` 之前。它携带本轮生成的全部新消息，包括 `user`、`tool_use`、`tool_result` 和最终的 `assistant` 消息。适配器使用此事件将完整工具调用上下文持久化到 session store。
 
 `isTerminalRuntimeEvent(event)` 对 `run_completed` 和 `run_failed` 返回 `true`，Adapter 以此作为停止迭代生成器的信号。`InMemoryRuntimeTraceStore` 提供默认的进程内存储，Adapter 可注入替代实现。
 
@@ -103,6 +106,8 @@ const releaseB = await mutex.acquire("sess_B");   // 不等待
 | `afterToolCall(call, result)` | 工具完成后 | 否，错误被隔离 |
 | `onCompaction(before, after)` | 消息历史压缩后 | 否，错误被隔离 |
 
+`compaction_triggered` 事件现在包含 `summary: string` 字段。Phase 2 成功时该字段包含从压缩后消息中提取的摘要文本；适配器使用它调用 session store 的 `appendCompactBoundary()`。
+
 所有钩子错误在非生产环境用 `console.warn` 捕获记录。
 
 ### ExecutionContract
@@ -154,7 +159,7 @@ const releaseB = await mutex.acquire("sess_B");   // 不等待
 |---|---|---|
 | `package.json` | Package manifest | 声明 core 包及对 context、models、permissions、tools 的 workspace 依赖。 |
 | `tsconfig.json` | TypeScript 配置 | 使用项目引用构建 core。 |
-| `src/index.ts` | 运行时核心 | 所有导出：17 种事件类型及联合类型、`AgentRuntime`、`SessionMutex`、`AgentHooks`、`ExecutionContract`、`InMemoryRuntimeTraceStore`、`RuntimeTraceStore`、`ApprovalResolver`、`SubagentFactory`、`createSpawnSubagentTool`、`createSpawnSubagentAsyncTool`、`AsyncTaskStore`。 |
+| `src/index.ts` | 运行时核心 | 所有导出：19 种事件类型及联合类型（含 `TurnCompleteEvent` 和带 `summary` 字段的 `compaction_triggered`）、`AgentRuntime`、`SessionMutex`、`AgentHooks`、`ExecutionContract`、`InMemoryRuntimeTraceStore`、`RuntimeTraceStore`、`ApprovalResolver`、`SubagentFactory`、`createSpawnSubagentTool`、`createSpawnSubagentAsyncTool`、`AsyncTaskStore`。 |
 | `src/index.test.ts` | 运行时测试 | 覆盖所有事件路径、权限策略、审批、hooks、停滞检测、流式、subagent 工具、`SessionMutex` 并发和 `ExecutionContract` 行为的完整测试套件。 |
 
 ## 更新提醒

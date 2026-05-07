@@ -189,7 +189,8 @@ The same `ModelProvider` interface used by the agent loop is reused — no speci
 
 **Failure handling**: If Phase 2 fails (network error, model error), the Phase 1
 thinned messages are returned — not the originals. Tool output content is never
-restored to context after a failed call.
+restored to context after a failed Phase 2 call. This means compaction always
+reduces context size even on failure — the thinned messages are smaller than the originals.
 
 **Workspace files are loaded fresh on every call**
 
@@ -289,8 +290,10 @@ only summary in the compacted history — the original system prompt from the cu
    > The result is `[summary system message, ...recent 12 messages]`.
 
 5. What happens when `compactMessages()` fails — e.g., the model provider returns an error?
-   > The original `messages` array is returned unchanged. Compaction failure is silent and
-   > non-fatal. The agent continues with the full uncompacted history.
+   > The Phase 1 thinned messages are returned — not the original messages. Phase 1 already
+   > replaced large tool result content with summary-only versions. Compaction failure is
+   > silent and non-fatal. The agent continues with the thinned (but not fully distilled)
+   > history. Tool output content is never restored after a failed Phase 2 call.
 
 6. Why is the system prompt rebuilt on every `assemble()` call rather than cached?
    > Skills, tools, and workspace files could change between calls. Caching would mean the

@@ -17,7 +17,8 @@ import {
   type AgentHooks,
   type AsyncTaskStore,
   type RuntimeEvent,
-  type SubagentFactory
+  type SubagentFactory,
+  type TurnCompleteEvent
 } from "./index.js";
 
 describe("runtime event contracts", () => {
@@ -39,6 +40,7 @@ describe("runtime event contracts", () => {
       "tool_completed",
       "tool_failed",
       "assistant_message_created",
+      "turn_complete",
       "run_completed",
       "run_failed"
     ]);
@@ -191,6 +193,7 @@ describe("message-only AgentRuntime", () => {
       "model_request_started",
       "model_request_completed",
       "assistant_message_created",
+      "turn_complete",
       "run_completed"
     ]);
     expect(events[4]).toMatchObject({
@@ -485,6 +488,7 @@ describe("message-only AgentRuntime", () => {
       "model_request_started",
       "model_request_completed",
       "assistant_message_created",
+      "turn_complete",
       "run_completed"
     ]);
     expect(events[7]).toMatchObject({
@@ -550,6 +554,7 @@ describe("message-only AgentRuntime", () => {
       "model_request_started",
       "model_request_completed",
       "assistant_message_created",
+      "turn_complete",
       "run_completed"
     ]);
     expect(events[5]).toMatchObject({
@@ -686,6 +691,7 @@ describe("message-only AgentRuntime", () => {
       "model_request_started",
       "model_request_completed",
       "assistant_message_created",
+      "turn_complete",
       "run_completed"
     ]);
     expect(events[5]).toMatchObject({
@@ -742,6 +748,7 @@ describe("message-only AgentRuntime", () => {
       "model_request_started",
       "model_request_completed",
       "assistant_message_created",
+      "turn_complete",
       "run_completed"
     ]);
     expect(events[7]).toMatchObject({
@@ -1275,6 +1282,94 @@ describe("AgentHooks", () => {
     const events = await collect(runtime.runTurn({ message: "Run tool." }));
     expect(afterCalls).toEqual(["noop_tool2"]);
     expect(events.map((e) => e.type)).toContain("tool_completed");
+  });
+});
+
+describe("turn_complete event", () => {
+  test("emits turn_complete before run_completed on a successful message-only turn", async () => {
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([{ type: "message", content: "Done." }]),
+      systemInstruction: "You are Vole.",
+      createRunId: () => "run_tc_simple",
+      createEventId: (() => { let n = 0; return () => `evt_tc_${++n}`; })(),
+      now: () => "2026-05-07T00:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ sessionId: "s1", message: "Hello." }));
+    const types = events.map((e) => e.type);
+
+    expect(types).toContain("turn_complete");
+    // turn_complete must appear before run_completed
+    expect(types.indexOf("turn_complete")).toBeLessThan(types.indexOf("run_completed"));
+  });
+
+  test("turn_complete includes the user message and final assistant message", async () => {
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([{ type: "message", content: "Hello back." }]),
+      systemInstruction: "You are Vole.",
+      createRunId: () => "run_tc_msgs",
+      createEventId: (() => { let n = 0; return () => `evt_tcm_${++n}`; })(),
+      now: () => "2026-05-07T00:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ sessionId: "s1", message: "Hello." }));
+    const turnComplete = events.find((e) => e.type === "turn_complete") as TurnCompleteEvent;
+
+    expect(turnComplete).toBeDefined();
+    expect(turnComplete.messages).toHaveLength(2);
+    expect(turnComplete.messages[0]).toMatchObject({ role: "user", content: "Hello." });
+    expect(turnComplete.messages[1]).toMatchObject({ role: "assistant", content: "Hello back." });
+  });
+
+  test("turn_complete includes tool_use and tool_result messages for a tool-calling turn", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-tc-tools-"));
+    await writeFile(join(dir, "hello.txt"), "hello world");
+
+    try {
+      const runtime = new AgentRuntime({
+        contextAssembler: new DefaultContextAssembler(),
+        modelProvider: new FakeModelProvider([
+          { type: "tool_calls", calls: [{ id: "c1", name: "read_file", input: { path: "hello.txt" } }] },
+          { type: "message", content: "Read the file." }
+        ]),
+        systemInstruction: "You are Vole.",
+        tools: [createReadFileTool()],
+        runtime: { mode: "auto", workspace: dir, currentDate: "2026-05-07" },
+        createRunId: () => "run_tc_tools",
+        createEventId: (() => { let n = 0; return () => `evt_tct_${++n}`; })(),
+        now: () => "2026-05-07T00:00:00.000Z"
+      });
+
+      const events = await collect(runtime.runTurn({ sessionId: "s1", message: "Read hello.txt." }));
+      const turnComplete = events.find((e) => e.type === "turn_complete") as TurnCompleteEvent;
+
+      expect(turnComplete).toBeDefined();
+      // user + assistant(tool_calls) + tool_result + final assistant = 4 messages
+      expect(turnComplete.messages).toHaveLength(4);
+      expect(turnComplete.messages[0]).toMatchObject({ role: "user" });
+      expect(turnComplete.messages[1]).toMatchObject({ role: "assistant", content: null, toolCalls: [{ id: "c1" }] });
+      expect(turnComplete.messages[2]).toMatchObject({ role: "tool", toolCallId: "c1" });
+      expect(turnComplete.messages[3]).toMatchObject({ role: "assistant", content: "Read the file." });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("does NOT emit turn_complete on run_failed (no assistant message produced)", async () => {
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([{ type: "error", category: "network", message: "Network down.", recoverable: false }]),
+      systemInstruction: "You are Vole.",
+      createRunId: () => "run_tc_fail",
+      createEventId: (() => { let n = 0; return () => `evt_tcf_${++n}`; })(),
+      now: () => "2026-05-07T00:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ message: "Hello." }));
+    expect(events.map((e) => e.type)).not.toContain("turn_complete");
+    expect(events.at(-1)?.type).toBe("run_failed");
   });
 });
 

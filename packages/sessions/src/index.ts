@@ -1,7 +1,7 @@
 /**
- * INPUT: Session creation requests, conversation messages, runtime trace events, persistence directories, and injectable ID/time providers.
- * OUTPUT: Session records, message/trace records, session store contracts, in-memory storage, and JSONL session storage.
- * POS: Session storage layer; owns replayable short-term conversation state.
+ * INPUT: Session creation requests, conversation messages (including tool_use and tool_result), compaction boundaries, runtime trace events, persistence directories, and injectable ID/time providers.
+ * OUTPUT: Session records, message/trace records, compact_boundary records, session store contracts, in-memory storage, and JSONL session storage.
+ * POS: Session storage layer; owns replayable short-term conversation state with compaction support.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
@@ -23,8 +23,10 @@ export interface SessionMessageRecord {
   id: string;
   sessionId: string;
   role: SessionMessageRole;
-  content: string;
+  content: string | null;
   createdAt: string;
+  toolCalls?: Array<{ id: string; name: string; input: unknown }>;
+  toolCallId?: string;
 }
 
 export interface SessionTraceEventRecord<TEvent = unknown> {
@@ -40,7 +42,16 @@ export interface CreateSessionInput {
 export interface AppendSessionMessageInput {
   sessionId: string;
   role: SessionMessageRole;
-  content: string;
+  content: string | null;
+  toolCalls?: Array<{ id: string; name: string; input: unknown }>;
+  toolCallId?: string;
+}
+
+export interface AppendCompactBoundaryInput {
+  sessionId: string;
+  summary: string;
+  messagesBefore: number;
+  messagesAfter: number;
 }
 
 export interface AppendSessionTraceEventInput<TEvent = unknown> {
@@ -68,6 +79,7 @@ export interface SessionStore {
   listMessages(sessionId: string, query?: ListSessionMessagesQuery): Promise<SessionMessageRecord[]>;
   appendTraceEvent<TEvent>(input: AppendSessionTraceEventInput<TEvent>): Promise<SessionTraceEventRecord<TEvent>>;
   listTraceEvents<TEvent = unknown>(sessionId: string, query?: ListSessionTraceEventsQuery): Promise<SessionTraceEventRecord<TEvent>[]>;
+  appendCompactBoundary(input: AppendCompactBoundaryInput): Promise<void>;
 }
 
 export interface InMemorySessionStoreDependencies {
@@ -132,7 +144,9 @@ export class InMemorySessionStore implements SessionStore {
       sessionId: input.sessionId,
       role: input.role,
       content: input.content,
-      createdAt: timestamp
+      createdAt: timestamp,
+      ...(input.toolCalls !== undefined ? { toolCalls: input.toolCalls } : {}),
+      ...(input.toolCallId !== undefined ? { toolCallId: input.toolCallId } : {})
     };
     const messages = this.#messages.get(input.sessionId) ?? [];
 
@@ -151,6 +165,32 @@ export class InMemorySessionStore implements SessionStore {
     const selectedMessages = query.limit === undefined ? messages : messages.slice(-query.limit);
 
     return selectedMessages.map((message) => ({ ...message }));
+  }
+
+  async appendCompactBoundary(input: AppendCompactBoundaryInput): Promise<void> {
+    const session = this.#sessions.get(input.sessionId);
+
+    if (session === undefined) {
+      throw new Error(`Unknown session "${input.sessionId}".`);
+    }
+
+    // Reset messages to only the summary (if provided)
+    const messages: SessionMessageRecord[] = [];
+    if (input.summary) {
+      const timestamp = this.#now();
+      messages.push({
+        id: this.#createMessageId(),
+        sessionId: input.sessionId,
+        role: "system",
+        content: input.summary,
+        createdAt: timestamp
+      });
+      this.#sessions.set(input.sessionId, {
+        ...session,
+        updatedAt: timestamp
+      });
+    }
+    this.#messages.set(input.sessionId, messages);
   }
 
   async appendTraceEvent<TEvent>(input: AppendSessionTraceEventInput<TEvent>): Promise<SessionTraceEventRecord<TEvent>> {
@@ -205,6 +245,13 @@ type JsonlSessionRecord =
   | {
       type: "trace";
       traceEvent: SessionTraceEventRecord;
+    }
+  | {
+      type: "compact_boundary";
+      summary: string;
+      messagesBefore: number;
+      messagesAfter: number;
+      createdAt: string;
     };
 
 export class JsonlSessionStore implements SessionStore {
@@ -274,7 +321,9 @@ export class JsonlSessionStore implements SessionStore {
       sessionId: input.sessionId,
       role: input.role,
       content: input.content,
-      createdAt: timestamp
+      createdAt: timestamp,
+      ...(input.toolCalls !== undefined ? { toolCalls: input.toolCalls } : {}),
+      ...(input.toolCallId !== undefined ? { toolCallId: input.toolCallId } : {})
     };
 
     // JSONL records are append-only so a session file can be replayed in order
@@ -325,6 +374,23 @@ export class JsonlSessionStore implements SessionStore {
     return selectedTraceEvents.map((traceEvent) => cloneTraceEventRecord(traceEvent as SessionTraceEventRecord<TEvent>));
   }
 
+  async appendCompactBoundary(input: AppendCompactBoundaryInput): Promise<void> {
+    const replay = await this.#replay(input.sessionId);
+
+    if (replay.session === undefined) {
+      throw new Error(`Unknown session "${input.sessionId}".`);
+    }
+
+    const timestamp = this.#now();
+    await this.#append(input.sessionId, {
+      type: "compact_boundary",
+      summary: input.summary,
+      messagesBefore: input.messagesBefore,
+      messagesAfter: input.messagesAfter,
+      createdAt: timestamp
+    });
+  }
+
   async #append(sessionId: string, record: JsonlSessionRecord): Promise<void> {
     await mkdir(this.#directory, { recursive: true });
     await writeFile(this.#filePath(sessionId), `${JSON.stringify(record)}\n`, { flag: "a" });
@@ -347,7 +413,7 @@ export class JsonlSessionStore implements SessionStore {
       throw error;
     }
 
-    const messages: SessionMessageRecord[] = [];
+    let messages: SessionMessageRecord[] = [];
     const traceEvents: Array<SessionTraceEventRecord<unknown>> = [];
     let session: SessionRecord | undefined;
 
@@ -360,6 +426,24 @@ export class JsonlSessionStore implements SessionStore {
 
       if (record.type === "session") {
         session = record.session;
+      } else if (record.type === "compact_boundary") {
+        // Discard all previous messages, start fresh from the summary
+        messages = [];
+        if (record.summary) {
+          messages.push({
+            id: `cmpct_${record.createdAt}`,
+            sessionId: session?.id ?? "",
+            role: "system" as const,
+            content: record.summary,
+            createdAt: record.createdAt
+          });
+        }
+        if (session && record.createdAt > session.updatedAt) {
+          session = {
+            ...session,
+            updatedAt: record.createdAt
+          };
+        }
       } else if (record.type === "message") {
         messages.push(record.message);
         if (session && record.message.createdAt > session.updatedAt) {

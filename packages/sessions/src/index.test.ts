@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "./index.js";
 
+
 describe("in-memory session store", () => {
   test("creates a session and appends ordered messages", async () => {
     const store: SessionStore = new InMemorySessionStore({
@@ -116,6 +117,78 @@ describe("in-memory session store", () => {
     await expect(store.listSessions({ limit: 1 })).resolves.toEqual([
       expect.objectContaining({ id: "sess_1" })
     ]);
+  });
+
+  test("appendMessage stores optional toolCalls and toolCallId fields", async () => {
+    const store = new InMemorySessionStore({
+      createSessionId: () => "sess_tools",
+      createMessageId: (() => {
+        let index = 0;
+        return () => `msg_${++index}`;
+      })(),
+      now: () => "2026-05-07T00:00:00.000Z"
+    });
+
+    const session = await store.createSession();
+
+    await store.appendMessage({
+      sessionId: session.id,
+      role: "assistant",
+      content: null,
+      toolCalls: [{ id: "call_1", name: "read_file", input: { path: "README.md" } }]
+    });
+    await store.appendMessage({
+      sessionId: session.id,
+      role: "tool",
+      content: '{"ok":true}',
+      toolCallId: "call_1"
+    });
+
+    const messages = await store.listMessages(session.id);
+    expect(messages[0]).toMatchObject({
+      role: "assistant",
+      content: null,
+      toolCalls: [{ id: "call_1", name: "read_file" }]
+    });
+    expect(messages[1]).toMatchObject({
+      role: "tool",
+      content: '{"ok":true}',
+      toolCallId: "call_1"
+    });
+  });
+
+  test("appendCompactBoundary resets messages to summary only", async () => {
+    const store = new InMemorySessionStore({
+      createSessionId: () => "sess_compact",
+      createMessageId: (() => {
+        let index = 0;
+        return () => `msg_${++index}`;
+      })(),
+      now: () => "2026-05-07T00:00:00.000Z"
+    });
+
+    const session = await store.createSession();
+    await store.appendMessage({ sessionId: session.id, role: "user", content: "Hello" });
+    await store.appendMessage({ sessionId: session.id, role: "assistant", content: "Hi there!" });
+
+    // Before compaction: 2 messages
+    const before = await store.listMessages(session.id);
+    expect(before).toHaveLength(2);
+
+    await store.appendCompactBoundary({
+      sessionId: session.id,
+      summary: "User said hello. Assistant responded.",
+      messagesBefore: 2,
+      messagesAfter: 1
+    });
+
+    // After compaction: only the summary remains
+    const after = await store.listMessages(session.id);
+    expect(after).toHaveLength(1);
+    expect(after[0]).toMatchObject({
+      role: "system",
+      content: "User said hello. Assistant responded."
+    });
   });
 
   test("appends and lists recent trace events without exposing internal arrays", async () => {
@@ -278,6 +351,113 @@ describe("jsonl session store", () => {
         expect.objectContaining({ id: "sess_one", updatedAt: "2026-05-03T00:00:03.000Z" }),
         expect.objectContaining({ id: "sess_two", updatedAt: "2026-05-03T00:00:01.000Z" })
       ]);
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("persists toolCalls and toolCallId fields in message records", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-sessions-"));
+
+    try {
+      const store = new JsonlSessionStore({
+        directory,
+        createSessionId: () => "sess_tool_fields",
+        createMessageId: (() => {
+          let index = 0;
+          return () => `msg_${++index}`;
+        })(),
+        now: () => "2026-05-07T00:00:00.000Z"
+      });
+
+      const session = await store.createSession();
+
+      await store.appendMessage({
+        sessionId: session.id,
+        role: "assistant",
+        content: null,
+        toolCalls: [{ id: "tc_1", name: "read_file", input: { path: "README.md" } }]
+      });
+      await store.appendMessage({
+        sessionId: session.id,
+        role: "tool",
+        content: '{"ok":true}',
+        toolCallId: "tc_1"
+      });
+
+      const replayed = new JsonlSessionStore({ directory });
+      const messages = await replayed.listMessages("sess_tool_fields");
+
+      expect(messages[0]).toMatchObject({
+        role: "assistant",
+        content: null,
+        toolCalls: [{ id: "tc_1", name: "read_file" }]
+      });
+      expect(messages[1]).toMatchObject({
+        role: "tool",
+        content: '{"ok":true}',
+        toolCallId: "tc_1"
+      });
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("compact_boundary resets messages to summary on replay", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-sessions-"));
+
+    try {
+      const store = new JsonlSessionStore({
+        directory,
+        createSessionId: () => "sess_boundary",
+        createMessageId: (() => {
+          let index = 0;
+          return () => `msg_${++index}`;
+        })(),
+        now: (() => {
+          let index = 0;
+          const timestamps = [
+            "2026-05-07T00:00:00.000Z",  // session
+            "2026-05-07T00:00:01.000Z",  // user msg
+            "2026-05-07T00:00:02.000Z",  // assistant msg
+            "2026-05-07T00:00:03.000Z",  // compact_boundary
+            "2026-05-07T00:00:04.000Z",  // new user msg after compaction
+          ];
+          return () => timestamps[index++] ?? "2026-05-07T00:00:05.000Z";
+        })()
+      });
+
+      const session = await store.createSession({ title: "Compact session" });
+      await store.appendMessage({ sessionId: session.id, role: "user", content: "First message" });
+      await store.appendMessage({ sessionId: session.id, role: "assistant", content: "First reply" });
+
+      // Append a compact_boundary — this should discard the two earlier messages
+      await store.appendCompactBoundary({
+        sessionId: session.id,
+        summary: "Conversation summary of earlier messages.",
+        messagesBefore: 2,
+        messagesAfter: 1
+      });
+
+      // Append a new message after the boundary
+      await store.appendMessage({ sessionId: session.id, role: "user", content: "Post-compaction message" });
+
+      // Replay: should only see summary + post-compaction message
+      const replayed = new JsonlSessionStore({ directory });
+      const messages = await replayed.listMessages("sess_boundary");
+
+      expect(messages).toHaveLength(2);
+      expect(messages[0]).toMatchObject({
+        role: "system",
+        content: "Conversation summary of earlier messages."
+      });
+      expect(messages[1]).toMatchObject({
+        role: "user",
+        content: "Post-compaction message"
+      });
+
+      // JSONL file should contain a compact_boundary record
+      await expect(readFile(join(directory, "sess_boundary.jsonl"), "utf8")).resolves.toContain("\"type\":\"compact_boundary\"");
     } finally {
       await rm(directory, { force: true, recursive: true });
     }

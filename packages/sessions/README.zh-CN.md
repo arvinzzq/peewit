@@ -21,13 +21,13 @@ SessionStore（接口）
 
 `SessionRecord` 是顶层容器，含 `id`、可选 `title`、`createdAt`、`updatedAt`（每次追加消息或事件时更新）。
 
-`SessionMessageRecord` 是一轮对话，含 `id`、`sessionId`、`role`（user/assistant/tool/system）、`content`、`createdAt`。
+`SessionMessageRecord` 是一轮对话，含 `id`、`sessionId`、`role`（user/assistant/tool/system）、`content`（可为 `null`）、可选的 `toolCalls`（助手消息的工具调用列表）、可选的 `toolCallId`（tool 角色消息对应的工具调用 ID）、`createdAt`。`content` 在助手消息仅含工具调用（无文本）时为 `null`。
 
 `SessionTraceEventRecord<TEvent>` 是对任意事件类型的泛型包装（通常是 `@vole/core` 的 `RuntimeEvent`）。
 
 ### SessionStore 接口
 
-所有操作均为 async：`createSession`、`getSession`、`listSessions`（按 `updatedAt` 降序）、`appendMessage`、`listMessages`（`limit` 从尾部截取）、`appendTraceEvent`、`listTraceEvents`（`limit` 从尾部截取）。
+所有操作均为 async：`createSession`、`getSession`、`listSessions`（按 `updatedAt` 降序）、`appendMessage`、`listMessages`（`limit` 从尾部截取）、`appendTraceEvent`、`listTraceEvents`（`limit` 从尾部截取）、`appendCompactBoundary`（写入 `compact_boundary` 记录，CLI 适配器在检测到带摘要的 `compaction_triggered` 事件时调用）。
 
 ## 实现原理
 
@@ -41,14 +41,18 @@ SessionStore（接口）
 
 ```jsonl
 {"type":"session","session":{…}}
-{"type":"message","message":{…}}
+{"type":"message","message":{"role":"user","content":"你好",…}}
+{"type":"message","message":{"role":"assistant","content":null,"toolCalls":[{…}],…}}
+{"type":"message","message":{"role":"tool","content":"结果","toolCallId":"tc_1",…}}
+{"type":"compact_boundary","summary":"Conversation summary:\n…","messagesBefore":35,"messagesAfter":14,"createdAt":"…"}
 {"type":"trace","traceEvent":{…}}
 ```
 
-三个重要特性：
-1. **仅追加写入**：每次 append 操作仅新增一行，永不修改或删除已有行。
-2. **可重放**：`#replay()` 方法按顺序读取所有行即可重建完整 session 状态。
+四个重要特性：
+1. **仅追加写入**：每次 `appendMessage`、`appendTraceEvent`、`appendCompactBoundary` 操作仅新增一行，永不修改或删除已有行。
+2. **可重放**：`#replay()` 方法按顺序读取所有行即可重建完整 session 状态。遇到 `compact_boundary` 记录时，清空已积累的 messages 数组，以 summary 作为 `role: "system"` 的第一条消息重新开始。因此 `listMessages()` 只返回 boundary 之后的消息。
 3. **崩溃容错**：进程崩溃时最多末尾出现一行不完整数据，之前数据不受影响。
+4. **完整工具上下文保留**：适配器持久化每轮对话的所有消息（user、含 `toolCalls` 的 assistant、含 `toolCallId` 的 tool），不只是最终的 user+assistant 对。这确保 session 恢复时可以重建完整的工具调用上下文。
 
 ### 每次读取都重放
 
@@ -69,7 +73,7 @@ SessionStore（接口）
 | `package.json` | Package manifest | 声明 sessions 包（不依赖其他工作区包）。 |
 | `tsconfig.json` | TypeScript 配置 | 构建 sessions 包。 |
 | `src/index.ts` | Session 存储 | 所有导出：`SessionRecord`、`SessionMessageRecord`、`SessionTraceEventRecord`、`SessionStore`、`InMemorySessionStore`、`JsonlSessionStore`、相关依赖类型。 |
-| `src/index.test.ts` | Session 测试 | 保护创建/列表/获取、消息顺序、trace 持久化、`limit` 查询、`updatedAt` 更新、防御性副本、JSONL 重放和不安全 ID 拒绝。 |
+| `src/index.test.ts` | Session 测试 | 保护创建/列表/获取、消息顺序、trace 持久化、`limit` 查询、`updatedAt` 更新、防御性副本、JSONL 重放、不安全 ID 拒绝、`compact_boundary` 重放（消息重置为摘要）以及 `toolCalls`/`toolCallId` 字段持久化。 |
 
 ## 更新提醒
 

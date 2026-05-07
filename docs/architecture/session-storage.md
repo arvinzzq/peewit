@@ -53,12 +53,17 @@ MVP session storage should support:
 
 - Creating a session
 - Appending user messages
-- Appending assistant messages
-- Appending tool observations
+- Appending assistant messages (with `toolCalls` for messages that include tool call data)
+- Appending tool result messages (with `toolCallId` linking back to the originating call)
 - Appending trace events
+- Appending `compact_boundary` records to persist compaction results durably
 - Listing recent sessions
 - Loading a session
 - Showing recent trace details through CLI
+
+The adapter persists all messages from each turn — not just the final user+assistant pair.
+Tool call context (assistant messages with `toolCalls`, tool result messages with `toolCallId`)
+is preserved so the session can be resumed with full context intact.
 
 MVP does not need:
 
@@ -130,6 +135,19 @@ Trace storage should support:
 Trace records should be structured so CLI and future Web UI can render them differently.
 
 Phase 5 stores trace records in the same append-only JSONL file as session messages. This keeps the MVP inspectable: one session file can replay both the conversation and the visible execution timeline.
+
+The JSONL file contains four record types:
+
+```jsonl
+{"type":"session","session":{…}}
+{"type":"message","message":{"role":"user","content":"Hello",…}}
+{"type":"message","message":{"role":"assistant","content":null,"toolCalls":[{…}],…}}
+{"type":"message","message":{"role":"tool","content":"result","toolCallId":"tc_1",…}}
+{"type":"compact_boundary","summary":"Conversation summary:\n…","messagesBefore":35,"messagesAfter":14,"createdAt":"…"}
+{"type":"trace","traceEvent":{…}}
+```
+
+`compact_boundary` records mark where context compaction occurred. On replay, the store clears all prior messages and restarts from the summary. This ensures compaction is performed once and its result is durable across process restarts.
 
 ## 9. Tool Result Record
 

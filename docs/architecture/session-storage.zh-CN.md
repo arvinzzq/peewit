@@ -53,12 +53,15 @@ MVP session storage 应支持：
 
 - 创建 session
 - 追加 user messages
-- 追加 assistant messages
-- 追加 tool observations
+- 追加 assistant messages（含 `toolCalls` 字段，用于携带工具调用数据的消息）
+- 追加 tool result messages（含 `toolCallId` 字段，链接到触发该结果的工具调用）
 - 追加 trace events
+- 追加 `compact_boundary` 记录，持久化 compaction 结果
 - 列出最近 sessions
 - 加载 session
 - 通过 CLI 展示最近 trace details
+
+适配器持久化每轮对话的所有消息——不只是最终的 user+assistant 对。工具调用上下文（带 `toolCalls` 的 assistant 消息、带 `toolCallId` 的 tool result 消息）被保留，以便 session 恢复时能重建完整上下文。
 
 MVP 不需要：
 
@@ -130,6 +133,19 @@ Trace storage 应支持：
 Trace records 应结构化，让 CLI 和未来 Web UI 可以用不同方式渲染。
 
 Phase 5 会把 trace records 存储在与 session messages 相同的 append-only JSONL file 中。这样 MVP 更容易检查：一个 session file 可以 replay conversation 和可见 execution timeline。
+
+JSONL 文件包含四种记录类型：
+
+```jsonl
+{"type":"session","session":{…}}
+{"type":"message","message":{"role":"user","content":"你好",…}}
+{"type":"message","message":{"role":"assistant","content":null,"toolCalls":[{…}],…}}
+{"type":"message","message":{"role":"tool","content":"结果","toolCallId":"tc_1",…}}
+{"type":"compact_boundary","summary":"Conversation summary:\n…","messagesBefore":35,"messagesAfter":14,"createdAt":"…"}
+{"type":"trace","traceEvent":{…}}
+```
+
+`compact_boundary` 记录标记 context compaction 发生的位置。重放时，store 清空之前所有消息并从摘要重新开始。这确保 compaction 只执行一次，其结果在进程重启后依然持久。
 
 ## 9. Tool Result Record
 

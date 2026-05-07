@@ -23,7 +23,7 @@ The core must remain **adapter-agnostic** (no terminal rendering, no HTTP) and *
 
 ### RuntimeEvent System
 
-Every observable action the agent takes during a turn emits a typed `RuntimeEvent`. There are 17 event types that form a strict lifecycle state machine:
+Every observable action the agent takes during a turn emits a typed `RuntimeEvent`. There are 19 event types that form a strict lifecycle state machine:
 
 ```
 run_started
@@ -38,8 +38,11 @@ run_started
   → todos_updated            (if update_todos was called this step)
   → [planning_stall_detected → ...]  (if stall detected)
   → assistant_message_created
+  → turn_complete            (carries all new messages from this turn)
 run_completed | run_failed
 ```
+
+`turn_complete` is emitted on the success path only, immediately before `run_completed`. It carries the full list of new messages generated during the turn — including `user`, `tool_use`, `tool_result`, and the final `assistant` message. Adapters use this event to persist the complete tool call context to the session store.
 
 `isTerminalRuntimeEvent(event)` returns `true` for `run_completed` and `run_failed`. Adapters use this as the stop signal when iterating the generator. `InMemoryRuntimeTraceStore` provides a default in-process store; adapters can inject alternatives (e.g. writing events to the session store).
 
@@ -105,6 +108,8 @@ Hooks provide lifecycle interception without subclassing:
 | `afterToolCall(call, result)` | After each tool completes | No — errors isolated |
 | `onCompaction(before, after)` | After message history is compacted | No — errors isolated |
 
+`compaction_triggered` events now include a `summary: string` field. On a Phase 2 success this contains the summary text extracted from the compacted messages; the adapter uses it to call `appendCompactBoundary()` on the session store.
+
 All hook errors are caught with `console.warn` in non-production environments.
 
 ### ExecutionContract
@@ -156,7 +161,7 @@ Every `ExecutableTool.execute(input, context)` receives a `ToolExecutionContext`
 |---|---|---|
 | `package.json` | Package manifest | Declares the core package and workspace dependencies on context, models, permissions, and tools. |
 | `tsconfig.json` | TypeScript config | Builds core with project references to all dependency packages. |
-| `src/index.ts` | Runtime core | All exports: 17 event types and unions, `AgentRuntime`, `SessionMutex`, `AgentHooks`, `ExecutionContract`, `InMemoryRuntimeTraceStore`, `RuntimeTraceStore`, `ApprovalResolver`, `SubagentFactory`, `createSpawnSubagentTool`, `createSpawnSubagentAsyncTool`, `AsyncTaskStore`. |
+| `src/index.ts` | Runtime core | All exports: 19 event types and unions (including `TurnCompleteEvent` and `compaction_triggered` with `summary`), `AgentRuntime`, `SessionMutex`, `AgentHooks`, `ExecutionContract`, `InMemoryRuntimeTraceStore`, `RuntimeTraceStore`, `ApprovalResolver`, `SubagentFactory`, `createSpawnSubagentTool`, `createSpawnSubagentAsyncTool`, `AsyncTaskStore`. |
 | `src/index.test.ts` | Runtime tests | Full behavioral test suite covering all event paths, permission policy, approval, hooks, stall detection, streaming, subagent tools, `SessionMutex` concurrency, and `ExecutionContract` behavior. |
 
 ## Update Reminder

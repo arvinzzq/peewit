@@ -564,7 +564,7 @@ describe("runCli", () => {
       expect(secondResult.exitCode).toBe(0);
       expect(secondResult.stdout).toContain("Recent Trace:");
       expect(secondResult.stdout).toContain("1. Received user message (run_started)");
-      expect(secondResult.stdout).toContain("6. Completed run (run_completed)");
+      expect(secondResult.stdout).toContain("7. Completed run (run_completed)");
       await expect(readFile(join(directory, "trace_session.jsonl"), "utf8")).resolves.toContain("\"type\":\"trace\"");
     } finally {
       await rm(directory, { force: true, recursive: true });
@@ -832,7 +832,7 @@ describe("runCli", () => {
       expect(result.stdout).toContain("Assistant: Read README through the built-in file tool.");
       expect(result.stdout).toContain("tool_started)");
       expect(result.stdout).toContain("tool_completed)");
-      expect(result.stdout).toContain("12. Completed run (run_completed)");
+      expect(result.stdout).toContain("13. Completed run (run_completed)");
     } finally {
       await rm(workspace, { force: true, recursive: true });
     }
@@ -876,7 +876,7 @@ describe("runCli", () => {
       expect(result.stdout).toContain("Assistant: Read the web page content.");
       expect(result.stdout).toContain("tool_started)");
       expect(result.stdout).toContain("tool_completed)");
-      expect(result.stdout).toContain("12. Completed run (run_completed)");
+      expect(result.stdout).toContain("13. Completed run (run_completed)");
     } finally {
       // no cleanup needed; no temp files created
     }
@@ -892,7 +892,7 @@ describe("runCli", () => {
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("Recent Trace:");
     expect(result.stdout).toContain("1. Received user message (run_started)");
-    expect(result.stdout).toContain("6. Completed run (run_completed)");
+    expect(result.stdout).toContain("7. Completed run (run_completed)");
   });
 
   test("runs a fake-provider chat turn through the runtime", async () => {
@@ -904,7 +904,7 @@ describe("runCli", () => {
     expect(result.stdout).toContain("Trace:");
     expect(result.stdout).toContain("1. Received user message");
     expect(result.stdout).toContain("5. Created assistant message");
-    expect(result.stdout).toContain("6. Completed run");
+    expect(result.stdout).toContain("7. Completed run");
   });
 
   test("runs slash trace after a fake-provider chat turn in the same CLI run", async () => {
@@ -915,7 +915,7 @@ describe("runCli", () => {
     expect(result.stdout).toContain("Assistant: Fake response to: Hello runtime");
     expect(result.stdout).toContain("Recent Trace:");
     expect(result.stdout).toContain("1. Received user message (run_started)");
-    expect(result.stdout).toContain("6. Completed run (run_completed)");
+    expect(result.stdout).toContain("7. Completed run (run_completed)");
   });
 
   test("runs slash config with redacted config after a fake-provider chat turn", async () => {
@@ -1007,7 +1007,8 @@ describe("runCli", () => {
       "3. Started model request (model_request_started)",
       "4. Completed model request (model_request_completed)",
       "5. Created assistant message (assistant_message_created)",
-      "6. Completed run (run_completed)"
+      "6. Turn complete (2 messages) (turn_complete)",
+      "7. Completed run (run_completed)"
     ]);
   });
 

@@ -36,7 +36,8 @@ what happened.
 **Technical summary**: `@vole/sessions` persists conversation history and runtime trace
 events to disk. It provides two implementations of `SessionStore`: an in-memory store for
 testing and a JSONL file store for production. Each session is a single append-only
-`.jsonl` file containing three record types: session metadata, messages, and trace events.
+`.jsonl` file containing four record types: session metadata, messages, compact boundaries,
+and trace events.
 
 ## 2. Why It Exists
 
@@ -61,6 +62,8 @@ interface SessionStore {
 
   appendTraceEvent<TEvent>(input: AppendSessionTraceEventInput<TEvent>): Promise<SessionTraceEventRecord<TEvent>>
   listTraceEvents<TEvent>(sessionId: string, query?: ListSessionTraceEventsQuery): Promise<SessionTraceEventRecord<TEvent>[]>
+
+  appendCompactBoundary(input: AppendCompactBoundaryInput): Promise<void>
 }
 
 interface SessionRecord {
@@ -74,9 +77,14 @@ interface SessionMessageRecord {
   id: string
   sessionId: string
   role: "user" | "assistant" | "tool" | "system"
-  content: string
+  content: string | null
+  toolCalls?: Array<{ id: string; name: string; input: unknown }>
+  toolCallId?: string
   createdAt: string
 }
+```
+
+`content` is `null` for assistant messages that contain only tool calls (no text). `toolCalls` carries structured tool call data for assistant messages. `toolCallId` links a `tool`-role result message back to its originating call. `appendCompactBoundary` writes a `compact_boundary` record that signals where compaction occurred; `#replay()` uses it to discard old messages.
 
 interface SessionTraceEventRecord<TEvent = unknown> {
   sessionId: string
@@ -93,12 +101,14 @@ production, requires a `directory` path).
 ### On-disk format
 
 Each session lives in one `.jsonl` file (`<sessionId>.jsonl`). Each line is a complete
-JSON object. Three record types share the file:
+JSON object. Four record types share the file:
 
 ```jsonl
 {"type":"session","session":{"id":"sess_abc","createdAt":"2026-05-07T10:00:00Z","updatedAt":"..."}}
 {"type":"message","message":{"id":"msg_1","sessionId":"sess_abc","role":"user","content":"Hello",...}}
-{"type":"message","message":{"id":"msg_2","sessionId":"sess_abc","role":"assistant","content":"Hi!",...}}
+{"type":"message","message":{"id":"msg_2","sessionId":"sess_abc","role":"assistant","content":null,"toolCalls":[{"id":"tc_1","name":"read_file","input":{"path":"foo.ts"}}],...}}
+{"type":"message","message":{"id":"msg_3","sessionId":"sess_abc","role":"tool","content":"<file contents>","toolCallId":"tc_1",...}}
+{"type":"compact_boundary","summary":"Conversation summary:\n…","messagesBefore":35,"messagesAfter":14,"createdAt":"..."}}
 {"type":"trace","traceEvent":{"sessionId":"sess_abc","event":{"type":"run_started",...},...}}
 ```
 
@@ -115,11 +125,20 @@ async #replay(sessionId) {
     if (record.type === "session")  session = record.session
     if (record.type === "message")  messages.push(record.message)
     if (record.type === "trace")    traceEvents.push(record.traceEvent)
+    if (record.type === "compact_boundary") {
+      // discard all accumulated messages; restart from the summary
+      messages = [{ role: "system", content: record.summary, ... }]
+    }
   }
 
   return { session, messages, traceEvents }
 }
 ```
+
+When `#replay()` encounters a `compact_boundary` record, it clears the messages array and
+inserts a synthetic `role: "system"` message containing the compaction summary. This means
+`listMessages()` only returns messages from after the most recent boundary — old messages
+are logically replaced by the summary and never reconstructed.
 
 There is no in-memory cache. Every call to `listMessages()`, `appendMessage()`, or
 `listTraceEvents()` re-reads and re-parses the entire file from disk.
@@ -191,6 +210,21 @@ concurrency logic; core is the coordinator that decides when runs may execute.
 If sessions had its own mutex, it would need to know about run boundaries — knowledge
 that belongs to core.
 
+**`compact_boundary` persists the compaction result**
+
+When `AgentRuntime` emits a `compaction_triggered` event with a non-empty `summary`, the
+CLI adapter calls `appendCompactBoundary()`. This writes a `compact_boundary` line to the
+session JSONL. On the next session load, `#replay()` encounters the boundary and resets
+the messages array to just the summary — the agent starts the new turn with compact history
+already applied.
+
+Without this persistence, the agent would need to re-compact on every session load:
+paying the model API cost again and potentially producing a different summary. Writing the
+boundary once means compaction is done exactly once and its result is durable.
+
+The boundary also records `messagesBefore` and `messagesAfter` counts, which make session
+files self-documenting about where compaction occurred.
+
 **`SessionTraceEventRecord` is generic**
 
 ```ts
@@ -241,13 +275,13 @@ against injection via session ID.
 
 ## 9. Review Questions
 
-1. What is the JSONL format and why is it used for session storage instead of a single
-   JSON file or a database?
-   > JSONL = one JSON object per line. Append-only writes are crash-safe (partial writes
-   > leave previous records intact). No migrations needed (new record types can be added
-   > without breaking existing files). Human-readable without special tools. A single JSON
-   > file would require rewriting the entire file on every write. A database adds dependency
-   > complexity.
+1. What are the four record types in a session JSONL file? What is each used for?
+   > `session` — stores session metadata (id, title, timestamps). `message` — stores one
+   > conversation message (user, assistant, tool, or system role) including optional
+   > `toolCalls` and `toolCallId` fields. `compact_boundary` — marks where a compaction
+   > occurred; contains the summary text and before/after message counts; `#replay()` uses
+   > it to reset the messages array to just the summary. `trace` — stores a runtime event
+   > record for debugging and observability.
 
 2. What does `#replay()` do? What is its time complexity for a session with N records?
    > Reads the entire session file, parses each line, and reconstructs the session state

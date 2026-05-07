@@ -1,6 +1,6 @@
 /**
- * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, ApprovalResolver, tools, hooks, SessionMutex, ExecutionContract, maxSteps, maxPlanningStallRetries, runtime metadata, user turn input, optional recent messages.
- * OUTPUT: AgentRuntime, AgentHooks, SessionMutex, ExecutionContract, SubagentFactory, createSpawnSubagentTool, createSpawnSubagentAsyncTool, AsyncTaskStore, runtime event contracts (token_delta, todos_updated, planning_stall_detected), in-memory trace store, tool lifecycle events, permission events, approval events.
+ * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, ApprovalResolver, tools, hooks, SessionMutex, ExecutionContract, maxSteps, runtime metadata, user turn input, recent messages.
+ * OUTPUT: AgentRuntime, runtime events (turn_complete, compaction_triggered+summary, token_delta, todos_updated, planning_stall_detected, tool/permission/approval), SubagentFactory, spawn tools, AsyncTaskStore, trace store.
  * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -44,6 +44,7 @@ export const runtimeEventTypes = [
   "tool_completed",
   "tool_failed",
   "assistant_message_created",
+  "turn_complete",
   "run_completed",
   "run_failed"
 ] as const;
@@ -73,6 +74,7 @@ export interface CompactionTriggeredEvent extends RuntimeEventBase {
   type: "compaction_triggered";
   messagesBefore: number;
   messagesAfter: number;
+  summary: string;
 }
 
 export interface TodosUpdatedEvent extends RuntimeEventBase {
@@ -174,6 +176,11 @@ export interface RunFailedEvent extends RuntimeEventBase {
   };
 }
 
+export interface TurnCompleteEvent extends RuntimeEventBase {
+  type: "turn_complete";
+  messages: ModelMessage[];
+}
+
 export type RuntimeEvent =
   | RunStartedEvent
   | ContextAssembledEvent
@@ -191,6 +198,7 @@ export type RuntimeEvent =
   | ToolCompletedEvent
   | ToolFailedEvent
   | AssistantMessageCreatedEvent
+  | TurnCompleteEvent
   | RunCompletedEvent
   | RunFailedEvent;
 
@@ -447,13 +455,26 @@ export class AgentRuntime {
       let hadRealToolCallThisTurn = false;
       this.#currentTodos = [];
 
+      // Track all new messages for this turn (user + tool calls + tool results + final assistant)
+      const turnNewMessages: ModelMessage[] = [];
+      // Add the user message (last message in assembled.modelInput.messages)
+      const userMsg = assembled.modelInput.messages.at(-1);
+      if (userMsg) turnNewMessages.push({ ...userMsg });
+
       while (steps < this.#maxSteps) {
         if (this.#compaction !== undefined) {
           const before = messages.length;
           messages = await compactMessages(messages, this.#modelProvider, this.#compaction);
           const after = messages.length;
           if (after < before) {
-            yield emitAndCollect(this.#event({ ...base, type: "compaction_triggered", messagesBefore: before, messagesAfter: after }));
+            // Extract summary from the compacted messages
+            const summaryMsg = messages.find(
+              (m) => m.role === "system" && typeof m.content === "string" && m.content.startsWith("Conversation summary:\n")
+            );
+            const summary = summaryMsg && typeof summaryMsg.content === "string"
+              ? summaryMsg.content.slice("Conversation summary:\n".length)
+              : "";
+            yield emitAndCollect(this.#event({ ...base, type: "compaction_triggered", messagesBefore: before, messagesAfter: after, summary }));
           }
           if (this.#hooks?.onCompaction !== undefined) {
             try {
@@ -545,7 +566,10 @@ export class AgentRuntime {
           }
 
           stallCount = 0;
+          // Track the final assistant message
+          turnNewMessages.push({ role: "assistant", content: output.content });
           yield emitAndCollect(this.#event({ ...base, type: "assistant_message_created", message: { role: "assistant", content: output.content } }));
+          yield emitAndCollect(this.#event({ ...base, type: "turn_complete", messages: [...turnNewMessages] }));
           const completedEv = emitAndCollect(this.#event({ ...base, type: "run_completed" }));
           yield completedEv;
           await this.#callAfterTurn(collectedEvents);
@@ -557,7 +581,9 @@ export class AgentRuntime {
         if (output.calls.some((c) => c.name !== "update_todos")) {
           hadRealToolCallThisTurn = true;
         }
-        messages = [...messages, { role: "assistant", content: null, toolCalls: output.calls }];
+        const assistantToolCallMsg: ModelMessage = { role: "assistant", content: null, toolCalls: output.calls };
+        messages = [...messages, assistantToolCallMsg];
+        turnNewMessages.push({ ...assistantToolCallMsg });
 
         const toolResultMessages: ModelMessage[] = [];
         let hardTerminate = false;
@@ -570,7 +596,9 @@ export class AgentRuntime {
           if (tool === undefined) {
             const errorMessage = `Tool "${call.name}" is not registered.`;
             yield emitAndCollect(this.#event({ ...base, type: "tool_failed", callId: call.id, toolName: call.name, error: { message: errorMessage } }));
-            toolResultMessages.push({ role: "tool", toolCallId: call.id, content: `Error: ${errorMessage}` });
+            const errResultMsg: ModelMessage = { role: "tool", toolCallId: call.id, content: `Error: ${errorMessage}` };
+            toolResultMessages.push(errResultMsg);
+            turnNewMessages.push({ ...errResultMsg });
             continue;
           }
 
@@ -617,7 +645,9 @@ export class AgentRuntime {
             if (hookResult === "abort") {
               const abortMessage = "Tool call aborted by hook.";
               yield emitAndCollect(this.#event({ ...base, type: "tool_failed", callId: call.id, toolName: call.name, error: { message: abortMessage } }));
-              toolResultMessages.push({ role: "tool", toolCallId: call.id, content: `Error: ${abortMessage}` });
+              const abortResultMsg: ModelMessage = { role: "tool", toolCallId: call.id, content: `Error: ${abortMessage}` };
+              toolResultMessages.push(abortResultMsg);
+              turnNewMessages.push({ ...abortResultMsg });
               continue;
             }
           }
@@ -632,12 +662,16 @@ export class AgentRuntime {
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "Unknown tool execution error.";
             yield emitAndCollect(this.#event({ ...base, type: "tool_failed", callId: call.id, toolName: call.name, error: { message: errorMessage } }));
-            toolResultMessages.push({ role: "tool", toolCallId: call.id, content: `Error: ${errorMessage}` });
+            const execErrMsg: ModelMessage = { role: "tool", toolCallId: call.id, content: `Error: ${errorMessage}` };
+            toolResultMessages.push(execErrMsg);
+            turnNewMessages.push({ ...execErrMsg });
             continue;
           }
 
           yield emitAndCollect(this.#event({ ...base, type: "tool_completed", callId: call.id, toolName: call.name, result }));
-          toolResultMessages.push({ role: "tool", toolCallId: call.id, content: JSON.stringify(result) });
+          const toolSuccessMsg: ModelMessage = { role: "tool", toolCallId: call.id, content: JSON.stringify(result) };
+          toolResultMessages.push(toolSuccessMsg);
+          turnNewMessages.push({ ...toolSuccessMsg });
 
           // afterToolCall hook
           if (this.#hooks?.afterToolCall !== undefined) {

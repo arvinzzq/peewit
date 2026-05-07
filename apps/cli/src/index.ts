@@ -1,6 +1,6 @@
 /**
  * INPUT: CLI args, config (including thinkingBudget), model providers, skill loader, session/trace stores, taskflow store, built-in tools, optional fake outputs and line reader.
- * OUTPUT: Chat, approvals, tool execution, todos, skill management subcommands, session/task/taskflow listings, daemon cron scheduling, trace, redacted config, stdout/stderr, gateway session registration, run --dream memory dreaming.
+ * OUTPUT: Chat, approvals, tool execution, todos, skill management subcommands, session/task/taskflow listings, daemon cron scheduling, trace, redacted config, stdout/stderr, gateway session registration, run --dream memory dreaming, session persistence of all turn messages including tool calls and compaction boundaries.
  * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -1076,7 +1076,6 @@ export class CliChatSession {
   readonly #sessionStore: SessionStore;
   readonly #sessionId: string;
   readonly #config: RedactedConfigView;
-  readonly #recentMessageLimit: number;
   readonly #approvalPromptLog: string[];
   readonly #skillDefinitions: SkillDefinition[];
   readonly #gateway: SessionGateway | undefined;
@@ -1087,7 +1086,7 @@ export class CliChatSession {
     traceStore: RuntimeTraceStore = new InMemoryRuntimeTraceStore(),
     sessionId = createSessionId(),
     sessionStore: SessionStore = new InMemorySessionStore({ createSessionId: () => sessionId }),
-    recentMessageLimit = 12,
+    _recentMessageLimit = 12,
     approvalPromptLog: string[] = [],
     skillDefinitions: SkillDefinition[] = [],
     gateway?: SessionGateway
@@ -1097,7 +1096,6 @@ export class CliChatSession {
     this.#traceStore = traceStore;
     this.#sessionStore = sessionStore;
     this.#sessionId = sessionId;
-    this.#recentMessageLimit = recentMessageLimit;
     this.#approvalPromptLog = approvalPromptLog;
     this.#skillDefinitions = skillDefinitions;
     this.#gateway = gateway;
@@ -1226,10 +1224,13 @@ export class CliChatSession {
     const events: RuntimeEvent[] = [];
     const approvalStartIndex = this.#approvalPromptLog.length;
     await this.#ensureSession();
-    const recentMessages = (await this.#sessionStore.listMessages(this.#sessionId, { limit: this.#recentMessageLimit })).map(
+    // Load all messages without a limit — compact_boundary handles truncation in #replay()
+    const recentMessages = (await this.#sessionStore.listMessages(this.#sessionId)).map(
       (sessionMessage) => ({
         role: sessionMessage.role,
-        content: sessionMessage.content
+        content: sessionMessage.content,
+        ...(sessionMessage.toolCalls !== undefined ? { toolCalls: sessionMessage.toolCalls } : {}),
+        ...(sessionMessage.toolCallId !== undefined ? { toolCallId: sessionMessage.toolCallId } : {})
       })
     );
 
@@ -1238,6 +1239,29 @@ export class CliChatSession {
       await this.#sessionStore.appendTraceEvent({ sessionId: this.#sessionId, event });
       events.push(event);
       opts.onEvent?.(event);
+
+      // Persist compaction boundary when compaction fires with a non-empty summary
+      if (event.type === "compaction_triggered" && event.summary) {
+        await this.#sessionStore.appendCompactBoundary({
+          sessionId: this.#sessionId,
+          summary: event.summary,
+          messagesBefore: event.messagesBefore,
+          messagesAfter: event.messagesAfter
+        });
+      }
+
+      // Persist all turn messages (user + tool_use + tool_results + final assistant)
+      if (event.type === "turn_complete") {
+        for (const msg of event.messages) {
+          await this.#sessionStore.appendMessage({
+            sessionId: this.#sessionId,
+            role: msg.role,
+            content: msg.content ?? null,
+            ...(msg.toolCalls !== undefined ? { toolCalls: msg.toolCalls } : {}),
+            ...(msg.toolCallId !== undefined ? { toolCallId: msg.toolCallId } : {})
+          });
+        }
+      }
     }
 
     const assistantMessage = events.find((event) => event.type === "assistant_message_created");
@@ -1245,20 +1269,6 @@ export class CliChatSession {
       assistantMessage?.type === "assistant_message_created"
         ? assistantMessage.message.content
         : "No assistant message was produced.";
-
-    await this.#sessionStore.appendMessage({
-      sessionId: this.#sessionId,
-      role: "user",
-      content: message
-    });
-
-    if (assistantMessage?.type === "assistant_message_created") {
-      await this.#sessionStore.appendMessage({
-        sessionId: this.#sessionId,
-        role: "assistant",
-        content: assistantText
-      });
-    }
 
     return {
       assistantText,
@@ -1552,6 +1562,8 @@ function traceEventLabel(event: RuntimeEvent): string {
       return `Tool failed [${event.toolName}]: ${event.error.message}`;
     case "assistant_message_created":
       return "Created assistant message";
+    case "turn_complete":
+      return `Turn complete (${event.messages.length} messages)`;
     case "run_completed":
       return "Completed run";
     case "run_failed":

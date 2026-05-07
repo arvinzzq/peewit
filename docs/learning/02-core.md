@@ -22,7 +22,7 @@ Then read these primary sources:
    the `describe` / `test` labels describe every behavior the module guarantees
 
 **Focus questions**: Answer these while reading the source:
-- What are the 17 `RuntimeEventType` values and in what order do they appear in a normal run?
+- What are the 19 `RuntimeEventType` values and in what order do they appear in a normal run?
 - Why does `runTurn` return `AsyncGenerator<RuntimeEvent>` instead of `Promise<RuntimeEvent[]>`?
 - Where exactly in the loop does permission evaluation happen?
 - Why is `ContextAssembler` injected rather than constructed inside `AgentRuntime`?
@@ -49,7 +49,7 @@ the web UI, a trace logger — can react in real time without being wired into t
 
 **Technical summary**: `@vole/core` runs the agent turn loop. It receives a user message,
 coordinates context assembly, model inference, permission evaluation, and tool execution in
-a cycle — emitting a stream of observable events at each step.
+a cycle — emitting a stream of 19 observable event types at each step.
 
 It is the center of the entire system. Every other package exists either to serve this loop
 or to stay out of it.
@@ -119,7 +119,9 @@ index, tool summaries, permission guidance, and user message. Emits `context_ass
 **Phase 3 — The while loop (line ~442)**
 Runs up to `maxSteps` (default 12) iterations. Each iteration:
 
-1. Optionally compacts message history if configured
+1. Optionally compacts message history if configured. If compaction runs and succeeds,
+   emits a `compaction_triggered` event including a `summary: string` field containing
+   the distilled summary text extracted from the compacted messages.
 2. Emits `model_request_started`
 3. Calls the model (streaming or non-streaming depending on `preferStreaming`)
 4. Emits `model_request_completed`
@@ -136,7 +138,9 @@ If a stall is detected: emits `planning_stall_detected`, appends a retry instruc
 messages, and continues the loop. If stalls exceed `maxPlanningStallRetries`: emits
 `run_failed` and returns.
 
-If no stall: emits `assistant_message_created` and `run_completed` and returns.
+If no stall: emits `assistant_message_created`, then `turn_complete` (carrying the full
+list of new messages from this turn — user, tool_use, tool_result, and final assistant),
+then `run_completed` and returns.
 
 **Branch B — model returns tool calls**
 
