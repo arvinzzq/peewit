@@ -8,3 +8,4 @@ coverage/
 !.env.example
 npm-debug.log*
 .gstack/
+HEARTBEAT.md
