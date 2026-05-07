@@ -284,9 +284,12 @@ only summary in the compacted history — the original system prompt from the cu
    > loaded" without parsing the raw system prompt string.
 
 4. When does `compactMessages()` trigger? What does the compacted history look like?
-   > Triggers when `messages.length > maxMessages` (default 30). The oldest messages
-   > are summarized into a single `{ role: "system", content: "Conversation summary:\n..." }`
-   > message. The most recent `keepRecent` (default 12) messages are preserved verbatim.
+   > Triggers when `estimateMessageTokens(messages) > maxTokens` (default 60 000) **or**
+   > `messages.length > maxMessages` (default 400, a safety fallback). Token count is
+   > estimated as `ceil(totalChars / 4)` — a chars-per-token heuristic, no API call.
+   > The oldest messages are summarized into a single
+   > `{ role: "system", content: "Conversation summary:\n..." }` message. The most
+   > recent `keepRecent` (default 12) messages are preserved verbatim.
    > The result is `[summary system message, ...recent 12 messages]`.
 
 5. What happens when `compactMessages()` fails — e.g., the model provider returns an error?

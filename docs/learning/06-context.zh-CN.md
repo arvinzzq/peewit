@@ -258,9 +258,11 @@ agent 会丢失权限指南和技能索引。`compactMessages` 始终把 `messag
    > 但没有技能被加载」，无需解析原始系统提示字符串。
 
 4. `compactMessages()` 何时触发？压缩后的历史是什么样的？
-   > 当 `messages.length > maxMessages`（默认 30）时触发。旧消息被汇总成一条
-   > `{ role: "system", content: "Conversation summary:\n..." }` 消息。最近
-   > `keepRecent`（默认 12）条消息原文保留。结果是 `[摘要系统消息, ...最近 12 条]`。
+   > 当 `estimateMessageTokens(messages) > maxTokens`（默认 60 000）**或**
+   > `messages.length > maxMessages`（默认 400，安全兜底）时触发。Token 数通过
+   > `ceil(总字符数 / 4)` 估算——字符/token 启发式，不需要 API 调用。
+   > 旧消息被汇总成一条 `{ role: "system", content: "Conversation summary:\n..." }` 消息。
+   > 最近 `keepRecent`（默认 12）条消息原文保留。结果是 `[摘要系统消息, ...最近 12 条]`。
 
 5. `compactMessages()` 失败时（如模型 provider 返回错误）会发生什么？
    > 返回 Phase 1 精简后的消息——而非原始消息。Phase 1 已经用摘要版本替换了大型工具结果内容。压缩失败是静默且非致命的。Agent 用精简后（但未完全提炼）的历史继续运行。第二阶段调用失败后，工具输出内容永远不会恢复到上下文中。
