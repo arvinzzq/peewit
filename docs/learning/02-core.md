@@ -34,9 +34,22 @@ point the loop passes through.
 
 ## 1. What This Module Does
 
-`@vole/core` runs the agent turn loop. It receives a user message, coordinates context
-assembly, model inference, permission evaluation, and tool execution in a cycle — emitting a
-stream of observable events at each step.
+**Plain language**: Think of `@vole/core` as a project manager. When you give it a task, it
+doesn't do the work itself — it coordinates specialists:
+
+1. "Context team, prepare the briefing for the model"
+2. "Model, what should we do next?"
+3. "Permission team, is this action allowed?"
+4. "Tool team, execute the action"
+5. "Context team, add the result to the briefing"
+6. Back to step 2 — until the task is done
+
+At every step, it broadcasts what is happening (events) so that any observer — the CLI,
+the web UI, a trace logger — can react in real time without being wired into the loop itself.
+
+**Technical summary**: `@vole/core` runs the agent turn loop. It receives a user message,
+coordinates context assembly, model inference, permission evaluation, and tool execution in
+a cycle — emitting a stream of observable events at each step.
 
 It is the center of the entire system. Every other package exists either to serve this loop
 or to stay out of it.

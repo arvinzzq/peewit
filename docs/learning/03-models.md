@@ -27,9 +27,23 @@ what is exported. Then read this document to understand the design decisions.
 
 ## 1. What This Module Does
 
-`@vole/models` wraps all vendor-specific model APIs behind a single `ModelProvider` interface.
-It translates the internal `ModelMessage[]` format into each vendor's wire format, calls the
-API, and normalises the response back to `ModelOutput`.
+**Plain language**: Imagine the agent loop is a chef who needs ingredients. It doesn't care
+whether the ingredients come from the supermarket, the farm, or a specialty store — it just
+needs them in a standard format: "here are the messages, give me a response."
+
+`@vole/models` is the logistics layer. It takes orders in the agent's internal format,
+handles all the vendor-specific paperwork (API keys, message format conversions, streaming
+protocols, error codes), and returns the result in a uniform format the chef recognises.
+Swap Anthropic for OpenAI — the chef never notices.
+
+The three possible responses the agent ever gets back:
+- **A text reply** — the model is done
+- **A list of tool calls** — the model wants to take actions
+- **An error** — something went wrong, and whether it's worth retrying
+
+**Technical summary**: `@vole/models` wraps all vendor-specific model APIs behind a single
+`ModelProvider` interface. It translates the internal `ModelMessage[]` format into each
+vendor's wire format, calls the API, and normalises the response back to `ModelOutput`.
 
 It is the only package in the codebase that imports vendor SDKs (`@anthropic-ai/sdk`) or
 makes HTTP calls to model APIs.

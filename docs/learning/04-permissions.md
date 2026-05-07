@@ -27,9 +27,49 @@ Then read this document to understand the design decisions.
 
 ## 1. What This Module Does
 
-`@vole/permissions` evaluates whether a tool action should be automatically allowed, paused
-for human approval, or denied. It takes an autonomy mode and a tool's risk level as inputs
-and returns a decision with a trace-safe reason.
+**Plain language**: Imagine you hired an assistant to manage your computer. The assistant is
+capable but needs rules for what it can do on its own vs. what needs your sign-off. This
+module is that rulebook.
+
+Two inputs, one output:
+
+```
+How dangerous is this tool?  +  How hands-off do you want to be?  →  allow / ask / deny
+```
+
+**Dimension 1 — How dangerous is the tool? (risk level, set at tool definition time)**
+
+| Risk | Example tool |
+|---|---|
+| `low` | read a file, list a directory |
+| `medium` | write a file, create a file |
+| `high` | run a shell command |
+| `blocked` | anything explicitly forbidden |
+
+Risk is **static** — it is written into the tool definition when the tool is created and
+never changes based on what the model passes as input. A `bash` tool always has `risk: "high"`
+regardless of what command the model asks it to run. This is intentional: the permission
+system must be predictable and cannot be bypassed by clever model inputs.
+
+**Dimension 2 — How hands-off do you want to be? (autonomy mode, set at runtime)**
+
+| Mode | Meaning |
+|---|---|
+| `observe` | "I'm watching and learning — pause before every step" |
+| `confirm` | "Handle routine things; ask me before anything risky" (default) |
+| `auto` | "Don't interrupt me unless it's serious" |
+
+**The decision table (mode × risk)**
+
+| | low | medium | high | blocked |
+|---|---|---|---|---|
+| `observe` | ask | ask | ask | **deny** |
+| `confirm` | **allow** | ask | ask | **deny** |
+| `auto` | **allow** | **allow** | ask | **deny** |
+
+**Technical summary**: `@vole/permissions` evaluates whether a tool action should be
+automatically allowed, paused for human approval, or denied. It takes an autonomy mode
+and a tool's risk level as inputs and returns a decision with a trace-safe reason.
 
 It makes no network calls, performs no IO, interacts with no user, and runs no async code.
 
@@ -179,6 +219,13 @@ more transparent one.
 automatically. This is intentional for background/scheduled use cases where there is no
 human available to approve routine operations.
 
+**Risk is static — set at tool definition time, not at call time.** The `risk` field on
+`ExecutableTool` is written by the tool author when the tool is created. It never changes
+based on what the model passes as input. A `bash` tool is always `high` risk regardless of
+whether the model asks it to run `echo hello` or `rm -rf /`. This is intentional: if risk
+were dynamic, the permission system could be bypassed by clever model inputs. Static risk
+means the permission boundary is unconditionally enforced by the tool's type.
+
 **Custom policies are first-class.** `AgentRuntime` accepts any `PermissionPolicy`
 implementation. You could build a policy that allows specific tool names, denies based on
 path patterns, or requires approval only during certain hours — all without touching core.
@@ -216,3 +263,10 @@ path patterns, or requires approval only during certain hours — all without to
    > Example: a read-only policy that allows only tools with `risk: "low"` and denies
    > everything else — regardless of mode. Useful for a "safe exploration" mode where the
    > agent can read files and search but cannot write, execute, or make network calls.
+
+7. A tool's `risk` level is set when the tool is defined. Why not determine it dynamically
+   from the model's input at call time?
+   > Static risk makes the permission boundary unconditionally enforced. If risk were
+   > determined by the model's input (e.g., "this bash command looks safe"), the permission
+   > system could be bypassed by crafting inputs that appear low-risk. The tool author —
+   > not the model — is the authority on how dangerous a capability is.
