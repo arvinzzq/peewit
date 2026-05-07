@@ -87,7 +87,7 @@ Ordered by dependency: each module only uses concepts from modules above it.
 
 | # | Module | Status | Doc |
 |---|--------|--------|-----|
-| 01 | config | ⬜ not started | — |
+| 01 | config | ✅ complete | [13-config.md](./13-config.md) |
 | 02 | models | ✅ complete | [03-models.md](./03-models.md) |
 | 03 | permissions | ✅ complete | [04-permissions.md](./04-permissions.md) |
 | 04 | tools | ✅ complete | [05-tools.md](./05-tools.md) |
