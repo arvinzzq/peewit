@@ -93,7 +93,7 @@ Ordered by dependency: each module only uses concepts from modules above it.
 | 04 | tools | ✅ complete | [05-tools.md](./05-tools.md) |
 | 05 | sessions | ⬜ not started | — |
 | 06 | taskflow | ⬜ not started | — |
-| 07 | context | ⬜ not started | — |
+| 07 | context | ✅ complete | [06-context.md](./06-context.md) |
 | 08 | skills | ⬜ not started | — |
 | 09 | scheduler | ⬜ not started | — |
 | 10 | adapters | ⬜ not started | — |

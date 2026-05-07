@@ -92,7 +92,7 @@
 | 04 | tools | ✅ 已完成 | [05-tools.zh-CN.md](./05-tools.zh-CN.md) |
 | 05 | sessions | ⬜ 未开始 | — |
 | 06 | taskflow | ⬜ 未开始 | — |
-| 07 | context | ⬜ 未开始 | — |
+| 07 | context | ✅ 已完成 | [06-context.zh-CN.md](./06-context.zh-CN.md) |
 | 08 | skills | ⬜ 未开始 | — |
 | 09 | scheduler | ⬜ 未开始 | — |
 | 10 | adapters | ⬜ 未开始 | — |
