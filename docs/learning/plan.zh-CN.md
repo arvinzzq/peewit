@@ -78,9 +78,9 @@
 |---|---|---|---|
 | 阶段一 | Agent Loop 心智模型 | ✅ 已完成 | [01-concepts.zh-CN.md](./01-concepts.zh-CN.md) |
 | 阶段二 | 核心循环代码 | ✅ 已完成 | [02-core.zh-CN.md](./02-core.zh-CN.md) |
-| 阶段三 | 基础层模块 | ⬜ 未开始 | — |
-| 阶段四 | 扩展系统 | ⬜ 未开始 | — |
-| 阶段五 | 系统综合 | ⬜ 未开始 | — |
+| 阶段三 | 基础层模块 | ✅ 已完成 | 13-config、03-models、04-permissions、05-tools、07-sessions、08-taskflow、06-context、09-skills、10-scheduler |
+| 阶段四 | 扩展系统 | ✅ 已完成 | 11-adapters、12-gateway |
+| 阶段五 | 系统综合 | ✅ 已完成 | 14-cli、15-web |
 
 ## 模块进度
 
@@ -99,4 +99,4 @@
 | 11 | core | ✅ 已完成 | [02-core.zh-CN.md](./02-core.zh-CN.md) |
 | 12 | gateway | ✅ 已完成 | [12-gateway.zh-CN.md](./12-gateway.zh-CN.md) |
 | 13 | apps/cli | ✅ 已完成 | [14-cli.zh-CN.md](./14-cli.zh-CN.md) |
-| 14 | apps/web | ⬜ 未开始 | — |
+| 14 | apps/web | ✅ 已完成 | [15-web.zh-CN.md](./15-web.zh-CN.md) |

@@ -79,9 +79,9 @@ Ordered by dependency: each module only uses concepts from modules above it.
 |---|---|---|---|
 | Stage 1 | Agent Loop Mental Model | ✅ complete | [01-concepts.md](./01-concepts.md) |
 | Stage 2 | Core Loop in Code | ✅ complete | [02-core.md](./02-core.md) |
-| Stage 3 | Foundation Modules | ⬜ not started | — |
-| Stage 4 | Extension Systems | ⬜ not started | — |
-| Stage 5 | System Synthesis | ⬜ not started | — |
+| Stage 3 | Foundation Modules | ✅ complete | 13-config, 03-models, 04-permissions, 05-tools, 07-sessions, 08-taskflow, 06-context, 09-skills, 10-scheduler |
+| Stage 4 | Extension Systems | ✅ complete | 11-adapters, 12-gateway |
+| Stage 5 | System Synthesis | ✅ complete | 14-cli, 15-web |
 
 ## Module Progress
 
@@ -100,4 +100,4 @@ Ordered by dependency: each module only uses concepts from modules above it.
 | 11 | core | ✅ complete | [02-core.md](./02-core.md) |
 | 12 | gateway | ✅ complete | [12-gateway.md](./12-gateway.md) |
 | 13 | apps/cli | ✅ complete | [14-cli.md](./14-cli.md) |
-| 14 | apps/web | ⬜ not started | — |
+| 14 | apps/web | ✅ complete | [15-web.md](./15-web.md) |
