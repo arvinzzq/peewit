@@ -10,25 +10,25 @@ import { createInterface } from "node:readline";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadConfig, redactedConfig, resolveSessionsDirectory, type EffectiveConfig, type RedactedConfigView } from "@peewit/config";
-import { DefaultContextAssembler } from "@peewit/context";
-import { AgentRuntime, InMemoryRuntimeTraceStore, createSpawnSubagentTool, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore, type SubagentFactory } from "@peewit/core";
-import { SessionGateway, type GatewaySession } from "@peewit/gateway";
-import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@peewit/models";
-import { CLI_CAPABILITIES, filterToolsByProfile, type ToolProfile } from "@peewit/adapters";
-import { BackgroundApprovalResolver, CronScheduler, JsonlTaskStore, type TaskDefinition, type TaskRunRecord } from "@peewit/scheduler";
-import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@peewit/sessions";
-import { JsonlTaskFlowStore } from "@peewit/taskflow";
-import { SkillLoader, SkillManager, toSkillSummary, type SkillDefinition } from "@peewit/skills";
-import { createAppendDailyMemoryTool, createAppendFileTool, createEditFileTool, createListDirectoryTool, createLoadSkillTool, createMemoryGetTool, createMemorySearchTool, createReadFileTool, createReadWebPageTool, createSearchFilesTool, createShellTool, createWriteFileTool, type SkillFileMap } from "@peewit/tools";
+import { loadConfig, redactedConfig, resolveSessionsDirectory, type EffectiveConfig, type RedactedConfigView } from "@vole/config";
+import { DefaultContextAssembler } from "@vole/context";
+import { AgentRuntime, InMemoryRuntimeTraceStore, createSpawnSubagentTool, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore, type SubagentFactory } from "@vole/core";
+import { SessionGateway, type GatewaySession } from "@vole/gateway";
+import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@vole/models";
+import { CLI_CAPABILITIES, filterToolsByProfile, type ToolProfile } from "@vole/adapters";
+import { BackgroundApprovalResolver, CronScheduler, JsonlTaskStore, type TaskDefinition, type TaskRunRecord } from "@vole/scheduler";
+import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@vole/sessions";
+import { JsonlTaskFlowStore } from "@vole/taskflow";
+import { SkillLoader, SkillManager, toSkillSummary, type SkillDefinition } from "@vole/skills";
+import { createAppendDailyMemoryTool, createAppendFileTool, createEditFileTool, createListDirectoryTool, createLoadSkillTool, createMemoryGetTool, createMemorySearchTool, createReadFileTool, createReadWebPageTool, createSearchFilesTool, createShellTool, createWriteFileTool, type SkillFileMap } from "@vole/tools";
 
-export const cliPackageName = "@peewit/cli";
+export const cliPackageName = "@vole/cli";
 
 // Core system instruction — adapted from OpenClaw's execution bias section.
 // Loaded as the <identity> XML section; workspace files (SOUL.md, AGENTS.md)
 // are loaded into the <workspace> section on top of this.
 const AGENT_SYSTEM_INSTRUCTION = `\
-You are Peewit, a capable coding and general-purpose agent.
+You are Vole, a capable coding and general-purpose agent.
 
 ## Tool Call Style
 Do not narrate routine, low-risk tool calls — just call the tool.
@@ -69,7 +69,7 @@ export interface RunCliOptions {
   write?: (text: string) => void;
 }
 
-const helpText = `Usage: peewit <command>
+const helpText = `Usage: vole <command>
 
 Commands:
   chat        Start an interactive chat session
@@ -168,7 +168,7 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
       return {
         exitCode: 1,
         stdout: helpText,
-        stderr: `Missing goal for \`run\`. Usage: peewit run "<goal>"\n`
+        stderr: `Missing goal for \`run\`. Usage: vole run "<goal>"\n`
       };
     }
 
@@ -265,7 +265,7 @@ async function runInteractiveFakeChat(options: RunCliOptions, args: ParsedChatAr
     ...(args.sessionId === undefined ? {} : { sessionId: args.sessionId })
   });
 
-  return runInteractiveLoop(session, "Peewit chat (fake provider)", options);
+  return runInteractiveLoop(session, "Vole chat (fake provider)", options);
 }
 
 async function runInteractiveConfiguredChat(options: RunCliOptions, args: ParsedChatArgs): Promise<CliResult> {
@@ -275,7 +275,7 @@ async function runInteractiveConfiguredChat(options: RunCliOptions, args: Parsed
     return {
       exitCode: 1,
       stdout: "",
-      stderr: "Missing PEEWIT_API_KEY or OPENROUTER_API_KEY. Set one to start `peewit chat`, or use `peewit chat --fake-interactive` for local learning.\n"
+      stderr: "Missing VOLE_API_KEY or OPENROUTER_API_KEY. Set one to start `vole chat`, or use `vole chat --fake-interactive` for local learning.\n"
     };
   }
 
@@ -293,7 +293,7 @@ async function runInteractiveConfiguredChat(options: RunCliOptions, args: Parsed
     return {
       exitCode: 1,
       stdout: "",
-      stderr: "No stored sessions to resume. Start one with `peewit chat` or `peewit chat --session <id>`.\n"
+      stderr: "No stored sessions to resume. Start one with `vole chat` or `vole chat --session <id>`.\n"
     };
   }
 
@@ -303,7 +303,7 @@ async function runInteractiveConfiguredChat(options: RunCliOptions, args: Parsed
     await CliChatSession.createConfigured(config, options, {
       ...(sessionId === undefined ? {} : { sessionId })
     }),
-    resumedSessionId === undefined ? "Peewit chat" : `Peewit chat\nResumed session: ${resumedSessionId}`,
+    resumedSessionId === undefined ? "Vole chat" : `Vole chat\nResumed session: ${resumedSessionId}`,
     options
   );
 }
@@ -335,7 +335,7 @@ async function runMemoryDreaming(options: RunCliOptions): Promise<CliResult> {
     return {
       exitCode: 1,
       stdout: "",
-      stderr: "Missing PEEWIT_API_KEY or OPENROUTER_API_KEY. Set one to run memory dreaming.\n"
+      stderr: "Missing VOLE_API_KEY or OPENROUTER_API_KEY. Set one to run memory dreaming.\n"
     };
   }
 
@@ -343,7 +343,7 @@ async function runMemoryDreaming(options: RunCliOptions): Promise<CliResult> {
     return {
       exitCode: 1,
       stdout: "",
-      stderr: "Memory dreaming requires PEEWIT_LONG_TERM_MEMORY=write\n"
+      stderr: "Memory dreaming requires VOLE_LONG_TERM_MEMORY=write\n"
     };
   }
 
@@ -367,7 +367,7 @@ async function runBackgroundTask(
     return {
       exitCode: 1,
       stdout: "",
-      stderr: "Missing PEEWIT_API_KEY or OPENROUTER_API_KEY. Set one to run background tasks.\n"
+      stderr: "Missing VOLE_API_KEY or OPENROUTER_API_KEY. Set one to run background tasks.\n"
     };
   }
 
@@ -591,7 +591,7 @@ async function runDaemon(options: RunCliOptions, once: boolean): Promise<CliResu
     return {
       exitCode: 1,
       stdout: "",
-      stderr: "Missing PEEWIT_API_KEY or OPENROUTER_API_KEY. Set one to run the daemon.\n"
+      stderr: "Missing VOLE_API_KEY or OPENROUTER_API_KEY. Set one to run the daemon.\n"
     };
   }
 
@@ -676,7 +676,7 @@ async function runTaskflowCommand(args: string[], options: RunCliOptions): Promi
       return {
         exitCode: 1,
         stdout: helpText,
-        stderr: "Missing id for `taskflow show`. Usage: peewit taskflow show <id>\n"
+        stderr: "Missing id for `taskflow show`. Usage: vole taskflow show <id>\n"
       };
     }
     return runTaskflowShow(id, options);
@@ -688,7 +688,7 @@ async function runTaskflowCommand(args: string[], options: RunCliOptions): Promi
       return {
         exitCode: 1,
         stdout: helpText,
-        stderr: "Missing id for `taskflow cancel`. Usage: peewit taskflow cancel <id>\n"
+        stderr: "Missing id for `taskflow cancel`. Usage: vole taskflow cancel <id>\n"
       };
     }
     return runTaskflowCancel(id, options);
@@ -801,7 +801,7 @@ async function runSkillsCommand(args: string[], options: RunCliOptions): Promise
       return {
         exitCode: 1,
         stdout: helpText,
-        stderr: "Missing path for `skills install`. Usage: peewit skills install <path>\n"
+        stderr: "Missing path for `skills install`. Usage: vole skills install <path>\n"
       };
     }
     return runSkillsInstall(sourcePath, options);
@@ -813,7 +813,7 @@ async function runSkillsCommand(args: string[], options: RunCliOptions): Promise
       return {
         exitCode: 1,
         stdout: helpText,
-        stderr: `Missing name for \`skills ${subcommand}\`. Usage: peewit skills ${subcommand} <name>\n`
+        stderr: `Missing name for \`skills ${subcommand}\`. Usage: vole skills ${subcommand} <name>\n`
       };
     }
     return runSkillsLifecycle(subcommand, name, options);
@@ -825,7 +825,7 @@ async function runSkillsCommand(args: string[], options: RunCliOptions): Promise
       return {
         exitCode: 1,
         stdout: helpText,
-        stderr: "Missing name for `skills review`. Usage: peewit skills review <name>\n"
+        stderr: "Missing name for `skills review`. Usage: vole skills review <name>\n"
       };
     }
     return runSkillsReview(name, options);
@@ -1171,7 +1171,7 @@ export class CliChatSession {
       create: (goal) => new AgentRuntime({
         contextAssembler: createCliContextAssembler(redactedConfig(config), currentDate),
         modelProvider: configuredProvider,
-        systemInstruction: `You are Peewit, a sub-agent handling: ${goal}`,
+        systemInstruction: `You are Vole, a sub-agent handling: ${goal}`,
         runtime: { mode: config.runtime.defaultMode, workspace: config.workspace.root, currentDate },
         tools: createCliBuiltInTools(options, config),
         maxSteps: 8
@@ -1475,7 +1475,7 @@ export function renderSkillIndex(skills: SkillDefinition[]): string[] {
   if (untrustedNames.length > 0) {
     lines.push("");
     for (const name of untrustedNames) {
-      lines.push(`This skill was installed from an external source and has not been trusted. Run \`peewit skills trust ${name}\` to trust it.`);
+      lines.push(`This skill was installed from an external source and has not been trusted. Run \`vole skills trust ${name}\` to trust it.`);
     }
   }
 
@@ -1495,7 +1495,7 @@ export function renderRedactedConfig(config: RedactedConfigView): string[] {
   ];
 }
 
-export function renderToolResult(result: import("@peewit/tools").ToolExecutionResult): string {
+export function renderToolResult(result: import("@vole/tools").ToolExecutionResult): string {
   if ("entries" in result && Array.isArray(result.entries)) {
     return result.entries.map((e: { name: string; type: string }) => `  ${e.type === "directory" ? "📁" : "📄"} ${e.name}`).join("\n");
   }

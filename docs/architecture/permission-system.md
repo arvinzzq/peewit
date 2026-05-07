@@ -9,7 +9,7 @@ Simplified Chinese version: [permission-system.zh-CN.md](./permission-system.zh-
 
 The permission system decides whether a specific agent action is allowed to run.
 
-Peewit should become increasingly capable over time, but more capability means more risk. The permission system is the boundary that lets the agent act while keeping the user in control.
+Vole should become increasingly capable over time, but more capability means more risk. The permission system is the boundary that lets the agent act while keeping the user in control.
 
 The core rule:
 
@@ -19,7 +19,7 @@ The model may request an action, and a tool may know how to execute it, but the 
 
 General-purpose agents can touch files, run commands, access the web, and eventually automate background tasks. Without a permission system, every new capability increases the chance of accidental damage or surprising behavior.
 
-The permission system gives Peewit:
+The permission system gives Vole:
 
 - A consistent safety model across tools
 - A way to support different autonomy modes
@@ -249,7 +249,7 @@ The MVP permission system should be considered successful when:
 
 ## 16. Related Documents
 
-- [Main design](../product/peewit-design.md)
+- [Main design](../product/vole-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [Agent loop](./agent-loop.md)
 - [Tool system](./tool-system.md)

@@ -14,4 +14,4 @@ Discovery order、重名 skills 的优先级规则、SKILL.md 解析（含扩展
 
 ## Boundaries
 
-不要在这里调用 model providers、执行 tools、读取 secrets 或决定 context section 包含逻辑。技能内容引导行为，它不执行操作也不授予权限。trusted 标志是建议性的 —— 实际工具 permission 决策由 @peewit/permissions 做出。
+不要在这里调用 model providers、执行 tools、读取 secrets 或决定 context section 包含逻辑。技能内容引导行为，它不执行操作也不授予权限。trusted 标志是建议性的 —— 实际工具 permission 决策由 @vole/permissions 做出。

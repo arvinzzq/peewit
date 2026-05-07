@@ -69,7 +69,7 @@ Phase 8 不实现基于文件的 task definitions。任务目标直接作为 CLI
 未来的文件格式可能如下：
 
 ```yaml
-# .peewit/tasks/daily-summary.yaml
+# .vole/tasks/daily-summary.yaml
 name: daily-summary
 goal: "Summarize the changes made to the workspace today."
 mode: confirm
@@ -92,8 +92,8 @@ interface TaskDefinition {
 ### run 命令
 
 ```
-peewit run "<goal>"
-peewit run "<goal>" --mode auto|confirm
+vole run "<goal>"
+vole run "<goal>" --mode auto|confirm
 ```
 
 `run` 命令：
@@ -108,8 +108,8 @@ peewit run "<goal>" --mode auto|confirm
 ### tasks 命令
 
 ```
-peewit tasks
-peewit tasks --limit N
+vole tasks
+vole tasks --limit N
 ```
 
 `tasks` 命令：

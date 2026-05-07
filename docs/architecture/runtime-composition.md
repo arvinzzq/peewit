@@ -7,7 +7,7 @@ Simplified Chinese version: [runtime-composition.zh-CN.md](./runtime-composition
 
 ## 1. Purpose
 
-Runtime composition defines how an Peewit application entry point wires together configuration, model providers, tools, permissions, context, sessions, trace, and Agent Core.
+Runtime composition defines how an Vole application entry point wires together configuration, model providers, tools, permissions, context, sessions, trace, and Agent Core.
 
 Core rule:
 
@@ -68,20 +68,20 @@ Dependencies flow inward. Adapters own composition; core packages stay entry-poi
 apps/cli ──────────────────────────────────────────┐
 apps/web ──────────────────────────────────────────┤
          │                                          │
-         ├──▶ @peewit/core ◀── @peewit/scheduler
+         ├──▶ @vole/core ◀── @vole/scheduler
          │         │
-         │         ├──▶ @peewit/context ──▶ @peewit/models
-         │         ├──▶ @peewit/models
-         │         ├──▶ @peewit/permissions
-         │         └──▶ @peewit/tools
+         │         ├──▶ @vole/context ──▶ @vole/models
+         │         ├──▶ @vole/models
+         │         ├──▶ @vole/permissions
+         │         └──▶ @vole/tools
          │
-         ├──▶ @peewit/config
-         ├──▶ @peewit/sessions
-         ├──▶ @peewit/gateway ──▶ @peewit/adapters
-         ├──▶ @peewit/adapters
-         ├──▶ @peewit/skills
-         ├──▶ @peewit/taskflow
-         └──▶ @peewit/scheduler ──▶ @peewit/core (types only)
+         ├──▶ @vole/config
+         ├──▶ @vole/sessions
+         ├──▶ @vole/gateway ──▶ @vole/adapters
+         ├──▶ @vole/adapters
+         ├──▶ @vole/skills
+         ├──▶ @vole/taskflow
+         └──▶ @vole/scheduler ──▶ @vole/core (types only)
 ```
 
 `packages/core` depends on interfaces and domain types from `context`, `models`, `permissions`, and `tools`. It must not depend on any adapter, config, sessions, gateway, or scheduler code.

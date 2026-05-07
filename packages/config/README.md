@@ -4,7 +4,7 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ## Architecture Overview
 
-`@peewit/config` owns **configuration loading and validation**. It merges defaults, user config, project config, and environment variable overrides into a single `EffectiveConfig` object that drives all runtime behavior. It also redacts secrets before the config is displayed in traces or CLI output.
+`@vole/config` owns **configuration loading and validation**. It merges defaults, user config, project config, and environment variable overrides into a single `EffectiveConfig` object that drives all runtime behavior. It also redacts secrets before the config is displayed in traces or CLI output.
 
 ```
 defaults
@@ -61,8 +61,8 @@ interface EffectiveConfig {
 Three layers are merged in order, with later layers winning:
 
 1. **Defaults**: hardcoded in `defaultConfig` — `openai-compatible` provider, `gpt-4.1-mini`, `confirm` mode, `maxSteps: 12`.
-2. **User config**: typically `~/.peewit/config.json` — personal preferences.
-3. **Project config**: typically `.peewit/config.json` in the workspace — project-specific overrides.
+2. **User config**: typically `~/.vole/config.json` — personal preferences.
+3. **Project config**: typically `.vole/config.json` in the workspace — project-specific overrides.
 4. **Environment variables**: highest precedence, applied last.
 
 ### Environment Variable Reference
@@ -71,26 +71,26 @@ Three layers are merged in order, with later layers winning:
 |---|---|
 | `OPENROUTER_API_KEY` | Sets provider to `openai-compatible`, baseURL to OpenRouter, sets API key |
 | `ANTHROPIC_API_KEY` | Sets provider to `anthropic`, model to `claude-haiku-4-5-20251001`, sets API key |
-| `PEEWIT_API_KEY` | Sets API key only (no provider change) |
-| `PEEWIT_MODEL` | Overrides model name |
-| `PEEWIT_BASE_URL` | Overrides model base URL |
-| `PEEWIT_DEFAULT_MODE` | Overrides runtime autonomy mode (`observe`/`confirm`/`auto`) |
-| `PEEWIT_WORKSPACE_ROOT` | Overrides workspace root directory |
-| `PEEWIT_LONG_TERM_MEMORY` | Overrides `memory.longTermFiles` policy |
-| `PEEWIT_PROMPT_MODE` | Overrides `runtime.promptMode` (`full`/`minimal`/`none`) |
-| `PEEWIT_EXECUTION_CONTRACT` | Overrides execution contract (`default`/`strict-agentic`) |
-| `PEEWIT_TOOL_PROFILE` | Overrides tool profile (`coding`/`full`/`messaging`/`background`) |
-| `PEEWIT_SANDBOX` | Enables shell sandbox mode when `"true"` |
-| `PEEWIT_THINKING_BUDGET` | Sets Anthropic thinking budget (`off`/`minimal`/`low`/`medium`/`high`/`max`/`adaptive`) |
+| `VOLE_API_KEY` | Sets API key only (no provider change) |
+| `VOLE_MODEL` | Overrides model name |
+| `VOLE_BASE_URL` | Overrides model base URL |
+| `VOLE_DEFAULT_MODE` | Overrides runtime autonomy mode (`observe`/`confirm`/`auto`) |
+| `VOLE_WORKSPACE_ROOT` | Overrides workspace root directory |
+| `VOLE_LONG_TERM_MEMORY` | Overrides `memory.longTermFiles` policy |
+| `VOLE_PROMPT_MODE` | Overrides `runtime.promptMode` (`full`/`minimal`/`none`) |
+| `VOLE_EXECUTION_CONTRACT` | Overrides execution contract (`default`/`strict-agentic`) |
+| `VOLE_TOOL_PROFILE` | Overrides tool profile (`coding`/`full`/`messaging`/`background`) |
+| `VOLE_SANDBOX` | Enables shell sandbox mode when `"true"` |
+| `VOLE_THINKING_BUDGET` | Sets Anthropic thinking budget (`off`/`minimal`/`low`/`medium`/`high`/`max`/`adaptive`) |
 
 ### Provider Selection Shortcuts
 
 The `OPENROUTER_API_KEY` and `ANTHROPIC_API_KEY` shortcuts provide a zero-config path:
 
-- Setting `OPENROUTER_API_KEY` auto-configures the OpenRouter base URL and switches to `openai-compatible` provider. You still need `PEEWIT_MODEL=openai/gpt-4o` (or similar).
-- Setting `ANTHROPIC_API_KEY` auto-configures `anthropic` provider with a default Haiku model. You can override with `PEEWIT_MODEL`.
+- Setting `OPENROUTER_API_KEY` auto-configures the OpenRouter base URL and switches to `openai-compatible` provider. You still need `VOLE_MODEL=openai/gpt-4o` (or similar).
+- Setting `ANTHROPIC_API_KEY` auto-configures `anthropic` provider with a default Haiku model. You can override with `VOLE_MODEL`.
 
-These shortcuts exist because users often set these keys in their shell profile; recognizing them avoids requiring an additional `PEEWIT_API_KEY` variable.
+These shortcuts exist because users often set these keys in their shell profile; recognizing them avoids requiring an additional `VOLE_API_KEY` variable.
 
 ### Validation
 
@@ -118,7 +118,7 @@ function resolveSessionsDirectory(
 ): string
 ```
 
-Expands `~/` to `$HOME` so that the default `~/.peewit/sessions` resolves correctly on any machine. Both CLI and Web adapters call this helper, ensuring they always use the same directory regardless of where `~` is expanded.
+Expands `~/` to `$HOME` so that the default `~/.vole/sessions` resolves correctly on any machine. Both CLI and Web adapters call this helper, ensuring they always use the same directory regardless of where `~` is expanded.
 
 ## Implementation Principles
 
@@ -128,7 +128,7 @@ Expands `~/` to `$HOME` so that the default `~/.peewit/sessions` resolves correc
 
 ### Why Config Is Its Own Package
 
-Configuration loading is independent of every other domain concern. It has no dependency on `@peewit/core`, `@peewit/models`, or any other workspace package. This means the CLI or a config-only command (`peewit config show`) can import `@peewit/config` without pulling in the entire runtime stack.
+Configuration loading is independent of every other domain concern. It has no dependency on `@vole/core`, `@vole/models`, or any other workspace package. This means the CLI or a config-only command (`vole config show`) can import `@vole/config` without pulling in the entire runtime stack.
 
 ## File Inventory
 

@@ -5,7 +5,7 @@
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
-export const permissionsPackageName = "@peewit/permissions";
+export const permissionsPackageName = "@vole/permissions";
 
 export type AutonomyMode = "observe" | "confirm" | "auto";
 export type PermissionRiskLevel = "low" | "medium" | "high" | "blocked";

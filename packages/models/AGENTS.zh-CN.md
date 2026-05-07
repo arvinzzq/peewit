@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-把 provider-specific request 和 response handling 保持在这里。Public outputs 在到达 core 前应归一化为 Peewit model types。
+把 provider-specific request 和 response handling 保持在这里。Public outputs 在到达 core 前应归一化为 Vole model types。
 
 ## When Files Change
 

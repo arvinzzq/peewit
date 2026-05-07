@@ -8,7 +8,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 
-export const taskflowPackageName = "@peewit/taskflow";
+export const taskflowPackageName = "@vole/taskflow";
 
 export type TaskStatus =
   | "queued"

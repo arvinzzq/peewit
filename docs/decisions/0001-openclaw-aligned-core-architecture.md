@@ -7,9 +7,9 @@ Simplified Chinese version: [0001-openclaw-aligned-core-architecture.zh-CN.md](.
 
 ## 1. Context
 
-Peewit started as a plan for a TypeScript CLI-first general agent inspired by OpenClaw.
+Vole started as a plan for a TypeScript CLI-first general agent inspired by OpenClaw.
 
-After deeper OpenClaw research, the project should be more explicit: Peewit is an OpenClaw-like implementation from zero to one, with OpenClaw as the primary architecture reference.
+After deeper OpenClaw research, the project should be more explicit: Vole is an OpenClaw-like implementation from zero to one, with OpenClaw as the primary architecture reference.
 
 The research notes show that OpenClaw's core architecture is not only an agent loop with tools. It also relies on:
 
@@ -25,7 +25,7 @@ The research notes show that OpenClaw's core architecture is not only an agent l
 
 ## 2. Decision
 
-Peewit will align its core architecture with OpenClaw's documented run shape:
+Vole will align its core architecture with OpenClaw's documented run shape:
 
 ```text
 intake -> context assembly -> model inference -> tool execution -> streaming/trace -> persistence
@@ -102,7 +102,7 @@ These tests should be introduced before or alongside implementation of `packages
 
 Positive:
 
-- Peewit better matches OpenClaw's real architecture.
+- Vole better matches OpenClaw's real architecture.
 - Prompt assembly becomes testable.
 - Future workspace files and memory can be added cleanly.
 - CLI remains an adapter instead of owning prompt construction.
@@ -117,7 +117,7 @@ Trade-offs:
 
 - [OpenClaw implementation notes](../research/openclaw-implementation-notes.md)
 - [OpenClaw architecture map](../architecture/openclaw-architecture-map.md)
-- [Main design](../product/peewit-design.md)
+- [Main design](../product/vole-design.md)
 - [Agent loop](../architecture/agent-loop.md)
 - [Prompt assembly](../architecture/prompt-assembly.md)
 - [Session storage](../architecture/session-storage.md)

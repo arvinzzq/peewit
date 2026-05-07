@@ -39,7 +39,7 @@ Next recommended phase:
 
 ## 1. Purpose
 
-Phase 2 gives Peewit the first real external action capability.
+Phase 2 gives Vole the first real external action capability.
 
 The goal is to let the agent inspect files, write files after approval, run shell commands after approval, and read web content through safe tool and permission boundaries.
 

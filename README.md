@@ -1,4 +1,4 @@
-# Peewit
+# Vole
 
 > A personal general-purpose agent — OpenClaw-inspired, TypeScript, real and usable.
 
@@ -11,13 +11,13 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ---
 
-## What is Peewit?
+## What is Vole?
 
-Peewit is a personal general-purpose agent built from first principles in TypeScript.
+Vole is a personal general-purpose agent built from first principles in TypeScript.
 
 It is both a **real, usable product** and an **architecture learning project**. Every module — agent loop, tool execution, permission policy, context assembly, session storage, streaming, and multi-agent coordination — is implemented deliberately, documented thoroughly, and tested.
 
-The reference architecture is [OpenClaw](https://openclaw.ai). Peewit implements its core ideas in a clean, staged, independently deployable TypeScript monorepo.
+The reference architecture is [OpenClaw](https://openclaw.ai). Vole implements its core ideas in a clean, staged, independently deployable TypeScript monorepo.
 
 ---
 
@@ -51,7 +51,7 @@ The reference architecture is [OpenClaw](https://openclaw.ai). Peewit implements
 
 ### Skills
 - **SKILL.md format** — `name` + `description` frontmatter, full body on demand
-- **Precedence** — workspace > user (`~/.peewit/skills/`) > built-in
+- **Precedence** — workspace > user (`~/.vole/skills/`) > built-in
 - **Skill management** — install, enable, disable, trust, review via CLI
 
 ### Adapters
@@ -61,12 +61,12 @@ The reference architecture is [OpenClaw](https://openclaw.ai). Peewit implements
 - **Session Gateway** — `packages/gateway` tracks active sessions across adapters
 
 ### Background Automation
-- **One-shot tasks** — `peewit run "<goal>" [--mode auto|confirm]`
-- **Cron daemon** — `peewit daemon` runs scheduled tasks from `tasks/*.task.json`
+- **One-shot tasks** — `vole run "<goal>" [--mode auto|confirm]`
+- **Cron daemon** — `vole daemon` runs scheduled tasks from `tasks/*.task.json`
 - **TaskFlow** — persistent cross-session task graph with 8 statuses and parent/child relationships
 - **Background approval policy** — `BackgroundApprovalResolver` auto-approves or auto-denies
-- **Task history** — `peewit tasks` and `peewit taskflow list/show/cancel`
-- **Memory dreaming** — `peewit run --dream` consolidates daily notes into `MEMORY.md`
+- **Task history** — `vole tasks` and `vole taskflow list/show/cancel`
+- **Memory dreaming** — `vole run --dream` consolidates daily notes into `MEMORY.md`
 
 ### Model Providers
 - **OpenAI-compatible** — any API following OpenAI chat completions (OpenAI, OpenRouter, Ollama, etc.)
@@ -80,8 +80,8 @@ The reference architecture is [OpenClaw](https://openclaw.ai). Peewit implements
 **Requirements:** Node.js ≥ 22, pnpm
 
 ```bash
-git clone https://github.com/your-username/peewit
-cd peewit
+git clone https://github.com/your-username/vole
+cd vole
 pnpm install
 ```
 
@@ -95,7 +95,7 @@ Minimal `.env` for OpenRouter:
 
 ```bash
 OPENROUTER_API_KEY=sk-or-...
-PEEWIT_MODEL=anthropic/claude-3-haiku
+VOLE_MODEL=anthropic/claude-3-haiku
 ```
 
 **Start chatting** (no build step required):
@@ -137,7 +137,7 @@ pnpm cli run "<goal>" --dream          # Memory dreaming — consolidate daily n
 ### Web UI
 
 ```bash
-pnpm --filter @peewit/web run dev   # Hono on :3120, Vite on :5173
+pnpm --filter @vole/web run dev   # Hono on :3120, Vite on :5173
 ```
 
 Open `http://localhost:5173` in your browser. Create or resume sessions, send messages, watch streaming responses, approve tool actions.
@@ -154,7 +154,7 @@ API endpoints:
 
 ## Architecture
 
-Peewit is a pnpm monorepo with 12 packages and 2 adapter apps, organized into four strict layers. Packages own a single responsibility. Adapters wire everything together. Nothing in the core imports from adapters. No circular dependencies.
+Vole is a pnpm monorepo with 12 packages and 2 adapter apps, organized into four strict layers. Packages own a single responsibility. Adapters wire everything together. Nothing in the core imports from adapters. No circular dependencies.
 
 ### Module Map
 
@@ -286,25 +286,25 @@ Each package has a detailed README covering architecture, core concepts, impleme
 
 ## Configuration
 
-All settings are optional. Peewit has safe defaults.
+All settings are optional. Vole has safe defaults.
 
 | Environment Variable | Description | Default |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Use Anthropic provider (claude-haiku-4-5) | — |
-| `OPENROUTER_API_KEY` | Use OpenRouter (requires `PEEWIT_MODEL`) | — |
-| `PEEWIT_API_KEY` | Generic API key | — |
-| `PEEWIT_BASE_URL` | Provider base URL | `https://api.openai.com/v1` |
-| `PEEWIT_MODEL` | Model name | `gpt-4.1-mini` |
-| `PEEWIT_DEFAULT_MODE` | Autonomy mode: `observe` / `confirm` / `auto` | `confirm` |
-| `PEEWIT_WORKSPACE_ROOT` | Working directory | `.` |
-| `PEEWIT_LONG_TERM_MEMORY` | Memory policy: `disabled` / `read-only` / `write` | `disabled` |
-| `PEEWIT_PROMPT_MODE` | Prompt rendering: `full` / `minimal` / `none` | `full` |
-| `PEEWIT_EXECUTION_CONTRACT` | Execution discipline: `default` / `strict-agentic` | `default` |
-| `PEEWIT_TOOL_PROFILE` | Tool capability set: `coding` / `full` / `messaging` / `background` | `full` |
-| `PEEWIT_SANDBOX` | Restrict shell to workspace root: `true` / `false` | `false` |
-| `PEEWIT_THINKING_BUDGET` | Anthropic reasoning depth: `off` / `minimal` / `low` / `medium` / `high` / `max` / `adaptive` | `adaptive` |
+| `OPENROUTER_API_KEY` | Use OpenRouter (requires `VOLE_MODEL`) | — |
+| `VOLE_API_KEY` | Generic API key | — |
+| `VOLE_BASE_URL` | Provider base URL | `https://api.openai.com/v1` |
+| `VOLE_MODEL` | Model name | `gpt-4.1-mini` |
+| `VOLE_DEFAULT_MODE` | Autonomy mode: `observe` / `confirm` / `auto` | `confirm` |
+| `VOLE_WORKSPACE_ROOT` | Working directory | `.` |
+| `VOLE_LONG_TERM_MEMORY` | Memory policy: `disabled` / `read-only` / `write` | `disabled` |
+| `VOLE_PROMPT_MODE` | Prompt rendering: `full` / `minimal` / `none` | `full` |
+| `VOLE_EXECUTION_CONTRACT` | Execution discipline: `default` / `strict-agentic` | `default` |
+| `VOLE_TOOL_PROFILE` | Tool capability set: `coding` / `full` / `messaging` / `background` | `full` |
+| `VOLE_SANDBOX` | Restrict shell to workspace root: `true` / `false` | `false` |
+| `VOLE_THINKING_BUDGET` | Anthropic reasoning depth: `off` / `minimal` / `low` / `medium` / `high` / `max` / `adaptive` | `adaptive` |
 
-File-based config: `peewit.config.json` (project) and `~/.peewit/config.json` (user).
+File-based config: `vole.config.json` (project) and `~/.vole/config.json` (user).
 
 ---
 
@@ -321,7 +321,7 @@ pnpm cli chat         # run CLI from source, no build needed
 ### Running the Web UI locally
 
 ```bash
-pnpm --filter @peewit/web run dev
+pnpm --filter @vole/web run dev
 # Hono API server: http://localhost:3120
 # Vite dev server: http://localhost:5173
 ```
@@ -341,7 +341,7 @@ pnpm run docs:check   # heading count parity (EN ↔ zh-CN)
 ```bash
 pnpm run build                          # build all packages
 node apps/cli/dist/index.js chat        # run built CLI
-pnpm --filter @peewit/web run start  # run built Web server
+pnpm --filter @vole/web run start  # run built Web server
 ```
 
 ### Adding a tool
@@ -375,11 +375,11 @@ All documentation exists in English and Simplified Chinese.
 
 ## OpenClaw Alignment
 
-Peewit is architecturally aligned with OpenClaw but not identical. See [Decision 0002](./docs/decisions/0002-openclaw-aligned-not-identical.md) for the rationale.
+Vole is architecturally aligned with OpenClaw but not identical. See [Decision 0002](./docs/decisions/0002-openclaw-aligned-not-identical.md) for the rationale.
 
 Current alignment:
 
-| OpenClaw Capability | Peewit Status |
+| OpenClaw Capability | Vole Status |
 |---|---|
 | Agent loop (intake → inference → tools → persist) | ✅ Complete |
 | XML-section system prompt | ✅ Complete |
@@ -392,24 +392,24 @@ Current alignment:
 | Session persistence | ✅ JSONL store |
 | Multi-adapter (CLI + Web) | ✅ Shared `AgentRuntime` |
 | `sessions_spawn` sub-agents | ✅ `spawn_subagent` tool |
-| Background tasks | ✅ `peewit run` |
+| Background tasks | ✅ `vole run` |
 | Skill install / trust / permissions | ✅ Phase 9 |
 | Session gateway | ✅ `packages/gateway` |
 | Context compaction | ✅ `compactMessages()` in `packages/context` |
 | Skill body on-demand loading | ✅ `load_skill` tool |
 | `memory_search` / `memory_get` tools | ✅ `packages/tools` |
-| Prompt modes (full / minimal / none) | ✅ `PEEWIT_PROMPT_MODE` |
-| Strict-agentic execution contract | ✅ `PEEWIT_EXECUTION_CONTRACT` |
+| Prompt modes (full / minimal / none) | ✅ `VOLE_PROMPT_MODE` |
+| Strict-agentic execution contract | ✅ `VOLE_EXECUTION_CONTRACT` |
 | Per-session write locks | ✅ `SessionMutex` in `packages/core` |
 | Hooks system | ✅ `AgentHooks` in `packages/core` |
-| Tool profiles | ✅ `PEEWIT_TOOL_PROFILE` |
-| Sandbox enforcement | ✅ `PEEWIT_SANDBOX` |
-| Cron daemon | ✅ `peewit daemon` |
+| Tool profiles | ✅ `VOLE_TOOL_PROFILE` |
+| Sandbox enforcement | ✅ `VOLE_SANDBOX` |
+| Cron daemon | ✅ `vole daemon` |
 | TaskFlow (persistent task graph) | ✅ `packages/taskflow` |
 | Async subagents | ✅ `spawn_subagent_async` tool |
 | WebSocket support | ✅ `GET /ws/:id` |
-| Thinking budget | ✅ `PEEWIT_THINKING_BUDGET` |
-| Memory dreaming | ✅ `peewit run --dream` |
+| Thinking budget | ✅ `VOLE_THINKING_BUDGET` |
+| Memory dreaming | ✅ `vole run --dream` |
 
 All 18 OpenClaw alignment gaps are closed. See [OpenClaw Alignment Plan](./docs/plans/openclaw-alignment.md) for implementation details.
 

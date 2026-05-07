@@ -7,7 +7,7 @@ English version: [session-storage.md](./session-storage.md)
 
 ## 1. 目的
 
-Session storage 持久化 Peewit 的对话和执行历史。
+Session storage 持久化 Vole 的对话和执行历史。
 
 MVP 需要 session storage，这样用户可以继续 CLI 对话、检查最近 trace events，并理解之前 turns 中发生了什么。
 
@@ -17,7 +17,7 @@ MVP 包含 session memory，但不包含完整 long-term memory system。
 
 ## 2. Session Memory vs Long-Term Memory
 
-Peewit 应区分 session memory 和 long-term memory。
+Vole 应区分 session memory 和 long-term memory。
 
 | 概念 | MVP 状态 | 含义 |
 | --- | --- | --- |
@@ -38,7 +38,7 @@ Long-term memory 延后到后续阶段，因为它引入更多设计问题：
 
 没有 session storage，每次 CLI 运行都是无状态的。这会降低产品可用性，也削弱学习目标，因为用户无法检查一个任务是如何展开的。
 
-Session storage 给 Peewit 提供：
+Session storage 给 Vole 提供：
 
 - 对话连续性
 - Trace inspection
@@ -76,7 +76,7 @@ MVP 应使用简单本地 file-based backend。
 建议位置：
 
 ```text
-~/.peewit/sessions/
+~/.vole/sessions/
 ```
 
 Project-local session storage 可以后续考虑，但对个人 CLI 使用来说，user-local storage 是更安全的默认值。
@@ -218,7 +218,7 @@ CLI 最终应支持：
 
 MVP 可以从以下能力开始：
 
-- `peewit chat` 时创建 session
+- `vole chat` 时创建 session
 - 持久化 messages 和 trace events
 - 当前 session 的 `/trace`
 - 未来 session listing command
@@ -258,7 +258,7 @@ MVP session storage 成功标准：
 
 ## 17. 相关文档
 
-- [主设计](../product/peewit-design.zh-CN.md)
+- [主设计](../product/vole-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)
 - [Agent Loop](./agent-loop.zh-CN.md)
 - [Execution Trace](./execution-trace.zh-CN.md)

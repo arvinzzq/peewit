@@ -30,12 +30,12 @@ describe("package boundaries", () => {
     expect(workspaceConfig).toContain("  - apps/*");
     expect(workspaceConfig).toContain("  - packages/*");
     expect(readJson("apps/cli/package.json")).toMatchObject({
-      name: "@peewit/cli",
+      name: "@vole/cli",
       private: true
     });
 
     for (const packagePath of workspacePackages) {
-      const packageName = packagePath.replace("packages/", "@peewit/");
+      const packageName = packagePath.replace("packages/", "@vole/");
       expect(readJson(`${packagePath}/package.json`)).toMatchObject({
         name: packageName,
         private: true
@@ -50,8 +50,8 @@ describe("package boundaries", () => {
         devDependencies?: Record<string, string>;
       };
 
-      expect(manifest.dependencies ?? {}).not.toHaveProperty("@peewit/cli");
-      expect(manifest.devDependencies ?? {}).not.toHaveProperty("@peewit/cli");
+      expect(manifest.dependencies ?? {}).not.toHaveProperty("@vole/cli");
+      expect(manifest.devDependencies ?? {}).not.toHaveProperty("@vole/cli");
     }
   });
 });

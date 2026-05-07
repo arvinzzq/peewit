@@ -7,20 +7,20 @@ English version: [0003-technology-stack-selection.md](./0003-technology-stack-se
 
 ## 1. 背景
 
-Peewit 是一个从 0 到 1 构建的 OpenClaw-like 个人通用 Agent。
+Vole 是一个从 0 到 1 构建的 OpenClaw-like 个人通用 Agent。
 
 这个项目有两个目标：
 
 - 构建一个能够逐步用于日常工作的真实产品。
 - 通过可读模块、测试和中英文双语文档，学习 OpenClaw-like Agent 的架构。
 
-因此，技术栈既要支持产品成长，也要支持学习清晰度。它应该足够贴近 OpenClaw，让对比有意义；但在 Peewit 真正需要之前，不应该复制生产级复杂度。
+因此，技术栈既要支持产品成长，也要支持学习清晰度。它应该足够贴近 OpenClaw，让对比有意义；但在 Vole 真正需要之前，不应该复制生产级复杂度。
 
-OpenClaw 的公开仓库是一个 TypeScript 和 Node.js 项目，并且源码开发使用 pnpm workspaces。它的 workspace 包含 root package、UI、packages 和 extensions。这让 pnpm 成为 Peewit 的重要参考选择。
+OpenClaw 的公开仓库是一个 TypeScript 和 Node.js 项目，并且源码开发使用 pnpm workspaces。它的 workspace 包含 root package、UI、packages 和 extensions。这让 pnpm 成为 Vole 的重要参考选择。
 
 ## 2. 决策
 
-Peewit 将使用：
+Vole 将使用：
 
 | 范围 | 选择 |
 | --- | --- |
@@ -37,7 +37,7 @@ Peewit 将使用：
 
 ## 3. 为什么选择 pnpm
 
-相比 npm workspaces，pnpm 更适合作为 Peewit 的长期选择，因为：
+相比 npm workspaces，pnpm 更适合作为 Vole 的长期选择，因为：
 
 - 它更贴近 OpenClaw 公开源码开发的形态。
 - 它适合管理很多 packages 和未来 extensions 的 monorepo。
@@ -119,7 +119,7 @@ Phase 0 不需要 bundler。
 
 正向影响：
 
-- Peewit 保持接近 OpenClaw 的 TypeScript 和 pnpm workspace 方向。
+- Vole 保持接近 OpenClaw 的 TypeScript 和 pnpm workspace 方向。
 - 项目可以更早获得严格的依赖边界。
 - Build path 仍然足够小，适合学习。
 - 未来 packages 和 extensions 有自然归属位置。
@@ -136,4 +136,4 @@ Phase 0 不需要 bundler。
 - [OpenClaw-Aligned, Not Identical](./0002-openclaw-aligned-not-identical.zh-CN.md)
 - [Project Structure](../architecture/project-structure.zh-CN.md)
 - [Development Workflow](../architecture/dev-workflow.zh-CN.md)
-- [主设计](../product/peewit-design.zh-CN.md)
+- [主设计](../product/vole-design.zh-CN.md)

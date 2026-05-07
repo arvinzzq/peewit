@@ -9,7 +9,7 @@ describe("runCli", () => {
     await expect(runCli(["--help"], "0.0.0")).resolves.toEqual({
       exitCode: 0,
       stderr: "",
-      stdout: expect.stringContaining("Usage: peewit")
+      stdout: expect.stringContaining("Usage: vole")
     });
   });
 
@@ -29,21 +29,21 @@ describe("runCli", () => {
 
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toBe("");
-    expect(result.stderr).toContain("PEEWIT_API_KEY");
+    expect(result.stderr).toContain("VOLE_API_KEY");
     expect(result.stderr).toContain("OPENROUTER_API_KEY");
   });
 
   test("runs an interactive configured-provider chat loop", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
     const inputs = ["Hello configured", "/exit"];
     const requests: Array<{ url: string; init?: RequestInit }> = [];
 
     try {
       const result = await runCli(["chat"], "0.0.0", {
         env: {
-          PEEWIT_API_KEY: "secret-api-key",
-          PEEWIT_BASE_URL: "https://provider.example/v1",
-          PEEWIT_MODEL: "test-model"
+          VOLE_API_KEY: "secret-api-key",
+          VOLE_BASE_URL: "https://provider.example/v1",
+          VOLE_MODEL: "test-model"
         },
         sessionsDirectory: directory,
         readLine: async () => inputs.shift(),
@@ -75,7 +75,7 @@ describe("runCli", () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe("");
-      expect(result.stdout).toContain("Peewit chat");
+      expect(result.stdout).toContain("Vole chat");
       expect(result.stdout).toContain("Assistant: Configured provider response");
       expect(result.stdout).toContain("Goodbye.");
       expect(requests).toHaveLength(1);
@@ -90,8 +90,8 @@ describe("runCli", () => {
   });
 
   test("includes workspace prompt files in configured-provider chat context", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
-    const workspace = await mkdtemp(join(tmpdir(), "peewit-cli-workspace-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
+    const workspace = await mkdtemp(join(tmpdir(), "vole-cli-workspace-"));
     const inputs = ["Follow workspace guidance", "/exit"];
     const requests: Array<{ body: string }> = [];
 
@@ -101,8 +101,8 @@ describe("runCli", () => {
 
       const result = await runCli(["chat"], "0.0.0", {
         env: {
-          PEEWIT_API_KEY: "secret-api-key",
-          PEEWIT_WORKSPACE_ROOT: workspace
+          VOLE_API_KEY: "secret-api-key",
+          VOLE_WORKSPACE_ROOT: workspace
         },
         sessionsDirectory: directory,
         readLine: async () => inputs.shift(),
@@ -139,20 +139,20 @@ describe("runCli", () => {
   });
 
   test("includes read-only long-term memory files when enabled", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
-    const workspace = await mkdtemp(join(tmpdir(), "peewit-cli-workspace-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
+    const workspace = await mkdtemp(join(tmpdir(), "vole-cli-workspace-"));
     const inputs = ["Use long-term memory", "/exit"];
     const requests: Array<{ body: string }> = [];
 
     try {
       await writeFile(join(workspace, "USER.md"), "User prefers concise architecture notes.");
-      await writeFile(join(workspace, "MEMORY.md"), "Peewit Phase 5 is about memory.");
+      await writeFile(join(workspace, "MEMORY.md"), "Vole Phase 5 is about memory.");
 
       const result = await runCli(["chat"], "0.0.0", {
         env: {
-          PEEWIT_API_KEY: "secret-api-key",
-          PEEWIT_WORKSPACE_ROOT: workspace,
-          PEEWIT_LONG_TERM_MEMORY: "read-only"
+          VOLE_API_KEY: "secret-api-key",
+          VOLE_WORKSPACE_ROOT: workspace,
+          VOLE_LONG_TERM_MEMORY: "read-only"
         },
         sessionsDirectory: directory,
         readLine: async () => inputs.shift(),
@@ -180,7 +180,7 @@ describe("runCli", () => {
       expect(body.messages[0].content).toContain("### USER.md");
       expect(body.messages[0].content).toContain("User prefers concise architecture notes.");
       expect(body.messages[0].content).toContain("### MEMORY.md");
-      expect(body.messages[0].content).toContain("Peewit Phase 5 is about memory.");
+      expect(body.messages[0].content).toContain("Vole Phase 5 is about memory.");
     } finally {
       await rm(directory, { force: true, recursive: true });
       await rm(workspace, { force: true, recursive: true });
@@ -188,8 +188,8 @@ describe("runCli", () => {
   });
 
   test("includes today and yesterday daily memory files when read-only memory is enabled", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
-    const workspace = await mkdtemp(join(tmpdir(), "peewit-cli-workspace-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
+    const workspace = await mkdtemp(join(tmpdir(), "vole-cli-workspace-"));
     const today = new Date().toISOString().slice(0, 10);
     const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
     const inputs = ["Use daily memory", "/exit"];
@@ -202,9 +202,9 @@ describe("runCli", () => {
 
       const result = await runCli(["chat"], "0.0.0", {
         env: {
-          PEEWIT_API_KEY: "secret-api-key",
-          PEEWIT_WORKSPACE_ROOT: workspace,
-          PEEWIT_LONG_TERM_MEMORY: "read-only"
+          VOLE_API_KEY: "secret-api-key",
+          VOLE_WORKSPACE_ROOT: workspace,
+          VOLE_LONG_TERM_MEMORY: "read-only"
         },
         sessionsDirectory: directory,
         readLine: async () => inputs.shift(),
@@ -240,8 +240,8 @@ describe("runCli", () => {
   });
 
   test("omits long-term memory files by default", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
-    const workspace = await mkdtemp(join(tmpdir(), "peewit-cli-workspace-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
+    const workspace = await mkdtemp(join(tmpdir(), "vole-cli-workspace-"));
     const inputs = ["Do not use long-term memory", "/exit"];
     const requests: Array<{ body: string }> = [];
 
@@ -255,8 +255,8 @@ describe("runCli", () => {
 
       const result = await runCli(["chat"], "0.0.0", {
         env: {
-          PEEWIT_API_KEY: "secret-api-key",
-          PEEWIT_WORKSPACE_ROOT: workspace
+          VOLE_API_KEY: "secret-api-key",
+          VOLE_WORKSPACE_ROOT: workspace
         },
         sessionsDirectory: directory,
         readLine: async () => inputs.shift(),
@@ -292,8 +292,8 @@ describe("runCli", () => {
   });
 
   test("includes TOOLS.md in workspace prompt files when present", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
-    const workspace = await mkdtemp(join(tmpdir(), "peewit-cli-workspace-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
+    const workspace = await mkdtemp(join(tmpdir(), "vole-cli-workspace-"));
     const inputs = ["Use tool notes", "/exit"];
     const requests: Array<{ body: string }> = [];
 
@@ -302,8 +302,8 @@ describe("runCli", () => {
 
       const result = await runCli(["chat"], "0.0.0", {
         env: {
-          PEEWIT_API_KEY: "secret-api-key",
-          PEEWIT_WORKSPACE_ROOT: workspace
+          VOLE_API_KEY: "secret-api-key",
+          VOLE_WORKSPACE_ROOT: workspace
         },
         sessionsDirectory: directory,
         readLine: async () => inputs.shift(),
@@ -327,8 +327,8 @@ describe("runCli", () => {
   });
 
   test("skips missing workspace files gracefully", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
-    const workspace = await mkdtemp(join(tmpdir(), "peewit-cli-workspace-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
+    const workspace = await mkdtemp(join(tmpdir(), "vole-cli-workspace-"));
     const inputs = ["No extra files", "/exit"];
     const requests: Array<{ body: string }> = [];
 
@@ -338,8 +338,8 @@ describe("runCli", () => {
 
       const result = await runCli(["chat"], "0.0.0", {
         env: {
-          PEEWIT_API_KEY: "secret-api-key",
-          PEEWIT_WORKSPACE_ROOT: workspace
+          VOLE_API_KEY: "secret-api-key",
+          VOLE_WORKSPACE_ROOT: workspace
         },
         sessionsDirectory: directory,
         readLine: async () => inputs.shift(),
@@ -366,14 +366,14 @@ describe("runCli", () => {
   });
 
   test("sends recent session messages on later interactive turns", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
     const inputs = ["First message", "Second message", "/exit"];
     const requests: Array<{ body: string }> = [];
 
     try {
       const result = await runCli(["chat"], "0.0.0", {
         env: {
-          PEEWIT_API_KEY: "secret-api-key"
+          VOLE_API_KEY: "secret-api-key"
         },
         sessionsDirectory: directory,
         readLine: async () => inputs.shift(),
@@ -431,9 +431,9 @@ describe("runCli", () => {
   });
 
   test("persists configured chat messages across CLI runs", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
     const env = {
-      PEEWIT_API_KEY: "secret-api-key"
+      VOLE_API_KEY: "secret-api-key"
     };
 
     try {
@@ -520,9 +520,9 @@ describe("runCli", () => {
   });
 
   test("persists configured chat trace across CLI runs", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
     const env = {
-      PEEWIT_API_KEY: "secret-api-key"
+      VOLE_API_KEY: "secret-api-key"
     };
 
     try {
@@ -572,9 +572,9 @@ describe("runCli", () => {
   });
 
   test("resumes the most recently updated configured chat session", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
     const env = {
-      PEEWIT_API_KEY: "secret-api-key"
+      VOLE_API_KEY: "secret-api-key"
     };
 
     try {
@@ -651,13 +651,13 @@ describe("runCli", () => {
   });
 
   test("reports when chat resume has no stored sessions", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
 
     try {
       const inputs = ["/exit"];
       const result = await runCli(["chat", "--resume"], "0.0.0", {
         env: {
-          PEEWIT_API_KEY: "secret-api-key"
+          VOLE_API_KEY: "secret-api-key"
         },
         sessionsDirectory: directory,
         readLine: async () => inputs.shift()
@@ -672,13 +672,13 @@ describe("runCli", () => {
   });
 
   test("expands the default sessions directory under HOME", async () => {
-    const home = await mkdtemp(join(tmpdir(), "peewit-cli-home-"));
+    const home = await mkdtemp(join(tmpdir(), "vole-cli-home-"));
     const inputs = ["Home session message", "/exit"];
 
     try {
       const result = await runCli(["chat"], "0.0.0", {
         env: {
-          PEEWIT_API_KEY: "secret-api-key",
+          VOLE_API_KEY: "secret-api-key",
           HOME: home
         },
         readLine: async () => inputs.shift(),
@@ -703,23 +703,23 @@ describe("runCli", () => {
       });
 
       expect(result.exitCode).toBe(0);
-      const files = await readdir(join(home, ".peewit", "sessions"));
+      const files = await readdir(join(home, ".vole", "sessions"));
       expect(files).toHaveLength(1);
       expect(files[0]).toMatch(/^session_[A-Za-z0-9_-]+\.jsonl$/);
-      await expect(readFile(join(home, ".peewit", "sessions", files[0] ?? ""), "utf8")).resolves.toContain("Home session message");
+      await expect(readFile(join(home, ".vole", "sessions", files[0] ?? ""), "utf8")).resolves.toContain("Home session message");
     } finally {
       await rm(home, { force: true, recursive: true });
     }
   });
 
   test("lists stored sessions from the configured session directory", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
 
     try {
       const firstInputs = ["First list message", "/exit"];
       await runCli(["chat", "--session", "first_session"], "0.0.0", {
         env: {
-          PEEWIT_API_KEY: "secret-api-key"
+          VOLE_API_KEY: "secret-api-key"
         },
         sessionsDirectory: directory,
         readLine: async () => firstInputs.shift(),
@@ -764,7 +764,7 @@ describe("runCli", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
-    expect(result.stdout).toContain("Peewit chat");
+    expect(result.stdout).toContain("Vole chat");
     expect(result.stdout).toContain("Assistant: Fake response to: Hello interactive");
     expect(result.stdout).toContain("Goodbye.");
   });
@@ -797,14 +797,14 @@ describe("runCli", () => {
   });
 
   test("executes built-in read-only file tools in the fake interactive chat loop", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "peewit-cli-tool-workspace-"));
+    const workspace = await mkdtemp(join(tmpdir(), "vole-cli-tool-workspace-"));
     await writeFile(join(workspace, "README.md"), "CLI tool observation.");
     const inputs = ["Read README", "/trace", "/exit"];
 
     try {
       const result = await runCli(["chat", "--fake-interactive"], "0.0.0", {
         env: {
-          PEEWIT_WORKSPACE_ROOT: workspace
+          VOLE_WORKSPACE_ROOT: workspace
         },
         fakeModelOutputs: [
           {
@@ -924,7 +924,7 @@ describe("runCli", () => {
       "0.0.0",
       {
         env: {
-          PEEWIT_API_KEY: "secret-api-key"
+          VOLE_API_KEY: "secret-api-key"
         }
       }
     );
@@ -1014,7 +1014,7 @@ describe("runCli", () => {
   test("chat session can return redacted config through slash command", async () => {
     const session = CliChatSession.createFake("Fake response", {
       env: {
-        PEEWIT_API_KEY: "secret-api-key"
+        VOLE_API_KEY: "secret-api-key"
       }
     });
 
@@ -1148,11 +1148,11 @@ describe("runCli", () => {
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('Unknown command "unknown"');
-    expect(result.stdout).toContain("Usage: peewit");
+    expect(result.stdout).toContain("Usage: vole");
   });
 
   test("skills lists built-in skills", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
     try {
       const result = await runCli(["skills"], "0.0.0", {
         env: {},
@@ -1168,8 +1168,8 @@ describe("runCli", () => {
   });
 
   test("skills install installs a skill and prints confirmation", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
-    const srcDir = await mkdtemp(join(tmpdir(), "peewit-skill-src-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
+    const srcDir = await mkdtemp(join(tmpdir(), "vole-skill-src-"));
     try {
       const srcPath = join(srcDir, "test-skill.md");
       await writeFile(srcPath, "---\nname: test-skill\ndescription: A test skill.\n---\nbody", "utf8");
@@ -1187,8 +1187,8 @@ describe("runCli", () => {
   });
 
   test("skills disable disables an installed skill", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
-    const srcDir = await mkdtemp(join(tmpdir(), "peewit-skill-src-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
+    const srcDir = await mkdtemp(join(tmpdir(), "vole-skill-src-"));
     try {
       const srcPath = join(srcDir, "test-skill.md");
       await writeFile(srcPath, "---\nname: test-skill\ndescription: A test skill.\n---\nbody", "utf8");
@@ -1211,8 +1211,8 @@ describe("runCli", () => {
   });
 
   test("skills trust marks an installed skill as trusted", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
-    const srcDir = await mkdtemp(join(tmpdir(), "peewit-skill-src-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
+    const srcDir = await mkdtemp(join(tmpdir(), "vole-skill-src-"));
     try {
       const srcPath = join(srcDir, "test-skill.md");
       await writeFile(srcPath, "---\nname: test-skill\ndescription: A test skill.\n---\nbody", "utf8");
@@ -1235,8 +1235,8 @@ describe("runCli", () => {
   });
 
   test("skills review shows skill metadata", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
-    const srcDir = await mkdtemp(join(tmpdir(), "peewit-skill-src-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
+    const srcDir = await mkdtemp(join(tmpdir(), "vole-skill-src-"));
     try {
       const srcPath = join(srcDir, "test-skill.md");
       await writeFile(srcPath, "---\nname: test-skill\ndescription: A test skill.\nversion: 1.0.0\npermissions: filesystem\n---\nskill body text", "utf8");
@@ -1263,7 +1263,7 @@ describe("runCli", () => {
   });
 
   test("skills review returns error for unknown skill", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "peewit-cli-sessions-"));
+    const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
     try {
       const result = await runCli(["skills", "review", "nonexistent"], "0.0.0", {
         env: {},
@@ -1279,17 +1279,17 @@ describe("runCli", () => {
   test("daemon requires API key", async () => {
     const result = await runCli(["daemon", "--once"], "0.0.0", { env: {} });
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("PEEWIT_API_KEY");
+    expect(result.stderr).toContain("VOLE_API_KEY");
   });
 
   test("daemon --once reports missing tasks directory", async () => {
     // Create an isolated parent dir so sessionsDir/tasks does not exist
-    const parentDir = await mkdtemp(join(tmpdir(), "peewit-daemon-parent-"));
+    const parentDir = await mkdtemp(join(tmpdir(), "vole-daemon-parent-"));
     const directory = join(parentDir, "sessions");
     await mkdir(directory, { recursive: true });
     try {
       const result = await runCli(["daemon", "--once"], "0.0.0", {
-        env: { PEEWIT_API_KEY: "fake-key" },
+        env: { VOLE_API_KEY: "fake-key" },
         sessionsDirectory: directory
       });
       expect(result.exitCode).toBe(0);
@@ -1300,7 +1300,7 @@ describe("runCli", () => {
   });
 
   test("daemon --once runs cron tasks from tasks directory", async () => {
-    const parentDir = await mkdtemp(join(tmpdir(), "peewit-daemon-parent-"));
+    const parentDir = await mkdtemp(join(tmpdir(), "vole-daemon-parent-"));
     const directory = join(parentDir, "sessions");
     await mkdir(directory, { recursive: true });
     try {
@@ -1315,7 +1315,7 @@ describe("runCli", () => {
 
       const fakeOutputs = [{ type: "message" as const, content: "Morning check done." }];
       const result = await runCli(["daemon", "--once"], "0.0.0", {
-        env: { PEEWIT_API_KEY: "fake-key" },
+        env: { VOLE_API_KEY: "fake-key" },
         sessionsDirectory: directory,
         fakeModelOutputs: fakeOutputs
       });
@@ -1328,7 +1328,7 @@ describe("runCli", () => {
   });
 
   test("taskflow list shows no records when empty", async () => {
-    const parentDir = await mkdtemp(join(tmpdir(), "peewit-taskflow-cli-"));
+    const parentDir = await mkdtemp(join(tmpdir(), "vole-taskflow-cli-"));
     const directory = join(parentDir, "sessions");
     await mkdir(directory, { recursive: true });
     try {
@@ -1344,7 +1344,7 @@ describe("runCli", () => {
   });
 
   test("taskflow show returns not-found for unknown id", async () => {
-    const parentDir = await mkdtemp(join(tmpdir(), "peewit-taskflow-cli-"));
+    const parentDir = await mkdtemp(join(tmpdir(), "vole-taskflow-cli-"));
     const directory = join(parentDir, "sessions");
     await mkdir(directory, { recursive: true });
     try {
@@ -1360,7 +1360,7 @@ describe("runCli", () => {
   });
 
   test("daemon --once skips tasks without cron field", async () => {
-    const parentDir = await mkdtemp(join(tmpdir(), "peewit-daemon-parent-"));
+    const parentDir = await mkdtemp(join(tmpdir(), "vole-daemon-parent-"));
     const directory = join(parentDir, "sessions");
     await mkdir(directory, { recursive: true });
     try {
@@ -1376,7 +1376,7 @@ describe("runCli", () => {
 
       const fakeOutputs = [{ type: "message" as const, content: "Should not run." }];
       const result = await runCli(["daemon", "--once"], "0.0.0", {
-        env: { PEEWIT_API_KEY: "fake-key" },
+        env: { VOLE_API_KEY: "fake-key" },
         sessionsDirectory: directory,
         fakeModelOutputs: fakeOutputs
       });
@@ -1391,13 +1391,13 @@ describe("runCli", () => {
   test("run --dream requires write memory policy", async () => {
     const result = await runCli(["run", "--dream"], "0.0.0", {
       env: {
-        PEEWIT_API_KEY: "fake-key",
-        PEEWIT_MODEL: "test-model"
-        // PEEWIT_LONG_TERM_MEMORY not set → defaults to "disabled"
+        VOLE_API_KEY: "fake-key",
+        VOLE_MODEL: "test-model"
+        // VOLE_LONG_TERM_MEMORY not set → defaults to "disabled"
       }
     });
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("PEEWIT_LONG_TERM_MEMORY=write");
+    expect(result.stderr).toContain("VOLE_LONG_TERM_MEMORY=write");
   });
 });

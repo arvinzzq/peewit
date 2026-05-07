@@ -4,7 +4,7 @@ English version: [README.md](./README.md)
 
 ## 架构概述
 
-`@peewit/adapters` 是一个**能力声明包**——不含任何运行时逻辑，只有类型定义、常量和纯过滤函数。其目的是正式定义每个界面 Adapter（CLI、Web、后台任务）能做什么和不能做什么，并定义每种使用场景适合哪些工具。
+`@vole/adapters` 是一个**能力声明包**——不含任何运行时逻辑，只有类型定义、常量和纯过滤函数。其目的是正式定义每个界面 Adapter（CLI、Web、后台任务）能做什么和不能做什么，并定义每种使用场景适合哪些工具。
 
 ```
 apps/cli        apps/web        后台运行器
@@ -12,7 +12,7 @@ apps/cli        apps/web        后台运行器
     └────────────────┴──────────────────┘
                      │  导入
                      ▼
-             @peewit/adapters
+             @vole/adapters
           （能力声明 + 工具配置）
 ```
 
@@ -74,7 +74,7 @@ function filterToolsByProfile<T extends { name: string }>(
 
 ### 为何有此包
 
-没有共享能力接口时，每个 Adapter 需要定义自己的临时标志，gateway 需要导入 Adapter 特定代码才能回答"session X 支持审批提示吗？"。通过集中于 `@peewit/adapters`，gateway 可直接检查 `session.capabilities.approvalPrompts` 而不依赖任何 Adapter 实现。
+没有共享能力接口时，每个 Adapter 需要定义自己的临时标志，gateway 需要导入 Adapter 特定代码才能回答"session X 支持审批提示吗？"。通过集中于 `@vole/adapters`，gateway 可直接检查 `session.capabilities.approvalPrompts` 而不依赖任何 Adapter 实现。
 
 ### 为何工具配置在此
 

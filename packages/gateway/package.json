@@ -1,5 +1,5 @@
 {
-  "name": "@peewit/gateway",
+  "name": "@vole/gateway",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -16,6 +16,6 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@peewit/adapters": "workspace:*"
+    "@vole/adapters": "workspace:*"
   }
 }

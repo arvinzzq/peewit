@@ -4,7 +4,7 @@ English version: [README.md](./README.md)
 
 ## 架构概述
 
-`@peewit/sessions` 负责**会话持久化边界**：以会话为范围存储对话消息和运行时 trace 事件，将持久化关注点与运行时编排、权限逻辑和 UI 渲染完全分离。
+`@vole/sessions` 负责**会话持久化边界**：以会话为范围存储对话消息和运行时 trace 事件，将持久化关注点与运行时编排、权限逻辑和 UI 渲染完全分离。
 
 ```
 CLI / Web adapter
@@ -23,7 +23,7 @@ SessionStore（接口）
 
 `SessionMessageRecord` 是一轮对话，含 `id`、`sessionId`、`role`（user/assistant/tool/system）、`content`、`createdAt`。
 
-`SessionTraceEventRecord<TEvent>` 是对任意事件类型的泛型包装（通常是 `@peewit/core` 的 `RuntimeEvent`）。
+`SessionTraceEventRecord<TEvent>` 是对任意事件类型的泛型包装（通常是 `@vole/core` 的 `RuntimeEvent`）。
 
 ### SessionStore 接口
 

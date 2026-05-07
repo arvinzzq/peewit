@@ -4,7 +4,7 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ## Architecture Overview
 
-`@peewit/context` owns **provider-neutral context assembly**. Its job is to decide what the model sees before any provider-specific formatting happens. It accepts raw inputs (system instruction, runtime metadata, tool summaries, skill index, permission guidance, conversation history, user message) and produces a `ModelInput` ready for any `ModelProvider`.
+`@vole/context` owns **provider-neutral context assembly**. Its job is to decide what the model sees before any provider-specific formatting happens. It accepts raw inputs (system instruction, runtime metadata, tool summaries, skill index, permission guidance, conversation history, user message) and produces a `ModelInput` ready for any `ModelProvider`.
 
 The package has no awareness of which model is selected, which adapter is rendering, or what tools are actually doing. It only arranges named sections into a system prompt and constructs a flat message array.
 

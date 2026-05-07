@@ -1,8 +1,8 @@
-# Peewit Agent Guide
+# Vole Agent Guide
 
 ## Project Role
 
-Peewit 是一个从 0 到 1 构建的 OpenClaw-like 个人通用 Agent。
+Vole 是一个从 0 到 1 构建的 OpenClaw-like 个人通用 Agent。
 它既是真实产品，也是用于学习 Agent 架构的项目。
 每次实现变更都应让 module boundaries、tests 和中英文双语文档保持可理解。
 

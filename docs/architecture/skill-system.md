@@ -7,7 +7,7 @@ Simplified Chinese version: [skill-system.zh-CN.md](./skill-system.zh-CN.md)
 
 ## 1. Purpose
 
-The skill system gives Peewit a way to extend agent behavior through reusable instructions.
+The skill system gives Vole a way to extend agent behavior through reusable instructions.
 
 A skill teaches the agent how to approach a class of tasks, such as research, project inspection, task planning, documentation writing, or safe shell usage.
 
@@ -19,7 +19,7 @@ Skills guide behavior. Tools execute actions. Permissions decide whether actions
 
 Without skills, every workflow must be baked into the core prompt or hard-coded into Agent Core. That makes the system harder to inspect, harder to customize, and harder to evolve.
 
-The skill system gives Peewit:
+The skill system gives Vole:
 
 - Reusable workflow instructions
 - Project-specific behavior overrides
@@ -111,7 +111,7 @@ Skills should load from three locations.
 Precedence order:
 
 1. Project skills: `<workspace>/skills`
-2. User skills: `~/.peewit/skills`
+2. User skills: `~/.vole/skills`
 3. Built-in skills
 
 If multiple skills have the same name, the higher-precedence skill wins.
@@ -273,7 +273,7 @@ The MVP skill system should be considered successful when:
 
 ## 17. Related Documents
 
-- [Main design](../product/peewit-design.md)
+- [Main design](../product/vole-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [Agent loop](./agent-loop.md)
 - [Tool system](./tool-system.md)

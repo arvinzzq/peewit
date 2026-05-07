@@ -7,9 +7,9 @@ Simplified Chinese version: [run-queue.zh-CN.md](./run-queue.zh-CN.md)
 
 ## 1. Purpose
 
-The run queue controls how Peewit accepts, orders, executes, and persists agent runs.
+The run queue controls how Vole accepts, orders, executes, and persists agent runs.
 
-OpenClaw research shows that runs are serialized per session and coordinated through queues and session write locks. Peewit should adopt this architecture in stages.
+OpenClaw research shows that runs are serialized per session and coordinated through queues and session write locks. Vole should adopt this architecture in stages.
 
 The core rule:
 
@@ -27,7 +27,7 @@ That creates risks:
 - Trace events can interleave incorrectly.
 - Background automation can race with user-driven chat.
 
-The run queue gives Peewit predictable execution and persistence behavior.
+The run queue gives Vole predictable execution and persistence behavior.
 
 ## 3. MVP Scope
 
@@ -69,7 +69,7 @@ The run ID should appear in trace metadata and session records.
 
 ## 5. Session Serialization
 
-Peewit should eventually serialize runs per session.
+Vole should eventually serialize runs per session.
 
 Rule:
 
@@ -88,7 +88,7 @@ MVP can start by rejecting overlapping runs inside the same CLI process.
 
 A future global queue can limit total concurrent work across sessions.
 
-This matters when Peewit supports:
+This matters when Vole supports:
 
 - Multiple sessions
 - Web UI
@@ -158,7 +158,7 @@ Future adapters may handle approval asynchronously.
 
 OpenClaw-like systems may support steering messages while a run is active.
 
-Peewit should defer steering messages.
+Vole should defer steering messages.
 
 Future behavior may allow:
 
@@ -202,7 +202,7 @@ This makes queue behavior visible to users.
 
 Background automation depends on run queue semantics.
 
-Before implementing scheduled tasks or heartbeat behavior, Peewit needs:
+Before implementing scheduled tasks or heartbeat behavior, Vole needs:
 
 - Run IDs
 - Run states
@@ -250,4 +250,4 @@ MVP run queue design is successful when:
 - [Execution trace](./execution-trace.md)
 - [Permission system](./permission-system.md)
 - [OpenClaw implementation notes](../research/openclaw-implementation-notes.md)
-- [Main design](../product/peewit-design.md)
+- [Main design](../product/vole-design.md)

@@ -17,4 +17,4 @@ Update README and AGENTS files when the API surface or file inventory changes. U
 
 ## Development
 
-Run `pnpm --filter @peewit/web run dev` to start both Hono and Vite. Requires PEEWIT_API_KEY.
+Run `pnpm --filter @vole/web run dev` to start both Hono and Vite. Requires VOLE_API_KEY.

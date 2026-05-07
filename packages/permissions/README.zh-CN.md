@@ -4,7 +4,7 @@ English version: [README.md](./README.md)
 
 ## 架构概述
 
-`@peewit/permissions` 负责**权限策略边界**：给定工具动作和当前自主模式，产生决策（`allow`、`ask` 或 `deny`）及可读原因。它不执行工具、不渲染 UI、不调用 API，唯一输出是 `PermissionDecision`。
+`@vole/permissions` 负责**权限策略边界**：给定工具动作和当前自主模式，产生决策（`allow`、`ask` 或 `deny`）及可读原因。它不执行工具、不渲染 UI、不调用 API，唯一输出是 `PermissionDecision`。
 
 ```
 AgentRuntime

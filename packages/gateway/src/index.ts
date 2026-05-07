@@ -5,9 +5,9 @@
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
-import type { AdapterCapabilities } from "@peewit/adapters";
+import type { AdapterCapabilities } from "@vole/adapters";
 
-export const gatewayPackageName = "@peewit/gateway";
+export const gatewayPackageName = "@vole/gateway";
 
 export interface GatewaySession {
   id: string;

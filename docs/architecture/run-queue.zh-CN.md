@@ -7,9 +7,9 @@ English version: [run-queue.md](./run-queue.md)
 
 ## 1. 目的
 
-Run queue 控制 Peewit 如何接受、排序、执行和持久化 agent runs。
+Run queue 控制 Vole 如何接受、排序、执行和持久化 agent runs。
 
-OpenClaw 调研显示，runs 会按 session 序列化，并通过 queues 和 session write locks 协调。Peewit 应分阶段采用这个架构。
+OpenClaw 调研显示，runs 会按 session 序列化，并通过 queues 和 session write locks 协调。Vole 应分阶段采用这个架构。
 
 核心规则：
 
@@ -27,7 +27,7 @@ OpenClaw 调研显示，runs 会按 session 序列化，并通过 queues 和 ses
 - Trace events 可能错误交错。
 - Background automation 可能与用户驱动的 chat 竞争。
 
-Run queue 给 Peewit 提供可预测执行和持久化行为。
+Run queue 给 Vole 提供可预测执行和持久化行为。
 
 ## 3. MVP 范围
 
@@ -69,7 +69,7 @@ Run ID 应出现在 trace metadata 和 session records 中。
 
 ## 5. Session Serialization
 
-Peewit 最终应按 session 序列化 runs。
+Vole 最终应按 session 序列化 runs。
 
 规则：
 
@@ -88,7 +88,7 @@ MVP 可以从在同一 CLI process 内拒绝 overlapping runs 开始。
 
 未来 global queue 可以限制跨 sessions 的总并发工作。
 
-当 Peewit 支持以下能力时，这会很重要：
+当 Vole 支持以下能力时，这会很重要：
 
 - Multiple sessions
 - Web UI
@@ -158,7 +158,7 @@ Run 应保存：
 
 OpenClaw-like systems 可能支持 active run 期间的 steering messages。
 
-Peewit 应延后 steering messages。
+Vole 应延后 steering messages。
 
 未来行为可以允许：
 
@@ -202,7 +202,7 @@ Trace 应包括：
 
 Background automation 依赖 run queue 语义。
 
-在实现 scheduled tasks 或 heartbeat behavior 前，Peewit 需要：
+在实现 scheduled tasks 或 heartbeat behavior 前，Vole 需要：
 
 - Run IDs
 - Run states
@@ -250,4 +250,4 @@ MVP run queue design 成功标准：
 - [Execution Trace](./execution-trace.zh-CN.md)
 - [Permission System](./permission-system.zh-CN.md)
 - [OpenClaw Implementation Notes](../research/openclaw-implementation-notes.zh-CN.md)
-- [主设计](../product/peewit-design.zh-CN.md)
+- [主设计](../product/vole-design.zh-CN.md)

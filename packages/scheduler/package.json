@@ -1,5 +1,5 @@
 {
-  "name": "@peewit/scheduler",
+  "name": "@vole/scheduler",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -16,7 +16,7 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@peewit/core": "workspace:*",
-    "@peewit/sessions": "workspace:*"
+    "@vole/core": "workspace:*",
+    "@vole/sessions": "workspace:*"
   }
 }

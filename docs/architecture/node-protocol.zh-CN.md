@@ -7,18 +7,18 @@ English version: [node-protocol.md](./node-protocol.md)
 
 ## 1. 目的
 
-本文档描述 Peewit 向多节点 agent 架构的未来方向，并建立使该方向成为可能的 Phase 10 基础。
+本文档描述 Vole 向多节点 agent 架构的未来方向，并建立使该方向成为可能的 Phase 10 基础。
 
 ## 2. 未来多节点方向
 
-节点是指可以托管一个或多个 `AgentRuntime` 实例并与其他节点通信的任何进程或设备。在成熟的多节点 Peewit 中：
+节点是指可以托管一个或多个 `AgentRuntime` 实例并与其他节点通信的任何进程或设备。在成熟的多节点 Vole 中：
 
 - 桌面节点可能托管主要个人 agent。
 - 服务器节点可能托管长时间运行的后台任务。
 - 移动节点可能托管轻量级只读助手。
 - 节点通过共享协议通信：session events、tool results、approval requests 和 heartbeats。
 
-这是 OpenClaw 架构所指向的方向。Peewit 将逐步接近这个目标。
+这是 OpenClaw 架构所指向的方向。Vole 将逐步接近这个目标。
 
 ## 3. Phase 10 基础：单进程 Sub-Agents
 
@@ -32,7 +32,7 @@ Phase 10 不实现真正的多节点协议。相反，它建立基础：
 
 ## 4. Phase 10+ 的协议形态
 
-当 Peewit 在未来阶段添加真正的节点协议时，预期的消息类型是：
+当 Vole 在未来阶段添加真正的节点协议时，预期的消息类型是：
 
 - `session.register` — 节点宣布新的 session 及其 capabilities。
 - `session.heartbeat` — 节点确认 session 仍然活跃。

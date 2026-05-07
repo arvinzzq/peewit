@@ -20,7 +20,7 @@ Remaining: None. Phase 4 is complete.
 
 ## 1. Purpose
 
-Phase 4 gives Peewit the ability to decompose complex goals into steps before executing them, track step progress visibly, and operate across the three autonomy modes (`observe`, `confirm`, `auto`) with consistent and predictable behavior.
+Phase 4 gives Vole the ability to decompose complex goals into steps before executing them, track step progress visibly, and operate across the three autonomy modes (`observe`, `confirm`, `auto`) with consistent and predictable behavior.
 
 The agent loop in Phase 1–3 already handles multi-step execution through the tool-calling while loop. Phase 4 adds a higher-level planning layer above that: before executing tools, the agent first produces a structured plan the user can review.
 

@@ -9,7 +9,7 @@ Simplified Chinese version: [adapters.zh-CN.md](./adapters.zh-CN.md)
 
 An adapter connects a user-facing surface to Agent Core without owning agent behavior.
 
-Peewit exposes one `AgentRuntime` and multiple surfaces: terminal (CLI), browser (Web UI), and eventually desktop, messaging, and background tasks. The adapter layer keeps those surfaces interchangeable without duplicating agent logic.
+Vole exposes one `AgentRuntime` and multiple surfaces: terminal (CLI), browser (Web UI), and eventually desktop, messaging, and background tasks. The adapter layer keeps those surfaces interchangeable without duplicating agent logic.
 
 ## 2. Adapter Boundary Rule
 
@@ -68,7 +68,7 @@ Adapters do not choose their storage strategy at runtime — the server or CLI e
 
 Location: `apps/cli`
 
-The CLI adapter uses readline (or Ink for live streaming) to collect input and write output. It uses `JsonlSessionStore` at `~/.peewit/sessions` for durable session history. It supports streaming output and interactive approval prompts.
+The CLI adapter uses readline (or Ink for live streaming) to collect input and write output. It uses `JsonlSessionStore` at `~/.vole/sessions` for durable session history. It supports streaming output and interactive approval prompts.
 
 Capabilities: `CLI_CAPABILITIES`
 

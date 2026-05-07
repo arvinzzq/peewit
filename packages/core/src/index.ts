@@ -12,20 +12,20 @@ import type {
   ContextSkillSummary,
   ContextToolSummary,
   PromptMode
-} from "@peewit/context";
-import { compactMessages } from "@peewit/context";
-import { isStreamingProvider } from "@peewit/models";
-import type { ModelMessage, ModelOutput, ModelProvider, ModelUsage, ModelToolCall, ModelToolDefinition } from "@peewit/models";
+} from "@vole/context";
+import { compactMessages } from "@vole/context";
+import { isStreamingProvider } from "@vole/models";
+import type { ModelMessage, ModelOutput, ModelProvider, ModelUsage, ModelToolCall, ModelToolDefinition } from "@vole/models";
 import {
   DefaultPermissionPolicy,
   type AutonomyMode,
   type PermissionDecision,
   type PermissionPolicy,
   type PermissionRiskLevel
-} from "@peewit/permissions";
-import { createUpdateTodosTool, type ExecutableTool, type TodoItem, type ToolExecutionResult, type SpawnSubagentResult, type SpawnSubagentAsyncResult } from "@peewit/tools";
+} from "@vole/permissions";
+import { createUpdateTodosTool, type ExecutableTool, type TodoItem, type ToolExecutionResult, type SpawnSubagentResult, type SpawnSubagentAsyncResult } from "@vole/tools";
 
-export const corePackageName = "@peewit/core";
+export const corePackageName = "@vole/core";
 
 export const runtimeEventTypes = [
   "run_started",
@@ -751,7 +751,7 @@ function isPlanningOnly(content: string): boolean {
 }
 
 // AsyncTaskStore is a duck-typed interface for storing async task records.
-// Core uses this instead of importing @peewit/taskflow to avoid coupling.
+// Core uses this instead of importing @vole/taskflow to avoid coupling.
 export interface AsyncTaskStore {
   create(record: { id: string; runtime: string; task: string; status: string; parentId?: string }): Promise<{ id: string }>;
 }

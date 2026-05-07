@@ -7,7 +7,7 @@ English version: [contracts.md](./contracts.md)
 
 ## 1. 目的
 
-本文档记录 Peewit 模块之间第一版 architecture-level contracts。
+本文档记录 Vole 模块之间第一版 architecture-level contracts。
 
 这些 contracts 不是最终 TypeScript APIs。它们是用于指导实现和测试的设计约束。
 
@@ -17,7 +17,7 @@ Contracts 应让模块可替换、可测试。
 
 ## 2. Contract 原则
 
-Peewit contracts 应该是：
+Vole contracts 应该是：
 
 - Adapter-agnostic
 - Provider-agnostic

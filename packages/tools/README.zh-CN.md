@@ -4,13 +4,13 @@ English version: [README.md](./README.md)
 
 ## 架构概述
 
-`@peewit/tools` 负责**工具能力边界**：定义工具的存在形式、输入格式及执行方式。它不决定工具是否被允许运行——这是 `@peewit/permissions` 的专属职责。
+`@vole/tools` 负责**工具能力边界**：定义工具的存在形式、输入格式及执行方式。它不决定工具是否被允许运行——这是 `@vole/permissions` 的专属职责。
 
 ```
 AgentRuntime
     │ 使用
     ▼
-ExecutableTool[]    ← @peewit/tools
+ExecutableTool[]    ← @vole/tools
     ├─ read_file / list_directory（低风险）
     ├─ write_file（中风险）← 创建新文件或完全替换
     ├─ edit_file（中风险） ← 精确字符串替换
@@ -112,7 +112,7 @@ Shell 始终以 `cwd = context.workspaceRoot` 运行，默认超时 30 秒，可
 
 ### 为何工具不决定权限
 
-`ExecutableTool.risk` 是描述工具动作内在风险的元数据，实际的允许/询问/拒绝决定由 `@peewit/permissions` 的 `PermissionPolicy` 做出，结合风险级别和当前自主模式。这使工具、权限策略、运行时三者相互独立，可分别测试和替换。
+`ExecutableTool.risk` 是描述工具动作内在风险的元数据，实际的允许/询问/拒绝决定由 `@vole/permissions` 的 `PermissionPolicy` 做出，结合风险级别和当前自主模式。这使工具、权限策略、运行时三者相互独立，可分别测试和替换。
 
 ### 防御性输入处理
 

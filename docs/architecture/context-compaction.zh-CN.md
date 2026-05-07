@@ -105,14 +105,14 @@ Compaction 失败绝不能导致 agent turn 失败。降级的上下文总比没
 
 OpenClaw 将 context compaction 作为其 `context-engine-maintenance` 子系统的一部分实现。关键对齐：
 
-| OpenClaw 概念 | Peewit 等效 |
+| OpenClaw 概念 | Vole 等效 |
 | --- | --- |
 | `context-engine-maintenance` | `AgentRuntime` 中的 `compactIfNeeded()` |
 | 硬性限制阈值 | `CompactionOptions` 中的 `maxMessages` |
 | 摘要注入 | 合成 assistant 消息前置于近期消息 |
 | 故障保护直通 | 错误捕获 + 返回原始消息 |
 
-OpenClaw 的 compaction 还为每个 session 追踪 `compactionCount` 以提高可观察性。Peewit 应通过 trace 事件实现相同功能。
+OpenClaw 的 compaction 还为每个 session 追踪 `compactionCount` 以提高可观察性。Vole 应通过 trace 事件实现相同功能。
 
 ## 8. 验收标准
 

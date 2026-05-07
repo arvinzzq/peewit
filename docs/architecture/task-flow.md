@@ -154,10 +154,10 @@ Mirrored mode is appropriate for:
 
 ## 6. Storage
 
-Initial implementation uses JSONL files per flow in the workspace under `.peewit/flows/`:
+Initial implementation uses JSONL files per flow in the workspace under `.vole/flows/`:
 
 ```
-.peewit/
+.vole/
   flows/
     <flowId>.jsonl   # one append-only event log per flow
 ```
@@ -199,11 +199,11 @@ The two systems can coexist: `update_todos` provides live in-run visibility whil
 
 OpenClaw implements a persistent task graph similar to TaskFlow. Key alignments:
 
-| OpenClaw concept | Peewit equivalent |
+| OpenClaw concept | Vole equivalent |
 | --- | --- |
 | `TaskRecord` with status lifecycle | `TaskRecord` type |
 | `TaskFlow` with parent/child | `TaskFlow` type with `parentFlowId`/`childFlowIds` |
-| JSONL event log storage | `.peewit/flows/<flowId>.jsonl` |
+| JSONL event log storage | `.vole/flows/<flowId>.jsonl` |
 | SQLite migration path | Planned in future phase |
 | `lost` state for dead sessions | `"lost"` status |
 | `stateJson` for cross-session state | `stateJson: string` field |

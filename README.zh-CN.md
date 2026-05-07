@@ -1,4 +1,4 @@
-# Peewit
+# Vole
 
 > 个人通用 Agent — 受 OpenClaw 启发，TypeScript 实现，真实可用。
 
@@ -13,11 +13,11 @@ English version: [README.md](./README.md)
 
 ## 项目是什么？
 
-Peewit 是一个从零开始用 TypeScript 构建的个人通用 Agent。
+Vole 是一个从零开始用 TypeScript 构建的个人通用 Agent。
 
 它既是**真实可用的产品**，也是**架构学习项目**。每一个模块——Agent 循环、工具执行、权限策略、上下文组装、会话存储、流式输出、多 Agent 协调——都经过有意设计、详细文档记录和充分测试。
 
-参考架构来自 [OpenClaw](https://openclaw.ai)。Peewit 在干净、分阶段、独立可部署的 TypeScript monorepo 中实现了 OpenClaw 的核心理念。
+参考架构来自 [OpenClaw](https://openclaw.ai)。Vole 在干净、分阶段、独立可部署的 TypeScript monorepo 中实现了 OpenClaw 的核心理念。
 
 ---
 
@@ -51,7 +51,7 @@ Peewit 是一个从零开始用 TypeScript 构建的个人通用 Agent。
 
 ### Skills 技能
 - **SKILL.md 格式** — `name` + `description` frontmatter，全文按需加载
-- **优先级** — 工作区 > 用户（`~/.peewit/skills/`）> 内置
+- **优先级** — 工作区 > 用户（`~/.vole/skills/`）> 内置
 - **Skill 管理** — 通过 CLI 安装、启用、禁用、信任、查看
 
 ### 适配器
@@ -61,12 +61,12 @@ Peewit 是一个从零开始用 TypeScript 构建的个人通用 Agent。
 - **会话网关** — `packages/gateway` 跨适配器追踪活跃会话
 
 ### 后台自动化
-- **一次性任务** — `peewit run "<目标>" [--mode auto|confirm]`
-- **Cron Daemon** — `peewit daemon` 从 `tasks/*.task.json` 运行定时任务
+- **一次性任务** — `vole run "<目标>" [--mode auto|confirm]`
+- **Cron Daemon** — `vole daemon` 从 `tasks/*.task.json` 运行定时任务
 - **TaskFlow** — 持久化跨会话任务图，支持 8 种状态和父子关系
 - **后台审批策略** — `BackgroundApprovalResolver` 自动批准或拒绝
-- **任务历史** — `peewit tasks` 和 `peewit taskflow list/show/cancel`
-- **记忆整理** — `peewit run --dream` 将日记文件整合写入 `MEMORY.md`
+- **任务历史** — `vole tasks` 和 `vole taskflow list/show/cancel`
+- **记忆整理** — `vole run --dream` 将日记文件整合写入 `MEMORY.md`
 
 ### 模型 Provider
 - **OpenAI 兼容** — 遵循 OpenAI chat completions API 的任何服务（OpenAI、OpenRouter、Ollama 等）
@@ -80,8 +80,8 @@ Peewit 是一个从零开始用 TypeScript 构建的个人通用 Agent。
 **环境要求：** Node.js ≥ 22，pnpm
 
 ```bash
-git clone https://github.com/your-username/peewit
-cd peewit
+git clone https://github.com/your-username/vole
+cd vole
 pnpm install
 ```
 
@@ -95,7 +95,7 @@ OpenRouter 最简配置：
 
 ```bash
 OPENROUTER_API_KEY=sk-or-...
-PEEWIT_MODEL=anthropic/claude-3-haiku
+VOLE_MODEL=anthropic/claude-3-haiku
 ```
 
 **开始聊天**（无需构建）：
@@ -137,7 +137,7 @@ pnpm cli run "<目标>" --dream           # 记忆整理 — 将日记合并进 
 ### Web UI
 
 ```bash
-pnpm --filter @peewit/web run dev   # Hono 在 :3120，Vite 在 :5173
+pnpm --filter @vole/web run dev   # Hono 在 :3120，Vite 在 :5173
 ```
 
 在浏览器打开 `http://localhost:5173`。创建或恢复会话、发送消息、查看流式响应、审批工具操作。
@@ -154,7 +154,7 @@ API 端点：
 
 ## 架构
 
-Peewit 是一个包含 12 个 packages 和 2 个适配器应用的 pnpm monorepo，组织为四个严格分层。每个包只负责单一职责。适配器负责所有连接。核心层不向上依赖适配器。无循环依赖。
+Vole 是一个包含 12 个 packages 和 2 个适配器应用的 pnpm monorepo，组织为四个严格分层。每个包只负责单一职责。适配器负责所有连接。核心层不向上依赖适配器。无循环依赖。
 
 ### 模块关系图
 
@@ -286,25 +286,25 @@ apps/
 
 ## 配置
 
-所有设置均为可选，Peewit 提供安全的默认值。
+所有设置均为可选，Vole 提供安全的默认值。
 
 | 环境变量 | 说明 | 默认值 |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | 使用 Anthropic Provider（claude-haiku-4-5） | — |
-| `OPENROUTER_API_KEY` | 使用 OpenRouter（需配合 `PEEWIT_MODEL`） | — |
-| `PEEWIT_API_KEY` | 通用 API Key | — |
-| `PEEWIT_BASE_URL` | Provider Base URL | `https://api.openai.com/v1` |
-| `PEEWIT_MODEL` | 模型名称 | `gpt-4.1-mini` |
-| `PEEWIT_DEFAULT_MODE` | 自主模式：`observe` / `confirm` / `auto` | `confirm` |
-| `PEEWIT_WORKSPACE_ROOT` | 工作目录 | `.` |
-| `PEEWIT_LONG_TERM_MEMORY` | 记忆策略：`disabled` / `read-only` / `write` | `disabled` |
-| `PEEWIT_PROMPT_MODE` | 提示词渲染：`full` / `minimal` / `none` | `full` |
-| `PEEWIT_EXECUTION_CONTRACT` | 执行纪律：`default` / `strict-agentic` | `default` |
-| `PEEWIT_TOOL_PROFILE` | 工具能力集：`coding` / `full` / `messaging` / `background` | `full` |
-| `PEEWIT_SANDBOX` | 将 Shell 限制在工作区根目录：`true` / `false` | `false` |
-| `PEEWIT_THINKING_BUDGET` | Anthropic 推理深度：`off` / `minimal` / `low` / `medium` / `high` / `max` / `adaptive` | `adaptive` |
+| `OPENROUTER_API_KEY` | 使用 OpenRouter（需配合 `VOLE_MODEL`） | — |
+| `VOLE_API_KEY` | 通用 API Key | — |
+| `VOLE_BASE_URL` | Provider Base URL | `https://api.openai.com/v1` |
+| `VOLE_MODEL` | 模型名称 | `gpt-4.1-mini` |
+| `VOLE_DEFAULT_MODE` | 自主模式：`observe` / `confirm` / `auto` | `confirm` |
+| `VOLE_WORKSPACE_ROOT` | 工作目录 | `.` |
+| `VOLE_LONG_TERM_MEMORY` | 记忆策略：`disabled` / `read-only` / `write` | `disabled` |
+| `VOLE_PROMPT_MODE` | 提示词渲染：`full` / `minimal` / `none` | `full` |
+| `VOLE_EXECUTION_CONTRACT` | 执行纪律：`default` / `strict-agentic` | `default` |
+| `VOLE_TOOL_PROFILE` | 工具能力集：`coding` / `full` / `messaging` / `background` | `full` |
+| `VOLE_SANDBOX` | 将 Shell 限制在工作区根目录：`true` / `false` | `false` |
+| `VOLE_THINKING_BUDGET` | Anthropic 推理深度：`off` / `minimal` / `low` / `medium` / `high` / `max` / `adaptive` | `adaptive` |
 
-文件配置：`peewit.config.json`（项目级）和 `~/.peewit/config.json`（用户级）。
+文件配置：`vole.config.json`（项目级）和 `~/.vole/config.json`（用户级）。
 
 ---
 
@@ -321,7 +321,7 @@ pnpm cli chat         # 从源码运行 CLI，无需构建
 ### 本地运行 Web UI
 
 ```bash
-pnpm --filter @peewit/web run dev
+pnpm --filter @vole/web run dev
 # Hono API 服务器：http://localhost:3120
 # Vite 开发服务器：http://localhost:5173
 ```
@@ -341,7 +341,7 @@ pnpm run docs:check   # 双语标题数量一致性（EN ↔ zh-CN）
 ```bash
 pnpm run build                          # 构建所有包
 node apps/cli/dist/index.js chat        # 运行构建后的 CLI
-pnpm --filter @peewit/web run start  # 运行构建后的 Web 服务器
+pnpm --filter @vole/web run start  # 运行构建后的 Web 服务器
 ```
 
 ### 添加工具
@@ -375,11 +375,11 @@ pnpm --filter @peewit/web run start  # 运行构建后的 Web 服务器
 
 ## OpenClaw 对齐情况
 
-Peewit 在架构上与 OpenClaw 对齐，但并不完全相同。详见 [Decision 0002](./docs/decisions/0002-openclaw-aligned-not-identical.md)。
+Vole 在架构上与 OpenClaw 对齐，但并不完全相同。详见 [Decision 0002](./docs/decisions/0002-openclaw-aligned-not-identical.md)。
 
 当前对齐状态：
 
-| OpenClaw 能力 | Peewit 状态 |
+| OpenClaw 能力 | Vole 状态 |
 |---|---|
 | Agent 循环（intake → inference → tools → persist） | ✅ 完成 |
 | XML 段落系统提示词 | ✅ 完成 |
@@ -392,24 +392,24 @@ Peewit 在架构上与 OpenClaw 对齐，但并不完全相同。详见 [Decisio
 | 会话持久化 | ✅ JSONL 存储 |
 | 多适配器（CLI + Web） | ✅ 共享 `AgentRuntime` |
 | `sessions_spawn` 子 Agent | ✅ `spawn_subagent` 工具 |
-| 后台任务 | ✅ `peewit run` |
+| 后台任务 | ✅ `vole run` |
 | Skill 安装 / 信任 / 权限 | ✅ Phase 9 |
 | 会话网关 | ✅ `packages/gateway` |
 | 上下文压缩 | ✅ `packages/context` 中的 `compactMessages()` |
 | Skill 按需加载 | ✅ `load_skill` 工具 |
 | `memory_search` / `memory_get` 工具 | ✅ `packages/tools` |
-| 提示词模式（full / minimal / none） | ✅ `PEEWIT_PROMPT_MODE` |
-| Strict-agentic 执行契约 | ✅ `PEEWIT_EXECUTION_CONTRACT` |
+| 提示词模式（full / minimal / none） | ✅ `VOLE_PROMPT_MODE` |
+| Strict-agentic 执行契约 | ✅ `VOLE_EXECUTION_CONTRACT` |
 | 每会话写锁 | ✅ `packages/core` 中的 `SessionMutex` |
 | Hooks 系统 | ✅ `packages/core` 中的 `AgentHooks` |
-| 工具 Profile | ✅ `PEEWIT_TOOL_PROFILE` |
-| 沙箱限制 | ✅ `PEEWIT_SANDBOX` |
-| Cron Daemon | ✅ `peewit daemon` |
+| 工具 Profile | ✅ `VOLE_TOOL_PROFILE` |
+| 沙箱限制 | ✅ `VOLE_SANDBOX` |
+| Cron Daemon | ✅ `vole daemon` |
 | TaskFlow（持久任务图） | ✅ `packages/taskflow` |
 | 异步子 Agent | ✅ `spawn_subagent_async` 工具 |
 | WebSocket 支持 | ✅ `GET /ws/:id` |
-| 思考预算 | ✅ `PEEWIT_THINKING_BUDGET` |
-| 记忆整理 | ✅ `peewit run --dream` |
+| 思考预算 | ✅ `VOLE_THINKING_BUDGET` |
+| 记忆整理 | ✅ `vole run --dream` |
 
 全部 18 个 OpenClaw 对齐缺口已全部关闭。详见 [OpenClaw 对齐计划](./docs/plans/openclaw-alignment.zh-CN.md)。
 

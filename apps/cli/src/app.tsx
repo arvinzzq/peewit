@@ -8,9 +8,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { render, Box, Text, useInput, useApp, useAnimation, Static } from "ink";
 import TextInput from "ink-text-input";
-import { loadConfig, type EffectiveConfig } from "@peewit/config";
-import type { RuntimeEvent } from "@peewit/core";
-import type { TodoItem } from "@peewit/tools";
+import { loadConfig, type EffectiveConfig } from "@vole/config";
+import type { RuntimeEvent } from "@vole/core";
+import type { TodoItem } from "@vole/tools";
 import {
   CliChatSession,
   renderToolResult,
@@ -375,7 +375,7 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
   if (session === null) {
     return (
       <Box>
-        <Spinner label="Loading Peewit…" />
+        <Spinner label="Loading Vole…" />
       </Box>
     );
   }
@@ -384,7 +384,7 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
     <Box flexDirection="column">
       {/* Static header — rendered once */}
       <Box marginBottom={1} flexDirection="column">
-        <Text bold>{"Peewit chat"}</Text>
+        <Text bold>{"Vole chat"}</Text>
         <Text dimColor>{"Type /help for commands or /exit to leave."}</Text>
       </Box>
 
@@ -485,7 +485,7 @@ export async function runInkChat({ args, env, sessionsDirectory }: InkChatArgs):
 
   if (config.secrets.apiKey === undefined) {
     process.stderr.write(
-      "Missing PEEWIT_API_KEY or OPENROUTER_API_KEY. Set one to start `peewit chat`, or use `peewit chat --fake-interactive` for local learning.\n"
+      "Missing VOLE_API_KEY or OPENROUTER_API_KEY. Set one to start `vole chat`, or use `vole chat --fake-interactive` for local learning.\n"
     );
     process.exitCode = 1;
     return;

@@ -7,7 +7,7 @@ Simplified Chinese version: [cli-adapter.zh-CN.md](./cli-adapter.zh-CN.md)
 
 ## 1. Purpose
 
-The CLI adapter is the first user-facing product surface for Peewit.
+The CLI adapter is the first user-facing product surface for Vole.
 
 It lets the user start conversations, send goals, approve actions, inspect traces, resume sessions, and learn how the agent works from a terminal.
 
@@ -17,7 +17,7 @@ The CLI owns interaction. Agent Core owns behavior.
 
 ## 2. Why This Module Exists
 
-Peewit starts with CLI because it is the smallest useful product surface and the easiest place to study agent internals.
+Vole starts with CLI because it is the smallest useful product surface and the easiest place to study agent internals.
 
 The CLI must still be designed carefully because it will shape early architecture:
 
@@ -50,34 +50,34 @@ Initial commands:
 
 | Command | Purpose | Phase |
 | --- | --- | --- |
-| `peewit chat` | Start an interactive chat session using configured provider settings | Phase 1 |
-| `peewit chat --session <id>` | Start or continue a named JSONL-backed chat session | Phase 5 |
-| `peewit chat --resume` | Continue the most recently updated JSONL-backed chat session | Phase 5 |
-| `peewit chat --fake-interactive` | Start an interactive local learning session with a fake provider | Phase 1 |
-| `peewit chat --fake "<message>"` | Run a one-turn fake-provider smoke path | Phase 1 |
-| `peewit sessions` | List stored JSONL chat sessions | Phase 5 |
-| `peewit --version` | Show version | Phase 0-1 |
-| `peewit --help` | Show available commands | Phase 0-1 |
+| `vole chat` | Start an interactive chat session using configured provider settings | Phase 1 |
+| `vole chat --session <id>` | Start or continue a named JSONL-backed chat session | Phase 5 |
+| `vole chat --resume` | Continue the most recently updated JSONL-backed chat session | Phase 5 |
+| `vole chat --fake-interactive` | Start an interactive local learning session with a fake provider | Phase 1 |
+| `vole chat --fake "<message>"` | Run a one-turn fake-provider smoke path | Phase 1 |
+| `vole sessions` | List stored JSONL chat sessions | Phase 5 |
+| `vole --version` | Show version | Phase 0-1 |
+| `vole --help` | Show available commands | Phase 0-1 |
 
 Early follow-up commands:
 
 | Command | Purpose | Phase |
 | --- | --- | --- |
-| `peewit run "<goal>"` | Run a one-off goal and exit | Phase 2-4 |
-| `peewit trace <session>` | Inspect stored trace events | Phase 5 |
-| `peewit skills` | List loaded skills | Phase 3 |
-| `peewit config` | Inspect effective configuration | Phase 1-2 |
+| `vole run "<goal>"` | Run a one-off goal and exit | Phase 2-4 |
+| `vole trace <session>` | Inspect stored trace events | Phase 5 |
+| `vole skills` | List loaded skills | Phase 3 |
+| `vole config` | Inspect effective configuration | Phase 1-2 |
 
 MVP should avoid a large command surface. Commands should appear when the underlying module exists and has tests.
 
 ## 5. Interactive Chat
 
-`peewit chat` is the primary MVP workflow.
+`vole chat` is the primary MVP workflow.
 
 Expected behavior:
 
 1. Load configuration.
-2. Require `PEEWIT_API_KEY` or `OPENROUTER_API_KEY` for the configured provider path.
+2. Require `VOLE_API_KEY` or `OPENROUTER_API_KEY` for the configured provider path.
 3. Create or resume a lightweight session.
 4. Create a run ID for each user turn.
 5. Send the user message to Agent Core.
@@ -86,7 +86,7 @@ Expected behavior:
 8. Ask for permission when the core reports an approval request.
 9. Persist session and trace data when storage exists.
 
-Configured chat stores messages in JSONL session files under `~/.peewit/sessions` by default. Named sessions use `--session <id>` and must use safe session IDs. `--resume` selects the most recently updated stored session and continues it. Default session IDs use a generic `session_<id>` shape because sessions belong to the agent, not to a specific adapter.
+Configured chat stores messages in JSONL session files under `~/.vole/sessions` by default. Named sessions use `--session <id>` and must use safe session IDs. `--resume` selects the most recently updated stored session and continues it. Default session IDs use a generic `session_<id>` shape because sessions belong to the agent, not to a specific adapter.
 
 The CLI should not know how the prompt was assembled. It can display a summary or report produced by the context package.
 
@@ -143,7 +143,7 @@ Default MVP behavior:
 
 `/trace` should show recent trace details for the current session.
 
-Later, `peewit trace <session>` can inspect stored traces after a session ends.
+Later, `vole trace <session>` can inspect stored traces after a session ends.
 
 ## 9. Permission Prompts
 
@@ -190,7 +190,7 @@ Configuration may include:
 
 Secrets should come from environment variables or a secure local secret mechanism, not from workspace prompt files.
 
-The CLI may show effective non-secret configuration through `peewit config`.
+The CLI may show effective non-secret configuration through `vole config`.
 
 ## 11. Autonomy Modes
 
@@ -251,7 +251,7 @@ The MVP CLI uses plain Node.js stdout (`process.stdout.write`) and readline for 
 
 When streaming model output and richer terminal UI become necessary, the planned rendering upgrade is **Ink** ([npmjs.com/package/ink](https://www.npmjs.com/package/ink)).
 
-Ink is a React-based terminal UI framework that lets components render and re-render in-place. It is the right choice for Peewit because:
+Ink is a React-based terminal UI framework that lets components render and re-render in-place. It is the right choice for Vole because:
 
 - Streaming token output requires updating the same terminal region rather than printing new lines.
 - Tool progress indicators (spinner, step counter) need live updates during a multi-step run.
@@ -334,7 +334,7 @@ Any iteration that changes Agent Core events, permission prompts, trace events, 
 
 The MVP CLI adapter is successful when:
 
-- `peewit chat` starts a usable interactive session.
+- `vole chat` starts a usable interactive session.
 - User messages reach Agent Core through a stable adapter API.
 - Assistant responses render clearly.
 - Trace events are visible and learning-friendly.
@@ -344,7 +344,7 @@ The MVP CLI adapter is successful when:
 
 ## 22. Related Documents
 
-- [Main design](../product/peewit-design.md)
+- [Main design](../product/vole-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [Project Structure](./project-structure.md)
 - [Configuration System](./configuration-system.md)

@@ -18,7 +18,7 @@ Completed commits:
 
 ## 1. Purpose
 
-Phase 8 adds background task execution to Peewit.
+Phase 8 adds background task execution to Vole.
 
 Phases 1–7 proved that the agent can run interactively in a terminal or browser session. Phase 8 extends the agent to run tasks without a foreground user connection.
 
@@ -69,7 +69,7 @@ mode = "observe"  → auto-deny (no user present)
 
 In `auto` mode, the resolver trusts the model to request only appropriate tools. In `confirm` and `observe` modes, the resolver denies any tool requiring interactive approval because there is no user to consult.
 
-This resolver integrates with the existing `ApprovalResolver` interface in `@peewit/core`. No changes to `AgentRuntime` are required.
+This resolver integrates with the existing `ApprovalResolver` interface in `@vole/core`. No changes to `AgentRuntime` are required.
 
 ### Task Definition Format
 
@@ -117,12 +117,12 @@ Full daemon mode (Phase 8+) would manage a background process that picks up sche
 
 ## 5. Acceptance Criteria
 
-- `peewit run "<goal>"` executes a task and prints a compact trace.
-- `peewit run "<goal>" --mode auto` uses auto-approval policy.
-- `peewit tasks` lists recent task runs with status.
+- `vole run "<goal>"` executes a task and prints a compact trace.
+- `vole run "<goal>" --mode auto` uses auto-approval policy.
+- `vole tasks` lists recent task runs with status.
 - Background tasks persist run records to `task-runs.jsonl`.
 - Dangerous actions follow permission policy in background mode.
-- Failed background tasks are visible in `peewit tasks` output.
+- Failed background tasks are visible in `vole tasks` output.
 
 ## 6. Non-Goals
 

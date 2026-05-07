@@ -17,7 +17,7 @@ Tool profiles reduce scope. They never grant permissions beyond what the permiss
 
 ## 2. Profile Types
 
-Peewit defines four built-in profile types:
+Vole defines four built-in profile types:
 
 ```typescript
 type ToolProfile = "coding" | "full" | "messaging" | "background";
@@ -95,7 +95,7 @@ Order of evaluation:
 
 OpenClaw defines capability sets per channel and per run type. Key alignments:
 
-| OpenClaw concept | Peewit equivalent |
+| OpenClaw concept | Vole equivalent |
 | --- | --- |
 | Per-channel tool set | `ToolProfile` per adapter type |
 | Coding capability set | `"coding"` profile |

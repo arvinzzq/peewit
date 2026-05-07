@@ -9,7 +9,7 @@ Simplified Chinese version: [execution-trace.zh-CN.md](./execution-trace.zh-CN.m
 
 Execution trace is the visible record of what the agent did during a task.
 
-Peewit should be useful as a product and as a learning project. The trace is the bridge between those goals: it lets users understand how the agent interpreted a goal, selected tools, handled permissions, observed results, and reached an answer.
+Vole should be useful as a product and as a learning project. The trace is the bridge between those goals: it lets users understand how the agent interpreted a goal, selected tools, handled permissions, observed results, and reached an answer.
 
 The core rule:
 
@@ -19,7 +19,7 @@ Trace explains execution. It must not expose hidden model reasoning.
 
 Without trace, an agent feels like a black box. Users may see the final answer, but they cannot tell what happened, whether a tool was used safely, or why the agent stopped.
 
-Execution trace gives Peewit:
+Execution trace gives Vole:
 
 - User trust
 - Debuggability
@@ -30,7 +30,7 @@ Execution trace gives Peewit:
 
 ## 3. Trace Levels
 
-Peewit should support multiple trace levels.
+Vole should support multiple trace levels.
 
 | Level | Use | Content |
 | --- | --- | --- |
@@ -261,7 +261,7 @@ The MVP execution trace should be considered successful when:
 
 ## 17. Related Documents
 
-- [Main design](../product/peewit-design.md)
+- [Main design](../product/vole-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [Agent loop](./agent-loop.md)
 - [Tool system](./tool-system.md)

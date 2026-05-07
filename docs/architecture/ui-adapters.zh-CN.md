@@ -9,7 +9,7 @@ English version: [ui-adapters.md](./ui-adapters.md)
 
 UI 适配器负责在用户界面与 Agent Core 之间进行翻译。
 
-Peewit 有一个 Agent 运行时（`AgentRuntime`）和多个交互界面：终端、浏览器，以及未来的桌面端和消息端。适配器层让这些界面可以互换，而无需复制 Agent 逻辑。
+Vole 有一个 Agent 运行时（`AgentRuntime`）和多个交互界面：终端、浏览器，以及未来的桌面端和消息端。适配器层让这些界面可以互换，而无需复制 Agent 逻辑。
 
 核心规则：
 
@@ -98,11 +98,11 @@ export interface ApprovalResolver {
 
 会话存储和 Trace 存储是注入的，而非硬编码的：
 
-- CLI：`JsonlSessionStore`，存储于 `~/.peewit/sessions`。
+- CLI：`JsonlSessionStore`，存储于 `~/.vole/sessions`。
 - Web：初始使用 `InMemorySessionStore`；可升级为 `JsonlSessionStore` 或数据库。
 - 测试：使用可控会话 ID 的 `InMemorySessionStore`。
 
-`SessionStore` 和 `RuntimeTraceStore` 接口分别定义在 `@peewit/sessions` 和 `@peewit/core` 中。适配器在启动时选择具体实现。
+`SessionStore` 和 `RuntimeTraceStore` 接口分别定义在 `@vole/sessions` 和 `@vole/core` 中。适配器在启动时选择具体实现。
 
 ## 7. 流式数据的适配器处理
 

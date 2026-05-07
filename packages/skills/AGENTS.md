@@ -14,4 +14,4 @@ Discovery order, precedence rules for duplicate names, SKILL.md parsing (includi
 
 ## Boundaries
 
-Do not call model providers, execute tools, read secrets, or decide context section inclusion here. Skill content guides behavior; it does not execute actions or grant permissions. The trusted flag is advisory — actual tool permission decisions are made by @peewit/permissions.
+Do not call model providers, execute tools, read secrets, or decide context section inclusion here. Skill content guides behavior; it does not execute actions or grant permissions. The trusted flag is advisory — actual tool permission decisions are made by @vole/permissions.

@@ -7,15 +7,15 @@ English version: [0005-anthropic-provider.md](./0005-anthropic-provider.md)
 
 ## 1. 背景
 
-Peewit 目前只支持 OpenAI-compatible provider。这通过 OpenRouter 等服务覆盖了大量 hosted models，对 MVP 来说已足够。
+Vole 目前只支持 OpenAI-compatible provider。这通过 OpenRouter 等服务覆盖了大量 hosted models，对 MVP 来说已足够。
 
-然而，Peewit 的主要架构参考是 OpenClaw，而 OpenClaw 是基于 Anthropic 的 Claude 模型构建的。Anthropic 的 tool calling 格式（`tool_use` content blocks）与 OpenAI 的（message 中的 `tool_calls`）不同。两种格式实现相同的行为，但希望直接使用 Claude 的用户需要通过 OpenRouter 或其他代理来路由请求，而不能直接连接 Anthropic。
+然而，Vole 的主要架构参考是 OpenClaw，而 OpenClaw 是基于 Anthropic 的 Claude 模型构建的。Anthropic 的 tool calling 格式（`tool_use` content blocks）与 OpenAI 的（message 中的 `tool_calls`）不同。两种格式实现相同的行为，但希望直接使用 Claude 的用户需要通过 OpenRouter 或其他代理来路由请求，而不能直接连接 Anthropic。
 
-还有能力对齐的原因：Anthropic SDK 提供了 OpenClaw 使用、Peewit 后续阶段会用到的功能，包括 prompt caching、extended thinking 和 streaming。
+还有能力对齐的原因：Anthropic SDK 提供了 OpenClaw 使用、Vole 后续阶段会用到的功能，包括 prompt caching、extended thinking 和 streaming。
 
 ## 2. 决策
 
-Peewit 将在 Phase 3 添加 `AnthropicProvider`。
+Vole 将在 Phase 3 添加 `AnthropicProvider`。
 
 该决策同时保留两个 provider：
 
@@ -52,7 +52,7 @@ Provider 通过配置选择：
 密钥通过环境变量提供：
 
 ```text
-PEEWIT_API_KEY        用于 openai-compatible
+VOLE_API_KEY        用于 openai-compatible
 OPENROUTER_API_KEY       OpenRouter 快捷方式
 ANTHROPIC_API_KEY        用于 anthropic
 ```
@@ -79,8 +79,8 @@ Streaming 支持应在 Phase 6（Web UI 需要实时 token 显示时）设计并
 
 正面：
 
-- Peewit 用户可以直接使用 Claude，无需代理。
-- Peewit 与 OpenClaw 的主要模型家族更好地对齐。
+- Vole 用户可以直接使用 Claude，无需代理。
+- Vole 与 OpenClaw 的主要模型家族更好地对齐。
 - Anthropic SDK 能力（caching、thinking）在后续阶段可用。
 - `ModelProvider` 接口通过两个真实实现得到验证。
 
@@ -104,4 +104,4 @@ Streaming 支持应在 Phase 6（Web UI 需要实时 token 显示时）设计并
 - [Model Provider](../architecture/model-provider.md)
 - [Reference Systems](../architecture/reference-systems.md)
 - [Phase 3 Plan](../plans/phase-3-context-assembly-and-skills.md)
-- [Main Design](../product/peewit-design.md)
+- [Main Design](../product/vole-design.md)

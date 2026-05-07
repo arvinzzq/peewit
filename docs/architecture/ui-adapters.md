@@ -9,7 +9,7 @@ Simplified Chinese version: [ui-adapters.zh-CN.md](./ui-adapters.zh-CN.md)
 
 A UI adapter translates between a user-facing surface and Agent Core.
 
-Peewit has one agent runtime (`AgentRuntime`) and multiple surfaces: terminal, browser, eventually desktop and messaging. The adapter layer keeps those surfaces interchangeable without duplicating agent logic.
+Vole has one agent runtime (`AgentRuntime`) and multiple surfaces: terminal, browser, eventually desktop and messaging. The adapter layer keeps those surfaces interchangeable without duplicating agent logic.
 
 The core rule:
 
@@ -98,11 +98,11 @@ The `ApprovalResolver` is injected into `AgentRuntime` at construction time. Cor
 
 Session and trace stores are injected, not hard-coded:
 
-- CLI: `JsonlSessionStore` backed by `~/.peewit/sessions`.
+- CLI: `JsonlSessionStore` backed by `~/.vole/sessions`.
 - Web: initially `InMemorySessionStore`; can be upgraded to `JsonlSessionStore` or a database.
 - Tests: `InMemorySessionStore` with controllable session IDs.
 
-The `SessionStore` and `RuntimeTraceStore` interfaces are defined in `@peewit/sessions` and `@peewit/core`. Adapters choose an implementation at startup.
+The `SessionStore` and `RuntimeTraceStore` interfaces are defined in `@vole/sessions` and `@vole/core`. Adapters choose an implementation at startup.
 
 ## 7. Streaming Through Adapters
 

@@ -7,9 +7,9 @@
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { ApprovalRequest, ApprovalResolution, ApprovalResolver } from "@peewit/core";
+import type { ApprovalRequest, ApprovalResolution, ApprovalResolver } from "@vole/core";
 
-export const schedulerPackageName = "@peewit/scheduler";
+export const schedulerPackageName = "@vole/scheduler";
 
 // Task definition loaded from task files or CLI arguments
 export interface TaskDefinition {

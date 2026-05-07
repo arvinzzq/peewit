@@ -7,13 +7,13 @@ Simplified Chinese version: [project-structure.zh-CN.md](./project-structure.zh-
 
 ## 1. Purpose
 
-Peewit uses a lightweight monorepo so the project can grow from a CLI MVP into a multi-entry agent platform without rewriting the core architecture.
+Vole uses a lightweight monorepo so the project can grow from a CLI MVP into a multi-entry agent platform without rewriting the core architecture.
 
 The structure should make one rule obvious:
 
 The Agent Core owns agent behavior. User interfaces only adapt user input and output to the core.
 
-This matters because Peewit is expected to support CLI first, then Web UI, desktop app, messaging platforms, and background automation. If the first CLI implementation owns too much logic, every later entry point would need to duplicate or reverse-engineer that behavior.
+This matters because Vole is expected to support CLI first, then Web UI, desktop app, messaging platforms, and background automation. If the first CLI implementation owns too much logic, every later entry point would need to duplicate or reverse-engineer that behavior.
 
 ## 2. Current Layout
 
@@ -226,7 +226,7 @@ The docs directory owns product and learning documentation:
 - Architecture explanations
 - Future implementation plans
 
-The documentation is part of the product goal. Peewit should be useful to run and useful to study.
+The documentation is part of the product goal. Vole should be useful to run and useful to study.
 
 ### `skills`
 
@@ -240,20 +240,20 @@ Dependencies flow inward from adapters toward the core:
 apps/cli ──────────────────────────────────────────┐
 apps/web ──────────────────────────────────────────┤
          │                                          │
-         ├──▶ @peewit/core ◀── @peewit/scheduler
+         ├──▶ @vole/core ◀── @vole/scheduler
          │         │
-         │         ├──▶ @peewit/context ──▶ @peewit/models
-         │         ├──▶ @peewit/models
-         │         ├──▶ @peewit/permissions
-         │         └──▶ @peewit/tools
+         │         ├──▶ @vole/context ──▶ @vole/models
+         │         ├──▶ @vole/models
+         │         ├──▶ @vole/permissions
+         │         └──▶ @vole/tools
          │
-         ├──▶ @peewit/config
-         ├──▶ @peewit/sessions
-         ├──▶ @peewit/gateway ──▶ @peewit/adapters
-         ├──▶ @peewit/adapters
-         ├──▶ @peewit/skills
-         ├──▶ @peewit/taskflow
-         └──▶ @peewit/scheduler ──▶ @peewit/core (types only)
+         ├──▶ @vole/config
+         ├──▶ @vole/sessions
+         ├──▶ @vole/gateway ──▶ @vole/adapters
+         ├──▶ @vole/adapters
+         ├──▶ @vole/skills
+         ├──▶ @vole/taskflow
+         └──▶ @vole/scheduler ──▶ @vole/core (types only)
 ```
 
 Hard boundaries — these must never be crossed:
@@ -297,7 +297,7 @@ The lightweight monorepo avoids this without committing to heavy release infrast
 
 ## 7. Why Not a Heavy Monorepo
 
-Peewit should not start with complex publishing, release automation, or package governance.
+Vole should not start with complex publishing, release automation, or package governance.
 
 The MVP needs clear boundaries, not ceremony. The monorepo should stay lightweight until the project has real pressure for more tooling.
 
@@ -306,14 +306,14 @@ The MVP needs clear boundaries, not ceremony. The monorepo should stay lightweig
 Phase 0 should be considered complete when:
 
 - The agreed directory structure exists.
-- A root README explains Peewit's product and learning goals.
+- A root README explains Vole's product and learning goals.
 - The main design document links to the roadmap.
 - This project structure document explains package responsibilities.
 - The initial package layout makes it possible to add CLI without coupling Agent Core to CLI.
 
 ## 9. Related Documents
 
-- [Main design](../product/peewit-design.md)
+- [Main design](../product/vole-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [CLI adapter](./cli-adapter.md)
 - [Configuration system](./configuration-system.md)

@@ -1,5 +1,5 @@
 /**
- * INPUT: User config, project config, env overrides (PEEWIT_PROMPT_MODE, PEEWIT_EXECUTION_CONTRACT, PEEWIT_TOOL_PROFILE, PEEWIT_SANDBOX, PEEWIT_THINKING_BUDGET, OPENROUTER_API_KEY, ANTHROPIC_API_KEY, and others), memory policy settings, and sessions directory resolution requests.
+ * INPUT: User config, project config, env overrides (VOLE_PROMPT_MODE, VOLE_EXECUTION_CONTRACT, VOLE_TOOL_PROFILE, VOLE_SANDBOX, VOLE_THINKING_BUDGET, OPENROUTER_API_KEY, ANTHROPIC_API_KEY, and others), memory policy settings, and sessions directory resolution requests.
  * OUTPUT: EffectiveConfig (including ExecutionContract, toolProfile, sandboxed flag, and thinkingBudget), PromptMode, ThinkingBudget, redacted config views, ConfigValidationError, and resolveSessionsDirectory helper.
  * POS: Configuration boundary; keeps config loading separate from runtime behavior.
  *
@@ -7,7 +7,7 @@
  */
 import { join } from "node:path";
 
-export const configPackageName = "@peewit/config";
+export const configPackageName = "@vole/config";
 
 const openRouterDefaults = {
   baseURL: "https://openrouter.ai/api/v1"
@@ -115,7 +115,7 @@ const defaultConfig: EffectiveConfig = {
     allowLowRisk: true
   },
   sessions: {
-    directory: "~/.peewit/sessions"
+    directory: "~/.vole/sessions"
   },
   memory: {
     longTermFiles: "disabled",
@@ -217,38 +217,38 @@ function applyEnv(config: EffectiveConfig, env: Record<string, string | undefine
     config.secrets.apiKey = env.ANTHROPIC_API_KEY;
   }
 
-  if (env.PEEWIT_BASE_URL !== undefined) {
-    config.model.baseURL = env.PEEWIT_BASE_URL;
+  if (env.VOLE_BASE_URL !== undefined) {
+    config.model.baseURL = env.VOLE_BASE_URL;
   }
-  if (env.PEEWIT_MODEL !== undefined) {
-    config.model.model = env.PEEWIT_MODEL;
+  if (env.VOLE_MODEL !== undefined) {
+    config.model.model = env.VOLE_MODEL;
   }
-  if (env.PEEWIT_DEFAULT_MODE !== undefined) {
-    config.runtime.defaultMode = env.PEEWIT_DEFAULT_MODE as AutonomyMode;
+  if (env.VOLE_DEFAULT_MODE !== undefined) {
+    config.runtime.defaultMode = env.VOLE_DEFAULT_MODE as AutonomyMode;
   }
-  if (env.PEEWIT_WORKSPACE_ROOT !== undefined) {
-    config.workspace.root = env.PEEWIT_WORKSPACE_ROOT;
+  if (env.VOLE_WORKSPACE_ROOT !== undefined) {
+    config.workspace.root = env.VOLE_WORKSPACE_ROOT;
   }
-  if (env.PEEWIT_LONG_TERM_MEMORY !== undefined) {
-    config.memory.longTermFiles = env.PEEWIT_LONG_TERM_MEMORY as LongTermMemoryFilePolicy;
+  if (env.VOLE_LONG_TERM_MEMORY !== undefined) {
+    config.memory.longTermFiles = env.VOLE_LONG_TERM_MEMORY as LongTermMemoryFilePolicy;
   }
-  if (env.PEEWIT_API_KEY !== undefined) {
-    config.secrets.apiKey = env.PEEWIT_API_KEY;
+  if (env.VOLE_API_KEY !== undefined) {
+    config.secrets.apiKey = env.VOLE_API_KEY;
   }
-  if (env.PEEWIT_PROMPT_MODE !== undefined) {
-    config.runtime.promptMode = env.PEEWIT_PROMPT_MODE as PromptMode;
+  if (env.VOLE_PROMPT_MODE !== undefined) {
+    config.runtime.promptMode = env.VOLE_PROMPT_MODE as PromptMode;
   }
-  if (env.PEEWIT_EXECUTION_CONTRACT !== undefined) {
-    config.runtime.executionContract = env.PEEWIT_EXECUTION_CONTRACT as ExecutionContract;
+  if (env.VOLE_EXECUTION_CONTRACT !== undefined) {
+    config.runtime.executionContract = env.VOLE_EXECUTION_CONTRACT as ExecutionContract;
   }
-  if (env.PEEWIT_TOOL_PROFILE !== undefined) {
-    config.runtime.toolProfile = env.PEEWIT_TOOL_PROFILE as ToolProfileConfig;
+  if (env.VOLE_TOOL_PROFILE !== undefined) {
+    config.runtime.toolProfile = env.VOLE_TOOL_PROFILE as ToolProfileConfig;
   }
-  if (env.PEEWIT_SANDBOX !== undefined) {
-    config.runtime.sandboxed = env.PEEWIT_SANDBOX === "true";
+  if (env.VOLE_SANDBOX !== undefined) {
+    config.runtime.sandboxed = env.VOLE_SANDBOX === "true";
   }
-  if (env.PEEWIT_THINKING_BUDGET !== undefined) {
-    config.model.thinkingBudget = env.PEEWIT_THINKING_BUDGET as ThinkingBudget;
+  if (env.VOLE_THINKING_BUDGET !== undefined) {
+    config.model.thinkingBudget = env.VOLE_THINKING_BUDGET as ThinkingBudget;
   }
 }
 
@@ -261,7 +261,7 @@ function validateConfig(config: EffectiveConfig): void {
 
   if (config.model.model.trim().length === 0) {
     throw new ConfigValidationError(
-      "No model configured. Set PEEWIT_MODEL=<model-name> (e.g. PEEWIT_MODEL=openai/gpt-4o for OpenRouter)."
+      "No model configured. Set VOLE_MODEL=<model-name> (e.g. VOLE_MODEL=openai/gpt-4o for OpenRouter)."
     );
   }
 

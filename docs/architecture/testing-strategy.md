@@ -7,9 +7,9 @@ Simplified Chinese version: [testing-strategy.zh-CN.md](./testing-strategy.zh-CN
 
 ## 1. Purpose
 
-Testing is part of the Peewit architecture, not a cleanup task after implementation.
+Testing is part of the Vole architecture, not a cleanup task after implementation.
 
-Peewit is both a usable agent product and a learning project. Tests should protect behavior, explain module boundaries, and make future refactors safer.
+Vole is both a usable agent product and a learning project. Tests should protect behavior, explain module boundaries, and make future refactors safer.
 
 Core rule:
 
@@ -35,14 +35,14 @@ Tests should make these boundaries explicit.
 
 ## 3. Test Layers
 
-Peewit should use layered tests.
+Vole should use layered tests.
 
 | Layer | Purpose | Examples |
 | --- | --- | --- |
 | Unit tests | Validate isolated behavior | Config merging, permission classification, redaction |
 | Contract tests | Validate module interfaces | Tool result shape, model output normalization |
 | Integration tests | Validate cross-module behavior | Agent loop with fake model and fake tools |
-| CLI adapter tests | Validate user-visible workflows | `peewit chat`, permission prompt flow, slash commands |
+| CLI adapter tests | Validate user-visible workflows | `vole chat`, permission prompt flow, slash commands |
 | Golden trace tests | Validate explainable trace shape | Stable trace event sequences for known runs |
 | Safety regression tests | Prevent unsafe behavior from returning | Secret reads, destructive commands, prompt injection cases |
 
@@ -188,7 +188,7 @@ The testing strategy is successful when:
 
 ## 13. Related Documents
 
-- [Main design](../product/peewit-design.md)
+- [Main design](../product/vole-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [Project Structure](./project-structure.md)
 - [Runtime Composition](./runtime-composition.md)

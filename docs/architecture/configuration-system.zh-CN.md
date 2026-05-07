@@ -7,7 +7,7 @@ English version: [configuration-system.md](./configuration-system.md)
 
 ## 1. 目的
 
-Configuration system 定义 Peewit 如何加载非敏感设置、secret references、默认值和 runtime overrides。
+Configuration system 定义 Vole 如何加载非敏感设置、secret references、默认值和 runtime overrides。
 
 它应该让产品可以简单启动，同时防止配置逻辑泄漏到 Agent Core、model providers、tools、permissions 或 CLI 中。
 
@@ -35,8 +35,8 @@ Configuration 会影响通用 Agent 的几乎每个部分：
 MVP 层级：
 
 1. 内置默认值
-2. 用户配置：`~/.peewit/config.json`
-3. 项目配置：`<workspace>/peewit.config.json`
+2. 用户配置：`~/.vole/config.json`
+3. 项目配置：`<workspace>/vole.config.json`
 4. 环境变量
 5. CLI flags
 6. 明确支持时的 runtime chat commands
@@ -97,7 +97,7 @@ Secrets 不应作为可直接展示的 raw values 被复制到最终对象中，
     "allowLowRisk": true
   },
   "sessions": {
-    "directory": "~/.peewit/sessions"
+    "directory": "~/.vole/sessions"
   }
 }
 ```
@@ -110,12 +110,12 @@ Secrets 不能存进 workspace prompt files 或已提交 project config。
 
 MVP secret sources：
 
-- `PEEWIT_API_KEY`
-- `OPENROUTER_API_KEY`，除非同时设置 generic Peewit overrides，否则它会选择 OpenRouter OpenAI-compatible endpoint
+- `VOLE_API_KEY`
+- `OPENROUTER_API_KEY`，除非同时设置 generic Vole overrides，否则它会选择 OpenRouter OpenAI-compatible endpoint
 
 未来 secret sources：
 
-- Provider-specific keys，例如 `PEEWIT_OPENAI_API_KEY`
+- Provider-specific keys，例如 `VOLE_OPENAI_API_KEY`
 - 加密本地 secret file
 - OS keychain
 - 用于 team deployments 的 cloud secret provider
@@ -140,7 +140,7 @@ Configuration loading 应验证：
 
 ```text
 Missing API key for provider "openai-compatible".
-Set PEEWIT_API_KEY, OPENROUTER_API_KEY, or configure a supported secret source.
+Set VOLE_API_KEY, OPENROUTER_API_KEY, or configure a supported secret source.
 ```
 
 ## 8. 脱敏
@@ -218,7 +218,7 @@ Permission package 拥有最终 risk decisions。
 
 Configuration files 和 workspace prompt files 是不同表面。
 
-- `peewit.config.json` 配置 runtime behavior。
+- `vole.config.json` 配置 runtime behavior。
 - `AGENTS.md` 和相关文件指导 agent behavior。
 - Prompt files 不能存储 secrets。
 - Prompt files 不能覆盖 permission policy。
@@ -260,7 +260,7 @@ MVP configuration system 成功标准：
 
 ## 16. 相关文档
 
-- [Main design](../product/peewit-design.zh-CN.md)
+- [Main design](../product/vole-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)
 - [CLI Adapter](./cli-adapter.zh-CN.md)
 - [Model Provider](./model-provider.zh-CN.md)

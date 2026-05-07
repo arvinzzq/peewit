@@ -4,7 +4,7 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ## Architecture Overview
 
-`@peewit/scheduler` owns the **background task execution boundary**: task run record persistence, safe approval policy for unattended execution, and cron-based task scheduling. It sits between the agent runtime and the file system, bridging the gap between a live interactive session and long-running background work.
+`@vole/scheduler` owns the **background task execution boundary**: task run record persistence, safe approval policy for unattended execution, and cron-based task scheduling. It sits between the agent runtime and the file system, bridging the gap between a live interactive session and long-running background work.
 
 ```
 CronScheduler (timer-based)
@@ -113,13 +113,13 @@ Task runs are append-heavy (new records constantly added) and read occasionally 
 
 ### Why Scheduler Is Separate from Core
 
-The scheduler contains background-specific logic (cron matching, unattended approval) that would add background-task complexity to the core runtime. The scheduler imports `ApprovalResolver` from `@peewit/core` but does not import `AgentRuntime` — it operates on `TaskRunner`, a caller-provided function that the CLI wires to an `AgentRuntime` instance. This keeps the dependency direction clean.
+The scheduler contains background-specific logic (cron matching, unattended approval) that would add background-task complexity to the core runtime. The scheduler imports `ApprovalResolver` from `@vole/core` but does not import `AgentRuntime` — it operates on `TaskRunner`, a caller-provided function that the CLI wires to an `AgentRuntime` instance. This keeps the dependency direction clean.
 
 ## File Inventory
 
 | File | Role | Purpose |
 |---|---|---|
-| `package.json` | Package manifest | Declares the scheduler package with workspace dependencies on `@peewit/core` and `@peewit/sessions`. |
+| `package.json` | Package manifest | Declares the scheduler package with workspace dependencies on `@vole/core` and `@vole/sessions`. |
 | `tsconfig.json` | TypeScript config | Builds the scheduler package with project references to core and sessions. |
 | `src/index.ts` | Scheduler | All exports: `TaskDefinition`, `TaskRunRecord`, `TaskStore`, `JsonlTaskStore`, `BackgroundApprovalResolver`, `matchesCron`, `CronScheduler`, `CronSchedulerOptions`, `TaskRunner`. |
 | `src/index.test.ts` | Scheduler tests | Protects task store CRUD, `BackgroundApprovalResolver` mode behavior, `matchesCron` wildcard and exact matching, and `CronScheduler` start/stop/deduplication/isolation. |

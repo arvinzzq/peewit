@@ -7,16 +7,16 @@ Simplified Chinese version: [openclaw-implementation-notes.zh-CN.md](./openclaw-
 
 ## 1. Purpose
 
-This document records what Peewit currently knows about OpenClaw's architecture and implementation.
+This document records what Vole currently knows about OpenClaw's architecture and implementation.
 
 It separates:
 
 - Facts stated by official OpenClaw documentation
 - Repository structure confirmed through the GitHub tree API
 - Implementation inferences made from documentation and file names
-- Peewit design decisions derived from those findings
+- Vole design decisions derived from those findings
 
-This distinction matters because Peewit aims to implement an OpenClaw-like system, not merely imitate surface features.
+This distinction matters because Vole aims to implement an OpenClaw-like system, not merely imitate surface features.
 
 ## 2. Research Status
 
@@ -214,13 +214,13 @@ Official docs state that `/compact` and related context assembly can be delegate
 
 OpenClaw injects a compact skills list into the system prompt and expects the model to read `SKILL.md` on demand.
 
-This supports Peewit's current plan to avoid injecting all skill bodies into every model call.
+This supports Vole's current plan to avoid injecting all skill bodies into every model call.
 
 ### Memory
 
-OpenClaw's memory system is more advanced than Peewit's MVP plan.
+OpenClaw's memory system is more advanced than Vole's MVP plan.
 
-Peewit should not implement OpenClaw's full memory stack immediately. The staged plan should be:
+Vole should not implement OpenClaw's full memory stack immediately. The staged plan should be:
 
 1. Session memory
 2. Workspace prompt files
@@ -229,11 +229,11 @@ Peewit should not implement OpenClaw's full memory stack immediately. The staged
 5. Memory search
 6. Memory promotion/dreaming
 
-## 6. Peewit Design Implications
+## 6. Vole Design Implications
 
 ### Agent Loop
 
-Peewit should model the loop as:
+Vole should model the loop as:
 
 ```text
 intake -> context assembly -> model inference -> tool execution -> streaming/trace -> persistence
@@ -245,7 +245,7 @@ This aligns with OpenClaw's documented loop while keeping the MVP smaller.
 
 OpenClaw serializes runs per session and protects transcript writes with locks.
 
-Peewit should eventually implement:
+Vole should eventually implement:
 
 - Per-session execution lanes
 - Session write locks
@@ -256,7 +256,7 @@ MVP can start simpler but should not ignore this design pressure.
 
 ### Prompt Assembly
 
-Peewit should make prompt assembly a first-class module.
+Vole should make prompt assembly a first-class module.
 
 It should not build prompts ad hoc inside CLI code.
 
@@ -272,7 +272,7 @@ Expected inputs:
 
 ### Workspace Files
 
-Peewit should support OpenClaw-like workspace files in stages:
+Vole should support OpenClaw-like workspace files in stages:
 
 - MVP/Phase 1: `AGENTS.md`
 - Phase 1-2: read-only `SOUL.md`
@@ -283,17 +283,17 @@ Peewit should support OpenClaw-like workspace files in stages:
 
 OpenClaw's memory design confirms that file-based memory is central.
 
-Peewit should keep long-term memory visible, editable, and reviewable instead of hiding it in opaque state.
+Vole should keep long-term memory visible, editable, and reviewable instead of hiding it in opaque state.
 
 ### Skills
 
-Peewit should keep skill bodies load-on-demand, following OpenClaw's documented approach.
+Vole should keep skill bodies load-on-demand, following OpenClaw's documented approach.
 
 The system prompt should include a compact skill index, not every full skill instruction.
 
 ### Hooks
 
-OpenClaw has many hook points. Peewit should defer hooks until tool, permission, trace, and context assembly are stable.
+OpenClaw has many hook points. Vole should defer hooks until tool, permission, trace, and context assembly are stable.
 
 When implemented, hooks need clear decision rules and tests.
 
@@ -322,7 +322,7 @@ Progressive disclosure:
 2. SKILL.md body loaded when skill triggers — target <5k words
 3. Bundled resources (`scripts/`, `references/`, `assets/`) loaded as needed by the agent
 
-Peewit implication: Our `ContextSkillSummary.when` field is non-standard. The correct approach is a single `description` field that answers both "what does this do" and "when to use it". The `when` field should be removed and its content merged into `description`.
+Vole implication: Our `ContextSkillSummary.when` field is non-standard. The correct approach is a single `description` field that answers both "what does this do" and "when to use it". The `when` field should be removed and its content merged into `description`.
 
 ### OpenClaw Tasks and TaskFlow (vs Claude Code TodoWrite)
 
@@ -356,7 +356,7 @@ type TaskRecord = {
 
 **Comparison**:
 
-| | Peewit Plan | Claude Code TodoWrite | OpenClaw TaskFlow |
+| | Vole Plan | Claude Code TodoWrite | OpenClaw TaskFlow |
 | --- | --- | --- | --- |
 | Storage | In-memory (one turn) | In-context (one turn) | SQLite (persistent) |
 | Lifecycle | Created at turn start | Model calls on demand | Durable across sessions |
@@ -365,7 +365,7 @@ type TaskRecord = {
 | Multi-agent | No | No | Yes (parent/child) |
 | Purpose | Decompose goal into steps | Show progress to user | Background job orchestration |
 
-**Peewit implication**: The pre-execution `Plan` construct (infra-driven step execution) has been removed. The correct approach is a model-called `update_todos` tool equivalent — confirmed by the Third Research Pass (Section 8). TaskFlow-equivalent persistence (SQLite, cross-session) belongs to Phase 8+.
+**Vole implication**: The pre-execution `Plan` construct (infra-driven step execution) has been removed. The correct approach is a model-called `update_todos` tool equivalent — confirmed by the Third Research Pass (Section 8). TaskFlow-equivalent persistence (SQLite, cross-session) belongs to Phase 8+.
 
 ### `pi-embedded-runner` Execution Lanes
 
@@ -396,11 +396,11 @@ At most one step may be `in_progress` at a time. The model replaces the entire l
 - **Not** auto-enabled for Anthropic Claude — must be explicitly opted in.
 - Explicit `tools.experimental.planTool: false` disables it even under `strict-agentic`.
 
-**Key distinction from the removed Peewit Plan:** The model calls `update_plan` *during* execution to track what it has done — not *before* execution to generate a plan for the runtime to orchestrate. The tool carries no infra-side execution management.
+**Key distinction from the removed Vole Plan:** The model calls `update_plan` *during* execution to track what it has done — not *before* execution to generate a plan for the runtime to orchestrate. The tool carries no infra-side execution management.
 
 **Relationship to Claude Code TodoWrite:** Structurally identical — both are model-called, full-replace, `pending/in_progress/completed` status lists. OpenClaw's `update_plan` is its native equivalent of Claude Code's `TodoWrite`.
 
-Peewit implication: Implement an `update_todos` tool following this model-called pattern. No infra orchestration needed.
+Vole implication: Implement an `update_todos` tool following this model-called pattern. No infra orchestration needed.
 
 ### Planning Stall Detection
 
@@ -426,7 +426,7 @@ Retry limits:
 - Default: 1 planning-only retry before termination.
 - `executionContract: "strict-agentic"`: 2 retries before hard stop.
 
-Peewit implication: This is a high-value mechanism to add in Phase 4. Without it, the model may narrate plans indefinitely without acting. The check should live in `AgentRuntime` after each model response before tool dispatch.
+Vole implication: This is a high-value mechanism to add in Phase 4. Without it, the model may narrate plans indefinitely without acting. The check should live in `AgentRuntime` after each model response before tool dispatch.
 
 ### `sessions_spawn` — Subagent System
 
@@ -443,7 +443,7 @@ This is OpenClaw's primary mechanism for long-horizon task decomposition and par
 
 Available by default in `coding` and `full` tool profiles; not in `messaging`.
 
-Peewit implication: Subagents are Phase 7+ work requiring a gateway and multi-session infrastructure. Do not implement in earlier phases.
+Vole implication: Subagents are Phase 7+ work requiring a gateway and multi-session infrastructure. Do not implement in earlier phases.
 
 ### `strict-agentic` Execution Contract
 
@@ -460,7 +460,7 @@ OpenClaw exposes a configurable reasoning budget: `off`, `minimal`, `low`, `medi
 - Thinking happens inside the model before tool calls — not a separate pre-planning pass.
 - Controlled via `/think:<level>` inline directive, session default, or per-agent config.
 
-Peewit implication: Defer. Anthropic models handle this internally. No config surface needed until Phase 9+.
+Vole implication: Defer. Anthropic models handle this internally. No config surface needed until Phase 9+.
 
 ## 9. Open Questions for Source-Level Follow-Up
 
@@ -477,9 +477,9 @@ The next research pass should inspect source code for:
 - How context engine plugins are selected
 - How memory search and memory flush integrate with compaction
 
-## 10. Peewit Backlog Updates
+## 10. Vole Backlog Updates
 
-This research suggests adding or refining these Peewit documents:
+This research suggests adding or refining these Vole documents:
 
 - `prompt-assembly.md`
 - `context-engine.md`

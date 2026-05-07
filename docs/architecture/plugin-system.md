@@ -4,7 +4,7 @@ Simplified Chinese version: [plugin-system.zh-CN.md](./plugin-system.zh-CN.md)
 
 ## 1. Purpose
 
-The plugin system gives users a managed way to install, enable, disable, and inspect skills that are not bundled with Peewit. It records provenance, version, and trust status so that users always know where a skill came from and whether they have reviewed it.
+The plugin system gives users a managed way to install, enable, disable, and inspect skills that are not bundled with Vole. It records provenance, version, and trust status so that users always know where a skill came from and whether they have reviewed it.
 
 ## 2. Scope
 
@@ -38,19 +38,19 @@ Skill body text injected into the system prompt.
 Skills installed by the user live at:
 
 ```
-~/.peewit/skills/<name>.md
+~/.vole/skills/<name>.md
 ```
 
-This is the sibling directory of the sessions directory (`~/.peewit/sessions/`).
+This is the sibling directory of the sessions directory (`~/.vole/sessions/`).
 
-Workspace skills live at `<workspaceRoot>/skills/<name>/SKILL.md` and are always trusted. Built-in skills are embedded in the `@peewit/skills` package binary.
+Workspace skills live at `<workspaceRoot>/skills/<name>/SKILL.md` and are always trusted. Built-in skills are embedded in the `@vole/skills` package binary.
 
 ## 5. Manifest File
 
 The manifest tracks installed user skills and their lifecycle state:
 
 ```
-~/.peewit/skills/skills-index.json
+~/.vole/skills/skills-index.json
 ```
 
 Example content:
@@ -60,7 +60,7 @@ Example content:
   "skills": [
     {
       "name": "my-skill",
-      "filePath": "/Users/arvin/.peewit/skills/my-skill.md",
+      "filePath": "/Users/arvin/.vole/skills/my-skill.md",
       "installedAt": "2026-05-05T10:00:00.000Z",
       "origin": "/path/to/source.md",
       "trusted": false,
@@ -82,7 +82,7 @@ The trust model provides visibility and control:
 - **Built-in skills** are always trusted (shipped with the package).
 - **User-installed skills** start as `trusted: false`.
 - A skill with `trusted: false` is still loaded (for usability) but the CLI displays a prominent warning.
-- The user explicitly trusts a skill with `peewit skills trust <name>`.
+- The user explicitly trusts a skill with `vole skills trust <name>`.
 
 The `trusted` flag does not grant extra capabilities; it only suppresses the warning.
 
@@ -91,13 +91,13 @@ The `trusted` flag does not grant extra capabilities; it only suppresses the war
 ```
 install → (trusted: false, enabled: true)
   ↓
-review (peewit skills review <name>)
+review (vole skills review <name>)
   ↓
-trust (peewit skills trust <name>) → trusted: true
+trust (vole skills trust <name>) → trusted: true
   ↓
-disable (peewit skills disable <name>) → enabled: false
+disable (vole skills disable <name>) → enabled: false
   ↓
-enable (peewit skills enable <name>) → enabled: true
+enable (vole skills enable <name>) → enabled: true
 ```
 
 ## 8. SkillManager API
@@ -126,7 +126,7 @@ class SkillManager {
 Loading order (highest to lowest precedence):
 
 1. Workspace skills (`<root>/skills/<name>/SKILL.md`)
-2. User-installed skills (`~/.peewit/skills/<name>.md`)
+2. User-installed skills (`~/.vole/skills/<name>.md`)
 3. Built-in skills
 
 Disabled user skills are skipped entirely. If a user skill has the same name as a built-in skill, the user skill takes precedence (subject to the disabled check).

@@ -7,9 +7,9 @@ English version: [0001-openclaw-aligned-core-architecture.md](./0001-openclaw-al
 
 ## 1. 背景
 
-Peewit 最初是一个受 OpenClaw 启发的 TypeScript CLI-first general agent 计划。
+Vole 最初是一个受 OpenClaw 启发的 TypeScript CLI-first general agent 计划。
 
-经过更深入的 OpenClaw 调研后，项目应该更明确：Peewit 是一个从 0 到 1 的 OpenClaw-like 实现，OpenClaw 是 primary architecture reference。
+经过更深入的 OpenClaw 调研后，项目应该更明确：Vole 是一个从 0 到 1 的 OpenClaw-like 实现，OpenClaw 是 primary architecture reference。
 
 研究笔记显示，OpenClaw 的核心架构不只是一个带 tools 的 agent loop。它还依赖：
 
@@ -25,7 +25,7 @@ Peewit 最初是一个受 OpenClaw 启发的 TypeScript CLI-first general agent 
 
 ## 2. 决策
 
-Peewit 将让核心架构与 OpenClaw 文档化的 run shape 对齐：
+Vole 将让核心架构与 OpenClaw 文档化的 run shape 对齐：
 
 ```text
 intake -> context assembly -> model inference -> tool execution -> streaming/trace -> persistence
@@ -102,7 +102,7 @@ packages/
 
 正向影响：
 
-- Peewit 更贴近 OpenClaw 的真实架构。
+- Vole 更贴近 OpenClaw 的真实架构。
 - Prompt assembly 变得可测试。
 - 未来 workspace files 和 memory 可以干净加入。
 - CLI 保持 adapter 身份，而不是拥有 prompt construction。
@@ -117,7 +117,7 @@ packages/
 
 - [OpenClaw Implementation Notes](../research/openclaw-implementation-notes.zh-CN.md)
 - [OpenClaw Architecture Map](../architecture/openclaw-architecture-map.zh-CN.md)
-- [主设计](../product/peewit-design.zh-CN.md)
+- [主设计](../product/vole-design.zh-CN.md)
 - [Agent Loop](../architecture/agent-loop.zh-CN.md)
 - [Prompt Assembly](../architecture/prompt-assembly.zh-CN.md)
 - [Session Storage](../architecture/session-storage.zh-CN.md)

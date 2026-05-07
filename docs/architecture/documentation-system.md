@@ -7,9 +7,9 @@ Simplified Chinese version: [documentation-system.zh-CN.md](./documentation-syst
 
 ## 1. Purpose
 
-This document defines how Peewit documentation is organized, updated, split, translated, and reviewed.
+This document defines how Vole documentation is organized, updated, split, translated, and reviewed.
 
-The documentation is part of the product. It should help users operate Peewit and help learners understand the architecture behind a general-purpose agent.
+The documentation is part of the product. It should help users operate Vole and help learners understand the architecture behind a general-purpose agent.
 
 Core rule:
 
@@ -91,7 +91,7 @@ Research documents record:
 - Inferences
 - Open questions
 - Reference system patterns
-- Implications for Peewit
+- Implications for Vole
 
 Research should distinguish official sources from inference.
 
@@ -184,5 +184,5 @@ The documentation system is successful when:
 - [Documentation Index](../README.md)
 - [Development Workflow](./dev-workflow.md)
 - [Testing Strategy](./testing-strategy.md)
-- [Main Design](../product/peewit-design.md)
+- [Main Design](../product/vole-design.md)
 - [Roadmap](../roadmap/overview.md)

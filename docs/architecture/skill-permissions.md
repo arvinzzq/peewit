@@ -35,17 +35,17 @@ Unknown values are stored as-is and displayed to the user. They do not block loa
 
 When a user installs a skill, the CLI workflow is:
 
-1. `peewit skills install <path>` — copies file, records `trusted: false`.
-2. `peewit skills review <name>` — shows full metadata including declared permissions.
+1. `vole skills install <path>` — copies file, records `trusted: false`.
+2. `vole skills review <name>` — shows full metadata including declared permissions.
 3. User reads the permissions and skill body.
-4. `peewit skills trust <name>` — records `trusted: true` in the manifest.
+4. `vole skills trust <name>` — records `trusted: true` in the manifest.
 
 Until the skill is trusted, every listing command shows a warning:
 
 ```
 ⚠ untrusted  my-skill  [filesystem, shell]
 This skill was installed from an external source and has not been trusted.
-Run `peewit skills trust my-skill` to trust it.
+Run `vole skills trust my-skill` to trust it.
 ```
 
 ## 4. Why Skill Text Is the Security Surface
@@ -56,21 +56,21 @@ Skills are plain text injected verbatim into the system prompt before the user's
 - Ask the model to read or exfiltrate files.
 - Override safety instructions with conflicting directives.
 
-The trust flag communicates "I have read this skill and consider it safe." It does not enforce isolation or sandbox the text. The actual tool permission decisions still go through the `@peewit/permissions` package regardless of skill trust.
+The trust flag communicates "I have read this skill and consider it safe." It does not enforce isolation or sandbox the text. The actual tool permission decisions still go through the `@vole/permissions` package regardless of skill trust.
 
 ## 5. CLI Review Commands
 
 ```
-peewit skills             List all skills — shows version, trust badge, permissions
-peewit skills install <path>
+vole skills             List all skills — shows version, trust badge, permissions
+vole skills install <path>
                              Install a skill from a local .md file
-peewit skills enable <name>
+vole skills enable <name>
                              Enable a disabled skill
-peewit skills disable <name>
+vole skills disable <name>
                              Disable an enabled skill
-peewit skills trust <name>
+vole skills trust <name>
                              Mark an installed skill as trusted
-peewit skills review <name>
+vole skills review <name>
                              Show full skill metadata and permission declarations
 ```
 

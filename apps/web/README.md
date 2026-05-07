@@ -2,7 +2,7 @@
 
 ## Architecture Summary
 
-This directory owns the browser-based UI adapter for Peewit.
+This directory owns the browser-based UI adapter for Vole.
 It exposes Agent Core over HTTP/SSE and serves a React frontend.
 It is an adapter — it does not own prompt assembly, tool execution, or permission policy.
 
@@ -22,15 +22,15 @@ It is an adapter — it does not own prompt assembly, tool execution, or permiss
 
 ```sh
 # Terminal 1 — Hono server
-pnpm --filter @peewit/web dev
+pnpm --filter @vole/web dev
 
 # Or run both together
-pnpm --filter @peewit/web run dev
+pnpm --filter @vole/web run dev
 ```
 
 Open `http://localhost:5173` (Vite) in development — API requests are proxied to Hono at port 3120.
 
-Set `PEEWIT_API_KEY` (or `OPENROUTER_API_KEY` + `PEEWIT_MODEL`) before starting.
+Set `VOLE_API_KEY` (or `OPENROUTER_API_KEY` + `VOLE_MODEL`) before starting.
 
 ## Update Reminder
 

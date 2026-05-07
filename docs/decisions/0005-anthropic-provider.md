@@ -7,15 +7,15 @@ Simplified Chinese version: [0005-anthropic-provider.zh-CN.md](./0005-anthropic-
 
 ## 1. Context
 
-Peewit currently supports only an OpenAI-compatible provider. This covers a wide range of hosted models through services like OpenRouter, and it is sufficient for the MVP.
+Vole currently supports only an OpenAI-compatible provider. This covers a wide range of hosted models through services like OpenRouter, and it is sufficient for the MVP.
 
-However, Peewit's primary architecture reference is OpenClaw, and OpenClaw is built on Anthropic's Claude models. Anthropic's tool calling format (`tool_use` content blocks) differs from OpenAI's (`tool_calls` in the message object). Both formats achieve the same behavior, but a Claude-first user would need to configure Peewit to route Claude calls through OpenRouter or another proxy rather than connecting directly to Anthropic.
+However, Vole's primary architecture reference is OpenClaw, and OpenClaw is built on Anthropic's Claude models. Anthropic's tool calling format (`tool_use` content blocks) differs from OpenAI's (`tool_calls` in the message object). Both formats achieve the same behavior, but a Claude-first user would need to configure Vole to route Claude calls through OpenRouter or another proxy rather than connecting directly to Anthropic.
 
-There is also a capability alignment reason: Anthropic's SDK provides features that OpenClaw uses and that Peewit will want in later phases, including prompt caching, extended thinking, and streaming.
+There is also a capability alignment reason: Anthropic's SDK provides features that OpenClaw uses and that Vole will want in later phases, including prompt caching, extended thinking, and streaming.
 
 ## 2. Decision
 
-Peewit will add an `AnthropicProvider` in Phase 3.
+Vole will add an `AnthropicProvider` in Phase 3.
 
 The decision keeps both providers:
 
@@ -52,7 +52,7 @@ or:
 Secrets are provided through environment variables:
 
 ```text
-PEEWIT_API_KEY        for openai-compatible
+VOLE_API_KEY        for openai-compatible
 OPENROUTER_API_KEY       shortcut for OpenRouter
 ANTHROPIC_API_KEY        for anthropic
 ```
@@ -79,8 +79,8 @@ Streaming support should be designed and added in Phase 6 when the Web UI requir
 
 Positive:
 
-- Peewit users can use Claude directly without a proxy.
-- Peewit is better aligned with OpenClaw's primary model family.
+- Vole users can use Claude directly without a proxy.
+- Vole is better aligned with OpenClaw's primary model family.
 - Anthropic SDK capabilities (caching, thinking) are accessible in later phases.
 - The `ModelProvider` interface is validated by two real implementations.
 
@@ -104,4 +104,4 @@ Trade-offs:
 - [Model Provider](../architecture/model-provider.md)
 - [Reference Systems](../architecture/reference-systems.md)
 - [Phase 3 Plan](../plans/phase-3-context-assembly-and-skills.md)
-- [Main Design](../product/peewit-design.md)
+- [Main Design](../product/vole-design.md)

@@ -7,7 +7,7 @@ Simplified Chinese version: [background-automation.zh-CN.md](./background-automa
 
 ## 1. Purpose
 
-Background automation lets Peewit run agent tasks without a foreground user connection.
+Background automation lets Vole run agent tasks without a foreground user connection.
 
 This document describes the background adapter concept, `BackgroundApprovalResolver`, task definition format, task run lifecycle, and the direction toward a full daemon.
 
@@ -32,7 +32,7 @@ The background adapter cannot show streaming output or interactive approval prom
 
 ## 3. BackgroundApprovalResolver
 
-The `BackgroundApprovalResolver` implements the `ApprovalResolver` interface from `@peewit/core`.
+The `BackgroundApprovalResolver` implements the `ApprovalResolver` interface from `@vole/core`.
 
 When `AgentRuntime` encounters a tool that requires user confirmation (`decision.decision === "ask"`), it calls the resolver. The background resolver's behavior depends on the autonomy mode:
 
@@ -72,7 +72,7 @@ For Phase 8, task definitions are passed as CLI arguments. Future extensions may
 
 ## 5. Task Run Lifecycle
 
-Each invocation of `peewit run` follows this lifecycle:
+Each invocation of `vole run` follows this lifecycle:
 
 ```
 1. Load config and resolve sessions directory.

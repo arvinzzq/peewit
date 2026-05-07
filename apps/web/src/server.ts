@@ -1,5 +1,5 @@
 /**
- * INPUT: HTTP requests, WebSocket frames, env vars (PEEWIT_API_KEY, PEEWIT_MODEL, etc.), runtime events from AgentRuntime.
+ * INPUT: HTTP requests, WebSocket frames, env vars (VOLE_API_KEY, VOLE_MODEL, etc.), runtime events from AgentRuntime.
  * OUTPUT: JSON API (sessions CRUD, turns SSE stream, approval resolution, gateway sessions endpoint), WebSocket endpoint (/ws/:id) for bidirectional session communication, static client files in production.
  * POS: Web adapter layer; exposes AgentRuntime over HTTP/SSE/WebSocket without owning agent logic.
  *
@@ -14,27 +14,27 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import { WebSocketServer } from "ws";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { WEB_CAPABILITIES, filterToolsByProfile, type ToolProfile } from "@peewit/adapters";
-import { loadConfig, resolveSessionsDirectory, type EffectiveConfig } from "@peewit/config";
-import { DefaultContextAssembler } from "@peewit/context";
+import { WEB_CAPABILITIES, filterToolsByProfile, type ToolProfile } from "@vole/adapters";
+import { loadConfig, resolveSessionsDirectory, type EffectiveConfig } from "@vole/config";
+import { DefaultContextAssembler } from "@vole/context";
 import {
   AgentRuntime,
   InMemoryRuntimeTraceStore,
   type ApprovalRequest,
   type ApprovalResolution,
   type ApprovalResolver
-} from "@peewit/core";
-import { SessionGateway } from "@peewit/gateway";
+} from "@vole/core";
+import { SessionGateway } from "@vole/gateway";
 import {
   AnthropicProvider,
   OpenAICompatibleProvider,
   type ModelProvider
-} from "@peewit/models";
+} from "@vole/models";
 import {
   JsonlSessionStore,
   type SessionStore
-} from "@peewit/sessions";
-import { SkillLoader, toSkillSummary } from "@peewit/skills";
+} from "@vole/sessions";
+import { SkillLoader, toSkillSummary } from "@vole/skills";
 import {
   createListDirectoryTool,
   createLoadSkillTool,
@@ -44,7 +44,7 @@ import {
   createReadWebPageTool,
   createShellTool,
   createWriteFileTool
-} from "@peewit/tools";
+} from "@vole/tools";
 
 /** Module-level SessionGateway singleton — tracks all active Web sessions in this process. */
 const webGateway = new SessionGateway();
@@ -156,7 +156,7 @@ async function createWebSession(config: EffectiveConfig, existingSessionId?: str
     }),
     modelProvider: createProvider(config),
     systemInstruction:
-      "You are Peewit, a personal general-purpose agent. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require user approval.",
+      "You are Vole, a personal general-purpose agent. You can use tools to read files, list directories, write files, run shell commands, and read web pages. You follow a permission policy that governs which actions require user approval.",
     runtime: {
       mode: config.runtime.defaultMode,
       workspace: config.workspace.root,
@@ -225,7 +225,7 @@ app.post("/api/sessions", async (c) => {
   }
 
   if (config.secrets.apiKey === undefined) {
-    return c.json({ error: "Missing API key. Set PEEWIT_API_KEY or OPENROUTER_API_KEY." }, 400);
+    return c.json({ error: "Missing API key. Set VOLE_API_KEY or OPENROUTER_API_KEY." }, 400);
   }
 
   // Optional: resume an existing session by passing { sessionId }
@@ -401,7 +401,7 @@ app.use("/*", serveStatic({ root: "./dist/client" }));
 
 const port = Number(process.env["PORT"] ?? 3120);
 
-console.log(`Peewit web server starting on http://localhost:${port}`);
+console.log(`Vole web server starting on http://localhost:${port}`);
 
 const server = serve({ fetch: app.fetch, port });
 

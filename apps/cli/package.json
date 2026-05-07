@@ -1,27 +1,27 @@
 {
-  "name": "@peewit/cli",
+  "name": "@vole/cli",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "bin": {
-    "peewit": "./dist/index.js"
+    "vole": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@peewit/adapters": "workspace:*",
-    "@peewit/config": "workspace:*",
-    "@peewit/context": "workspace:*",
-    "@peewit/core": "workspace:*",
-    "@peewit/gateway": "workspace:*",
-    "@peewit/models": "workspace:*",
-    "@peewit/scheduler": "workspace:*",
-    "@peewit/sessions": "workspace:*",
-    "@peewit/skills": "workspace:*",
-    "@peewit/taskflow": "workspace:*",
-    "@peewit/tools": "workspace:*",
+    "@vole/adapters": "workspace:*",
+    "@vole/config": "workspace:*",
+    "@vole/context": "workspace:*",
+    "@vole/core": "workspace:*",
+    "@vole/gateway": "workspace:*",
+    "@vole/models": "workspace:*",
+    "@vole/scheduler": "workspace:*",
+    "@vole/sessions": "workspace:*",
+    "@vole/skills": "workspace:*",
+    "@vole/taskflow": "workspace:*",
+    "@vole/tools": "workspace:*",
     "dotenv": "^17.4.2",
     "ink": "^7.0.1",
     "ink-text-input": "^6.0.0",

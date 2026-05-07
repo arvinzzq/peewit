@@ -34,7 +34,7 @@ English version: [phase-1-mvp-agent-loop.md](./phase-1-mvp-agent-loop.md)
 - `pnpm run cli --help`
 - `pnpm run cli chat --fake "hello"`
 - `pnpm run cli chat --fake "hello" /trace`
-- `PEEWIT_API_KEY=secret pnpm run cli chat --fake "hello" /config`
+- `VOLE_API_KEY=secret pnpm run cli chat --fake "hello" /config`
 - `printf 'Hello\n/trace\n/config\n/exit\n' | pnpm run cli chat --fake-interactive`
 - `pnpm run cli chat`
 
@@ -44,7 +44,7 @@ English version: [phase-1-mvp-agent-loop.md](./phase-1-mvp-agent-loop.md)
 
 ## 1. 目的
 
-Phase 1 创建第一个可用的 Peewit agent loop。
+Phase 1 创建第一个可用的 Vole agent loop。
 
 目标是一个 CLI chat：可以调用已配置模型、组装 context、运行简单 loop，并产生 explainable trace。Tools 可以保持 minimal 或 fake，直到 Phase 2；但 loop 应为 tool calls 和 permissions 留出清晰路径。
 
@@ -52,7 +52,7 @@ Phase 1 创建第一个可用的 Peewit agent loop。
 
 Phase 1 完成后，用户应该可以：
 
-- 运行 `peewit chat`。
+- 运行 `vole chat`。
 - 发送消息。
 - 收到模型回复。
 - 看到该 turn 的 explainable trace。
@@ -216,7 +216,7 @@ Real provider smoke tests 应是 opt-in。
 
 Phase 1 完成标准：
 
-- `peewit chat` 可以运行 message-only conversation。
+- `vole chat` 可以运行 message-only conversation。
 - Agent Core 可以调用 `ModelProvider`。
 - Context assembly 由 `packages/context` 拥有。
 - CLI 不 assemble prompts。

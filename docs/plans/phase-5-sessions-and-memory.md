@@ -31,7 +31,7 @@ Completed:
 
 ## 1. Purpose
 
-This phase gives Peewit short-term and durable memory.
+This phase gives Vole short-term and durable memory.
 
 The OpenClaw-like target is a visible agent workspace where sessions, memory, identity, user preferences, and daily notes can be inspected and controlled by the user.
 
@@ -89,11 +89,11 @@ The most recently updated stored session can be resumed with:
 pnpm run cli chat --resume
 ```
 
-If no session is specified, the CLI creates a generic `session_<id>` session. Session IDs are agent-level identifiers and should not encode the entry adapter such as CLI or Web UI. The default storage directory is `~/.peewit/sessions`.
+If no session is specified, the CLI creates a generic `session_<id>` session. Session IDs are agent-level identifiers and should not encode the entry adapter such as CLI or Web UI. The default storage directory is `~/.vole/sessions`.
 
-Configured CLI chat also loads `AGENTS.md` and read-only `SOUL.md` from the configured workspace root when those files exist. The workspace root can be set with `PEEWIT_WORKSPACE_ROOT`.
+Configured CLI chat also loads `AGENTS.md` and read-only `SOUL.md` from the configured workspace root when those files exist. The workspace root can be set with `VOLE_WORKSPACE_ROOT`.
 
-Long-term memory files remain disabled by default. `PEEWIT_LONG_TERM_MEMORY=read-only` loads `USER.md`, `MEMORY.md`, `memory/<today>.md`, and `memory/<yesterday>.md` from the configured workspace root when present, while memory writes stay disabled.
+Long-term memory files remain disabled by default. `VOLE_LONG_TERM_MEMORY=read-only` loads `USER.md`, `MEMORY.md`, `memory/<today>.md`, and `memory/<yesterday>.md` from the configured workspace root when present, while memory writes stay disabled.
 
 ## 5. Durable Session Storage
 
@@ -102,7 +102,7 @@ The durable target is JSONL session storage similar to OpenClaw's replayable ses
 Initial storage shape:
 
 ```text
-~/.peewit/sessions/
+~/.vole/sessions/
   <session-id>.jsonl
 ```
 

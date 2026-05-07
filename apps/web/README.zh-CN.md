@@ -2,7 +2,7 @@
 
 ## Architecture Summary
 
-这个目录拥有 Peewit 的浏览器端 UI 适配器。
+这个目录拥有 Vole 的浏览器端 UI 适配器。
 它通过 HTTP/SSE 暴露 Agent Core 并提供 React 前端服务。
 它是一个适配器——不拥有提示词组装、工具执行或权限策略。
 
@@ -22,12 +22,12 @@
 
 ```sh
 # 同时启动服务器和 Vite
-pnpm --filter @peewit/web run dev
+pnpm --filter @vole/web run dev
 ```
 
 开发模式下在浏览器打开 `http://localhost:5173`——API 请求会自动代理到 3120 端口的 Hono 服务器。
 
-启动前设置 `PEEWIT_API_KEY`（或 `OPENROUTER_API_KEY` + `PEEWIT_MODEL`）。
+启动前设置 `VOLE_API_KEY`（或 `OPENROUTER_API_KEY` + `VOLE_MODEL`）。
 
 ## Update Reminder
 

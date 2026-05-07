@@ -70,7 +70,7 @@ Before Phase 7, the Web server uses `InMemorySessionStore` — sessions are lost
 
 This means:
 
-- A session created via Web is visible in `peewit sessions`.
+- A session created via Web is visible in `vole sessions`.
 - A session created via CLI can be resumed in the Web UI.
 - Server restart does not lose session history.
 

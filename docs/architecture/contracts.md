@@ -7,7 +7,7 @@ Simplified Chinese version: [contracts.zh-CN.md](./contracts.zh-CN.md)
 
 ## 1. Purpose
 
-This document records the first architecture-level contracts between Peewit modules.
+This document records the first architecture-level contracts between Vole modules.
 
 These contracts are not final TypeScript APIs. They are design constraints that guide implementation and tests.
 
@@ -17,7 +17,7 @@ Contracts should keep modules replaceable and testable.
 
 ## 2. Contract Principles
 
-Peewit contracts should be:
+Vole contracts should be:
 
 - Adapter-agnostic
 - Provider-agnostic

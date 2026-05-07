@@ -7,7 +7,7 @@ Simplified Chinese version: [tool-system.zh-CN.md](./tool-system.zh-CN.md)
 
 ## 1. Purpose
 
-The tool system is how Peewit lets the agent act outside the model.
+The tool system is how Vole lets the agent act outside the model.
 
 Models can generate text, but tools let the agent inspect files, run commands, read web pages, write documents, and eventually control browsers or background tasks.
 
@@ -19,7 +19,7 @@ Tools describe and execute capabilities. Permissions decide whether a specific a
 
 Without a tool system, every external action becomes a special case inside Agent Core.
 
-A structured tool system gives Peewit:
+A structured tool system gives Vole:
 
 - A consistent way to expose capabilities to models
 - Input validation before execution
@@ -245,7 +245,7 @@ By default:
 - Paths outside the workspace require higher risk classification.
 - Likely secret files should be Blocked by default.
 
-This boundary is especially important because Peewit is intended to become more autonomous over time.
+This boundary is especially important because Vole is intended to become more autonomous over time.
 
 ## 14. Tool Context
 
@@ -297,7 +297,7 @@ The MVP tool system should be considered successful when:
 
 ## 17. Related Documents
 
-- [Main design](../product/peewit-design.md)
+- [Main design](../product/vole-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [Agent loop](./agent-loop.md)
 - [Model provider](./model-provider.md)

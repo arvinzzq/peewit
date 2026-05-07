@@ -1,7 +1,7 @@
 ---
-name: peewit-dev
+name: vole-dev
 description: >
-  Development conventions for the Peewit TypeScript monorepo: file editing
+  Development conventions for the Vole TypeScript monorepo: file editing
   workflow (edit_file / append_file / write_file), vitest test patterns,
   TypeScript union type narrowing, and bilingual doc rules.
   Use when: writing or modifying TypeScript/test files in this codebase;
@@ -12,7 +12,7 @@ description: >
 version: "1.0"
 ---
 
-# Peewit Development Conventions
+# Vole Development Conventions
 
 ## SOP: Making a Code Change
 
@@ -39,7 +39,7 @@ Never skip step 4. "It looks right" is not the same as "check passes."
 
 - Use `test()`, not `it()`
 - Use `beforeAll` / `afterAll` for setup/teardown
-- Create temp workspaces with `mkdtemp(join(tmpdir(), "peewit-<name>-"))`
+- Create temp workspaces with `mkdtemp(join(tmpdir(), "vole-<name>-"))`
 - Clean up in `afterAll` with `rm(workspace, { recursive: true, force: true })`
 - Import statement location: always at the top of file; never at the end
 

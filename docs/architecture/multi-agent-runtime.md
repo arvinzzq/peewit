@@ -7,7 +7,7 @@ Simplified Chinese version: [multi-agent-runtime.zh-CN.md](./multi-agent-runtime
 
 ## 1. Purpose
 
-This document describes how Peewit supports running multiple `AgentRuntime` instances in a coordinated way, starting with in-process sub-agents in Phase 10.
+This document describes how Vole supports running multiple `AgentRuntime` instances in a coordinated way, starting with in-process sub-agents in Phase 10.
 
 ## 2. Sub-Agent Concept
 

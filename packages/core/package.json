@@ -1,5 +1,5 @@
 {
-  "name": "@peewit/core",
+  "name": "@vole/core",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -16,9 +16,9 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@peewit/context": "workspace:*",
-    "@peewit/models": "workspace:*",
-    "@peewit/permissions": "workspace:*",
-    "@peewit/tools": "workspace:*"
+    "@vole/context": "workspace:*",
+    "@vole/models": "workspace:*",
+    "@vole/permissions": "workspace:*",
+    "@vole/tools": "workspace:*"
   }
 }

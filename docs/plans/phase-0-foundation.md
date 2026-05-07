@@ -123,9 +123,9 @@ Minimal packages should include exports only when useful for tests.
 
 Phase 0 CLI behavior:
 
-- `peewit --help` shows available commands.
-- `peewit --version` shows package version.
-- `peewit chat` may print a friendly not-yet-implemented message or start a stub shell if Phase 1 is not started.
+- `vole --help` shows available commands.
+- `vole --version` shows package version.
+- `vole chat` may print a friendly not-yet-implemented message or start a stub shell if Phase 1 is not started.
 
 The CLI shell must not contain prompt assembly, model calls, tool execution, or permission decisions.
 

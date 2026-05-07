@@ -7,7 +7,7 @@ English version: [phase-1-mvp-test-guide.md](./phase-1-mvp-test-guide.md)
 
 ## 1. 目的
 
-这份指南说明如何从用户视角测试 Phase 1 Peewit MVP。
+这份指南说明如何从用户视角测试 Phase 1 Vole MVP。
 
 Phase 1 验证第一个可用 Agent Loop：
 
@@ -82,7 +82,7 @@ pnpm run cli chat --fake "hello" /trace
 运行：
 
 ```bash
-PEEWIT_API_KEY=secret-api-key pnpm run cli chat --fake "hello" /config
+VOLE_API_KEY=secret-api-key pnpm run cli chat --fake "hello" /config
 ```
 
 预期结果：
@@ -111,7 +111,7 @@ printf 'Hello fake\n/trace\n/config\n/exit\n' | pnpm run cli chat --fake-interac
 运行：
 
 ```bash
-PEEWIT_API_KEY=your_api_key pnpm run cli chat
+VOLE_API_KEY=your_api_key pnpm run cli chat
 ```
 
 预期结果：
@@ -130,9 +130,9 @@ OPENROUTER_API_KEY=your_openrouter_key pnpm run cli chat
 
 - CLI 使用 `https://openrouter.ai/api/v1`。
 - 默认 OpenRouter model 是 `openai/gpt-4.1-mini`。
-- 设置 `PEEWIT_BASE_URL` 和 `PEEWIT_MODEL` 这类 generic overrides 时，它们仍然优先。
+- 设置 `VOLE_BASE_URL` 和 `VOLE_MODEL` 这类 generic overrides 时，它们仍然优先。
 
-如果同时缺少 `PEEWIT_API_KEY` 和 `OPENROUTER_API_KEY`：
+如果同时缺少 `VOLE_API_KEY` 和 `OPENROUTER_API_KEY`：
 
 ```bash
 pnpm run cli chat

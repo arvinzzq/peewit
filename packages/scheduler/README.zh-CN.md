@@ -4,7 +4,7 @@ English version: [README.md](./README.md)
 
 ## 架构概述
 
-`@peewit/scheduler` 负责**后台任务执行边界**：任务运行记录持久化、无人值守执行的安全审批策略，以及基于 cron 的任务调度。它位于 Agent 运行时和文件系统之间，是连接实时交互式会话与长时间后台工作的桥梁。
+`@vole/scheduler` 负责**后台任务执行边界**：任务运行记录持久化、无人值守执行的安全审批策略，以及基于 cron 的任务调度。它位于 Agent 运行时和文件系统之间，是连接实时交互式会话与长时间后台工作的桥梁。
 
 ```
 CronScheduler（基于定时器）
@@ -88,13 +88,13 @@ interface TaskDefinition {
 
 ### 为何调度器与 Core 分离
 
-调度器包含后台特定逻辑（cron 匹配、无人值守审批），这些逻辑会给核心运行时增加不必要的复杂性。调度器从 `@peewit/core` 导入 `ApprovalResolver`，但不导入 `AgentRuntime`——它操作 `TaskRunner`，一个调用者提供的由 CLI 连接到 `AgentRuntime` 实例的函数。这保持了依赖方向的清晰。
+调度器包含后台特定逻辑（cron 匹配、无人值守审批），这些逻辑会给核心运行时增加不必要的复杂性。调度器从 `@vole/core` 导入 `ApprovalResolver`，但不导入 `AgentRuntime`——它操作 `TaskRunner`，一个调用者提供的由 CLI 连接到 `AgentRuntime` 实例的函数。这保持了依赖方向的清晰。
 
 ## 文件清单
 
 | 文件 | 角色 | 用途 |
 |---|---|---|
-| `package.json` | Package manifest | 声明 scheduler 包，依赖 `@peewit/core` 和 `@peewit/sessions`。 |
+| `package.json` | Package manifest | 声明 scheduler 包，依赖 `@vole/core` 和 `@vole/sessions`。 |
 | `tsconfig.json` | TypeScript 配置 | 使用对 core 和 sessions 的项目引用构建 scheduler。 |
 | `src/index.ts` | 调度器 | 所有导出：`TaskDefinition`、`TaskRunRecord`、`TaskStore`、`JsonlTaskStore`、`BackgroundApprovalResolver`、`matchesCron`、`CronScheduler`、`CronSchedulerOptions`、`TaskRunner`。 |
 | `src/index.test.ts` | 调度器测试 | 保护任务存储 CRUD、`BackgroundApprovalResolver` 模式行为、`matchesCron` 通配符和精确匹配、`CronScheduler` 启停/去重/故障隔离。 |

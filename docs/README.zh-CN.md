@@ -1,4 +1,4 @@
-# Peewit Documentation
+# Vole Documentation
 
 状态：草案
 日期：2026-05-02
@@ -7,15 +7,15 @@ English version: [README.md](./README.md)
 
 ## 1. 目的
 
-这个目录是 Peewit 的产品文档和学习文档中心。
+这个目录是 Vole 的产品文档和学习文档中心。
 
-Peewit 旨在成为一个真实的个人通用 Agent 产品，同时也作为一个学习项目，用来理解 OpenClaw-like Agent 架构。文档应该同时解释我们要构建什么，以及每个模块为什么存在。
+Vole 旨在成为一个真实的个人通用 Agent 产品，同时也作为一个学习项目，用来理解 OpenClaw-like Agent 架构。文档应该同时解释我们要构建什么，以及每个模块为什么存在。
 
 ## 2. 阅读顺序
 
 推荐的第一阅读路径：
 
-1. [Main Design](./product/peewit-design.zh-CN.md)
+1. [Main Design](./product/vole-design.zh-CN.md)
 2. [Roadmap](./roadmap/overview.zh-CN.md)
 3. [Reference Systems](./architecture/reference-systems.zh-CN.md)
 4. [OpenClaw Architecture Map](./architecture/openclaw-architecture-map.zh-CN.md)

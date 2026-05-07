@@ -4,7 +4,7 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ## Architecture Overview
 
-`@peewit/taskflow` owns the **persistent cross-session task graph**: it stores and queries task records that span multiple sessions, adapters, and runtime types. Where `@peewit/sessions` stores conversation history within a session, `@peewit/taskflow` tracks the lifecycle of individual tasks across all sessions.
+`@vole/taskflow` owns the **persistent cross-session task graph**: it stores and queries task records that span multiple sessions, adapters, and runtime types. Where `@vole/sessions` stores conversation history within a session, `@vole/taskflow` tracks the lifecycle of individual tasks across all sessions.
 
 ```
 spawn_subagent_async  ──creates──▶
@@ -93,11 +93,11 @@ parent task (cli)
 
 ### Difference from scheduler's JsonlTaskStore
 
-`@peewit/scheduler` has its own `JsonlTaskStore` for scheduler-specific `TaskRunRecord` objects (which include `assistantText`, `completedAt`, and are tightly coupled to the scheduler's run lifecycle). `@peewit/taskflow`'s `JsonlTaskFlowStore` stores `TaskRecord` objects with a richer status model and parent/child relationships for general-purpose cross-session task graphs. The two stores serve different layers: scheduler tracks execution history, taskflow tracks the logical task graph.
+`@vole/scheduler` has its own `JsonlTaskStore` for scheduler-specific `TaskRunRecord` objects (which include `assistantText`, `completedAt`, and are tightly coupled to the scheduler's run lifecycle). `@vole/taskflow`'s `JsonlTaskFlowStore` stores `TaskRecord` objects with a richer status model and parent/child relationships for general-purpose cross-session task graphs. The two stores serve different layers: scheduler tracks execution history, taskflow tracks the logical task graph.
 
 ### Integration with AsyncTaskStore
 
-`@peewit/core` defines a duck-typed `AsyncTaskStore` interface that `createSpawnSubagentAsyncTool` uses to record task IDs when spawning async sub-agents. `JsonlTaskFlowStore` satisfies this interface (it has a `create()` method with compatible shape), so callers can pass a `JsonlTaskFlowStore` instance as the `taskStore` option without an explicit adapter.
+`@vole/core` defines a duck-typed `AsyncTaskStore` interface that `createSpawnSubagentAsyncTool` uses to record task IDs when spawning async sub-agents. `JsonlTaskFlowStore` satisfies this interface (it has a `create()` method with compatible shape), so callers can pass a `JsonlTaskFlowStore` instance as the `taskStore` option without an explicit adapter.
 
 ## File Inventory
 

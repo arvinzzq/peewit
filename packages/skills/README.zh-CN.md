@@ -4,12 +4,12 @@ English version: [README.md](./README.md)
 
 ## 架构概述
 
-`@peewit/skills` 负责**技能发现、解析和生命周期管理**。技能是可复用的 Agent 指令文件（含 YAML frontmatter 的 `.md` 文件），Agent 可按需加载。该包提供用于发现的 `SkillLoader`、用于用户生命周期操作（安装、启用、禁用、信任）的 `SkillManager`，以及 SKILL.md 文件的 `parseSKILLMd` 解析器。
+`@vole/skills` 负责**技能发现、解析和生命周期管理**。技能是可复用的 Agent 指令文件（含 YAML frontmatter 的 `.md` 文件），Agent 可按需加载。该包提供用于发现的 `SkillLoader`、用于用户生命周期操作（安装、启用、禁用、信任）的 `SkillManager`，以及 SKILL.md 文件的 `parseSKILLMd` 解析器。
 
 ```
 技能来源（3 层，优先级顺序）：
   1. workspace/skills/*/SKILL.md    ← 项目特定覆盖（最高优先级）
-  2. ~/.peewit/skills/*.md        ← 用户安装技能（manifest 控制）
+  2. ~/.vole/skills/*.md        ← 用户安装技能（manifest 控制）
   3. 内置（硬编码）                  ← research、project-inspector、safe-shell
 
         SkillLoader.load()
@@ -42,7 +42,7 @@ permissions: read_file, list_directory
 
 ### SkillDefinition 与 SkillSummary
 
-`SkillDefinition` 携带完整技能元数据（body、filePath、trusted、enabled、version、origin、permissions），供 CLI（`peewit skill list`、`peewit skill review`）使用。
+`SkillDefinition` 携带完整技能元数据（body、filePath、trusted、enabled、version、origin、permissions），供 CLI（`vole skill list`、`vole skill review`）使用。
 
 `SkillSummary` 是注入到 context 提示 `<skills>` section 的紧凑投影（name、description、source）。Agent 只看到技能名称和描述——通过 `load_skill` 工具按需加载完整 body。
 
@@ -51,7 +51,7 @@ permissions: read_file, list_directory
 `SkillLoader.load()` 应用先到先得的去重策略：
 
 1. **工作区技能**（`{workspaceRoot}/skills/*/SKILL.md`）— 最高优先级，每个子目录是一个含 `SKILL.md` 的技能。
-2. **用户技能**（`~/.peewit/skills/*.md`）— 扁平的 `.md` 文件，通过 `skills-index.json` manifest 追踪。未在 manifest 中或 `enabled: false` 的技能被跳过。
+2. **用户技能**（`~/.vole/skills/*.md`）— 扁平的 `.md` 文件，通过 `skills-index.json` manifest 追踪。未在 manifest 中或 `enabled: false` 的技能被跳过。
 3. **内置技能** — 在源码中硬编码：`research`、`project-inspector`、`safe-shell`。
 
 工作区技能和用户技能同名时，工作区技能优先（其条目先被加入 `seen` 集合）。
@@ -73,7 +73,7 @@ interface SkillManifestEntry {
 }
 ```
 
-Manifest 文件位于 `~/.peewit/skills/skills-index.json`，由 `SkillLoader` 读取用于过滤用户技能，由 `SkillManager` 执行生命周期操作时写入。
+Manifest 文件位于 `~/.vole/skills/skills-index.json`，由 `SkillLoader` 读取用于过滤用户技能，由 `SkillManager` 执行生命周期操作时写入。
 
 ### 内置技能
 

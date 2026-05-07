@@ -576,7 +576,7 @@ function ChatView({ sessionId, onBack }: ChatViewProps) {
         <button style={css.backBtn} onClick={onBack}>
           Sessions
         </button>
-        <div style={css.title}>Peewit</div>
+        <div style={css.title}>Vole</div>
         <div style={css.status}>
           {isSending ? "Thinking…" : `Session ${sessionId.slice(-8)}`}
         </div>
@@ -730,7 +730,7 @@ export default function App() {
           <div style={{ fontSize: "24px", marginBottom: "12px" }}>Error</div>
           <div>{error}</div>
           <div style={{ marginTop: "8px", fontSize: "13px", color: "#64748b" }}>
-            Make sure PEEWIT_API_KEY is set and the server is running.
+            Make sure VOLE_API_KEY is set and the server is running.
           </div>
           <button
             style={{ ...css.backBtn, marginTop: "20px", padding: "8px 16px" }}
@@ -748,7 +748,7 @@ export default function App() {
       {view === "sessions" && (
         <>
           <div style={css.header}>
-            <div style={css.title}>Peewit</div>
+            <div style={css.title}>Vole</div>
           </div>
           <SessionsPage
             onNewSession={() => void handleNewSession()}

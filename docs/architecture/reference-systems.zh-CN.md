@@ -7,9 +7,9 @@ English version: [reference-systems.md](./reference-systems.md)
 
 ## 1. 目的
 
-Peewit 应该学习已有 Agent 系统，但不能盲目复制。
+Vole 应该学习已有 Agent 系统，但不能盲目复制。
 
-OpenClaw 是 primary reference system，因为 Peewit 的目标就是从 0 到 1 实现一个 OpenClaw-like 的个人通用 Agent。
+OpenClaw 是 primary reference system，因为 Vole 的目标就是从 0 到 1 实现一个 OpenClaw-like 的个人通用 Agent。
 
 Claude Code 是 secondary reference system。它对 CLI 工作流、project memory、permissions、hooks、subagents 和 developer-agent 体验等工程实践很有帮助。
 
@@ -26,7 +26,7 @@ Claude Code 是 secondary reference system。它对 CLI 工作流、project memo
 
 OpenClaw 有用，因为它展示了个人 Agent 如何通过 agent workspace 维护 identity、memory、tools 和 long-running behavior。
 
-Peewit 应研究这些 OpenClaw 思路：
+Vole 应研究这些 OpenClaw 思路：
 
 - `SOUL.md`、`USER.md`、`MEMORY.md`、`AGENTS.md` 和 `TOOLS.md` 等 workspace files
 - `memory/YYYY-MM-DD.md` 等 daily memory files
@@ -40,7 +40,7 @@ Peewit 应研究这些 OpenClaw 思路：
 - Background tasks 和 heartbeat-style automation
 - Multi-agent 和 multi-workspace direction
 
-这些想法定义了 Peewit 的长期形态。
+这些想法定义了 Vole 的长期形态。
 
 详细 OpenClaw 映射：[OpenClaw Architecture Map](./openclaw-architecture-map.zh-CN.md)
 
@@ -50,7 +50,7 @@ Peewit 应研究这些 OpenClaw 思路：
 
 Claude Code 有用，因为它展示了 Agent 如何深入代码库工作，同时让用户控制和项目约定保持可见。
 
-Peewit 应研究这些 Claude Code 思路：
+Vole 应研究这些 Claude Code 思路：
 
 - CLI-first developer workflow
 - 通过 `CLAUDE.md` 实现 project memory
@@ -61,11 +61,11 @@ Peewit 应研究这些 Claude Code 思路：
 - Custom slash commands
 - 随时间扩展到 terminal、IDE、desktop 和 web 的 multi-surface usage
 
-这些想法尤其适用于 Peewit 早期 CLI、developer-agent 和 engineering-quality 阶段。
+这些想法尤其适用于 Vole 早期 CLI、developer-agent 和 engineering-quality 阶段。
 
 ## 4. 对比
 
-| Area | Claude Code Reference | OpenClaw Reference | Peewit Direction |
+| Area | Claude Code Reference | OpenClaw Reference | Vole Direction |
 | --- | --- | --- | --- |
 | First interface | CLI developer workflow | Messaging and personal assistant surfaces | CLI first, Web UI later, more adapters over time |
 | Project instructions | `CLAUDE.md` | `AGENTS.md` and workspace files | Start with `AGENTS.md`-style instructions, later support more workspace files |
@@ -79,7 +79,7 @@ Peewit 应研究这些 Claude Code 思路：
 
 ## 5. Prompt and Workspace File Plan
 
-Peewit 应从 OpenClaw 的 workspace model 出发，并用 Claude Code 的工程实践补强。
+Vole 应从 OpenClaw 的 workspace model 出发，并用 Claude Code 的工程实践补强。
 
 建议 prompt files：
 
@@ -101,10 +101,10 @@ MVP 不应自动加载所有这些文件。相反：
 
 Claude Code 的 settings hierarchy 是有用参考。
 
-Peewit 应支持：
+Vole 应支持：
 
-- User config：`~/.peewit/config.json`
-- Project config：`peewit.config.json`
+- User config：`~/.vole/config.json`
+- Project config：`vole.config.json`
 - 未来 local-only project config，用于不提交的个人偏好
 - 用于 secrets 的环境变量
 
@@ -112,7 +112,7 @@ Configuration 不应变成 memory。它描述 runtime behavior；memory 描述 l
 
 ## 7. Hook Plan
 
-Claude Code hooks 很有用，但 Peewit 不应太早实现 hooks。
+Claude Code hooks 很有用，但 Vole 不应太早实现 hooks。
 
 未来 hook events 可以包括：
 
@@ -138,7 +138,7 @@ Hooks 很强大，所以从一开始就应有测试和权限边界。
 
 Claude Code 的 subagents 是 task-specific workers 的强参考，它们拥有独立 context 和 tool permissions。
 
-Peewit 应在以下模块之后再做 subagents：
+Vole 应在以下模块之后再做 subagents：
 
 - Agent Loop
 - Tool System
@@ -160,7 +160,7 @@ Peewit 应在以下模块之后再做 subagents：
 
 ## 9. 不要复制什么
 
-Peewit 不应复制任一系统的所有内容。
+Vole 不应复制任一系统的所有内容。
 
 不要太早复制：
 
@@ -195,8 +195,8 @@ Reference systems 应该像影响 feature design 一样影响 test design。
 
 这份 reference plan 成功标准：
 
-- Peewit 记录 OpenClaw 是 primary reference，Claude Code 是 secondary engineering reference。
-- 借鉴的想法被映射到 Peewit phases。
+- Vole 记录 OpenClaw 是 primary reference，Claude Code 是 secondary engineering reference。
+- 借鉴的想法被映射到 Vole phases。
 - MVP 范围仍小于任一完整参考系统。
 - Prompt files、memory、hooks 和 subagents 有分阶段计划。
 - Safety 和 testing requirements 在实现前已记录。
@@ -214,7 +214,7 @@ Reference systems 应该像影响 feature design 一样影响 test design。
 
 ## 13. 相关文档
 
-- [主设计](../product/peewit-design.zh-CN.md)
+- [主设计](../product/vole-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)
 - [OpenClaw Architecture Map](./openclaw-architecture-map.zh-CN.md)
 - [Memory System](./memory-system.zh-CN.md)

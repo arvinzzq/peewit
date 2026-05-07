@@ -1,6 +1,6 @@
 # Skills
 
-Workspace-local skills. These take precedence over user-level (`~/.peewit/skills/`) and built-in skills.
+Workspace-local skills. These take precedence over user-level (`~/.vole/skills/`) and built-in skills.
 
 ## How Skills Work
 
@@ -94,5 +94,5 @@ See `skills/generate-tool-schema.md` as the reference example of a well-structur
 
 One skill = one domain or workflow. Don't bundle unrelated knowledge.
 
-Prefer: `peewit-dev`, `writing-style`, `data-analysis` — one skill per domain.
+Prefer: `vole-dev`, `writing-style`, `data-analysis` — one skill per domain.
 Avoid: a monolithic "everything about this project" skill.

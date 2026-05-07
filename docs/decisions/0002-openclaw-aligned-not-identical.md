@@ -7,32 +7,32 @@ Simplified Chinese version: [0002-openclaw-aligned-not-identical.zh-CN.md](./000
 
 ## 1. Context
 
-Peewit's target is to build an OpenClaw-like personal general-purpose agent.
+Vole's target is to build an OpenClaw-like personal general-purpose agent.
 
-OpenClaw is the primary architecture reference, but Peewit is also a learning project and a product for our own use. That means blindly copying every implementation detail would be the wrong goal.
+OpenClaw is the primary architecture reference, but Vole is also a learning project and a product for our own use. That means blindly copying every implementation detail would be the wrong goal.
 
 The project needs a clear position on how closely to match OpenClaw.
 
 ## 2. Decision
 
-Peewit will be:
+Vole will be:
 
 ```text
-OpenClaw-inspired, OpenClaw-aligned, Peewit-owned.
+OpenClaw-inspired, OpenClaw-aligned, Vole-owned.
 ```
 
 This means:
 
 - Product target: OpenClaw-like.
 - Architecture reference: OpenClaw-first.
-- Implementation details: owned by Peewit.
+- Implementation details: owned by Vole.
 - MVP: not full OpenClaw parity.
 - Long-term roadmap: gradual parity with OpenClaw's core capabilities.
 - Claude Code: secondary engineering-practice reference.
 
 ## 3. What Must Align
 
-Peewit should align with OpenClaw's core concepts:
+Vole should align with OpenClaw's core concepts:
 
 - Agent workspace
 - Workspace prompt files
@@ -54,7 +54,7 @@ These concepts represent the architecture shape of an OpenClaw-like personal age
 
 ## 4. What Does Not Need to Match Exactly
 
-Peewit does not need to copy:
+Vole does not need to copy:
 
 - Function names
 - File names outside public concepts
@@ -67,7 +67,7 @@ Peewit does not need to copy:
 - Exact default policies
 - Exact provider abstractions
 
-If OpenClaw has a mature implementation that is too complex for Peewit's current phase, Peewit should implement a simpler version first.
+If OpenClaw has a mature implementation that is too complex for Vole's current phase, Vole should implement a simpler version first.
 
 ## 5. Evaluation Rule
 
@@ -85,40 +85,40 @@ If the answer is no, defer or redesign it.
 
 ### Memory Files
 
-Peewit should keep the concepts of `SOUL.md`, `USER.md`, `MEMORY.md`, and daily memory files.
+Vole should keep the concepts of `SOUL.md`, `USER.md`, `MEMORY.md`, and daily memory files.
 
-Peewit does not need to immediately match OpenClaw's full memory engine, hybrid search, or dreaming behavior.
+Vole does not need to immediately match OpenClaw's full memory engine, hybrid search, or dreaming behavior.
 
 ### Gateway
 
-Peewit should keep the long-term gateway and multi-entry direction.
+Vole should keep the long-term gateway and multi-entry direction.
 
-Peewit does not need to implement a production-grade gateway in MVP.
+Vole does not need to implement a production-grade gateway in MVP.
 
 ### Skills
 
-Peewit should keep local `SKILL.md` skills and later evolve toward plugins.
+Vole should keep local `SKILL.md` skills and later evolve toward plugins.
 
-Peewit can start with a smaller skill loader and simpler prompt integration.
+Vole can start with a smaller skill loader and simpler prompt integration.
 
 ### Context Engine
 
-Peewit should adopt context assembly as a first-class concept.
+Vole should adopt context assembly as a first-class concept.
 
-Peewit can implement a simple deterministic assembler before introducing plugin-provided context engines.
+Vole can implement a simple deterministic assembler before introducing plugin-provided context engines.
 
 ## 7. Consequences
 
 Positive:
 
-- Peewit stays aligned with OpenClaw's shape.
+- Vole stays aligned with OpenClaw's shape.
 - MVP remains understandable and testable.
 - The project can make independent design trade-offs.
 - Documentation can explain why a feature is copied, simplified, deferred, or redesigned.
 
 Trade-offs:
 
-- Peewit may diverge from OpenClaw implementation details.
+- Vole may diverge from OpenClaw implementation details.
 - Some OpenClaw behaviors may need explicit compatibility decisions later.
 - We need regular research passes to avoid drifting away from important OpenClaw concepts.
 
@@ -127,4 +127,4 @@ Trade-offs:
 - [OpenClaw architecture map](../architecture/openclaw-architecture-map.md)
 - [OpenClaw implementation notes](../research/openclaw-implementation-notes.md)
 - [Reference systems](../architecture/reference-systems.md)
-- [Main design](../product/peewit-design.md)
+- [Main design](../product/vole-design.md)

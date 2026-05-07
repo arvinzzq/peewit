@@ -6,7 +6,7 @@
  * Update this header and the parent directory docs when responsibilities change.
  */
 
-export const adaptersPackageName = "@peewit/adapters";
+export const adaptersPackageName = "@vole/adapters";
 
 /**
  * AdapterStorageType describes the storage backend an adapter uses for sessions.

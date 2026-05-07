@@ -7,7 +7,7 @@ Simplified Chinese version: [0006-xml-prompt-format-and-caching.zh-CN.md](./0006
 
 ## Context
 
-Peewit's context assembler (Phase 3) produces a section-based system prompt. Two questions arose after reviewing OpenClaw source research:
+Vole's context assembler (Phase 3) produces a section-based system prompt. Two questions arose after reviewing OpenClaw source research:
 
 1. Should sections be delimited with plain Markdown headers or XML tags?
 2. Should the `AnthropicProvider` take advantage of Anthropic's prompt caching API?
@@ -20,7 +20,7 @@ Example output from the context assembler:
 
 ```xml
 <identity>
-Peewit is an OpenClaw-inspired personal general-purpose agent...
+Vole is an OpenClaw-inspired personal general-purpose agent...
 </identity>
 
 <safety>

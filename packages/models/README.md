@@ -4,10 +4,10 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ## Architecture Overview
 
-`@peewit/models` defines the **provider-neutral model contract** and implements concrete providers behind it. All other packages that need to call an LLM depend only on the `ModelProvider` interface — never on a vendor SDK directly.
+`@vole/models` defines the **provider-neutral model contract** and implements concrete providers behind it. All other packages that need to call an LLM depend only on the `ModelProvider` interface — never on a vendor SDK directly.
 
 ```
-@peewit/core
+@vole/core
     │  uses
     ▼
 ModelProvider (interface)

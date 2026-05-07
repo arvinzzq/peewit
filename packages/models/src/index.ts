@@ -7,7 +7,7 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 
-export const modelsPackageName = "@peewit/models";
+export const modelsPackageName = "@vole/models";
 
 export type ModelMessageRole = "system" | "user" | "assistant" | "tool";
 

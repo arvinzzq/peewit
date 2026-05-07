@@ -10,7 +10,7 @@
 
 ## Testing
 
-所有注册表操作都需要单元测试。使用固定时间戳和来自 `@peewit/adapters` 的 capability constants。不需要真实 API keys 或文件系统访问 — gateway 是纯内存注册表。
+所有注册表操作都需要单元测试。使用固定时间戳和来自 `@vole/adapters` 的 capability constants。不需要真实 API keys 或文件系统访问 — gateway 是纯内存注册表。
 
 ## Boundaries
 

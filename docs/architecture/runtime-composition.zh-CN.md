@@ -7,7 +7,7 @@ English version: [runtime-composition.md](./runtime-composition.md)
 
 ## 1. 目的
 
-Runtime composition 定义 Peewit 应用入口如何组装 configuration、model providers、tools、permissions、context、sessions、trace 和 Agent Core。
+Runtime composition 定义 Vole 应用入口如何组装 configuration、model providers、tools、permissions、context、sessions、trace 和 Agent Core。
 
 核心规则：
 
@@ -68,20 +68,20 @@ CLI 入口可以拥有应用启动，但应该把 setup details 委托给 packag
 apps/cli ──────────────────────────────────────────┐
 apps/web ──────────────────────────────────────────┤
          │                                          │
-         ├──▶ @peewit/core ◀── @peewit/scheduler
+         ├──▶ @vole/core ◀── @vole/scheduler
          │         │
-         │         ├──▶ @peewit/context ──▶ @peewit/models
-         │         ├──▶ @peewit/models
-         │         ├──▶ @peewit/permissions
-         │         └──▶ @peewit/tools
+         │         ├──▶ @vole/context ──▶ @vole/models
+         │         ├──▶ @vole/models
+         │         ├──▶ @vole/permissions
+         │         └──▶ @vole/tools
          │
-         ├──▶ @peewit/config
-         ├──▶ @peewit/sessions
-         ├──▶ @peewit/gateway ──▶ @peewit/adapters
-         ├──▶ @peewit/adapters
-         ├──▶ @peewit/skills
-         ├──▶ @peewit/taskflow
-         └──▶ @peewit/scheduler ──▶ @peewit/core（仅类型）
+         ├──▶ @vole/config
+         ├──▶ @vole/sessions
+         ├──▶ @vole/gateway ──▶ @vole/adapters
+         ├──▶ @vole/adapters
+         ├──▶ @vole/skills
+         ├──▶ @vole/taskflow
+         └──▶ @vole/scheduler ──▶ @vole/core（仅类型）
 ```
 
 `packages/core` 依赖 `context`、`models`、`permissions`、`tools` 的接口和领域类型。它不得依赖任何 adapter、config、sessions、gateway 或 scheduler 代码。

@@ -7,18 +7,18 @@ Simplified Chinese version: [node-protocol.zh-CN.md](./node-protocol.zh-CN.md)
 
 ## 1. Purpose
 
-This document describes Peewit's future direction toward a multi-node agent architecture and establishes the Phase 10 foundation that makes that direction possible.
+This document describes Vole's future direction toward a multi-node agent architecture and establishes the Phase 10 foundation that makes that direction possible.
 
 ## 2. Future Multi-Node Direction
 
-A node is any process or device that can host one or more `AgentRuntime` instances and communicate with other nodes. In a mature multi-node Peewit:
+A node is any process or device that can host one or more `AgentRuntime` instances and communicate with other nodes. In a mature multi-node Vole:
 
 - A desktop node might host the primary personal agent.
 - A server node might host long-running background tasks.
 - A mobile node might host a lightweight read-only assistant.
 - Nodes communicate over a shared protocol: session events, tool results, approval requests, and heartbeats.
 
-This is the direction OpenClaw's architecture points toward. Peewit will approach it incrementally.
+This is the direction OpenClaw's architecture points toward. Vole will approach it incrementally.
 
 ## 3. Phase 10 Foundation: Single-Process Sub-Agents
 
@@ -32,7 +32,7 @@ These primitives are the in-process equivalents of what a multi-node protocol wo
 
 ## 4. Protocol Shape for Phase 10+
 
-When Peewit adds a real node protocol in a future phase, the expected message types are:
+When Vole adds a real node protocol in a future phase, the expected message types are:
 
 - `session.register` — a node announces a new session and its capabilities.
 - `session.heartbeat` — a node confirms a session is still alive.

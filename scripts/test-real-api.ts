@@ -79,7 +79,7 @@ function makeRuntime(opts: {
     permissionPolicy: new DefaultPermissionPolicy(),
     approvalResolver: opts.approvalResolver,
     tools: opts.tools ?? [],
-    systemInstruction: "You are Peewit, a helpful assistant. Be concise.",
+    systemInstruction: "You are Vole, a helpful assistant. Be concise.",
     runtime: { mode: "auto", workspace: process.cwd(), currentDate: new Date().toISOString().slice(0, 10) },
     preferStreaming: opts.preferStreaming ?? false,
     maxSteps: opts.maxSteps ?? 6,
@@ -101,7 +101,7 @@ async function collectTurn(runtime: AgentRuntime, message: string) {
 
 // ── Header ────────────────────────────────────────────────────────────────────
 console.log();
-console.log(C.bold("Peewit — Real API Integration Tests"));
+console.log(C.bold("Vole — Real API Integration Tests"));
 console.log(C.dim(`Provider : openai-compatible (OpenRouter)`));
 console.log(C.dim(`Model    : ${config.model.model}`));
 console.log(C.dim(`BaseURL  : ${config.model.baseURL}`));
@@ -166,18 +166,18 @@ await runTest("T4 · Tool call — read_file + answer from content", async () =>
     "Read the file 'package.json' and tell me the project name."
   );
   const toolDone = eventTypes.includes("tool_completed");
-  const mentionsPeewit = assistantText.toLowerCase().includes("peewit");
+  const mentionsVole = assistantText.toLowerCase().includes("vole");
   return {
-    passed: !failed && toolDone && mentionsPeewit,
+    passed: !failed && toolDone && mentionsVole,
     note: failed ? failMsg
-      : `tool_completed=${toolDone}, mentions 'peewit'=${mentionsPeewit}  "${assistantText.slice(0,80)}"`,
+      : `tool_completed=${toolDone}, mentions 'vole'=${mentionsVole}  "${assistantText.slice(0,80)}"`,
     events: eventTypes,
   };
 });
 
 // ─── T5: Approval flow — permission system (fake tool call + real approval) ──
 await runTest("T5 · Permission approval — confirm mode routes medium-risk through approval", async () => {
-  const tmpFile = join(tmpdir(), `peewit-test-${Date.now()}.txt`);
+  const tmpFile = join(tmpdir(), `vole-test-${Date.now()}.txt`);
 
   // Use fake model to reliably inject a write_file tool call
   const fakeProvider = new FakeModelProvider([
@@ -186,7 +186,7 @@ await runTest("T5 · Permission approval — confirm mode routes medium-risk thr
       calls: [{
         id: "call_1",
         name: "write_file",
-        input: { path: tmpFile, content: "peewit test ok" }
+        input: { path: tmpFile, content: "vole test ok" }
       }]
     },
     { type: "message", content: "File written successfully." }
@@ -206,7 +206,7 @@ await runTest("T5 · Permission approval — confirm mode routes medium-risk thr
     permissionPolicy: new DefaultPermissionPolicy(),
     approvalResolver,
     tools: [createWriteFileTool()],
-    systemInstruction: "You are Peewit.",
+    systemInstruction: "You are Vole.",
     runtime: { mode: "confirm", workspace: process.cwd(), currentDate: new Date().toISOString().slice(0, 10) },
   });
 
@@ -251,7 +251,7 @@ await runTest("T7 · Planning stall — detected and run terminates", async () =
     contextAssembler: new DefaultContextAssembler(),
     modelProvider: fakeProvider,
     tools: [createReadFileTool()],
-    systemInstruction: "You are Peewit.",
+    systemInstruction: "You are Vole.",
     maxPlanningStallRetries: 2,
   });
   const { eventTypes } = await collectTurn(runtime, "Read package.json and summarize it.");
@@ -266,7 +266,7 @@ await runTest("T7 · Planning stall — detected and run terminates", async () =
 await runTest("T8 · Context assembly — XML sections built correctly", async () => {
   const assembler = new DefaultContextAssembler();
   const result = await assembler.assemble({
-    systemInstruction: "You are Peewit.",
+    systemInstruction: "You are Vole.",
     runtime: { mode: "confirm", workspace: process.cwd(), currentDate: "2026-05-07" },
     tools: [{ name: "read_file", description: "Read a file.", risk: "low" }],
     permissionGuidance: "Low risk auto-approved.",

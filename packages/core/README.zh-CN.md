@@ -4,17 +4,17 @@ English version: [README.md](./README.md)
 
 ## 架构概述
 
-`@peewit/core` 是 Agent 运行时编排层，处于整个包依赖图的中心。它消费所有其他领域包，并向上方的 Adapter（CLI、Web）暴露统一的运行时接口。
+`@vole/core` 是 Agent 运行时编排层，处于整个包依赖图的中心。它消费所有其他领域包，并向上方的 Adapter（CLI、Web）暴露统一的运行时接口。
 
 ```
 CLI / Web adapter
         │
         ▼
-   AgentRuntime          ← @peewit/core
-  ├─ ContextAssembler    (@peewit/context)
-  ├─ ModelProvider       (@peewit/models)
-  ├─ PermissionPolicy    (@peewit/permissions)
-  └─ ExecutableTool[]    (@peewit/tools)
+   AgentRuntime          ← @vole/core
+  ├─ ContextAssembler    (@vole/context)
+  ├─ ModelProvider       (@vole/models)
+  ├─ PermissionPolicy    (@vole/permissions)
+  └─ ExecutableTool[]    (@vole/tools)
 ```
 
 Core 必须保持 **adapter 无关**（不含终端渲染或 HTTP 代码）和 **vendor 无关**（不导入 Anthropic 或 OpenAI SDK）。Adapter 调用 `AgentRuntime.runTurn()` 并消费其异步生成器产生的 `RuntimeEvent` 对象。

@@ -10,7 +10,7 @@ import { exec } from "node:child_process";
 import { access, readdir, readFile, stat as statFs, writeFile as writeFileFs, mkdir } from "node:fs/promises";
 import { resolve, relative, basename, extname, dirname, join } from "node:path";
 
-export const toolsPackageName = "@peewit/tools";
+export const toolsPackageName = "@vole/tools";
 
 export type ToolRiskLevel = "low" | "medium" | "high" | "blocked";
 

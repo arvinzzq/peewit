@@ -7,7 +7,7 @@ Simplified Chinese version: [0004-documentation-maintenance-policy.zh-CN.md](./0
 
 ## 1. Context
 
-Peewit is both a usable product and a learning project for understanding OpenClaw-like agent architecture.
+Vole is both a usable product and a learning project for understanding OpenClaw-like agent architecture.
 
 That makes documentation part of the implementation, not a separate afterthought. A reader should be able to open a module, understand what role it plays in the agent system, and know which files matter before reading every line of code.
 
@@ -15,7 +15,7 @@ At the same time, documentation rules can become too heavy. If every small edit 
 
 ## 2. Decision
 
-Peewit will use a lightweight file-explanation policy:
+Vole will use a lightweight file-explanation policy:
 
 1. Every architecture module directory must have local README and AGENTS guides.
 2. Every important project document must keep English and Simplified Chinese versions aligned.
@@ -71,7 +71,7 @@ Core source entry files should include a short header:
 /**
  * INPUT: Main imports, external APIs, environment variables, or injected dependencies.
  * OUTPUT: Main exports, side effects, or public API surface.
- * POS: The file's position in the Peewit architecture.
+ * POS: The file's position in the Vole architecture.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
@@ -116,7 +116,7 @@ When project workflow changes:
 
 ## 6. Code Comment Policy
 
-Peewit should use comments to explain architecture intent, safety boundaries, and non-obvious trade-offs. Comments should not repeat what clear names and tests already explain.
+Vole should use comments to explain architecture intent, safety boundaries, and non-obvious trade-offs. Comments should not repeat what clear names and tests already explain.
 
 Add concise comments for:
 

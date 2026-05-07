@@ -23,37 +23,37 @@ importers:
 
   apps/cli:
     dependencies:
-      '@peewit/adapters':
+      '@vole/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
-      '@peewit/config':
+      '@vole/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@peewit/context':
+      '@vole/context':
         specifier: workspace:*
         version: link:../../packages/context
-      '@peewit/core':
+      '@vole/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@peewit/gateway':
+      '@vole/gateway':
         specifier: workspace:*
         version: link:../../packages/gateway
-      '@peewit/models':
+      '@vole/models':
         specifier: workspace:*
         version: link:../../packages/models
-      '@peewit/scheduler':
+      '@vole/scheduler':
         specifier: workspace:*
         version: link:../../packages/scheduler
-      '@peewit/sessions':
+      '@vole/sessions':
         specifier: workspace:*
         version: link:../../packages/sessions
-      '@peewit/skills':
+      '@vole/skills':
         specifier: workspace:*
         version: link:../../packages/skills
-      '@peewit/taskflow':
+      '@vole/taskflow':
         specifier: workspace:*
         version: link:../../packages/taskflow
-      '@peewit/tools':
+      '@vole/tools':
         specifier: workspace:*
         version: link:../../packages/tools
       dotenv:
@@ -78,31 +78,31 @@ importers:
       '@hono/node-server':
         specifier: ^1.14.4
         version: 1.19.14(hono@4.12.16)
-      '@peewit/adapters':
+      '@vole/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
-      '@peewit/config':
+      '@vole/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@peewit/context':
+      '@vole/context':
         specifier: workspace:*
         version: link:../../packages/context
-      '@peewit/core':
+      '@vole/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@peewit/gateway':
+      '@vole/gateway':
         specifier: workspace:*
         version: link:../../packages/gateway
-      '@peewit/models':
+      '@vole/models':
         specifier: workspace:*
         version: link:../../packages/models
-      '@peewit/sessions':
+      '@vole/sessions':
         specifier: workspace:*
         version: link:../../packages/sessions
-      '@peewit/skills':
+      '@vole/skills':
         specifier: workspace:*
         version: link:../../packages/skills
-      '@peewit/tools':
+      '@vole/tools':
         specifier: workspace:*
         version: link:../../packages/tools
       hono:
@@ -146,28 +146,28 @@ importers:
 
   packages/context:
     dependencies:
-      '@peewit/models':
+      '@vole/models':
         specifier: workspace:*
         version: link:../models
 
   packages/core:
     dependencies:
-      '@peewit/context':
+      '@vole/context':
         specifier: workspace:*
         version: link:../context
-      '@peewit/models':
+      '@vole/models':
         specifier: workspace:*
         version: link:../models
-      '@peewit/permissions':
+      '@vole/permissions':
         specifier: workspace:*
         version: link:../permissions
-      '@peewit/tools':
+      '@vole/tools':
         specifier: workspace:*
         version: link:../tools
 
   packages/gateway:
     dependencies:
-      '@peewit/adapters':
+      '@vole/adapters':
         specifier: workspace:*
         version: link:../adapters
 
@@ -181,10 +181,10 @@ importers:
 
   packages/scheduler:
     dependencies:
-      '@peewit/core':
+      '@vole/core':
         specifier: workspace:*
         version: link:../core
-      '@peewit/sessions':
+      '@vole/sessions':
         specifier: workspace:*
         version: link:../sessions
 
@@ -194,7 +194,7 @@ importers:
 
   packages/taskflow:
     dependencies:
-      '@peewit/sessions':
+      '@vole/sessions':
         specifier: workspace:*
         version: link:../sessions
 

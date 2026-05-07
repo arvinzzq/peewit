@@ -1,6 +1,6 @@
-# Peewit — Workspace Context
+# Vole — Workspace Context
 
-This is the Peewit monorepo: a TypeScript pnpm workspace implementing an OpenClaw-inspired personal agent. 12 packages + 2 adapter apps.
+This is the Vole monorepo: a TypeScript pnpm workspace implementing an OpenClaw-inspired personal agent. 12 packages + 2 adapter apps.
 
 ## Essential Commands
 

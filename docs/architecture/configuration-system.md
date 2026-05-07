@@ -7,7 +7,7 @@ Simplified Chinese version: [configuration-system.zh-CN.md](./configuration-syst
 
 ## 1. Purpose
 
-The configuration system defines how Peewit loads non-sensitive settings, secret references, defaults, and runtime overrides.
+The configuration system defines how Vole loads non-sensitive settings, secret references, defaults, and runtime overrides.
 
 It should let the product start simply while preventing configuration logic from leaking into Agent Core, model providers, tools, permissions, or the CLI.
 
@@ -35,8 +35,8 @@ Without a shared configuration boundary, the first CLI implementation would scat
 MVP layers:
 
 1. Built-in defaults
-2. User config: `~/.peewit/config.json`
-3. Project config: `<workspace>/peewit.config.json`
+2. User config: `~/.vole/config.json`
+3. Project config: `<workspace>/vole.config.json`
 4. Environment variables
 5. CLI flags
 6. Runtime chat commands, when explicitly supported
@@ -97,7 +97,7 @@ The exact schema can be refined during implementation, but the MVP should cover:
     "allowLowRisk": true
   },
   "sessions": {
-    "directory": "~/.peewit/sessions"
+    "directory": "~/.vole/sessions"
   }
 }
 ```
@@ -110,12 +110,12 @@ Secrets must not be stored in workspace prompt files or committed project config
 
 MVP secret sources:
 
-- `PEEWIT_API_KEY`
-- `OPENROUTER_API_KEY`, which selects the OpenRouter OpenAI-compatible endpoint unless generic Peewit overrides are also set
+- `VOLE_API_KEY`
+- `OPENROUTER_API_KEY`, which selects the OpenRouter OpenAI-compatible endpoint unless generic Vole overrides are also set
 
 Future secret sources:
 
-- Provider-specific keys such as `PEEWIT_OPENAI_API_KEY`
+- Provider-specific keys such as `VOLE_OPENAI_API_KEY`
 - Encrypted local secret file
 - OS keychain
 - Cloud secret provider for team deployments
@@ -140,7 +140,7 @@ Example:
 
 ```text
 Missing API key for provider "openai-compatible".
-Set PEEWIT_API_KEY, OPENROUTER_API_KEY, or configure a supported secret source.
+Set VOLE_API_KEY, OPENROUTER_API_KEY, or configure a supported secret source.
 ```
 
 ## 8. Redaction
@@ -218,7 +218,7 @@ Permission package owns final risk decisions.
 
 Configuration files and workspace prompt files are different surfaces.
 
-- `peewit.config.json` configures runtime behavior.
+- `vole.config.json` configures runtime behavior.
 - `AGENTS.md` and related files guide agent behavior.
 - Prompt files must not store secrets.
 - Prompt files must not override permission policy.
@@ -260,7 +260,7 @@ The MVP configuration system is successful when:
 
 ## 16. Related Documents
 
-- [Main design](../product/peewit-design.md)
+- [Main design](../product/vole-design.md)
 - [Roadmap](../roadmap/overview.md)
 - [CLI Adapter](./cli-adapter.md)
 - [Model Provider](./model-provider.md)

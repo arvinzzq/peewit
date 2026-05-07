@@ -5,11 +5,11 @@
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
-import type { ModelInput, ModelMessage, ModelProvider } from "@peewit/models";
+import type { ModelInput, ModelMessage, ModelProvider } from "@vole/models";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-export const contextPackageName = "@peewit/context";
+export const contextPackageName = "@vole/context";
 
 export type PromptMode = "full" | "minimal" | "none";
 
@@ -105,7 +105,7 @@ export class DefaultContextAssembler implements ContextAssembler {
       };
     }
 
-    // identity: who Peewit is (always included in full and minimal)
+    // identity: who Vole is (always included in full and minimal)
     systemParts.push(`<identity>\n${input.systemInstruction}\n</identity>`);
     sectionReports.push({ name: "identity", included: true });
 

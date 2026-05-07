@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { JsonlTaskStore, BackgroundApprovalResolver, CronScheduler, matchesCron, type TaskRunRecord } from "./index.js";
-import type { ApprovalRequest } from "@peewit/core";
+import type { ApprovalRequest } from "@vole/core";
 
 describe("JsonlTaskStore", () => {
   let tmpDir: string;

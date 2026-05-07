@@ -2,9 +2,9 @@ import { describe, expect, test } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { DefaultContextAssembler } from "@peewit/context";
-import { FakeModelProvider, FakeStreamingProvider } from "@peewit/models";
-import { createReadFileTool } from "@peewit/tools";
+import { DefaultContextAssembler } from "@vole/context";
+import { FakeModelProvider, FakeStreamingProvider } from "@vole/models";
+import { createReadFileTool } from "@vole/tools";
 import {
   AgentRuntime,
   InMemoryRuntimeTraceStore,
@@ -168,7 +168,7 @@ describe("message-only AgentRuntime", () => {
     const runtime = new AgentRuntime({
       contextAssembler: new DefaultContextAssembler(),
       modelProvider,
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       runtime: {
         mode: "confirm",
         workspace: "/workspace/project",
@@ -216,7 +216,7 @@ describe("message-only AgentRuntime", () => {
           recoverable: true
         }
       ]),
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       createRunId: () => "run_2",
       createEventId: (() => {
         let next = 0;
@@ -253,7 +253,7 @@ describe("message-only AgentRuntime", () => {
     const runtime = new AgentRuntime({
       contextAssembler: new DefaultContextAssembler(),
       modelProvider,
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       createRunId: () => "run_memory",
       createEventId: (() => {
         let next = 0;
@@ -303,7 +303,7 @@ describe("message-only AgentRuntime", () => {
           ]
         }
       ]),
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       createRunId: () => "run_tool",
       createEventId: (() => {
         let next = 0;
@@ -376,7 +376,7 @@ describe("message-only AgentRuntime", () => {
           };
         }
       },
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       runtime: {
         mode: "auto",
         workspace: "/workspace/project",
@@ -444,7 +444,7 @@ describe("message-only AgentRuntime", () => {
           });
         }
       },
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       createRunId: () => "run_approval",
       createEventId: (() => {
         let next = 0;
@@ -497,7 +497,7 @@ describe("message-only AgentRuntime", () => {
   });
 
   test("executes an allowed tool call and sends the observation back to the model", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "peewit-core-tools-"));
+    const workspace = await mkdtemp(join(tmpdir(), "vole-core-tools-"));
     await writeFile(join(workspace, "README.md"), "Tool observation content.");
     const modelProvider = new FakeModelProvider([
       {
@@ -521,7 +521,7 @@ describe("message-only AgentRuntime", () => {
       contextAssembler: new DefaultContextAssembler(),
       modelProvider,
       tools: [createReadFileTool()],
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       runtime: {
         mode: "confirm",
         workspace,
@@ -597,14 +597,14 @@ describe("message-only AgentRuntime", () => {
   });
 
   test("passes registered tool definitions to the model provider", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "peewit-core-tools-"));
+    const workspace = await mkdtemp(join(tmpdir(), "vole-core-tools-"));
     await writeFile(join(workspace, "README.md"), "Hello.");
     const modelProvider = new FakeModelProvider([{ type: "message", content: "Done." }]);
     const runtime = new AgentRuntime({
       contextAssembler: new DefaultContextAssembler(),
       modelProvider,
       tools: [createReadFileTool()],
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       runtime: { mode: "confirm", workspace, currentDate: "2026-05-03" },
       createRunId: () => "run_tool_defs",
       createEventId: (() => { let n = 0; return () => `evt_td_${++n}`; })(),
@@ -619,7 +619,7 @@ describe("message-only AgentRuntime", () => {
   });
 
   test("loops for multiple tool-calling rounds until model returns a message", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "peewit-core-tools-"));
+    const workspace = await mkdtemp(join(tmpdir(), "vole-core-tools-"));
     await writeFile(join(workspace, "a.txt"), "first");
     await writeFile(join(workspace, "b.txt"), "second");
     const modelProvider = new FakeModelProvider([
@@ -637,7 +637,7 @@ describe("message-only AgentRuntime", () => {
       contextAssembler: new DefaultContextAssembler(),
       modelProvider,
       tools: [createReadFileTool()],
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       runtime: { mode: "confirm", workspace, currentDate: "2026-05-03" },
       createRunId: () => "run_multi",
       createEventId: (() => { let n = 0; return () => `evt_multi_${++n}`; })(),
@@ -667,7 +667,7 @@ describe("message-only AgentRuntime", () => {
     const runtime = new AgentRuntime({
       contextAssembler: new DefaultContextAssembler(),
       modelProvider,
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       createRunId: () => "run_unknown_tool",
       createEventId: (() => { let n = 0; return () => `evt_ut_${++n}`; })(),
       now: () => "2026-05-03T01:30:00.000Z"
@@ -720,7 +720,7 @@ describe("message-only AgentRuntime", () => {
       contextAssembler: new DefaultContextAssembler(),
       modelProvider,
       tools: [throwingTool],
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-03" },
       createRunId: () => "run_tool_crash",
       createEventId: (() => { let n = 0; return () => `evt_tc_${++n}`; })(),
@@ -756,7 +756,7 @@ describe("message-only AgentRuntime", () => {
   });
 
   test("stops with run_failed when maxSteps is exceeded", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "peewit-core-tools-"));
+    const workspace = await mkdtemp(join(tmpdir(), "vole-core-tools-"));
     await writeFile(join(workspace, "file.txt"), "content");
     // Provide infinite tool_calls outputs by giving more than maxSteps
     const modelProvider = new FakeModelProvider(
@@ -770,7 +770,7 @@ describe("message-only AgentRuntime", () => {
       modelProvider,
       tools: [createReadFileTool()],
       maxSteps: 2,
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       runtime: { mode: "confirm", workspace, currentDate: "2026-05-03" },
       createRunId: () => "run_limit",
       createEventId: (() => { let n = 0; return () => `evt_limit_${++n}`; })(),
@@ -789,11 +789,11 @@ describe("message-only AgentRuntime", () => {
 
 
 describe("planning stall detection", () => {
-  function makeRuntime(outputs: import("@peewit/models").ModelOutput[], overrides: Partial<import("./index.js").AgentRuntimeDependencies> = {}) {
+  function makeRuntime(outputs: import("@vole/models").ModelOutput[], overrides: Partial<import("./index.js").AgentRuntimeDependencies> = {}) {
     return new AgentRuntime({
       contextAssembler: new DefaultContextAssembler(),
       modelProvider: new FakeModelProvider(outputs),
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       tools: [createReadFileTool()],
       createRunId: () => "run_stall",
       createEventId: (() => { let n = 0; return () => `evt_st_${++n}`; })(),
@@ -830,7 +830,7 @@ describe("planning stall detection", () => {
   });
 
   test("does not detect stall when model calls a tool", async () => {
-    const workspace = await mkdtemp(join(tmpdir(), "peewit-stall-"));
+    const workspace = await mkdtemp(join(tmpdir(), "vole-stall-"));
     try {
       await writeFile(join(workspace, "README.md"), "hello");
       const runtime = new AgentRuntime({
@@ -839,7 +839,7 @@ describe("planning stall detection", () => {
           { type: "tool_calls", calls: [{ id: "tc1", name: "read_file", input: { path: "README.md" } }] },
           { type: "message", content: "Summary: hello." }
         ]),
-        systemInstruction: "You are Peewit.",
+        systemInstruction: "You are Vole.",
         tools: [createReadFileTool()],
         runtime: { mode: "auto", workspace, currentDate: "2026-05-04" },
         createRunId: () => "run_no_stall",
@@ -860,7 +860,7 @@ describe("planning stall detection", () => {
       modelProvider: new FakeModelProvider([
         { type: "message", content: "I'll think about this step by step." }
       ]),
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       createRunId: () => "run_no_tool",
       createEventId: (() => { let n = 0; return () => `evt_nt_${++n}`; })(),
       now: () => "2026-05-04T10:00:00.000Z"
@@ -875,7 +875,7 @@ describe("planning stall detection", () => {
     // this turn, a subsequent message that uses planning-like language is reporting
     // results, not stalling. Without this guard, a structured summary response
     // (e.g. "I'll summarize:\n1. X\n2. Y") after read_file triggers a false stall.
-    const workspace = await mkdtemp(join(tmpdir(), "peewit-stall-"));
+    const workspace = await mkdtemp(join(tmpdir(), "vole-stall-"));
     try {
       await writeFile(join(workspace, "README.md"), "hello");
       const planLikeMessages = [
@@ -893,7 +893,7 @@ describe("planning stall detection", () => {
             { type: "tool_calls", calls: [{ id: "tc1", name: "read_file", input: { path: "README.md" } }] },
             { type: "message", content: msg }
           ]),
-          systemInstruction: "You are Peewit.",
+          systemInstruction: "You are Vole.",
           tools: [createReadFileTool()],
           runtime: { mode: "auto", workspace, currentDate: "2026-05-04" },
           createRunId: () => "run_post_tool",
@@ -929,7 +929,7 @@ describe("planning stall detection", () => {
         { type: "message", content: "I'll read the file and summarize it." },
         { type: "message", content: "Done." }
       ]),
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       tools: [createReadFileTool()],
       createRunId: () => "run_todos_only",
       createEventId: (() => { let n = 0; return () => `evt_to_${++n}`; })(),
@@ -1028,7 +1028,7 @@ describe("todos_updated event", () => {
         },
         { type: "message", content: "Done." }
       ]),
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       runtime: { mode: "auto", workspace, currentDate: "2026-05-04" },
       createRunId: () => "run_todos",
       createEventId: (() => { let n = 0; return () => `evt_td_${++n}`; })(),
@@ -1047,7 +1047,7 @@ describe("todos_updated event", () => {
     const runtime = new AgentRuntime({
       contextAssembler: new DefaultContextAssembler(),
       modelProvider: new FakeModelProvider([{ type: "message", content: "Done." }]),
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       createRunId: () => "run_no_todos",
       createEventId: (() => { let n = 0; return () => `evt_no_${++n}`; })(),
       now: () => "2026-05-04T10:00:00.000Z"
@@ -1062,7 +1062,7 @@ describe("streaming path", () => {
     const runtime = new AgentRuntime({
       contextAssembler: new DefaultContextAssembler(),
       modelProvider: new FakeStreamingProvider([["Hello", " ", "world"]]),
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       preferStreaming: true,
       createRunId: () => "run_stream",
       createEventId: (() => { let n = 0; return () => `evt_s_${++n}`; })(),
@@ -1084,7 +1084,7 @@ describe("streaming path", () => {
     const runtime = new AgentRuntime({
       contextAssembler: new DefaultContextAssembler(),
       modelProvider: new FakeStreamingProvider([["Hello", " ", "world"]]),
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       createRunId: () => "run_nostream",
       createEventId: (() => { let n = 0; return () => `evt_ns_${++n}`; })(),
       now: () => "2026-05-05T10:00:00.000Z"
@@ -1145,11 +1145,11 @@ describe("createSpawnSubagentTool", () => {
 });
 
 describe("AgentHooks", () => {
-  function makeHooksRuntime(hooks: AgentHooks, outputs: import("@peewit/models").ModelOutput[]) {
+  function makeHooksRuntime(hooks: AgentHooks, outputs: import("@vole/models").ModelOutput[]) {
     return new AgentRuntime({
       contextAssembler: new DefaultContextAssembler(),
       modelProvider: new FakeModelProvider(outputs),
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       hooks,
       createRunId: () => "run_hooks",
       createEventId: (() => { let n = 0; return () => `evt_h_${++n}`; })(),
@@ -1209,7 +1209,7 @@ describe("AgentHooks", () => {
           }
         }
       ],
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       hooks,
       runtime: { mode: "auto", workspace: "/workspace", currentDate: "2026-05-05" },
       createRunId: () => "run_abort",
@@ -1263,7 +1263,7 @@ describe("AgentHooks", () => {
           execute: async () => ({ ok: true as const, content: "noop2", summary: "noop2" })
         }
       ],
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       hooks,
       runtime: { mode: "auto", workspace, currentDate: "2026-05-05" },
       createRunId: () => "run_after",
@@ -1287,7 +1287,7 @@ describe("strict-agentic execution contract", () => {
         { type: "message", content: "I will now search for the answer." },
         { type: "message", content: "Done." }
       ]),
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       tools: [createReadFileTool()],
       executionContract: "strict-agentic",
       createRunId: () => "run_strict",
@@ -1313,7 +1313,7 @@ describe("strict-agentic execution contract", () => {
         { type: "message", content: "Let me investigate the contents." },
         { type: "message", content: "Done." }
       ]),
-      systemInstruction: "You are Peewit.",
+      systemInstruction: "You are Vole.",
       tools: [createReadFileTool()],
       createRunId: () => "run_default",
       createEventId: (() => { let n = 0; return () => `evt_def_${++n}`; })(),

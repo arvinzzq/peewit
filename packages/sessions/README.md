@@ -4,7 +4,7 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ## Architecture Overview
 
-`@peewit/sessions` owns the **session persistence boundary**: it stores conversation messages and runtime trace events with session scope. It keeps persistence concerns completely separate from runtime orchestration, permission logic, and UI rendering.
+`@vole/sessions` owns the **session persistence boundary**: it stores conversation messages and runtime trace events with session scope. It keeps persistence concerns completely separate from runtime orchestration, permission logic, and UI rendering.
 
 ```
 CLI / Web adapter
@@ -42,7 +42,7 @@ interface SessionMessageRecord {
 }
 ```
 
-A `SessionTraceEventRecord<TEvent>` is a generic wrapper around any event type (typically `RuntimeEvent` from `@peewit/core`):
+A `SessionTraceEventRecord<TEvent>` is a generic wrapper around any event type (typically `RuntimeEvent` from `@vole/core`):
 
 ```typescript
 interface SessionTraceEventRecord<TEvent = unknown> {

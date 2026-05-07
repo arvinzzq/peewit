@@ -4,7 +4,7 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ## Architecture Overview
 
-`@peewit/gateway` owns the **session gateway registry**: an in-process registry that tracks which sessions are active, which adapter is hosting each session, and what capabilities that adapter has. It enables multi-adapter coordination without coupling adapters to each other.
+`@vole/gateway` owns the **session gateway registry**: an in-process registry that tracks which sessions are active, which adapter is hosting each session, and what capabilities that adapter has. It enables multi-adapter coordination without coupling adapters to each other.
 
 ```
 apps/cli ──register──▶
@@ -22,7 +22,7 @@ The gateway holds no agent logic, stores no messages, and makes no policy decisi
 interface GatewaySession {
   id: string;
   adapterName: string;           // "cli", "web", "background", etc.
-  capabilities: AdapterCapabilities;  // from @peewit/adapters
+  capabilities: AdapterCapabilities;  // from @vole/adapters
   registeredAt: string;
   lastActivityAt: string;        // updated by touch()
 }
@@ -51,7 +51,7 @@ Without the gateway, a multi-adapter system would require adapters to import eac
 
 ### Why Not Persist
 
-The gateway tracks _live_ sessions — sessions that are currently connected. When a process restarts, all sessions end and adapters re-register. Historical session data belongs in `@peewit/sessions`, not the gateway. The gateway's single source of truth is the current process state.
+The gateway tracks _live_ sessions — sessions that are currently connected. When a process restarts, all sessions end and adapters re-register. Historical session data belongs in `@vole/sessions`, not the gateway. The gateway's single source of truth is the current process state.
 
 ### touch() vs. Direct Update
 
@@ -67,7 +67,7 @@ The `capabilities` field on each `GatewaySession` enables future routing decisio
 
 | File | Role | Purpose |
 |---|---|---|
-| `package.json` | Package manifest | Declares the gateway package with dependency on `@peewit/adapters`. |
+| `package.json` | Package manifest | Declares the gateway package with dependency on `@vole/adapters`. |
 | `tsconfig.json` | TypeScript config | Builds the gateway package with a project reference to adapters. |
 | `src/index.ts` | Session gateway | All exports: `GatewaySession`, `SessionGateway`, `gatewayPackageName`. |
 | `src/index.test.ts` | Gateway tests | Protects register, unregister, touch, get, list, and listByAdapter behavior including edge cases. |
