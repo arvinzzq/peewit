@@ -25,6 +25,7 @@ describe("runtime event contracts", () => {
     expect(runtimeEventTypes).toEqual([
       "run_started",
       "context_assembled",
+      "compaction_triggered",
       "todos_updated",
       "planning_stall_detected",
       "model_request_started",
@@ -1274,6 +1275,55 @@ describe("AgentHooks", () => {
     const events = await collect(runtime.runTurn({ message: "Run tool." }));
     expect(afterCalls).toEqual(["noop_tool2"]);
     expect(events.map((e) => e.type)).toContain("tool_completed");
+  });
+});
+
+describe("compaction_triggered event", () => {
+  test("emits compaction_triggered when message count exceeds maxMessages", async () => {
+    // Build enough recentMessages to push total over the compaction threshold.
+    // Default maxMessages=30, keepRecent=12. With a system message + 29 history
+    // messages + 1 user message = 31 total → compaction fires.
+    const recentMessages: import("@vole/models").ModelMessage[] = Array.from({ length: 29 }, (_, i) => ({
+      role: i % 2 === 0 ? "user" : "assistant",
+      content: `message ${i}`
+    }));
+
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([
+        { type: "message", content: "Summarised." },   // compaction call
+        { type: "message", content: "Done." }           // main turn response
+      ]),
+      systemInstruction: "You are Vole.",
+      compaction: { maxMessages: 30, keepRecent: 12, summarySystemPrompt: "Distil." },
+      createRunId: () => "run_compact",
+      createEventId: (() => { let n = 0; return () => `evt_c_${++n}`; })(),
+      now: () => "2026-05-07T00:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ sessionId: "s1", message: "Go.", recentMessages }));
+    const types = events.map((e) => e.type);
+
+    expect(types).toContain("compaction_triggered");
+
+    const compactionEvent = events.find((e) => e.type === "compaction_triggered") as import("./index.js").CompactionTriggeredEvent;
+    expect(compactionEvent).toBeDefined();
+    expect(compactionEvent.messagesBefore).toBeGreaterThan(compactionEvent.messagesAfter);
+  });
+
+  test("does not emit compaction_triggered when message count is within limit", async () => {
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([{ type: "message", content: "Done." }]),
+      systemInstruction: "You are Vole.",
+      compaction: { maxMessages: 30, keepRecent: 12, summarySystemPrompt: "Distil." },
+      createRunId: () => "run_no_compact",
+      createEventId: (() => { let n = 0; return () => `evt_nc_${++n}`; })(),
+      now: () => "2026-05-07T00:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ sessionId: "s1", message: "Hi." }));
+    expect(events.map((e) => e.type)).not.toContain("compaction_triggered");
   });
 });
 

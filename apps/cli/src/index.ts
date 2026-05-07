@@ -1524,6 +1524,8 @@ function traceEventLabel(event: RuntimeEvent): string {
       return "Received user message";
     case "context_assembled":
       return "Assembled context";
+    case "compaction_triggered":
+      return `Compacted context (${event.messagesBefore} → ${event.messagesAfter} messages)`;
     case "todos_updated":
       return `Updated todos (${event.todos.length} items)`;
     case "planning_stall_detected":

@@ -30,6 +30,7 @@ export const corePackageName = "@vole/core";
 export const runtimeEventTypes = [
   "run_started",
   "context_assembled",
+  "compaction_triggered",
   "todos_updated",
   "planning_stall_detected",
   "model_request_started",
@@ -66,6 +67,12 @@ export interface ContextAssembledEvent extends RuntimeEventBase {
   type: "context_assembled";
   messageCount: number;
   systemInstructionIncluded: boolean;
+}
+
+export interface CompactionTriggeredEvent extends RuntimeEventBase {
+  type: "compaction_triggered";
+  messagesBefore: number;
+  messagesAfter: number;
 }
 
 export interface TodosUpdatedEvent extends RuntimeEventBase {
@@ -170,6 +177,7 @@ export interface RunFailedEvent extends RuntimeEventBase {
 export type RuntimeEvent =
   | RunStartedEvent
   | ContextAssembledEvent
+  | CompactionTriggeredEvent
   | TodosUpdatedEvent
   | PlanningStallDetectedEvent
   | ModelRequestStartedEvent
@@ -444,6 +452,9 @@ export class AgentRuntime {
           const before = messages.length;
           messages = await compactMessages(messages, this.#modelProvider, this.#compaction);
           const after = messages.length;
+          if (after < before) {
+            yield emitAndCollect(this.#event({ ...base, type: "compaction_triggered", messagesBefore: before, messagesAfter: after }));
+          }
           if (this.#hooks?.onCompaction !== undefined) {
             try {
               await this.#hooks.onCompaction(before, after);

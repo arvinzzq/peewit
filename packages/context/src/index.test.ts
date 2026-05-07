@@ -350,26 +350,30 @@ describe("compactMessages", () => {
     expect(result).toEqual(messages);
   });
 
-  test("replaces old messages with summary when over threshold", async () => {
+  test("replaces old conversation with summary while preserving the leading system message", async () => {
+    const systemMessage = { role: "system" as const, content: "You are a helpful assistant." };
     const messages = [
-      { role: "system" as const, content: "You are a helpful assistant." },
+      systemMessage,
       ...Array.from({ length: 14 }, (_, i) => ({
         role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
         content: `Turn ${i}`
       }))
     ];
-    // 15 total messages, maxMessages=10, keepRecent=5
+    // 15 total (1 system + 14 conversation), maxMessages=10, keepRecent=5
     const provider = new FakeModelProvider([{ type: "message", content: "Summary of old conversation." }]);
     const result = await compactMessages(messages, provider, { maxMessages: 10, keepRecent: 5 });
 
-    // Should be 1 summary system message + 5 recent messages = 6
-    expect(result).toHaveLength(6);
-    expect(result[0]?.role).toBe("system");
-    expect(result[0]?.content).toContain("Conversation summary:");
-    expect(result[0]?.content).toContain("Summary of old conversation.");
-    // Verify the 5 recent messages are preserved
-    for (let i = 1; i <= 5; i++) {
-      expect(result[i]).toEqual(messages[messages.length - 5 + (i - 1)]);
+    // Should be: original system message + summary system message + 5 recent = 7
+    expect(result).toHaveLength(7);
+    // result[0] is the preserved identity/system prompt — unchanged
+    expect(result[0]).toEqual(systemMessage);
+    // result[1] is the compacted history summary
+    expect(result[1]?.role).toBe("system");
+    expect(result[1]?.content).toContain("Conversation summary:");
+    expect(result[1]?.content).toContain("Summary of old conversation.");
+    // Verify the 5 recent conversation messages are preserved verbatim
+    for (let i = 2; i <= 6; i++) {
+      expect(result[i]).toEqual(messages[messages.length - 5 + (i - 2)]);
     }
   });
 

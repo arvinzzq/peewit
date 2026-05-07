@@ -225,7 +225,7 @@ export const DEFAULT_COMPACTION_OPTIONS: CompactionOptions = {
   maxMessages: 30,
   keepRecent: 12,
   summarySystemPrompt:
-    "You are a conversation summarizer. Produce a concise factual summary of the conversation history. Preserve tool calls made, decisions reached, key facts discovered, and current task state. Be brief."
+    "You are a context distiller for an AI agent. The conversation history has grown too long and must be reduced. Extract only what the agent needs to continue working: tools called and their key outcomes, decisions reached, important facts discovered, files created or modified, errors encountered, and the current task state. Discard pleasantries, repetition, and details that no longer affect the agent's ability to proceed. Output concise factual statements only."
 };
 
 export async function compactMessages(
@@ -239,8 +239,14 @@ export async function compactMessages(
     return messages;
   }
 
-  const old = messages.slice(0, messages.length - opts.keepRecent);
-  const recent = messages.slice(-opts.keepRecent);
+  // Preserve the leading system message (identity, tooling, safety guidance) so the
+  // agent retains its operating context after compaction. Only the conversation
+  // history is distilled — not the instructions that govern behaviour.
+  const leadingSystem = messages[0]?.role === "system" ? messages[0] : undefined;
+  const conversation = leadingSystem !== undefined ? messages.slice(1) : messages;
+
+  const old = conversation.slice(0, conversation.length - opts.keepRecent);
+  const recent = conversation.slice(-opts.keepRecent);
 
   if (old.length === 0) {
     return messages;
@@ -254,7 +260,7 @@ export async function compactMessages(
     const output = await modelProvider.generate({
       messages: [
         { role: "system", content: opts.summarySystemPrompt },
-        { role: "user", content: `Conversation to summarize:\n\n${transcript}` }
+        { role: "user", content: `Conversation to distil:\n\n${transcript}` }
       ]
     });
 
@@ -263,6 +269,7 @@ export async function compactMessages(
     }
 
     return [
+      ...(leadingSystem !== undefined ? [leadingSystem] : []),
       { role: "system", content: `Conversation summary:\n${output.content}` },
       ...recent
     ];
