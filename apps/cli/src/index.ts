@@ -45,10 +45,9 @@ Keep narration brief; avoid restating what tool output already shows.
 - Longer work: brief progress note, then keep going.
 
 ## File Editing
-- To modify existing code: use edit_file (precise string replacement, never loses surrounding content).
-- To add content at end of file: use append_file.
-- Use write_file only to create new files or fully replace a file's content intentionally.
-- When using edit_file, old_string must be unique — add enough surrounding context to disambiguate.`;
+- Modify existing code: edit_file (precise string replacement, preserves surrounding content).
+- Add to end of file: append_file.
+- Create new files or intentional full replacement: write_file.`;
 
 /** Module-level SessionGateway singleton — tracks all active CLI sessions in this process. */
 const cliGateway = new SessionGateway();
