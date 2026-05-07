@@ -202,16 +202,17 @@ lifecycle coupling, or prevent cycles. Those constraints, if needed, live in the
 
 **No in-memory implementation**
 
-`@vole/sessions` has an `InMemorySessionStore` because its internal logic is complex:
-replay, `compact_boundary` handling, `updatedAt` derivation. An in-memory version lets
-tests exercise that logic in isolation without touching the file system. Each test creates
-a fresh in-memory store, exercises the behavior, and discards it — no cleanup needed.
+`@vole/sessions` has an `InMemorySessionStore` for tests. The sessions package has
+enough internal complexity — replay, `compact_boundary` handling, `updatedAt` derivation
+— that a clean in-memory implementation makes those tests easier to write and reason
+about. In production, `JsonlSessionStore` is always used; `InMemorySessionStore` only
+appears in the `createFake()` factory method, which is a test-only path.
 
 `@vole/taskflow` has no equivalent because `JsonlTaskFlowStore` already handles the
 missing-file case gracefully (`#readAll()` returns `[]` when the file does not exist,
 and the first `create()` transparently creates it). Test setup is therefore nearly as
 cheap as an in-memory store — a temporary directory from `mkdtemp` is the only setup
-required. Maintaining a second implementation would add complexity with no benefit.
+required. There is no logic complex enough to warrant a separate in-memory implementation.
 
 ## 7. Testing Approach
 
