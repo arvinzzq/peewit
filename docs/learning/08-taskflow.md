@@ -202,9 +202,16 @@ lifecycle coupling, or prevent cycles. Those constraints, if needed, live in the
 
 **No in-memory implementation**
 
-Unlike `@vole/sessions`, there is no `InMemoryTaskFlowStore`. Tests use a real temporary
-file via `mkdtemp`. This is acceptable because `JsonlTaskFlowStore` already handles the
-missing-file case gracefully (returns `[]` on read), making test setup minimal.
+`@vole/sessions` has an `InMemorySessionStore` because its internal logic is complex:
+replay, `compact_boundary` handling, `updatedAt` derivation. An in-memory version lets
+tests exercise that logic in isolation without touching the file system. Each test creates
+a fresh in-memory store, exercises the behavior, and discards it — no cleanup needed.
+
+`@vole/taskflow` has no equivalent because `JsonlTaskFlowStore` already handles the
+missing-file case gracefully (`#readAll()` returns `[]` when the file does not exist,
+and the first `create()` transparently creates it). Test setup is therefore nearly as
+cheap as an in-memory store — a temporary directory from `mkdtemp` is the only setup
+required. Maintaining a second implementation would add complexity with no benefit.
 
 ## 7. Testing Approach
 
