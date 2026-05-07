@@ -2,7 +2,7 @@ import { describe, test, expect, afterEach, vi } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { JsonlTaskStore, BackgroundApprovalResolver, CronScheduler, matchesCron, type TaskRunRecord } from "./index.js";
+import { JsonlTaskStore, BackgroundApprovalResolver, CronScheduler, matchesCron, writeHeartbeat, type TaskRunRecord } from "./index.js";
 import type { ApprovalRequest } from "@vole/core";
 
 describe("JsonlTaskStore", () => {
@@ -272,5 +272,89 @@ describe("CronScheduler", () => {
     expect(scheduler.isRunning).toBe(true);
     scheduler.stop();
     expect(scheduler.isRunning).toBe(false);
+  });
+});
+
+describe("writeHeartbeat", () => {
+  let tmpDir: string;
+
+  afterEach(async () => {
+    if (tmpDir) {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test("writes a markdown heartbeat file", async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), "heartbeat-test-"));
+    const filePath = join(tmpDir, "HEARTBEAT.md");
+
+    await writeHeartbeat(filePath, {
+      status: "running",
+      taskName: "daily-summary",
+      runId: "run_abc",
+      lastUpdatedAt: "2026-05-07T10:00:00.000Z"
+    });
+
+    const { readFile } = await import("node:fs/promises");
+    const content = await readFile(filePath, "utf8");
+    expect(content).toContain("**Status**: running");
+    expect(content).toContain("**Task**: daily-summary");
+    expect(content).toContain("**Run ID**: run_abc");
+    expect(content).toContain("**Last updated**: 2026-05-07T10:00:00.000Z");
+  });
+
+  test("includes message when provided", async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), "heartbeat-test-"));
+    const filePath = join(tmpDir, "HEARTBEAT.md");
+
+    await writeHeartbeat(filePath, {
+      status: "failed",
+      lastUpdatedAt: "2026-05-07T10:05:00.000Z",
+      message: "Error: timeout exceeded"
+    });
+
+    const { readFile } = await import("node:fs/promises");
+    const content = await readFile(filePath, "utf8");
+    expect(content).toContain("**Status**: failed");
+    expect(content).toContain("Error: timeout exceeded");
+  });
+
+  test("omits optional fields when not provided", async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), "heartbeat-test-"));
+    const filePath = join(tmpDir, "HEARTBEAT.md");
+
+    await writeHeartbeat(filePath, {
+      status: "idle",
+      lastUpdatedAt: "2026-05-07T10:00:00.000Z"
+    });
+
+    const { readFile } = await import("node:fs/promises");
+    const content = await readFile(filePath, "utf8");
+    expect(content).not.toContain("**Task**");
+    expect(content).not.toContain("**Run ID**");
+  });
+
+  test("overwrites existing file", async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), "heartbeat-test-"));
+    const filePath = join(tmpDir, "HEARTBEAT.md");
+
+    await writeHeartbeat(filePath, { status: "running", lastUpdatedAt: "2026-05-07T10:00:00.000Z" });
+    await writeHeartbeat(filePath, { status: "completed", lastUpdatedAt: "2026-05-07T10:05:00.000Z" });
+
+    const { readFile } = await import("node:fs/promises");
+    const content = await readFile(filePath, "utf8");
+    expect(content).toContain("**Status**: completed");
+    expect(content).not.toContain("running");
+  });
+
+  test("creates parent directories if missing", async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), "heartbeat-test-"));
+    const filePath = join(tmpDir, "nested", "dir", "HEARTBEAT.md");
+
+    await writeHeartbeat(filePath, { status: "idle", lastUpdatedAt: "2026-05-07T10:00:00.000Z" });
+
+    const { readFile } = await import("node:fs/promises");
+    const content = await readFile(filePath, "utf8");
+    expect(content).toContain("**Status**: idle");
   });
 });

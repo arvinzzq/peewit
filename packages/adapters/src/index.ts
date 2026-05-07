@@ -104,7 +104,7 @@ export const TOOL_PROFILES: Record<ToolProfile, ToolProfileDefinition> = {
   background: {
     name: "background",
     description: "File system tools only for unattended background tasks.",
-    allowedTools: ["read_file", "list_directory", "write_file", "memory_search", "memory_get", "append_daily_memory", "update_todos", "spawn_subagent"]
+    allowedTools: ["read_file", "list_directory", "write_file", "memory_search", "memory_get", "append_daily_memory", "update_todos", "spawn_subagent", "update_heartbeat"]
   }
 };
 

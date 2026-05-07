@@ -14,6 +14,7 @@ import {
   createReadWebPageTool,
   createSearchFilesTool,
   createShellTool,
+  createUpdateHeartbeatTool,
   createUpdateTodosTool,
   createWriteFileTool,
   InMemoryToolRegistry,
@@ -23,6 +24,7 @@ import {
   type SearchFilesResult,
   type TodoItem,
   type ToolDefinition,
+  type UpdateHeartbeatResult,
   type WebFetchLike
 } from "./index.js";
 
@@ -940,6 +942,60 @@ describe("append_daily_memory tool", () => {
       expect(result).toMatchObject({ ok: false });
     } finally {
       await import("node:fs/promises").then((fs) => fs.rm(workspace, { recursive: true, force: true }));
+    }
+  });
+});
+
+describe("createUpdateHeartbeatTool", () => {
+  test("writes HEARTBEAT.md with status and message", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "vole-heartbeat-"));
+    try {
+      const tool = createUpdateHeartbeatTool();
+      const result = await tool.execute(
+        { status: "running", message: "Processing files..." },
+        { workspaceRoot: workspace }
+      ) as UpdateHeartbeatResult;
+
+      expect(result.ok).toBe(true);
+      expect(result.filePath).toBe("HEARTBEAT.md");
+
+      const content = await readFile(join(workspace, "HEARTBEAT.md"), "utf8");
+      expect(content).toContain("**Status**: running");
+      expect(content).toContain("Processing files...");
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("writes HEARTBEAT.md without message when message is empty", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "vole-heartbeat-"));
+    try {
+      const tool = createUpdateHeartbeatTool();
+      await tool.execute(
+        { status: "completed", message: "" },
+        { workspaceRoot: workspace }
+      );
+
+      const content = await readFile(join(workspace, "HEARTBEAT.md"), "utf8");
+      expect(content).toContain("**Status**: completed");
+      expect(content).not.toContain("Processing");
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test("overwrites previous HEARTBEAT.md", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "vole-heartbeat-"));
+    try {
+      const tool = createUpdateHeartbeatTool();
+      await tool.execute({ status: "running", message: "step 1" }, { workspaceRoot: workspace });
+      await tool.execute({ status: "completed", message: "step 2" }, { workspaceRoot: workspace });
+
+      const content = await readFile(join(workspace, "HEARTBEAT.md"), "utf8");
+      expect(content).toContain("**Status**: completed");
+      expect(content).not.toContain("running");
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
     }
   });
 });

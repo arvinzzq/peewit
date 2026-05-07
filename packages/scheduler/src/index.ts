@@ -1,7 +1,7 @@
 /**
- * INPUT: Task definition config, task run records, background approval requests, cron expressions.
- * OUTPUT: TaskDefinition/TaskRunRecord types, JsonlTaskStore, BackgroundApprovalResolver, CronScheduler, matchesCron.
- * POS: Background task layer; owns task run persistence, approval policy for unattended execution, and cron-based scheduling.
+ * INPUT: Task definition config, task run records, background approval requests, cron expressions, heartbeat state.
+ * OUTPUT: TaskDefinition/TaskRunRecord types, JsonlTaskStore, BackgroundApprovalResolver, CronScheduler, matchesCron, HeartbeatState, writeHeartbeat.
+ * POS: Background task layer; owns task run persistence, approval policy for unattended execution, cron-based scheduling, and daemon heartbeat writes.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
@@ -143,6 +143,32 @@ export function matchesCron(expression: string, date: Date): boolean {
     matchesCronField(dow!, date.getDay())
   );
 }
+
+// ── Heartbeat ─────────────────────────────────────────────────────────────────
+
+export interface HeartbeatState {
+  status: "idle" | "running" | "completed" | "failed";
+  taskName?: string;
+  runId?: string;
+  lastUpdatedAt: string;  // ISO 8601
+  message?: string;
+}
+
+export async function writeHeartbeat(filePath: string, state: HeartbeatState): Promise<void> {
+  await mkdir(dirname(filePath), { recursive: true });
+  const lines = [
+    "# Heartbeat",
+    "",
+    `**Status**: ${state.status}`,
+    `**Last updated**: ${state.lastUpdatedAt}`,
+    ...(state.taskName !== undefined ? [`**Task**: ${state.taskName}`] : []),
+    ...(state.runId !== undefined ? [`**Run ID**: ${state.runId}`] : []),
+    ...(state.message !== undefined ? ["", state.message] : []),
+  ];
+  await writeFile(filePath, lines.join("\n") + "\n");
+}
+
+// ── CronScheduler ─────────────────────────────────────────────────────────────
 
 export interface CronSchedulerOptions {
   checkIntervalMs?: number;  // how often to check for due tasks (default 30000 = 30s)

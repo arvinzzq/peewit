@@ -83,6 +83,11 @@ export interface UpdateTodosResult {
   ok: true;
 }
 
+export interface UpdateHeartbeatResult {
+  ok: true;
+  filePath: string;
+}
+
 export interface AppendDailyMemoryResult {
   ok: true;
   filePath: string;
@@ -156,6 +161,7 @@ export type ToolExecutionResult =
   | ShellToolResult
   | ReadWebPageToolResult
   | UpdateTodosResult
+  | UpdateHeartbeatResult
   | AppendDailyMemoryResult
   | SpawnSubagentResult
   | SpawnSubagentAsyncResult
@@ -1090,6 +1096,53 @@ function matchesInclude(relPath: string, pattern: string): boolean {
     .replace(/\*/g, "[^/]*")
     .replace(/\?/g, "[^/]");
   return new RegExp(`^${regexStr}$`).test(target);
+}
+
+export function createUpdateHeartbeatTool(): ExecutableTool {
+  return {
+    name: "update_heartbeat",
+    description: "Write current execution status to HEARTBEAT.md in the workspace. Use during long-running background tasks to signal progress and liveness. Status must be one of: running, completed, failed, idle.",
+    risk: "low",
+    inputSchema: {
+      type: "object",
+      properties: {
+        status: {
+          type: "string",
+          enum: ["running", "completed", "failed", "idle"],
+          description: "Current execution status."
+        },
+        message: {
+          type: "string",
+          description: "Human-readable progress note or status message."
+        }
+      },
+      required: ["status", "message"]
+    },
+    async execute(rawInput, context): Promise<UpdateHeartbeatResult | ToolExecutionFailure> {
+      const input = rawInput as { status?: unknown; message?: unknown };
+      const validStatuses = ["running", "completed", "failed", "idle"] as const;
+      const status = validStatuses.find((s) => s === input.status) ?? "running";
+      const message = typeof input.message === "string" ? input.message.trim() : "";
+
+      const filePath = resolve(context.workspaceRoot, "HEARTBEAT.md");
+      const now = new Date().toISOString();
+      const lines = [
+        "# Heartbeat",
+        "",
+        `**Status**: ${status}`,
+        `**Last updated**: ${now}`,
+        ...(message.length > 0 ? ["", message] : []),
+      ];
+
+      try {
+        await writeFileFs(filePath, lines.join("\n") + "\n");
+        return { ok: true, filePath: "HEARTBEAT.md" };
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : "Failed to write HEARTBEAT.md.";
+        return { ok: false, error: { code: "write_error", message: msg } };
+      }
+    }
+  };
 }
 
 export function createSearchFilesTool(): ExecutableTool {

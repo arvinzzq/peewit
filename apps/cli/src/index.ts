@@ -16,11 +16,11 @@ import { AgentRuntime, InMemoryRuntimeTraceStore, createSpawnSubagentTool, type 
 import { SessionGateway, type GatewaySession } from "@vole/gateway";
 import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@vole/models";
 import { CLI_CAPABILITIES, filterToolsByProfile, type ToolProfile } from "@vole/adapters";
-import { BackgroundApprovalResolver, CronScheduler, JsonlTaskStore, type TaskDefinition, type TaskRunRecord } from "@vole/scheduler";
+import { BackgroundApprovalResolver, CronScheduler, JsonlTaskStore, writeHeartbeat, type HeartbeatState, type TaskDefinition, type TaskRunRecord } from "@vole/scheduler";
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@vole/sessions";
 import { JsonlTaskFlowStore } from "@vole/taskflow";
 import { SkillLoader, SkillManager, toSkillSummary, type SkillDefinition } from "@vole/skills";
-import { createAppendDailyMemoryTool, createAppendFileTool, createEditFileTool, createListDirectoryTool, createLoadSkillTool, createMemoryGetTool, createMemorySearchTool, createReadFileTool, createReadWebPageTool, createSearchFilesTool, createShellTool, createWriteFileTool, type SkillFileMap } from "@vole/tools";
+import { createAppendDailyMemoryTool, createAppendFileTool, createEditFileTool, createListDirectoryTool, createLoadSkillTool, createMemoryGetTool, createMemorySearchTool, createReadFileTool, createReadWebPageTool, createSearchFilesTool, createShellTool, createUpdateHeartbeatTool, createWriteFileTool, type SkillFileMap } from "@vole/tools";
 
 export const cliPackageName = "@vole/cli";
 
@@ -531,6 +531,15 @@ async function runDaemonTask(
   };
   await taskStore.saveRun(record);
 
+  const heartbeatPath = join(config.workspace.root, "HEARTBEAT.md");
+  const startHeartbeat: HeartbeatState = {
+    status: "running",
+    taskName: task.name,
+    runId,
+    lastUpdatedAt: new Date().toISOString()
+  };
+  await writeHeartbeat(heartbeatPath, startHeartbeat);
+
   const provider = options.fakeModelOutputs
     ? new FakeModelProvider(options.fakeModelOutputs)
     : createConfiguredProvider(config, options);
@@ -575,13 +584,23 @@ async function runDaemonTask(
   const failedEvent = events.find((e) => e.type === "run_failed");
   const status = failedEvent ? "failed" : "completed";
 
+  const completedAt = new Date().toISOString();
   const updates: Partial<TaskRunRecord> = {
     status,
     assistantText,
-    completedAt: new Date().toISOString(),
+    completedAt,
     ...(failedEvent?.type === "run_failed" ? { errorMessage: failedEvent.error.message } : {})
   };
   await taskStore.updateRun(runId, updates);
+
+  const endHeartbeat: HeartbeatState = {
+    status,
+    taskName: task.name,
+    runId,
+    lastUpdatedAt: completedAt,
+    ...(failedEvent?.type === "run_failed" ? { message: `Error: ${failedEvent.error.message}` } : {})
+  };
+  await writeHeartbeat(heartbeatPath, endHeartbeat);
 }
 
 async function runDaemon(options: RunCliOptions, once: boolean): Promise<CliResult> {
@@ -1360,6 +1379,8 @@ function createCliBuiltInTools(options: RunCliOptions, config?: EffectiveConfig,
     tools.push(createMemorySearchTool(workspaceRoot));
     tools.push(createMemoryGetTool(workspaceRoot));
   }
+
+  tools.push(createUpdateHeartbeatTool());
 
   if (skillFileMap !== undefined && skillFileMap.size > 0) {
     tools.push(createLoadSkillTool(skillFileMap));
