@@ -19,11 +19,16 @@ two store implementations: `InMemorySessionStore` and `JsonlSessionStore`.
 **Focus questions**:
 - What is the JSONL format and why is it used here?
 - What does `#replay()` do, and what are its performance implications?
+- If a session file has 50 messages with a `compact_boundary` after message 20, how many
+  messages does `listMessages()` return? Which ones?
 - Why is `SessionMutex` in `@vole/core` rather than here?
 - What is the difference between `SessionMessageRecord` and `ModelMessage`?
+- `@vole/sessions` uses append-only writes; `@vole/taskflow` uses read-modify-write.
+  Why does each module choose a different strategy?
 
 **Checkpoint**: You understand this module when you can describe what a session file looks
-like on disk and trace a `listMessages()` call through the `#replay()` method.
+like on disk, trace a `listMessages()` call through the `#replay()` method including
+`compact_boundary` handling, and explain why `@vole/sessions` is called a "dumb store".
 
 ## 1. What This Module Does
 
@@ -273,6 +278,26 @@ user input that contains `../` would resolve to a path outside the sessions dire
 `assertSafeSessionId` blocks this at the file path construction step — it's a defence
 against injection via session ID.
 
+**Sessions is a "dumb store" — no logic above storage.** `@vole/sessions` has no
+business logic, no concurrency protection, no caching, and no knowledge of the agent
+loop. All decisions about what to write and when belong to the adapter (CLI). This
+boundary is intentional: keeping sessions dumb means it can be tested, replaced, or
+extended without touching core logic.
+
+**Append-only (sessions) vs read-modify-write (taskflow) — two different semantics.**
+Sessions uses append-only writes because conversation history is an immutable event
+stream — past messages are never revised. Taskflow uses read-modify-write because task
+status is a mutable entity — a task transitions from `queued` to `running` to
+`succeeded`, and only the current state matters. The right write strategy follows
+directly from the nature of the data.
+
+**CLI is the bridge — sessions and core are fully decoupled.** `@vole/core` emits
+`turn_complete` and `compaction_triggered` events but never calls any session method.
+`@vole/sessions` stores messages but never imports from core. Only the CLI adapter
+knows about both: it listens to core events and decides what to persist. This decoupling
+means sessions can be swapped (e.g., SQLite backend) without touching core, and core
+can be tested without any file system.
+
 ## 9. Review Questions
 
 1. What are the four record types in a session JSONL file? What is each used for?
@@ -283,10 +308,14 @@ against injection via session ID.
    > it to reset the messages array to just the summary. `trace` — stores a runtime event
    > record for debugging and observability.
 
-2. What does `#replay()` do? What is its time complexity for a session with N records?
-   > Reads the entire session file, parses each line, and reconstructs the session state
-   > (session metadata, all messages, all trace events). Time and I/O complexity: O(N)
-   > per read operation, regardless of which records are needed.
+2. What does `#replay()` do? If a session file has 50 messages with a `compact_boundary`
+   after message 20, how many messages does `listMessages()` return?
+   > Reads the entire session file line by line, reconstructs session metadata, messages,
+   > and trace events. When it encounters a `compact_boundary` record, it resets the
+   > messages array and inserts the summary as the sole `role: "system"` message, then
+   > continues appending subsequent messages. Result: `listMessages()` returns 31 messages
+   > (1 summary + messages 21–50). Messages 1–20 are still in the file but never returned.
+   > Time and I/O complexity: O(N) per read operation regardless of the query.
 
 3. Why is `SessionMutex` in `@vole/core` rather than in `@vole/sessions`?
    > Mutex belongs at the run-coordination level, not the storage level. Sessions stores
