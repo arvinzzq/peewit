@@ -1201,6 +1201,13 @@ describe("search_files tool", () => {
     const r = result as SearchFilesResult;
     expect(r.matches).toHaveLength(0);
   });
+
+  test("case-sensitive search returns zero matches when case differs", async () => {
+    const tool = createSearchFilesTool();
+    const result = await tool.execute({ pattern: "HELLO", case_sensitive: true }, { workspaceRoot });
+    const r = result as SearchFilesResult;
+    expect(r.matches).toHaveLength(0);
+  });
 });
 
 describe("edit_file tool", () => {
