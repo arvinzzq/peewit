@@ -98,5 +98,5 @@
 | 10 | adapters | ✅ 已完成 | [11-adapters.zh-CN.md](./11-adapters.zh-CN.md) |
 | 11 | core | ✅ 已完成 | [02-core.zh-CN.md](./02-core.zh-CN.md) |
 | 12 | gateway | ✅ 已完成 | [12-gateway.zh-CN.md](./12-gateway.zh-CN.md) |
-| 13 | apps/cli | ⬜ 未开始 | — |
+| 13 | apps/cli | ✅ 已完成 | [14-cli.zh-CN.md](./14-cli.zh-CN.md) |
 | 14 | apps/web | ⬜ 未开始 | — |

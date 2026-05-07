@@ -99,5 +99,5 @@ Ordered by dependency: each module only uses concepts from modules above it.
 | 10 | adapters | ✅ complete | [11-adapters.md](./11-adapters.md) |
 | 11 | core | ✅ complete | [02-core.md](./02-core.md) |
 | 12 | gateway | ✅ complete | [12-gateway.md](./12-gateway.md) |
-| 13 | apps/cli | ⬜ not started | — |
+| 13 | apps/cli | ✅ complete | [14-cli.md](./14-cli.md) |
 | 14 | apps/web | ⬜ not started | — |
