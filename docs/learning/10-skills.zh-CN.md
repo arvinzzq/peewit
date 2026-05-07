@@ -3,14 +3,14 @@
 状态：已完成
 日期：2026-05-07
 
-英文版本：`09-skills.md`
+英文版本：`10-skills.md`
 
 相关源码：`packages/skills/src/index.ts`
 
 ## 0. 如何使用本文档
 
 本文档属于[学习指南](./guide.zh-CN.md)第三阶段（基础模块）的一部分。
-请在阅读 [06-context.zh-CN.md](./06-context.zh-CN.md) 之后阅读本文档——系统提示中的 `<skills>` 区段由 `SkillSummary[]` 构建，而这些摘要正是由本模块提供的。
+请在阅读 [07-context.zh-CN.md](./07-context.zh-CN.md) 之后阅读本文档——系统提示中的 `<skills>` 区段由 `SkillSummary[]` 构建，而这些摘要正是由本模块提供的。
 
 **阅读前**：完整阅读 `packages/skills/src/index.ts`。注意有两个不同的类：`SkillLoader`（只读发现）和 `SkillManager`（写入路径的生命周期管理）。
 

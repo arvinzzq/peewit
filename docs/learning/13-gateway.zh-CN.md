@@ -3,14 +3,14 @@
 状态：已完成
 日期：2026-05-07
 
-英文版：`12-gateway.md`
+英文版：`13-gateway.md`
 
 相关源码：`packages/gateway/src/index.ts`
 
 ## 0. 如何使用本文档
 
 本文档属于学习指南第四阶段（扩展系统）。
-请在 [11-adapters.zh-CN.md](./11-adapters.zh-CN.md) 之后阅读——`GatewaySession` 携带了
+请在 [12-adapters.zh-CN.md](./12-adapters.zh-CN.md) 之后阅读——`GatewaySession` 携带了
 来自 adapters 包的 `AdapterCapabilities`。
 
 **阅读前**：通读 `packages/gateway/src/index.ts`（49 行），只有一个类和一个接口。然后在

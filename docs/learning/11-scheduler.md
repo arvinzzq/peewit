@@ -3,14 +3,14 @@
 Status: Complete
 Date: 2026-05-07
 
-Simplified Chinese version: `10-scheduler.zh-CN.md`
+Simplified Chinese version: `11-scheduler.zh-CN.md`
 
 Related source: `packages/scheduler/src/index.ts`
 
 ## 0. How to Use This Document
 
 This document is part of Stage 3 (Foundation Modules) in the [learning guide](./guide.md).
-Read it after [07-sessions.md](./07-sessions.md) — the scheduler uses `JsonlSessionStore`
+Read it after [08-sessions.md](./08-sessions.md) — the scheduler uses `JsonlSessionStore`
 and `AgentRuntime`, so those concepts need to be solid first.
 
 **Before reading**: Read `packages/scheduler/src/index.ts` in full (207 lines). There are

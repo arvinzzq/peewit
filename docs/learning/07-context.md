@@ -3,14 +3,14 @@
 Status: Complete
 Date: 2026-05-07
 
-Simplified Chinese version: `06-context.zh-CN.md` (create alongside this file)
+Simplified Chinese version: `07-context.zh-CN.md` (create alongside this file)
 
 Related source: `packages/context/src/index.ts`
 
 ## 0. How to Use This Document
 
 This document is part of Stage 3 (Foundation Modules) in the [learning guide](./guide.md).
-Read it after [05-tools.md](./05-tools.md) — tools contribute their summaries to context,
+Read it after [06-tools.md](./06-tools.md) — tools contribute their summaries to context,
 and you already know why `ContextToolSummary` only has `name`, `description`, and `risk`.
 
 **Before reading**: Read `packages/context/src/index.ts` in full. Focus on what each

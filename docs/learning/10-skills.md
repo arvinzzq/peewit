@@ -3,14 +3,14 @@
 Status: Complete
 Date: 2026-05-07
 
-Simplified Chinese version: `09-skills.zh-CN.md` (create alongside this file)
+Simplified Chinese version: `10-skills.zh-CN.md` (create alongside this file)
 
 Related source: `packages/skills/src/index.ts`
 
 ## 0. How to Use This Document
 
 This document is part of Stage 3 (Foundation Modules) in the [learning guide](./guide.md).
-Read it after [06-context.md](./06-context.md) — the `<skills>` section in the system prompt
+Read it after [07-context.md](./07-context.md) — the `<skills>` section in the system prompt
 is built from `SkillSummary[]`, and this is where those summaries come from.
 
 **Before reading**: Read `packages/skills/src/index.ts` in full. Notice there are two

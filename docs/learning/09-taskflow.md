@@ -3,14 +3,14 @@
 Status: Complete
 Date: 2026-05-07
 
-Simplified Chinese version: `08-taskflow.zh-CN.md` (create alongside this file)
+Simplified Chinese version: `09-taskflow.zh-CN.md` (create alongside this file)
 
 Related source: `packages/taskflow/src/index.ts`
 
 ## 0. How to Use This Document
 
 This document is part of Stage 3 (Foundation Modules) in the [learning guide](./guide.md).
-Read it after [07-sessions.md](./07-sessions.md) — both use JSONL storage, but with a
+Read it after [08-sessions.md](./08-sessions.md) — both use JSONL storage, but with a
 key difference in write strategy: sessions appends, taskflow rewrites.
 
 **Before reading**: Read `packages/taskflow/src/index.ts` in full. It is short (103 lines).

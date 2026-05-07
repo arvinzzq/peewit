@@ -3,7 +3,7 @@
 Status: Complete
 Date: 2026-05-07
 
-English version: `04-permissions.md`
+English version: `05-permissions.md`
 
 相关源码：`packages/permissions/src/index.ts`
 

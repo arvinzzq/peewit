@@ -3,14 +3,14 @@
 Status: Complete
 Date: 2026-05-07
 
-English version: `06-context.md`
+English version: `07-context.md`
 
 相关源码：`packages/context/src/index.ts`
 
 ## 0. 如何使用本文档
 
 本文档是[学习指南](./guide.zh-CN.md)阶段三（基础层模块）的一部分。在阅读本文档之前，
-先读 [05-tools.zh-CN.md](./05-tools.zh-CN.md)——工具把摘要贡献给 context，你已经知道
+先读 [06-tools.zh-CN.md](./06-tools.zh-CN.md)——工具把摘要贡献给 context，你已经知道
 为什么 `ContextToolSummary` 只有 `name`、`description` 和 `risk`。
 
 **阅读前**：完整读一遍 `packages/context/src/index.ts`。重点关注每个节名称的含义

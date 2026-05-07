@@ -3,14 +3,14 @@
 状态：已完成
 日期：2026-05-07
 
-英文版本：`08-taskflow.md`
+英文版本：`09-taskflow.md`
 
 相关源码：`packages/taskflow/src/index.ts`
 
 ## 0. 如何使用本文档
 
 本文档属于[学习指南](./guide.zh-CN.md)第三阶段（基础模块）的一部分。
-请在阅读 [07-sessions.zh-CN.md](./07-sessions.zh-CN.md) 之后阅读本文档——两者都使用 JSONL 存储，但写入策略有关键差异：sessions 追加写入，taskflow 全文件重写。
+请在阅读 [08-sessions.zh-CN.md](./08-sessions.zh-CN.md) 之后阅读本文档——两者都使用 JSONL 存储，但写入策略有关键差异：sessions 追加写入，taskflow 全文件重写。
 
 **阅读前**：完整阅读 `packages/taskflow/src/index.ts`。这个文件很短（103 行）。注意 `TaskStatus` 的 8 个状态值和 `TaskRuntime` 的 5 个值。
 

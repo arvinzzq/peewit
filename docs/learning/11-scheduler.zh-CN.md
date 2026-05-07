@@ -3,14 +3,14 @@
 状态：已完成
 日期：2026-05-07
 
-英文版：`10-scheduler.md`
+英文版：`11-scheduler.md`
 
 相关源码：`packages/scheduler/src/index.ts`
 
 ## 0. 如何使用本文档
 
 本文档属于学习指南第三阶段（基础层模块）。
-请在 [07-sessions.zh-CN.md](./07-sessions.zh-CN.md) 之后阅读——scheduler 使用了
+请在 [08-sessions.zh-CN.md](./08-sessions.zh-CN.md) 之后阅读——scheduler 使用了
 `JsonlSessionStore` 和 `AgentRuntime`，需要先理解这两个概念。
 
 **阅读前**：通读 `packages/scheduler/src/index.ts`（207 行）。有四个导出：

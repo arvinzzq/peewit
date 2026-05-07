@@ -228,22 +228,22 @@ Start with the **[Learning Guide](./docs/learning/guide.md)** for the recommende
 
 | Doc | Topic |
 |---|---|
-| [13 — Config](./docs/learning/13-config.md) | Env loading, three-layer merge, `EffectiveConfig`, redaction |
-| [03 — Models](./docs/learning/03-models.md) | `ModelProvider`, streaming, Anthropic vs OpenAI-compatible |
-| [04 — Permissions](./docs/learning/04-permissions.md) | Risk × autonomy mode → allow / ask / deny / block |
-| [05 — Tools](./docs/learning/05-tools.md) | Tool registry, sandbox, workspace boundary, result types |
-| [07 — Sessions](./docs/learning/07-sessions.md) | JSONL append, `#replay`, compaction boundary, mutex |
-| [08 — Taskflow](./docs/learning/08-taskflow.md) | `update_todos`, `TodoItem` state machine, `JsonlTaskFlowStore` |
-| [06 — Context](./docs/learning/06-context.md) | XML sections, prompt modes, `compactMessages`, cache hints |
-| [09 — Skills](./docs/learning/09-skills.md) | Three-source loading, progressive disclosure, `SkillManager` |
-| [10 — Scheduler](./docs/learning/10-scheduler.md) | `CronScheduler`, `BackgroundApprovalResolver`, `writeHeartbeat` |
+| [03 — Config](./docs/learning/03-config.md) | Env loading, three-layer merge, `EffectiveConfig`, redaction |
+| [04 — Models](./docs/learning/04-models.md) | `ModelProvider`, streaming, Anthropic vs OpenAI-compatible |
+| [05 — Permissions](./docs/learning/05-permissions.md) | Risk × autonomy mode → allow / ask / deny / block |
+| [06 — Tools](./docs/learning/06-tools.md) | Tool registry, sandbox, workspace boundary, result types |
+| [08 — Sessions](./docs/learning/08-sessions.md) | JSONL append, `#replay`, compaction boundary, mutex |
+| [09 — Taskflow](./docs/learning/09-taskflow.md) | `update_todos`, `TodoItem` state machine, `JsonlTaskFlowStore` |
+| [07 — Context](./docs/learning/07-context.md) | XML sections, prompt modes, `compactMessages`, cache hints |
+| [10 — Skills](./docs/learning/10-skills.md) | Three-source loading, progressive disclosure, `SkillManager` |
+| [11 — Scheduler](./docs/learning/11-scheduler.md) | `CronScheduler`, `BackgroundApprovalResolver`, `writeHeartbeat` |
 
 **Stage 4 — Extension Systems**
 
 | Doc | Topic |
 |---|---|
-| [11 — Adapters](./docs/learning/11-adapters.md) | `AdapterCapabilities`, tool profiles, `filterToolsByProfile` |
-| [12 — Gateway](./docs/learning/12-gateway.md) | In-process session registry, `touch`, presence vs. history |
+| [12 — Adapters](./docs/learning/12-adapters.md) | `AdapterCapabilities`, tool profiles, `filterToolsByProfile` |
+| [13 — Gateway](./docs/learning/13-gateway.md) | In-process session registry, `touch`, presence vs. history |
 
 **Stage 5 — System Synthesis**
 

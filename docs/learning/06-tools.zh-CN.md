@@ -3,14 +3,14 @@
 Status: Complete
 Date: 2026-05-07
 
-English version: `05-tools.md`
+English version: `06-tools.md`
 
 相关源码：`packages/tools/src/index.ts`
 
 ## 0. 如何使用本文档
 
 本文档是[学习指南](./guide.zh-CN.md)阶段三（基础层模块）的一部分。在阅读本文档之前，
-先读 [04-permissions.zh-CN.md](./04-permissions.zh-CN.md)——你已经知道权限系统根据 `risk`
+先读 [05-permissions.zh-CN.md](./05-permissions.zh-CN.md)——你已经知道权限系统根据 `risk`
 做决策，而 `risk` 就是在这个包里设置的。
 
 **阅读前**：浏览 `packages/tools/src/index.ts` 中所有 `export function createXxx` 的列表。

@@ -3,14 +3,14 @@
 Status: Complete
 Date: 2026-05-07
 
-Simplified Chinese version: `05-tools.zh-CN.md` (create alongside this file)
+Simplified Chinese version: `06-tools.zh-CN.md` (create alongside this file)
 
 Related source: `packages/tools/src/index.ts`
 
 ## 0. How to Use This Document
 
 This document is part of Stage 3 (Foundation Modules) in the [learning guide](./guide.md).
-Read it after [04-permissions.md](./04-permissions.md) — you already know that permissions
+Read it after [05-permissions.md](./05-permissions.md) — you already know that permissions
 evaluates based on `risk`, and this is where `risk` is set on each tool.
 
 **Before reading**: Skim the tool list (all `export function createXxx`) in

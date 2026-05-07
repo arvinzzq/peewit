@@ -3,14 +3,14 @@
 Status: Complete
 Date: 2026-05-07
 
-Simplified Chinese version: `11-adapters.zh-CN.md`
+Simplified Chinese version: `12-adapters.zh-CN.md`
 
 Related source: `packages/adapters/src/index.ts`
 
 ## 0. How to Use This Document
 
 This document is part of Stage 4 (Extension Systems) in the [learning guide](./guide.md).
-Read it after [05-tools.md](./05-tools.md) — tool profiles are the main concept here, and
+Read it after [06-tools.md](./06-tools.md) — tool profiles are the main concept here, and
 they only make sense once you understand the tool registry.
 
 **Before reading**: Read `packages/adapters/src/index.ts` in full (123 lines). Notice it has

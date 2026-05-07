@@ -3,14 +3,14 @@
 状态：已完成
 日期：2026-05-07
 
-英文版：`11-adapters.md`
+英文版：`12-adapters.md`
 
 相关源码：`packages/adapters/src/index.ts`
 
 ## 0. 如何使用本文档
 
 本文档属于学习指南第四阶段（扩展系统）。
-请在 [05-tools.zh-CN.md](./05-tools.zh-CN.md) 之后阅读——工具 profile 是本模块的核心概念，
+请在 [06-tools.zh-CN.md](./06-tools.zh-CN.md) 之后阅读——工具 profile 是本模块的核心概念，
 需要先理解工具注册表。
 
 **阅读前**：通读 `packages/adapters/src/index.ts`（123 行）。注意它没有任何运行时逻辑——除

@@ -79,25 +79,25 @@ Ordered by dependency: each module only uses concepts from modules above it.
 |---|---|---|---|
 | Stage 1 | Agent Loop Mental Model | ✅ complete | [01-concepts.md](./01-concepts.md) |
 | Stage 2 | Core Loop in Code | ✅ complete | [02-core.md](./02-core.md) |
-| Stage 3 | Foundation Modules | ✅ complete | 13-config, 03-models, 04-permissions, 05-tools, 07-sessions, 08-taskflow, 06-context, 09-skills, 10-scheduler |
-| Stage 4 | Extension Systems | ✅ complete | 11-adapters, 12-gateway |
+| Stage 3 | Foundation Modules | ✅ complete | 03-config, 04-models, 05-permissions, 06-tools, 08-sessions, 09-taskflow, 07-context, 10-skills, 11-scheduler |
+| Stage 4 | Extension Systems | ✅ complete | 12-adapters, 13-gateway |
 | Stage 5 | System Synthesis | ✅ complete | 14-cli, 15-web |
 
 ## Module Progress
 
 | # | Module | Status | Doc |
 |---|--------|--------|-----|
-| 01 | config | ✅ complete | [13-config.md](./13-config.md) |
-| 02 | models | ✅ complete | [03-models.md](./03-models.md) |
-| 03 | permissions | ✅ complete | [04-permissions.md](./04-permissions.md) |
-| 04 | tools | ✅ complete | [05-tools.md](./05-tools.md) |
-| 05 | sessions | ✅ complete | [07-sessions.md](./07-sessions.md) |
-| 06 | taskflow | ✅ complete | [08-taskflow.md](./08-taskflow.md) |
-| 07 | context | ✅ complete | [06-context.md](./06-context.md) |
-| 08 | skills | ✅ complete | [09-skills.md](./09-skills.md) |
-| 09 | scheduler | ✅ complete | [10-scheduler.md](./10-scheduler.md) |
-| 10 | adapters | ✅ complete | [11-adapters.md](./11-adapters.md) |
+| 01 | config | ✅ complete | [03-config.md](./03-config.md) |
+| 02 | models | ✅ complete | [04-models.md](./04-models.md) |
+| 03 | permissions | ✅ complete | [05-permissions.md](./05-permissions.md) |
+| 04 | tools | ✅ complete | [06-tools.md](./06-tools.md) |
+| 05 | sessions | ✅ complete | [08-sessions.md](./08-sessions.md) |
+| 06 | taskflow | ✅ complete | [09-taskflow.md](./09-taskflow.md) |
+| 07 | context | ✅ complete | [07-context.md](./07-context.md) |
+| 08 | skills | ✅ complete | [10-skills.md](./10-skills.md) |
+| 09 | scheduler | ✅ complete | [11-scheduler.md](./11-scheduler.md) |
+| 10 | adapters | ✅ complete | [12-adapters.md](./12-adapters.md) |
 | 11 | core | ✅ complete | [02-core.md](./02-core.md) |
-| 12 | gateway | ✅ complete | [12-gateway.md](./12-gateway.md) |
+| 12 | gateway | ✅ complete | [13-gateway.md](./13-gateway.md) |
 | 13 | apps/cli | ✅ complete | [14-cli.md](./14-cli.md) |
 | 14 | apps/web | ✅ complete | [15-web.md](./15-web.md) |

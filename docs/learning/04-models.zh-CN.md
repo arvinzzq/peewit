@@ -3,7 +3,7 @@
 Status: Complete
 Date: 2026-05-07
 
-English version: `03-models.md`
+English version: `04-models.md`
 
 相关源码：`packages/models/src/index.ts`
 

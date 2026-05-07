@@ -3,14 +3,14 @@
 Status: Complete
 Date: 2026-05-07
 
-Simplified Chinese version: `07-sessions.zh-CN.md` (create alongside this file)
+Simplified Chinese version: `08-sessions.zh-CN.md` (create alongside this file)
 
 Related source: `packages/sessions/src/index.ts`
 
 ## 0. How to Use This Document
 
 This document is part of Stage 3 (Foundation Modules) in the [learning guide](./guide.md).
-Read it after [06-context.md](./06-context.md) — context assembly consumes session messages
+Read it after [07-context.md](./07-context.md) — context assembly consumes session messages
 as `recentMessages`, and this is where those messages come from.
 
 **Before reading**: Read `packages/sessions/src/index.ts` in full. Notice that there are

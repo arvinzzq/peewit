@@ -3,14 +3,14 @@
 Status: Complete
 Date: 2026-05-07
 
-Simplified Chinese version: `12-gateway.zh-CN.md`
+Simplified Chinese version: `13-gateway.zh-CN.md`
 
 Related source: `packages/gateway/src/index.ts`
 
 ## 0. How to Use This Document
 
 This document is part of Stage 4 (Extension Systems) in the [learning guide](./guide.md).
-Read it after [11-adapters.md](./11-adapters.md) — `GatewaySession` carries `AdapterCapabilities`
+Read it after [12-adapters.md](./12-adapters.md) — `GatewaySession` carries `AdapterCapabilities`
 from that package.
 
 **Before reading**: Read `packages/gateway/src/index.ts` in full (49 lines). It is one class
