@@ -94,7 +94,7 @@ Ordered by dependency: each module only uses concepts from modules above it.
 | 05 | sessions | ✅ complete | [07-sessions.md](./07-sessions.md) |
 | 06 | taskflow | ✅ complete | [08-taskflow.md](./08-taskflow.md) |
 | 07 | context | ✅ complete | [06-context.md](./06-context.md) |
-| 08 | skills | ⬜ not started | — |
+| 08 | skills | ✅ complete | [09-skills.md](./09-skills.md) |
 | 09 | scheduler | ⬜ not started | — |
 | 10 | adapters | ⬜ not started | — |
 | 11 | core | ✅ complete | [02-core.md](./02-core.md) |

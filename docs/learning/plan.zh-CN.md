@@ -93,7 +93,7 @@
 | 05 | sessions | ✅ 已完成 | [07-sessions.zh-CN.md](./07-sessions.zh-CN.md) |
 | 06 | taskflow | ✅ 已完成 | [08-taskflow.zh-CN.md](./08-taskflow.zh-CN.md) |
 | 07 | context | ✅ 已完成 | [06-context.zh-CN.md](./06-context.zh-CN.md) |
-| 08 | skills | ⬜ 未开始 | — |
+| 08 | skills | ✅ 已完成 | [09-skills.zh-CN.md](./09-skills.zh-CN.md) |
 | 09 | scheduler | ⬜ 未开始 | — |
 | 10 | adapters | ⬜ 未开始 | — |
 | 11 | core | ✅ 已完成 | [02-core.zh-CN.md](./02-core.zh-CN.md) |
