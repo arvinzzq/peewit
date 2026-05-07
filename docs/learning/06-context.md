@@ -168,15 +168,28 @@ sections" without having to parse the raw system prompt.
 
 Compaction and summarisation have different goals. Summarisation produces a readable
 overview for a human. Compaction extracts the operationally necessary information for
-the agent to continue working. The system prompt in `compactMessages()` makes this
-explicit: *"Preserve tool calls made, decisions reached, key facts discovered, and
-current task state."* These are the things the next loop step needs — not highlights
-for a reader.
+the agent to continue working: tool calls and their outcomes, decisions reached, key
+facts discovered, files modified, errors encountered, current task state. These are
+what the next loop step needs — not highlights for a reader.
 
-`compactMessages()` calls `modelProvider.generate()` to produce this distilled context.
-No special API is needed — the same `ModelProvider` interface used by the agent loop is
-reused here. If compaction fails (network error, model error), the original messages are
-returned unchanged. The agent continues; compaction failure is silent and non-fatal.
+`compactMessages()` uses a two-phase approach inspired by Claude Code's prioritised
+context cleanup strategy:
+
+**Phase 1 — mechanical reduction (free, no model call)**
+Tool result messages in the old portion are replaced with summary-only versions via
+`thinToolMessage()`. Tool outputs (file contents, shell stdout, web pages) are the
+largest context consumers but only their summary matters once the agent has moved past
+them. Replacing `{ ok: true, content: "...5000 chars..." }` with
+`{ ok: true, summary: "Read foo.ts." }` before distillation makes the Phase 2 call
+cheaper and keeps the resulting summary focused on decisions rather than raw data.
+
+**Phase 2 — semantic reduction (one model call)**
+The thinned old messages are distilled into a compact summary using `modelProvider`.
+The same `ModelProvider` interface used by the agent loop is reused — no special API.
+
+**Failure handling**: If Phase 2 fails (network error, model error), the Phase 1
+thinned messages are returned — not the originals. Tool output content is never
+restored to context after a failed call.
 
 **Workspace files are loaded fresh on every call**
 
@@ -196,8 +209,10 @@ Test categories:
 - None mode: no system message at all
 - Missing optional fields: sections omitted with correct reasons in report
 - `ContextAssemblyReport` content and structure
-- Compaction: trigger threshold, summary replaces old messages, recent messages preserved
-- Compaction failure: original messages returned when provider errors
+- Compaction: trigger threshold, system message preserved, summary replaces old messages, recent messages verbatim
+- Phase 1 thinning: tool outputs replaced with summaries in old portion
+- Compaction failure: thinned messages returned (not originals)
+- Recent messages verbatim: large tool outputs in recent portion are never thinned
 
 ## 8. Insights
 
@@ -224,10 +239,27 @@ task state. What a human might find interesting to review is often irrelevant to
 agent needs to carry forward. The distinction matters: compaction is not a recap for the
 user — it is a memory reduction for the next loop step.
 
+**The leading system message is protected from compaction.** The system message
+(containing `<identity>`, `<tooling>`, `<safety>`, `<skills>`) must survive compaction
+intact. Without protection, the agent loses its permission guidance and skill index after
+enough conversation history accumulates. `compactMessages` always preserves `messages[0]`
+when its role is `"system"`, placing it before the distillation summary in the result.
+
+**Recent messages are always preserved verbatim.** The last `keepRecent` (default 12)
+conversation messages are never thinned or summarised. They represent the agent's current
+working memory and must not be altered — the model relies on them to know what just happened.
+Large tool outputs that fall within the recent portion are kept exactly as-is.
+
+**Tool outputs are the biggest context consumers.** A single file read or shell command
+can produce thousands of tokens of output. Once the agent has processed a tool result and
+moved on, the raw output adds no value. `thinToolMessage()` replaces large tool result
+content with just the `summary` field ("Read foo.ts.", "Ran in 234ms exit 0.") before
+building the distillation transcript, making the compaction call much cheaper.
+
 **Compaction summary becomes a system message.** The distilled context produced by `compactMessages`
 is inserted as `{ role: "system", content: "Conversation summary:\n..." }`. This is the
-only system message in the compacted history — the original system prompt from the current
-`assemble()` call is added separately at the start of `modelInput.messages`.
+only summary in the compacted history — the original system prompt from the current
+`assemble()` call is prepended separately.
 
 ## 9. Review Questions
 
