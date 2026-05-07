@@ -92,7 +92,7 @@ Ordered by dependency: each module only uses concepts from modules above it.
 | 03 | permissions | ✅ complete | [04-permissions.md](./04-permissions.md) |
 | 04 | tools | ✅ complete | [05-tools.md](./05-tools.md) |
 | 05 | sessions | ✅ complete | [07-sessions.md](./07-sessions.md) |
-| 06 | taskflow | ⬜ not started | — |
+| 06 | taskflow | ✅ complete | [08-taskflow.md](./08-taskflow.md) |
 | 07 | context | ✅ complete | [06-context.md](./06-context.md) |
 | 08 | skills | ⬜ not started | — |
 | 09 | scheduler | ⬜ not started | — |
