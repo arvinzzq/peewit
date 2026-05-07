@@ -89,7 +89,7 @@ Ordered by dependency: each module only uses concepts from modules above it.
 |---|--------|--------|-----|
 | 01 | config | ⬜ not started | — |
 | 02 | models | ✅ complete | [03-models.md](./03-models.md) |
-| 03 | permissions | ⬜ not started | — |
+| 03 | permissions | ✅ complete | [04-permissions.md](./04-permissions.md) |
 | 04 | tools | ⬜ not started | — |
 | 05 | sessions | ⬜ not started | — |
 | 06 | taskflow | ⬜ not started | — |
