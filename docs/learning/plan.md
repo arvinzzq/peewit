@@ -73,21 +73,31 @@ Ordered by dependency: each module only uses concepts from modules above it.
 
 ---
 
-## Progress
+## Stage Progress
 
-| # | Module | Status |
-|---|--------|--------|
-| 01 | config | ⬜ not started |
-| 02 | models | ⬜ not started |
-| 03 | permissions | ⬜ not started |
-| 04 | tools | ⬜ not started |
-| 05 | sessions | ⬜ not started |
-| 06 | taskflow | ⬜ not started |
-| 07 | context | ⬜ not started |
-| 08 | skills | ⬜ not started |
-| 09 | scheduler | ⬜ not started |
-| 10 | adapters | ⬜ not started |
-| 11 | core | ⬜ not started |
-| 12 | gateway | ⬜ not started |
-| 13 | apps/cli | ⬜ not started |
-| 14 | apps/web | ⬜ not started |
+| Stage | Topic | Status | Doc |
+|---|---|---|---|
+| Stage 1 | Agent Loop Mental Model | ✅ complete | [00-concepts.md](./00-concepts.md) |
+| Stage 2 | Core Loop in Code | ⬜ not started | — |
+| Stage 3 | Foundation Modules | ⬜ not started | — |
+| Stage 4 | Extension Systems | ⬜ not started | — |
+| Stage 5 | System Synthesis | ⬜ not started | — |
+
+## Module Progress
+
+| # | Module | Status | Doc |
+|---|--------|--------|-----|
+| 01 | config | ⬜ not started | — |
+| 02 | models | ⬜ not started | — |
+| 03 | permissions | ⬜ not started | — |
+| 04 | tools | ⬜ not started | — |
+| 05 | sessions | ⬜ not started | — |
+| 06 | taskflow | ⬜ not started | — |
+| 07 | context | ⬜ not started | — |
+| 08 | skills | ⬜ not started | — |
+| 09 | scheduler | ⬜ not started | — |
+| 10 | adapters | ⬜ not started | — |
+| 11 | core | ⬜ not started | — |
+| 12 | gateway | ⬜ not started | — |
+| 13 | apps/cli | ⬜ not started | — |
+| 14 | apps/web | ⬜ not started | — |

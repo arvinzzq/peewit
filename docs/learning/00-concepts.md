@@ -1,9 +1,29 @@
 # Stage 1: Agent Loop Mental Model
 
-Status: Draft
+Status: Complete
 Date: 2026-05-07
 
 Simplified Chinese version: `00-concepts.zh-CN.md` (create alongside this file)
+
+## 0. How to Use This Document
+
+This document is the output of Stage 1 in the [learning guide](./guide.md). It covers the
+conceptual foundation only — no source code.
+
+**Before reading**: This document summarises key ideas. To build a durable mental model,
+read these primary sources first:
+
+1. `docs/architecture/agent-loop.md` — sections 1–4 (what the loop is, why it exists)
+2. `docs/research/openclaw-implementation-notes.md` — sections 1–3 (what OpenClaw confirms)
+3. `docs/architecture/openclaw-architecture-map.md` — sections 1–4 (how concepts map to phases)
+
+**Exercise**: After reading the primary sources, draw the agent loop on paper — without
+looking at any code. Show: user, model, permission check, tool, observation result, and arrows
+for data flow. Annotate what can stop the loop at each point. Then compare with the flowchart
+in `docs/architecture/agent-loop.md` section 3.
+
+**Checkpoint**: You have understood this stage when you can answer all seven questions in
+Section 8 without reading the answers.
 
 ## 1. What Is an Agent?
 
@@ -131,3 +151,43 @@ consistent view of everything that happened, with no hidden state.
 **Permission and interaction are separate.** The permission package evaluates; adapters
 interact. This is why the same `deny` / `ask` / `allow` logic works identically in CLI,
 web, and background modes.
+
+## 8. Review Questions
+
+1. What is the fundamental difference between a chatbot and an agent?
+   > A chatbot makes one API call and returns one reply. An agent loops: it chooses actions,
+   > observes results, and decides what to do next — repeating until the goal is met or the
+   > loop terminates. The loop is the defining property.
+
+2. What are the five stages of the OpenClaw agent loop, in order?
+   > Intake → Context Assembly → Model Inference → Tool Execution → Streaming / Persistence.
+   > After Tool Execution the loop returns to Context Assembly for the next step, with tool
+   > results appended to the message history.
+
+3. Why does a permission system need to exist? Give a concrete example of what breaks without one.
+   > The model can request any registered tool. Without a gate, a prompt injected from a
+   > webpage could instruct the agent to delete files or send data to an external server.
+   > The permission system evaluates every tool call before execution and can block, deny,
+   > or require human approval.
+
+4. Why is context assembled fresh on every loop step rather than reused from the previous step?
+   > The model is stateless — it only knows what is in the current API payload. Each loop
+   > step adds new observations (tool results) that the model must see before deciding the
+   > next action. Reusing stale context would mean the model reasons over an incomplete picture.
+
+5. A tool call throws an execution exception. Does the run terminate? What does the model see?
+   > The run does NOT terminate. The exception is caught, `tool_failed` is emitted, and the
+   > error text is returned to the model as a tool result message. The model can then decide
+   > to retry, use a different tool, or report the problem. Tool-level failures are observations,
+   > not loop-level failures.
+
+6. A tool call returns `deny` from the permission policy. Does the model see the denial?
+   > No. `deny` triggers `run_failed` immediately — the run terminates before the denial
+   > message is assembled into the conversation. This is by design: `deny` means a human or
+   > policy said "stop," not "try something else."
+
+7. What is a planning stall, and why is it a problem for an agent loop?
+   > A planning stall occurs when the model responds with a written plan ("I'll first read the
+   > file, then analyze it…") without calling any tools. Without detection, the loop can spin
+   > indefinitely producing plans but taking no actions. The runtime injects a correction
+   > instruction and terminates the run if stalls persist past the retry limit.
