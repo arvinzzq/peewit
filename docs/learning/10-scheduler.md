@@ -247,6 +247,30 @@ Each background run gets its own `sessionId` and `AgentRuntime` instance — the
 session reuse between runs. The `preferStreaming: false` flag is set because there is no
 terminal to render to.
 
+## 4b. Heartbeat Mechanism
+
+The `HEARTBEAT.md` mechanism provides liveness signalling for background tasks. It has two independent write paths:
+
+**System layer** (`@vole/scheduler` → CLI): `writeHeartbeat(filePath, state)` is called by `runDaemonTask` at task start and end. This write always happens, regardless of what the agent does.
+
+```ts
+// task start
+await writeHeartbeat(heartbeatPath, { status: "running", taskName, runId, lastUpdatedAt })
+
+// task end
+await writeHeartbeat(heartbeatPath, { status, taskName, runId, lastUpdatedAt, message? })
+```
+
+**Agent layer** (`@vole/tools`): the `update_heartbeat` tool lets the agent write intermediate status during long tasks:
+
+```
+update_heartbeat({ status: "running", message: "Processed 3 of 10 files." })
+```
+
+The resulting file content is human-readable Markdown and is injected into the next session's context via `workspacePromptFiles`. The agent can read the previous run's final status without any special tool.
+
+**Why two layers?** The system write is a safety net: if the agent fails, panics, or never calls `update_heartbeat`, the daemon still records the final outcome. The agent write enables granular progress reporting for long tasks.
+
 ## 5. OpenClaw Alignment
 
 | OpenClaw | Vole | Notes |

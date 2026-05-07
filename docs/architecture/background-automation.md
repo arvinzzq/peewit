@@ -113,7 +113,38 @@ Phase 8 implements the one-shot execution path. A future daemon would:
 
 The one-shot path designed in Phase 8 is intentionally composable so daemon wrappers can use it without changes.
 
-## 8. Safety Principles
+## 8. Heartbeat Mechanism
+
+Background tasks write a structured status file to `{workspaceRoot}/HEARTBEAT.md` to signal liveness and progress.
+
+### System-level writes (daemon layer)
+
+The CLI's `runDaemonTask` calls `writeHeartbeat()` (from `@vole/scheduler`) at two points:
+
+1. **Task start** — writes `status: "running"` with task name and run ID.
+2. **Task end** — writes `status: "completed"` or `"failed"` with completion timestamp; `"failed"` includes the error message.
+
+This guarantees that `HEARTBEAT.md` reflects the daemon's state regardless of what the agent does during execution.
+
+### Agent-initiated writes (tool layer)
+
+During task execution, the agent can call the `update_heartbeat` tool (from `@vole/tools`) to write intermediate progress:
+
+```
+update_heartbeat({ status: "running", message: "Processed 3 of 10 files." })
+```
+
+The tool writes to `HEARTBEAT.md` in the workspace root, overwriting the previous content each call.
+
+### Context injection
+
+`HEARTBEAT.md` is listed in `workspacePromptFiles`. If the file exists at session start, its content is injected into the system prompt. The next session can read the previous run's final status and any progress notes the agent wrote.
+
+### External monitoring
+
+External scripts can read `HEARTBEAT.md` and check the `**Last updated**` timestamp to detect a stalled or dead daemon. No server-side polling endpoint is provided in the current implementation.
+
+## 9. Safety Principles
 
 Background tasks follow the same permission policy as interactive chat.
 

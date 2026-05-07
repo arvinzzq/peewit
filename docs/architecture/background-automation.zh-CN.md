@@ -113,7 +113,38 @@ Phase 8 实现一次性执行路径。未来 daemon 将：
 
 Phase 8 设计的一次性路径有意可组合，以便 daemon 包装器无需更改即可使用。
 
-## 8. 安全原则
+## 8. 心跳机制
+
+后台任务向 `{workspaceRoot}/HEARTBEAT.md` 写入结构化状态文件，用于标记存活状态和进度。
+
+### 系统层写入（daemon 层）
+
+CLI 的 `runDaemonTask` 在两个时间点调用 `writeHeartbeat()`（来自 `@vole/scheduler`）：
+
+1. **任务开始** — 写入 `status: "running"`，包含任务名称和 run ID。
+2. **任务结束** — 写入 `status: "completed"` 或 `"failed"`，包含完成时间戳；`"failed"` 时包含错误信息。
+
+这保证了无论 agent 在执行期间做什么，`HEARTBEAT.md` 都能反映 daemon 的状态。
+
+### Agent 主动写入（工具层）
+
+在任务执行期间，agent 可以调用 `update_heartbeat` 工具（来自 `@vole/tools`）写入中间进度：
+
+```
+update_heartbeat({ status: "running", message: "已处理 3/10 个文件。" })
+```
+
+该工具写入工作区根目录的 `HEARTBEAT.md`，每次调用都覆盖上一次内容。
+
+### Context 注入
+
+`HEARTBEAT.md` 列在 `workspacePromptFiles` 中。如果会话启动时文件存在，其内容会注入到 system prompt。下一个会话可以读取上次运行的最终状态和 agent 写入的进度记录。
+
+### 外部监控
+
+外部脚本可以读取 `HEARTBEAT.md` 并检查 `**Last updated**` 时间戳来检测停滞或宕掉的 daemon。当前实现未提供服务端轮询 endpoint。
+
+## 9. 安全原则
 
 后台任务遵循与交互式聊天相同的 permission policy。
 

@@ -22,6 +22,7 @@ ExecutableTool[]    ← @vole/tools
     ├─ search_files     (low risk)
     ├─ update_todos     (low risk)
     ├─ append_daily_memory (medium risk)
+    ├─ update_heartbeat (low risk)
     ├─ load_skill       (low risk)
     ├─ memory_search    (low risk)
     ├─ memory_get       (low risk)
@@ -67,6 +68,7 @@ A discriminated union covering all possible outcomes:
 | `ReadWebPageToolResult` | `true` | `read_web_page` |
 | `UpdateTodosResult` | `true` | `update_todos` |
 | `AppendDailyMemoryResult` | `true` | `append_daily_memory` |
+| `UpdateHeartbeatResult` | `true` | `update_heartbeat` |
 | `LoadSkillResult` | `ok: boolean` | `load_skill` |
 | `MemorySearchResult` | `true` | `memory_search` |
 | `MemoryGetResult` | `true` | `memory_get` |
@@ -155,6 +157,10 @@ Appends a timestamped note to `{workspaceRoot}/memory/YYYY-MM-DD.md`. Creates th
 ### load_skill
 
 Accepts a `SkillFileMap` (`Map<string, string>`) mapping skill names to file paths. Reads the skill file and returns its content. This allows adapters to register available skill files at startup without the tool needing to discover them.
+
+### update_heartbeat
+
+Writes a structured Markdown status file to `{workspaceRoot}/HEARTBEAT.md`. Accepts `status` (one of `running`, `completed`, `failed`, `idle`) and a `message` string. Always overwrites the previous content. Used by background tasks to signal liveness and progress; the file is automatically loaded into context on subsequent sessions via `workspacePromptFiles`.
 
 ### memory_search / memory_get
 

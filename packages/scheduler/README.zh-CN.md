@@ -80,6 +80,35 @@ interface TaskDefinition {
 
 `getNow` 函数可注入，支持测试确定性时间行为。
 
+### writeHeartbeat
+
+```typescript
+async function writeHeartbeat(filePath: string, state: HeartbeatState): Promise<void>
+
+interface HeartbeatState {
+  status: "idle" | "running" | "completed" | "failed";
+  taskName?: string;
+  runId?: string;
+  lastUpdatedAt: string;  // ISO 8601
+  message?: string;
+}
+```
+
+在 `filePath` 写入结构化 Markdown 心跳文件，始终覆盖（不追加）。父目录自动创建。
+
+文件内容对人类可读，且在 `HEARTBEAT.md` 存在时会注入到工作区 prompt 文件中：
+
+```
+# Heartbeat
+
+**Status**: running
+**Last updated**: 2026-05-07T10:00:00.000Z
+**Task**: daily-summary
+**Run ID**: run_abc123
+```
+
+CLI 适配器的 `runDaemonTask` 在两个时间点调用 `writeHeartbeat`：任务开始时（`status: "running"`）和任务结束时（`status: "completed"` 或 `"failed"`）。无论 agent 是否在任务中途调用 `update_heartbeat`，这都保证 `HEARTBEAT.md` 反映 daemon 的当前状态。
+
 ## 实现原理
 
 ### 为何 JSONL 用于任务运行
@@ -96,8 +125,8 @@ interface TaskDefinition {
 |---|---|---|
 | `package.json` | Package manifest | 声明 scheduler 包，依赖 `@vole/core` 和 `@vole/sessions`。 |
 | `tsconfig.json` | TypeScript 配置 | 使用对 core 和 sessions 的项目引用构建 scheduler。 |
-| `src/index.ts` | 调度器 | 所有导出：`TaskDefinition`、`TaskRunRecord`、`TaskStore`、`JsonlTaskStore`、`BackgroundApprovalResolver`、`matchesCron`、`CronScheduler`、`CronSchedulerOptions`、`TaskRunner`。 |
-| `src/index.test.ts` | 调度器测试 | 保护任务存储 CRUD、`BackgroundApprovalResolver` 模式行为、`matchesCron` 通配符和精确匹配、`CronScheduler` 启停/去重/故障隔离。 |
+| `src/index.ts` | 调度器 | 所有导出：`TaskDefinition`、`TaskRunRecord`、`TaskStore`、`JsonlTaskStore`、`BackgroundApprovalResolver`、`matchesCron`、`CronScheduler`、`CronSchedulerOptions`、`TaskRunner`、`HeartbeatState`、`writeHeartbeat`。 |
+| `src/index.test.ts` | 调度器测试 | 保护任务存储 CRUD、`BackgroundApprovalResolver` 模式行为、`matchesCron` 通配符和精确匹配、`CronScheduler` 启停/去重/故障隔离、`writeHeartbeat` 文件格式。 |
 
 ## 更新提醒
 

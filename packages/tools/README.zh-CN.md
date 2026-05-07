@@ -19,7 +19,8 @@ ExecutableTool[]    ← @vole/tools
     ├─ read_web_page（低风险）
     ├─ search_files（低风险）
     ├─ update_todos / load_skill / memory_search / memory_get（低风险）
-    └─ append_daily_memory（中风险）
+    ├─ append_daily_memory（中风险）
+    └─ update_heartbeat（低风险）
 ```
 
 ## 核心概念
@@ -103,6 +104,10 @@ Shell 始终以 `cwd = context.workspaceRoot` 运行，默认超时 30 秒，可
 ### load_skill
 
 接受 `SkillFileMap`（技能名称到文件路径的映射），读取技能文件并返回内容，允许 Adapter 在启动时注册可用技能文件。
+
+### update_heartbeat
+
+将结构化 Markdown 状态文件写入 `{workspaceRoot}/HEARTBEAT.md`。接受 `status`（`running`、`completed`、`failed`、`idle` 之一）和 `message` 字符串，始终覆盖上次内容。后台任务用它来标记存活状态和进度；该文件会在后续会话启动时通过 `workspacePromptFiles` 自动注入到 context 中。
 
 ### memory_search / memory_get
 

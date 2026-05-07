@@ -51,7 +51,7 @@ A `ToolProfile` restricts the set of tools available for a session or task type.
 | `"full"` | All tools (no restriction) | _(everything)_ |
 | `"coding"` | File system + shell coding tasks | `read_file`, `list_directory`, `write_file`, `run_shell`, `load_skill`, `update_todos`, `spawn_subagent` |
 | `"messaging"` | Read-only informational tasks | `read_file`, `list_directory`, `read_web_page`, `memory_search`, `memory_get`, `load_skill`, `update_todos` |
-| `"background"` | Unattended background tasks | `read_file`, `list_directory`, `write_file`, `memory_search`, `memory_get`, `append_daily_memory`, `update_todos`, `spawn_subagent` |
+| `"background"` | Unattended background tasks | `read_file`, `list_directory`, `write_file`, `memory_search`, `memory_get`, `append_daily_memory`, `update_todos`, `spawn_subagent`, `update_heartbeat` |
 
 The `"background"` profile intentionally excludes `run_shell` and `read_web_page` because unattended execution of shell commands or external web fetches carries higher risk without a user present to review them.
 

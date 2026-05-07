@@ -105,6 +105,35 @@ class CronScheduler {
 
 The `getNow` function is injectable for testing deterministic time-based behavior.
 
+### writeHeartbeat
+
+```typescript
+async function writeHeartbeat(filePath: string, state: HeartbeatState): Promise<void>
+
+interface HeartbeatState {
+  status: "idle" | "running" | "completed" | "failed";
+  taskName?: string;
+  runId?: string;
+  lastUpdatedAt: string;  // ISO 8601
+  message?: string;
+}
+```
+
+Writes a structured Markdown heartbeat file at `filePath`. The file is always overwritten (not appended). Parent directories are created automatically.
+
+The content is human-readable and injected into context when `HEARTBEAT.md` is present in the workspace prompt files list:
+
+```
+# Heartbeat
+
+**Status**: running
+**Last updated**: 2026-05-07T10:00:00.000Z
+**Task**: daily-summary
+**Run ID**: run_abc123
+```
+
+`writeHeartbeat` is called by `runDaemonTask` in the CLI adapter at two points: once at task start (`status: "running"`) and once at task end (`status: "completed"` or `"failed"`). This guarantees that `HEARTBEAT.md` reflects the daemon's current state regardless of whether the agent calls `update_heartbeat` during the task.
+
 ## Implementation Principles
 
 ### Why JSONL for Task Runs
@@ -121,8 +150,8 @@ The scheduler contains background-specific logic (cron matching, unattended appr
 |---|---|---|
 | `package.json` | Package manifest | Declares the scheduler package with workspace dependencies on `@vole/core` and `@vole/sessions`. |
 | `tsconfig.json` | TypeScript config | Builds the scheduler package with project references to core and sessions. |
-| `src/index.ts` | Scheduler | All exports: `TaskDefinition`, `TaskRunRecord`, `TaskStore`, `JsonlTaskStore`, `BackgroundApprovalResolver`, `matchesCron`, `CronScheduler`, `CronSchedulerOptions`, `TaskRunner`. |
-| `src/index.test.ts` | Scheduler tests | Protects task store CRUD, `BackgroundApprovalResolver` mode behavior, `matchesCron` wildcard and exact matching, and `CronScheduler` start/stop/deduplication/isolation. |
+| `src/index.ts` | Scheduler | All exports: `TaskDefinition`, `TaskRunRecord`, `TaskStore`, `JsonlTaskStore`, `BackgroundApprovalResolver`, `matchesCron`, `CronScheduler`, `CronSchedulerOptions`, `TaskRunner`, `HeartbeatState`, `writeHeartbeat`. |
+| `src/index.test.ts` | Scheduler tests | Protects task store CRUD, `BackgroundApprovalResolver` mode behavior, `matchesCron` wildcard and exact matching, `CronScheduler` start/stop/deduplication/isolation, and `writeHeartbeat` file format. |
 
 ## Update Reminder
 

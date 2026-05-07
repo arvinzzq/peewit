@@ -225,6 +225,30 @@ TaskDefinition
 每次后台运行都有独立的 `sessionId` 和 `AgentRuntime` 实例——运行之间不复用会话。
 设置 `preferStreaming: false` 是因为没有终端可渲染。
 
+## 4b. 心跳机制
+
+`HEARTBEAT.md` 机制为后台任务提供存活信号。它有两条独立的写入路径：
+
+**系统层**（`@vole/scheduler` → CLI）：`writeHeartbeat(filePath, state)` 由 `runDaemonTask` 在任务开始和结束时调用。无论 agent 做什么，这次写入都会发生。
+
+```ts
+// 任务开始
+await writeHeartbeat(heartbeatPath, { status: "running", taskName, runId, lastUpdatedAt })
+
+// 任务结束
+await writeHeartbeat(heartbeatPath, { status, taskName, runId, lastUpdatedAt, message? })
+```
+
+**Agent 层**（`@vole/tools`）：`update_heartbeat` 工具让 agent 在长任务执行期间写入中间状态：
+
+```
+update_heartbeat({ status: "running", message: "已处理 3/10 个文件。" })
+```
+
+生成的文件内容是人类可读的 Markdown，通过 `workspacePromptFiles` 注入到下次会话的 context。agent 无需任何专用工具就能读取上次运行的最终状态。
+
+**为什么要两层？** 系统层写入是安全兜底：如果 agent 失败、崩溃或从未调用 `update_heartbeat`，daemon 仍然记录了最终结果。agent 层写入为长任务提供细粒度的进度汇报。
+
 ## 5. OpenClaw 对齐
 
 | OpenClaw | Vole | 说明 |

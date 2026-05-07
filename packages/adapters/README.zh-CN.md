@@ -51,7 +51,7 @@ interface AdapterCapabilities {
 | `"full"` | 所有工具（无限制） | 全部 |
 | `"coding"` | 文件系统 + Shell 编码任务 | read_file、list_directory、write_file、run_shell、load_skill、update_todos、spawn_subagent |
 | `"messaging"` | 只读信息任务 | read_file、list_directory、read_web_page、memory_search、memory_get、load_skill、update_todos |
-| `"background"` | 无人值守后台任务 | read_file、list_directory、write_file、memory_search/get、append_daily_memory、update_todos、spawn_subagent |
+| `"background"` | 无人值守后台任务 | read_file、list_directory、write_file、memory_search/get、append_daily_memory、update_todos、spawn_subagent、update_heartbeat |
 
 `"background"` profile 有意排除 `run_shell` 和 `read_web_page`，因为无人值守时执行 Shell 命令或外部 Web 请求风险更高。
 
