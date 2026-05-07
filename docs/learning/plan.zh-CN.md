@@ -95,7 +95,7 @@
 | 07 | context | ✅ 已完成 | [06-context.zh-CN.md](./06-context.zh-CN.md) |
 | 08 | skills | ✅ 已完成 | [09-skills.zh-CN.md](./09-skills.zh-CN.md) |
 | 09 | scheduler | ✅ 已完成 | [10-scheduler.zh-CN.md](./10-scheduler.zh-CN.md) |
-| 10 | adapters | ⬜ 未开始 | — |
+| 10 | adapters | ✅ 已完成 | [11-adapters.zh-CN.md](./11-adapters.zh-CN.md) |
 | 11 | core | ✅ 已完成 | [02-core.zh-CN.md](./02-core.zh-CN.md) |
 | 12 | gateway | ⬜ 未开始 | — |
 | 13 | apps/cli | ⬜ 未开始 | — |

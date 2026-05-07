@@ -96,7 +96,7 @@ Ordered by dependency: each module only uses concepts from modules above it.
 | 07 | context | ✅ complete | [06-context.md](./06-context.md) |
 | 08 | skills | ✅ complete | [09-skills.md](./09-skills.md) |
 | 09 | scheduler | ✅ complete | [10-scheduler.md](./10-scheduler.md) |
-| 10 | adapters | ⬜ not started | — |
+| 10 | adapters | ✅ complete | [11-adapters.md](./11-adapters.md) |
 | 11 | core | ✅ complete | [02-core.md](./02-core.md) |
 | 12 | gateway | ⬜ not started | — |
 | 13 | apps/cli | ⬜ not started | — |
