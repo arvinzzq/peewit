@@ -12,75 +12,139 @@ description: >
 version: "1.0"
 ---
 
-# Peewit Development Skill
+# Peewit Development Conventions
 
-## File Editing Workflow
+## SOP: Making a Code Change
 
-Use the right tool. Getting this wrong destroys existing code.
+1. **Locate** — use `search_files` to find the relevant symbol or file before guessing
+2. **Read** — `read_file` the target file; understand existing patterns and conventions
+3. **Edit** — use the right tool (see File Tools section below)
+4. **Verify** — `run_shell command="pnpm run check"` (typecheck + tests + docs parity)
+5. **Fix** — if check fails, read the error output, fix, go back to step 4
+6. **Done** — report what changed and the check result
 
-| Situation | Tool |
-|---|---|
-| Modify existing code | `edit_file` (precise string replacement) |
-| Add content at end of file | `append_file` |
-| Create a new file | `write_file` |
-| Fully replace a file intentionally | `write_file` |
+Never skip step 4. "It looks right" is not the same as "check passes."
 
-**`edit_file` rules:**
-- `old_string` must be unique in the file. Add surrounding context if it appears multiple times.
-- Use `replace_all: true` to replace every occurrence.
-- Returns `string_not_found` (0 matches) or `multiple_matches` (>1, no replace_all).
+---
 
-**When appending to a test file:**
-1. Read the existing imports at the top first.
-2. If new imports are needed, `edit_file` the import block — don't add imports at the end.
-3. `append_file` only the new `describe` block (no import lines).
-4. Match the file's existing conventions: this project uses `test()` not `it()`.
+## SOP: Writing or Extending a Test File
 
-## TypeScript Patterns
+1. **Read the file** — check existing imports (top of file) and test conventions
+2. **Identify needed imports** — do not re-import what already exists
+3. **Extend imports if needed** — `edit_file` the existing import block at the top
+4. **Append the describe block** — `append_file` with only the `describe(...)` code (no imports)
+5. **Run** — `pnpm run check`; fix any TypeScript errors (see union narrowing below)
 
-### Union type narrowing
+### Requirements
 
-`ToolExecutionResult` is a discriminated union. Direct property access fails type-checking:
+- Use `test()`, not `it()`
+- Use `beforeAll` / `afterAll` for setup/teardown
+- Create temp workspaces with `mkdtemp(join(tmpdir(), "peewit-<name>-"))`
+- Clean up in `afterAll` with `rm(workspace, { recursive: true, force: true })`
+- Import statement location: always at the top of file; never at the end
 
+### Example
+
+**Correct — imports extended at top, describe appended at bottom:**
+
+```
+Step 1: edit_file to add to the existing import block at line 5–25:
+  old_string: "  createWriteFileTool,"
+  new_string: "  createWriteFileTool,\n  createMyNewTool,"
+
+Step 2: append_file the describe block only:
+  content: "\ndescribe(\"my_new_tool\", () => {\n  test(\"does X\", ...);\n});\n"
+```
+
+**Wrong — imports inside appended content:**
+
+```
+append_file content: "import { createMyNewTool } from './index.js';\n\ndescribe..."
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                      TypeScript error: Duplicate identifier
+```
+
+---
+
+## File Tools: When to Use Which
+
+| Situation | Tool | Reason |
+|---|---|---|
+| Modify existing code | `edit_file` | Replaces exact string, preserves surrounding content |
+| Add content at end of file | `append_file` | Appends without reading or touching existing content |
+| Create a new file | `write_file` | File doesn't exist yet |
+| Intentional full replacement | `write_file` | Explicitly replacing everything |
+
+### edit_file Rules
+
+- `old_string` must be unique in the file. If it appears multiple times, add more surrounding context.
+- Use `replace_all: true` only when every occurrence should change.
+- Error codes: `string_not_found` (0 matches), `multiple_matches` (>1, no replace_all).
+
+### Example
+
+```
+Task: rename variable `stallCount` to `planningStallCount`
+
+edit_file:
+  path: "packages/core/src/index.ts"
+  old_string: "let stallCount = 0;"
+  new_string: "let planningStallCount = 0;"
+  replace_all: false   ← fails if name appears elsewhere (add context or use replace_all)
+```
+
+---
+
+## TypeScript Union Type Narrowing
+
+**Symptom:** `Property 'matches' does not exist on type 'ToolExecutionResult'`
+
+**Cause:** `ToolExecutionResult` is a discriminated union. TypeScript doesn't know which variant you have.
+
+### Three narrowing options
+
+**Option A — type assertion (simplest for single access)**
 ```typescript
-// ❌ TypeScript error: property doesn't exist on union
-result.matches;
-
-// ✅ Type assertion
 const r = result as SearchFilesResult;
 r.matches;
+```
 
-// ✅ Discriminant narrowing (fully typed)
+**Option B — discriminant narrowing (preferred; fully typed inside block)**
+```typescript
 if (result.type === "search_files_result") {
-  result.matches;
+  result.matches;  // TypeScript knows this is SearchFilesResult
 }
 ```
 
-Check the union in `packages/tools/src/index.ts` when you need to access result-specific fields.
+**Option C — `in` check (when no `type` discriminant exists)**
+```typescript
+if ("matches" in result) {
+  (result as SearchFilesResult).matches;
+}
+```
 
-### Strict mode
+### Where to find union variants
 
-This project uses `strict: true`, `noUncheckedIndexedAccess: true`, `exactOptionalPropertyTypes: true`. Be careful with:
-- Array access: `arr[i]` is `T | undefined`, not `T`
-- Optional properties: assigning `undefined` to an optional prop requires `| undefined` in the type
+```
+packages/tools/src/index.ts — ToolExecutionResult union and all result interfaces
+packages/core/src/index.ts  — RuntimeEvent union and all event interfaces
+```
 
-## Test File Conventions
-
-- Framework: vitest
-- Use `test()` not `it()`
-- Use `beforeAll` / `afterAll` (not `before` / `after`)
-- Create temp workspaces with `mkdtemp(join(tmpdir(), "peewit-<name>-"))`
-- Clean up with `rm(workspace, { recursive: true, force: true })` in `afterAll`
-- Type-assert results to their specific type before accessing result-specific fields
+---
 
 ## Bilingual Doc Rules
 
-Every changed package must have both `README.md` and `README.zh-CN.md` updated in the same commit. The `pnpm run docs:check` script verifies heading count parity — if it fails, a heading was added to one file but not the other.
+Every changed package needs both `README.md` and `README.zh-CN.md` updated in the same commit.
 
-## Before Every Commit
+### SOP: Updating Bilingual Docs
 
-```bash
-pnpm run check   # typecheck + vitest + docs:check
-```
+1. Update `README.md` (English)
+2. Mirror all heading additions/removals in `README.zh-CN.md`
+3. Run `pnpm run check` — `docs:check` verifies heading count parity
+4. If `docs:check` fails: a heading exists in one file but not the other — fix the mismatch
 
-Do not commit if this fails.
+### Notes
+
+- Heading text can differ between languages; heading *count* per section must match
+- A "standalone docs: commit" is only for pure documentation that precedes implementation
+- Code + docs always move in the same commit

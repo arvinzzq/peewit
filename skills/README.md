@@ -22,7 +22,27 @@ version: "1.0"
 
 # Skill Title
 
-[Full skill content — instructions, patterns, examples, reference material]
+## SOP: [Primary Workflow Name]
+
+Numbered steps for the main flow. Decision points explicit. No ambiguity.
+
+---
+
+## Requirements
+
+What must be true about the output or action.
+
+## Output Format / Structure
+
+Template or schema the output should follow.
+
+## Examples
+
+Concrete before/after or input/output pairs that show exactly how to apply the skill.
+
+## Notes
+
+Edge cases, gotchas, exceptions.
 ```
 
 ## Description Writing Rules
@@ -30,10 +50,10 @@ version: "1.0"
 The `description` must answer three questions:
 
 1. **What** — what capabilities or knowledge does this skill provide?
-2. **Use when** — specific conditions that should trigger loading this skill. Be concrete ("when TypeScript type errors appear", "when writing vitest tests") not vague ("when doing coding tasks").
-3. **Skip when** — situations where loading this skill would be unnecessary or wrong. This prevents the agent from over-loading skills and wasting context.
+2. **Use when** — specific trigger conditions. Be concrete ("when TypeScript type errors appear") not vague ("when doing coding").
+3. **Skip when** — when loading this skill would be unnecessary or wrong. Prevents over-loading.
 
-### Good description example
+### Good example
 
 ```
 TypeScript monorepo development conventions: file editing workflow,
@@ -44,16 +64,35 @@ Skip when: read-only tasks (search, analysis, Q&A); tasks unrelated
 to this codebase's code or docs.
 ```
 
-### Bad description example
+### Bad example
 
 ```
 Coding conventions for this project.
 ```
 
-Bad because: no trigger conditions, no exclusion conditions — the agent can't decide when to load it.
+No trigger conditions, no exclusion conditions — the agent can't route.
+
+## Body Writing Rules
+
+A skill body must provide **actionable procedure**, not just facts. The difference:
+
+| Weak (knowledge dump) | Strong (SOP + examples) |
+|---|---|
+| "Use edit_file for modifications" | Step-by-step flow: locate → read → edit → verify → fix |
+| "TypeScript uses union types" | Numbered options with code examples, error message as trigger |
+| "Tests use vitest" | Import pattern, mkdtemp pattern, what goes where, what fails |
+
+**Every skill body should have at minimum:**
+- At least one numbered SOP (main flow)
+- Requirements section (what the output/action must satisfy)
+- At least one concrete example (input → action → output)
+- Notes section (gotchas, edge cases, common mistakes)
+
+See `skills/generate-tool-schema.md` as the reference example of a well-structured skill.
 
 ## Skill Scope Principle
 
-Each skill should cover one domain or workflow. Don't bundle unrelated knowledge into one skill. A skill that's "everything about this project" is too broad — the agent will load it for everything.
+One skill = one domain or workflow. Don't bundle unrelated knowledge.
 
-Prefer: one skill per domain (`peewit-dev`, `writing-style`, `data-analysis`) rather than one monolithic skill.
+Prefer: `peewit-dev`, `writing-style`, `data-analysis` — one skill per domain.
+Avoid: a monolithic "everything about this project" skill.
