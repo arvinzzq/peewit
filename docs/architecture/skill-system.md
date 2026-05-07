@@ -110,8 +110,8 @@ Skills should load from three locations.
 
 Precedence order:
 
-1. Project skills: `<workspace>/skills`
-2. User skills: `~/.vole/skills`
+1. Project skills: `<workspace>/skills/*/SKILL.md`
+2. User skills: `~/.vole/skills/*/SKILL.md`
 3. Built-in skills
 
 If multiple skills have the same name, the higher-precedence skill wins.

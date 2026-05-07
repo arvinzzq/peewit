@@ -9,7 +9,7 @@ English version: [README.md](./README.md)
 ```
 技能来源（3 层，优先级顺序）：
   1. workspace/skills/*/SKILL.md    ← 项目特定覆盖（最高优先级）
-  2. ~/.vole/skills/*.md        ← 用户安装技能（manifest 控制）
+  2. ~/.vole/skills/*/SKILL.md  ← 用户安装技能（manifest 控制）
   3. 内置（硬编码）                  ← research、project-inspector、safe-shell
 
         SkillLoader.load()
@@ -50,8 +50,8 @@ permissions: read_file, list_directory
 
 `SkillLoader.load()` 应用先到先得的去重策略：
 
-1. **工作区技能**（`{workspaceRoot}/skills/*/SKILL.md`）— 最高优先级，每个子目录是一个含 `SKILL.md` 的技能。
-2. **用户技能**（`~/.vole/skills/*.md`）— 扁平的 `.md` 文件，通过 `skills-index.json` manifest 追踪。未在 manifest 中或 `enabled: false` 的技能被跳过。
+1. **工作区技能**（`{workspaceRoot}/skills/*/SKILL.md`）— 最高优先级，每个子目录是一个技能，`SKILL.md` 旁可放置模板、示例等附属文件。
+2. **用户技能**（`~/.vole/skills/*/SKILL.md`）— 与工作区技能相同的子目录结构，通过 `skills-index.json` manifest 追踪。未在 manifest 中或 `enabled: false` 的技能被跳过。`SkillManager.install()` 会创建子目录并将源文件复制为 `SKILL.md`。
 3. **内置技能** — 在源码中硬编码：`research`、`project-inspector`、`safe-shell`。
 
 工作区技能和用户技能同名时，工作区技能优先（其条目先被加入 `seen` 集合）。
@@ -107,7 +107,7 @@ Manifest 文件位于 `~/.vole/skills/skills-index.json`，由 `SkillLoader` 读
 
 `SkillManager` 用加载-修改-保存模式包装 manifest 文件：
 
-- `install(sourcePath)` — 复制源文件到技能目录，解析名称，以 `trusted: false, enabled: true` 插入/更新 manifest 条目。
+- `install(sourcePath)` — 创建 `<name>/` 子目录，将源文件复制为 `SKILL.md`，以 `trusted: false, enabled: true` 插入/更新 manifest 条目。
 - `enable(name)` / `disable(name)` — 加载 manifest，找到条目，设置 `enabled`，保存。
 - `trust(name)` — 加载 manifest，找到条目，设置 `trusted: true`，保存。
 - `review(name)` — 加载技能文件，返回完整 `SkillDefinition` 供信任前检查。

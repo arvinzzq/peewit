@@ -9,7 +9,7 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 ```
 Skill sources (3 tiers, precedence order):
   1. workspace/skills/*/SKILL.md    ← project-specific overrides
-  2. ~/.vole/skills/*.md        ← user-installed skills (manifest-gated)
+  2. ~/.vole/skills/*/SKILL.md      ← user-installed skills (manifest-gated)
   3. built-in (hardcoded)            ← research, project-inspector, safe-shell
 
         SkillLoader.load()
@@ -50,8 +50,8 @@ Required fields: `name`, `description`. Optional: `version`, `origin`, `permissi
 
 `SkillLoader.load()` applies a first-seen-wins deduplication strategy:
 
-1. **Workspace skills** (`{workspaceRoot}/skills/*/SKILL.md`) — highest precedence. Each subdirectory is a skill with a `SKILL.md` file.
-2. **User skills** (`~/.vole/skills/*.md`) — flat `.md` files tracked via `skills-index.json` manifest. Skills not in the manifest, or with `enabled: false` in the manifest, are skipped.
+1. **Workspace skills** (`{workspaceRoot}/skills/*/SKILL.md`) — highest precedence. Each subdirectory is one skill; additional files (templates, examples) can live alongside `SKILL.md`.
+2. **User skills** (`~/.vole/skills/*/SKILL.md`) — same subdirectory layout as workspace skills, tracked via `skills-index.json` manifest. Skills not in the manifest, or with `enabled: false`, are skipped. `SkillManager.install()` creates the subdirectory and copies the source file as `SKILL.md`.
 3. **Built-in skills** — hardcoded in source: `research`, `project-inspector`, `safe-shell`.
 
 If a workspace skill and a user skill share the same `name`, the workspace skill wins (its entry is added first to the `seen` set).
@@ -109,7 +109,7 @@ The parser is intentionally limited to what SKILL.md files need. Full YAML parsi
 
 `SkillManager` wraps the manifest file with a load-modify-save pattern:
 
-- `install(sourcePath)` — copies the source file to the skills directory, parses its name, upserts the manifest entry with `trusted: false, enabled: true`.
+- `install(sourcePath)` — creates `<name>/` subdirectory, copies the source file as `SKILL.md`, upserts the manifest entry with `trusted: false, enabled: true`.
 - `enable(name)` / `disable(name)` — loads manifest, finds entry by name, sets `enabled`, saves manifest.
 - `trust(name)` — loads manifest, finds entry, sets `trusted: true`, saves manifest.
 - `review(name)` — loads the skill file and returns the full `SkillDefinition` for inspection before trusting.

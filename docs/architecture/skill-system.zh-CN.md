@@ -110,8 +110,8 @@ Skills 应从三个位置加载。
 
 优先级顺序：
 
-1. Project skills：`<workspace>/skills`
-2. User skills：`~/.vole/skills`
+1. Project skills：`<workspace>/skills/*/SKILL.md`
+2. User skills：`~/.vole/skills/*/SKILL.md`
 3. Built-in skills
 
 如果多个 skills 同名，更高优先级的 skill 胜出。
