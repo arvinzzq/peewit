@@ -197,7 +197,23 @@ interface ApprovalResponder {
 
 The permission package decides that approval is needed. The CLI or Web UI collects the user decision.
 
-## 14. Testing Requirements
+## 14. Minimal / Null Implementations
+
+Every module contract must be satisfiable by a minimal implementation that compiles, runs, and produces valid output with zero real side effects. This is not just a testing concern — it is an architectural invariant: if a module cannot be replaced by a no-op, a boundary is being violated.
+
+| Contract | Provided Implementations |
+|---|---|
+| `ModelProvider` | `AnthropicProvider`, `OpenAICompatibleProvider`, `FakeModelProvider` |
+| `ContextAssembler` | `DefaultContextAssembler`, `MinimalContextAssembler` |
+| `PermissionPolicy` | `DefaultPermissionPolicy`, `AlwaysAllowPolicy` |
+| `SessionStore` | `JsonlSessionStore`, `InMemorySessionStore` |
+| `ExecutableTool[]` | Full built-in set, empty `[]` |
+
+`MinimalContextAssembler` passes `systemInstruction` and messages through without reading workspace files or applying XML formatting. `AlwaysAllowPolicy` allows all non-blocked actions regardless of risk level.
+
+These implementations are the basis for layer-isolated tests described in [Progressive Composition](./progressive-composition.md).
+
+## 15. Testing Requirements
 
 Contracts should be protected by tests.
 

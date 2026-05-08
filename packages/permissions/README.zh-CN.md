@@ -58,6 +58,20 @@ interface PermissionDecision {
 
 `PermissionPolicy` 是同步的且无副作用，可安全地在 Agent 循环热路径中调用。
 
+### AlwaysAllowPolicy
+
+`AlwaysAllowPolicy` 是 `PermissionPolicy` 的 null 实现。对所有非 blocked tool action 返回 `allow`，不考虑风险级别和自治模式。`"blocked"` 风险的工具仍然被拒绝——这个不变量在所有策略实现中均成立。
+
+```typescript
+const agent = createAgent({
+  model: provider,
+  tools: [readFileTool, shellTool],
+  permissions: new AlwaysAllowPolicy(),  // 所有 tool call 直接执行，无需审批提示
+});
+```
+
+适用场景：Layer 1 测试中需要 tool calls 直接执行而不配置 `ApprovalResolver`；或在所有注册工具都被视为安全的沙箱评估环境中。
+
 ## 实现原理
 
 ### 为何独立一个包
@@ -81,7 +95,7 @@ interface PermissionDecision {
 |---|---|---|
 | `package.json` | Package manifest | 声明 permissions 包（不依赖其他工作区包）。 |
 | `tsconfig.json` | TypeScript 配置 | 构建 permissions 包。 |
-| `src/index.ts` | 权限策略 | 所有导出：`AutonomyMode`、`PermissionRiskLevel`、`PermissionDecisionType`、`PermissionAction`、`PermissionEvaluationInput`、`PermissionDecision`、`PermissionPolicy`、`DefaultPermissionPolicy`。 |
+| `src/index.ts` | 权限策略 | 所有导出：`AutonomyMode`、`PermissionRiskLevel`、`PermissionDecisionType`、`PermissionAction`、`PermissionEvaluationInput`、`PermissionDecision`、`PermissionPolicy`、`DefaultPermissionPolicy`、`AlwaysAllowPolicy`。 |
 | `src/index.test.ts` | 权限测试 | 覆盖决策矩阵所有单元格：observe/confirm/auto × low/medium/high/blocked。 |
 
 ## 更新提醒

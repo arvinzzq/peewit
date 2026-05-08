@@ -197,7 +197,23 @@ interface ApprovalResponder {
 
 Permission package 决定需要 approval。CLI 或 Web UI 收集用户 decision。
 
-## 14. 测试要求
+## 14. Minimal / Null 实现
+
+每个模块 contract 都必须能被 minimal 实现满足——该实现编译通过、可运行、产生有效输出，且没有任何真实副作用。这不只是测试问题，而是架构不变量：若某模块不能被 no-op 替换，说明存在边界违规。
+
+| Contract | 已提供实现 |
+|---|---|
+| `ModelProvider` | `AnthropicProvider`、`OpenAICompatibleProvider`、`FakeModelProvider` |
+| `ContextAssembler` | `DefaultContextAssembler`、`MinimalContextAssembler` |
+| `PermissionPolicy` | `DefaultPermissionPolicy`、`AlwaysAllowPolicy` |
+| `SessionStore` | `JsonlSessionStore`、`InMemorySessionStore` |
+| `ExecutableTool[]` | 完整内置工具集，空数组 `[]` |
+
+`MinimalContextAssembler` 直传 `systemInstruction` 和 messages，不读取 workspace 文件，不应用 XML 格式。`AlwaysAllowPolicy` 放行所有非 blocked action，不考虑风险级别。
+
+这些实现是 [Progressive Composition](./progressive-composition.zh-CN.md) 中层隔离测试的基础。
+
+## 15. 测试要求
 
 Contracts 应被测试保护。
 

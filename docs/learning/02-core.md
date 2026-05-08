@@ -65,6 +65,25 @@ consume its event stream without reimplementing the loop.
 
 ## 3. Public Interface
 
+The preferred entry point is `createAgent()`, which wraps `AgentRuntime` with safe defaults:
+
+```ts
+// Minimum viable — Layer 0
+const agent = createAgent({ model: provider });
+
+// Progressive — add layers as needed
+const agent = createAgent({
+  model: provider,
+  systemInstruction: "You are Vole.",
+  tools: [readFileTool, runShellTool],
+  permissions: new DefaultPermissionPolicy(),
+  approvalResolver: myResolver,
+  context: new DefaultContextAssembler({ workspaceFiles: ["AGENTS.md"] }),
+});
+```
+
+When you need full dependency control, use `AgentRuntime` directly:
+
 ```ts
 class AgentRuntime {
   constructor(dependencies: AgentRuntimeDependencies)
@@ -72,9 +91,9 @@ class AgentRuntime {
 }
 
 interface AgentRuntimeDependencies {
-  contextAssembler: ContextAssembler   // required — assembles context before each model call
   modelProvider: ModelProvider         // required — vendor-agnostic model interface
-  systemInstruction: string            // required — base system prompt text
+  contextAssembler?: ContextAssembler  // optional — defaults to MinimalContextAssembler
+  systemInstruction?: string           // optional — defaults to ""
   permissionPolicy?: PermissionPolicy  // optional — defaults to DefaultPermissionPolicy
   approvalResolver?: ApprovalResolver  // optional — handles "ask" decisions with the user
   tools?: ExecutableTool[]             // optional — registered tools
@@ -92,7 +111,8 @@ interface AgentRuntimeInput {
 ```
 
 Key point: `AgentRuntime` takes all its dependencies from the outside. It constructs nothing
-itself except the internal `update_todos` tool. This makes it fully testable with fakes.
+itself except the internal `update_todos` tool and the default `MinimalContextAssembler`.
+This makes it fully testable with fakes at any layer.
 
 ## 4. Implementation Walkthrough
 

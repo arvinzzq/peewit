@@ -47,6 +47,12 @@ Three modes control how much of the system prompt is assembled:
 
 In `"none"` mode, no system message is emitted at all — only the conversation history and user message.
 
+### MinimalContextAssembler
+
+`MinimalContextAssembler` is the null implementation of `ContextAssembler`. It produces a system message from `systemInstruction` (if provided) and appends `recentMessages` + `userMessage` directly — no XML formatting, no workspace file reads, no section structure.
+
+Use it when testing tool dispatch, permission evaluation, or agent loop behavior in isolation, without needing to verify context assembly. It is the default assembler used by `createAgent()` when no `context` option is provided.
+
 ### ContextAssemblyReport
 
 Every `assemble()` call returns a `ContextAssemblyReport` alongside the `ModelInput`. The report lists:
@@ -115,7 +121,7 @@ The context package receives `ContextToolSummary[]` (name + description + risk) 
 |---|---|---|
 | `package.json` | Package manifest | Declares context package exports and dependency on models (for `ModelInput`, `ModelMessage`, `ModelProvider`). |
 | `tsconfig.json` | TypeScript config | Builds context with a project reference to models. |
-| `src/index.ts` | Context assembler | All exports: `ContextAssembler`, `DefaultContextAssembler`, `ContextAssemblyInput/Result/Report`, `ContextRuntimeMetadata`, `ContextToolSummary`, `ContextSkillSummary`, `PromptMode`, `compactMessages`, `CompactionOptions`, `DEFAULT_COMPACTION_OPTIONS`. |
+| `src/index.ts` | Context assembler | All exports: `ContextAssembler`, `DefaultContextAssembler`, `MinimalContextAssembler`, `ContextAssemblyInput/Result/Report`, `ContextRuntimeMetadata`, `ContextToolSummary`, `ContextSkillSummary`, `PromptMode`, `compactMessages`, `CompactionOptions`, `DEFAULT_COMPACTION_OPTIONS`. |
 | `src/index.test.ts` | Context tests | Protects section ordering, section inclusion/omission per prompt mode, tooling/safety/skills format, workspace file loading, assembly reports, and `compactMessages` compaction behavior. |
 
 ## Update Reminder

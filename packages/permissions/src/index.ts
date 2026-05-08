@@ -1,6 +1,6 @@
 /**
  * INPUT: Tool actions, autonomy mode, and risk metadata.
- * OUTPUT: Permission decisions with trace-safe reasons.
+ * OUTPUT: Permission decisions with trace-safe reasons, DefaultPermissionPolicy (risk × mode matrix), and AlwaysAllowPolicy as the null/pass-through implementation.
  * POS: Permission layer; decides allow, ask, or deny without executing tools or rendering prompts.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -78,5 +78,15 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
           risk,
           reason: "Medium and high-risk actions require approval in confirm mode."
         };
+  }
+}
+
+export class AlwaysAllowPolicy implements PermissionPolicy {
+  evaluate(input: PermissionEvaluationInput): PermissionDecision {
+    const risk = input.action.risk;
+    if (risk === "blocked") {
+      return { decision: "deny", risk, reason: "Blocked actions are always denied." };
+    }
+    return { decision: "allow", risk, reason: "AlwaysAllowPolicy permits all non-blocked actions." };
   }
 }

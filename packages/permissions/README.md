@@ -74,6 +74,20 @@ interface PermissionPolicy {
 
 `PermissionPolicy` is synchronous and has no side effects. This makes it trivially testable and safe to call in the hot path of the agent loop. Custom implementations can add allow-lists, rule-based overrides, or organization-specific logic without changing the runtime.
 
+### AlwaysAllowPolicy
+
+`AlwaysAllowPolicy` is the null implementation of `PermissionPolicy`. It returns `allow` for every non-blocked tool action regardless of risk level and autonomy mode. `"blocked"` risk tools are still denied — that invariant holds across all policies.
+
+```typescript
+const agent = createAgent({
+  model: provider,
+  tools: [readFileTool, shellTool],
+  permissions: new AlwaysAllowPolicy(),  // all tool calls execute without prompts
+});
+```
+
+Use when: Layer 1 tests that need tool calls to execute without configuring an `ApprovalResolver`. Also useful in sandboxed evaluation environments where every registered tool is considered safe by definition.
+
 ## Implementation Principles
 
 ### Why a Separate Package
@@ -98,7 +112,7 @@ Tools with `risk: "blocked"` are designed to be permanently unavailable. They ma
 |---|---|---|
 | `package.json` | Package manifest | Declares the permissions package, export entrypoint, and build scripts. |
 | `tsconfig.json` | TypeScript config | Builds the permissions package (no dependencies on other workspace packages). |
-| `src/index.ts` | Permission policy | All exports: `AutonomyMode`, `PermissionRiskLevel`, `PermissionDecisionType`, `PermissionAction`, `PermissionEvaluationInput`, `PermissionDecision`, `PermissionPolicy`, `DefaultPermissionPolicy`. |
+| `src/index.ts` | Permission policy | All exports: `AutonomyMode`, `PermissionRiskLevel`, `PermissionDecisionType`, `PermissionAction`, `PermissionEvaluationInput`, `PermissionDecision`, `PermissionPolicy`, `DefaultPermissionPolicy`, `AlwaysAllowPolicy`. |
 | `src/index.test.ts` | Permission tests | Covers all cells of the decision matrix: observe/confirm/auto × low/medium/high/blocked. |
 
 ## Update Reminder

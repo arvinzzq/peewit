@@ -1,6 +1,6 @@
 /**
  * INPUT: System instructions, runtime metadata, tool summaries, skill index, permission guidance, workspace prompt files, recent conversation messages, user messages, prompt mode, compaction options, and model provider for summarization.
- * OUTPUT: Provider-neutral model input assembled from named sections, conversation history, a per-section context assembly report, compacted message histories via compactMessages, and PromptMode type for full/minimal/none assembly control.
+ * OUTPUT: Provider-neutral model input assembled from named sections, conversation history, a per-section context assembly report, compacted message histories via compactMessages, PromptMode type for full/minimal/none assembly control, and MinimalContextAssembler as the null/pass-through implementation.
  * POS: Context assembly layer; decides what the model sees before provider formatting.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -62,6 +62,27 @@ export interface ContextAssemblyResult {
 
 export interface ContextAssembler {
   assemble(input: ContextAssemblyInput): Promise<ContextAssemblyResult>;
+}
+
+export class MinimalContextAssembler implements ContextAssembler {
+  async assemble(input: ContextAssemblyInput): Promise<ContextAssemblyResult> {
+    const messages: ModelMessage[] = [];
+    if (input.systemInstruction) {
+      messages.push({ role: "system", content: input.systemInstruction });
+    }
+    if (input.recentMessages) {
+      messages.push(...input.recentMessages);
+    }
+    messages.push({ role: "user", content: input.userMessage });
+    return {
+      modelInput: { messages },
+      report: {
+        includedSections: input.systemInstruction ? ["identity"] : [],
+        omittedSections: ["runtime", "tooling", "safety", "skills", "workspace"],
+        sections: []
+      }
+    };
+  }
 }
 
 export interface DefaultContextAssemblerDependencies {

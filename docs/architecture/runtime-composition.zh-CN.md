@@ -223,7 +223,35 @@ Runtime composition 成功标准：
 - Session 和 trace persistence 通过 interfaces 访问。
 - 未来 adapters 可以复用同一 composition pattern。
 
-## 16. 相关文档
+## 16. createAgent() 工厂函数
+
+`createAgent()` 是 runtime composition 的首选公共 API。它封装了 `new AgentRuntime()`，提供合理默认值，调用方无需显式构造每个依赖：
+
+```ts
+import { createAgent } from "@vole/core";
+
+// 最小可用 agent
+const agent = createAgent({ model: provider });
+
+// 完整组合
+const agent = createAgent({
+  model: provider,
+  systemInstruction: AGENT_SYSTEM_INSTRUCTION,
+  tools: allTools,
+  permissions: new DefaultPermissionPolicy(),
+  approvalResolver: cliApprovalResolver,
+  context: new DefaultContextAssembler({ workspaceFiles: [...] }),
+  compaction: { maxTokens: 60_000 },
+});
+```
+
+工厂函数不包含 sessions——session 历史以 `recentMessages` 的形式传入每次 `runTurn()` 调用，调用方从 `turn_complete` 事件中取出新消息进行持久化。这保持了 session 归属在 adapter 边界上。
+
+直接 `new AgentRuntime(dependencies)` 构造方式对需要精细控制依赖的场景仍然有效。
+
+层叠模型和 null/minimal 实现详见 [Progressive Composition](./progressive-composition.zh-CN.md)。
+
+## 17. 相关文档
 
 - [Project Structure](./project-structure.zh-CN.md)
 - [Configuration System](./configuration-system.zh-CN.md)

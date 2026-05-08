@@ -1,6 +1,6 @@
 /**
- * INPUT: ContextAssembler, ModelProvider, PermissionPolicy, ApprovalResolver, tools, hooks, SessionMutex, ExecutionContract, maxSteps, runtime metadata, user turn input, recent messages.
- * OUTPUT: AgentRuntime, runtime events (turn_complete, compaction_triggered+summary, token_delta, todos_updated, planning_stall_detected, tool/permission/approval), SubagentFactory, spawn tools, AsyncTaskStore, trace store.
+ * INPUT: ModelProvider (required), and optionally: ContextAssembler (defaults to MinimalContextAssembler), systemInstruction, PermissionPolicy (defaults to DefaultPermissionPolicy), ApprovalResolver, tools, hooks, SessionMutex, ExecutionContract, maxSteps, runtime metadata, user turn input, recent messages.
+ * OUTPUT: createAgent() factory, AgentRuntime, CreateAgentOptions, runtime events (turn_complete, compaction_triggered+summary, token_delta, todos_updated, planning_stall_detected, tool/permission/approval), SubagentFactory, spawn tools, AsyncTaskStore, trace store.
  * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -13,7 +13,7 @@ import type {
   ContextToolSummary,
   PromptMode
 } from "@vole/context";
-import { compactMessages } from "@vole/context";
+import { compactMessages, MinimalContextAssembler } from "@vole/context";
 import { isStreamingProvider } from "@vole/models";
 import type { ModelMessage, ModelOutput, ModelProvider, ModelUsage, ModelToolCall, ModelToolDefinition } from "@vole/models";
 import {
@@ -290,7 +290,7 @@ export interface AgentHooks {
 }
 
 export interface AgentRuntimeDependencies {
-  contextAssembler: ContextAssembler;
+  contextAssembler?: ContextAssembler;
   modelProvider: ModelProvider;
   permissionPolicy?: PermissionPolicy;
   approvalResolver?: ApprovalResolver;
@@ -298,7 +298,7 @@ export interface AgentRuntimeDependencies {
   skillIndex?: ContextSkillSummary[];
   maxSteps?: number;
   maxPlanningStallRetries?: number;
-  systemInstruction: string;
+  systemInstruction?: string;
   runtime?: ContextRuntimeMetadata;
   preferStreaming?: boolean;
   compaction?: Partial<CompactionOptions>;
@@ -367,7 +367,7 @@ export class AgentRuntime {
   #currentTodos: TodoItem[] = [];
 
   constructor(dependencies: AgentRuntimeDependencies) {
-    this.#contextAssembler = dependencies.contextAssembler;
+    this.#contextAssembler = dependencies.contextAssembler ?? new MinimalContextAssembler();
     this.#modelProvider = dependencies.modelProvider;
     this.#permissionPolicy = dependencies.permissionPolicy ?? new DefaultPermissionPolicy();
     this.#approvalResolver = dependencies.approvalResolver;
@@ -377,9 +377,10 @@ export class AgentRuntime {
       ? (dependencies.maxPlanningStallRetries ?? 3)
       : (dependencies.maxPlanningStallRetries ?? DEFAULT_MAX_PLANNING_STALL_RETRIES);
     this.#skillIndex = dependencies.skillIndex ?? [];
+    const baseInstruction = dependencies.systemInstruction ?? "";
     this.#systemInstruction = dependencies.executionContract === "strict-agentic"
-      ? `${dependencies.systemInstruction}\n\nExecution contract: strict-agentic. Act immediately. Do not narrate plans. Call tools now.`
-      : dependencies.systemInstruction;
+      ? `${baseInstruction}\n\nExecution contract: strict-agentic. Act immediately. Do not narrate plans. Call tools now.`
+      : baseInstruction;
     this.#runtime = dependencies.runtime;
     this.#preferStreaming = dependencies.preferStreaming ?? false;
     this.#compaction = dependencies.compaction;
@@ -793,6 +794,43 @@ function isPlanningOnly(content: string): boolean {
   // filler ("let me think about this") from triggering the stall detector.
   if (!hasStructured && !PLAN_ACTION_VERB_RE.test(text)) return false;
   return true;
+}
+
+export interface CreateAgentOptions {
+  model: ModelProvider;
+  systemInstruction?: string;
+  tools?: ExecutableTool[];
+  permissions?: PermissionPolicy;
+  approvalResolver?: ApprovalResolver;
+  context?: ContextAssembler;
+  compaction?: Partial<CompactionOptions>;
+  maxSteps?: number;
+  runtime?: ContextRuntimeMetadata;
+  preferStreaming?: boolean;
+  promptMode?: PromptMode;
+  hooks?: AgentHooks;
+  sessionMutex?: SessionMutex;
+  executionContract?: ExecutionContract;
+  skillIndex?: ContextSkillSummary[];
+}
+
+export function createAgent(options: CreateAgentOptions): AgentRuntime {
+  const deps: AgentRuntimeDependencies = { modelProvider: options.model };
+  if (options.systemInstruction !== undefined) deps.systemInstruction = options.systemInstruction;
+  if (options.context !== undefined) deps.contextAssembler = options.context;
+  if (options.tools !== undefined) deps.tools = options.tools;
+  if (options.permissions !== undefined) deps.permissionPolicy = options.permissions;
+  if (options.approvalResolver !== undefined) deps.approvalResolver = options.approvalResolver;
+  if (options.maxSteps !== undefined) deps.maxSteps = options.maxSteps;
+  if (options.runtime !== undefined) deps.runtime = options.runtime;
+  if (options.preferStreaming !== undefined) deps.preferStreaming = options.preferStreaming;
+  if (options.compaction !== undefined) deps.compaction = options.compaction;
+  if (options.promptMode !== undefined) deps.promptMode = options.promptMode;
+  if (options.hooks !== undefined) deps.hooks = options.hooks;
+  if (options.sessionMutex !== undefined) deps.sessionMutex = options.sessionMutex;
+  if (options.executionContract !== undefined) deps.executionContract = options.executionContract;
+  if (options.skillIndex !== undefined) deps.skillIndex = options.skillIndex;
+  return new AgentRuntime(deps);
 }
 
 // AsyncTaskStore is a duck-typed interface for storing async task records.

@@ -223,7 +223,35 @@ Runtime composition is successful when:
 - Session and trace persistence are accessed through interfaces.
 - Future adapters can reuse the same composition pattern.
 
-## 16. Related Documents
+## 16. The createAgent() Factory
+
+`createAgent()` is the primary public API for runtime composition. It wraps `new AgentRuntime()` with safe defaults so callers do not need to construct every dependency explicitly:
+
+```ts
+import { createAgent } from "@vole/core";
+
+// Minimum viable agent
+const agent = createAgent({ model: provider });
+
+// Full composition
+const agent = createAgent({
+  model: provider,
+  systemInstruction: AGENT_SYSTEM_INSTRUCTION,
+  tools: allTools,
+  permissions: new DefaultPermissionPolicy(),
+  approvalResolver: cliApprovalResolver,
+  context: new DefaultContextAssembler({ workspaceFiles: [...] }),
+  compaction: { maxTokens: 60_000 },
+});
+```
+
+The factory omits sessions — session history is passed as `recentMessages` on each `runTurn()` call and persisted by the caller from the `turn_complete` event. This keeps session ownership at the adapter boundary.
+
+Direct `new AgentRuntime(dependencies)` construction remains valid for cases that require explicit dependency control.
+
+See [Progressive Composition](./progressive-composition.md) for the full layer model and null/minimal implementations.
+
+## 17. Related Documents
 
 - [Project Structure](./project-structure.md)
 - [Configuration System](./configuration-system.md)

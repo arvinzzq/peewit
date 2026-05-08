@@ -47,6 +47,12 @@ ModelInput + ContextAssemblyReport
 
 `"none"` 模式下完全不发出 system 消息——只有对话历史和用户消息。
 
+### MinimalContextAssembler
+
+`MinimalContextAssembler` 是 `ContextAssembler` 的 null 实现。它将 `systemInstruction`（若提供）作为 system message，然后直接拼接 `recentMessages` 和 `userMessage`——不使用 XML 格式，不读取 workspace 文件，不构建 section 结构。
+
+在隔离测试 tool dispatch、权限评估或 agent loop 行为时使用，无需验证 context assembly 逻辑。当 `createAgent()` 没有提供 `context` 选项时，它是默认的 context assembler。
+
 ### ContextAssemblyReport
 
 每次 `assemble()` 调用都会随 `ModelInput` 一起返回 `ContextAssemblyReport`：
@@ -113,7 +119,7 @@ context 包接收 `ContextToolSummary[]`（name + description + risk）而非完
 |---|---|---|
 | `package.json` | Package manifest | 声明 context 包及对 models 的依赖（用于 `ModelInput`、`ModelMessage`、`ModelProvider`）。 |
 | `tsconfig.json` | TypeScript 配置 | 使用对 models 的项目引用构建 context。 |
-| `src/index.ts` | Context 组装器 | 所有导出：`ContextAssembler`、`DefaultContextAssembler`、`ContextAssemblyInput/Result/Report`、`ContextRuntimeMetadata`、`ContextToolSummary`、`ContextSkillSummary`、`PromptMode`、`compactMessages`、`CompactionOptions`、`DEFAULT_COMPACTION_OPTIONS`。 |
+| `src/index.ts` | Context 组装器 | 所有导出：`ContextAssembler`、`DefaultContextAssembler`、`MinimalContextAssembler`、`ContextAssemblyInput/Result/Report`、`ContextRuntimeMetadata`、`ContextToolSummary`、`ContextSkillSummary`、`PromptMode`、`compactMessages`、`CompactionOptions`、`DEFAULT_COMPACTION_OPTIONS`。 |
 | `src/index.test.ts` | Context 测试 | 保护每种 prompt mode 下的 section 排序、包含/省略逻辑、格式、工作区文件加载、组装报告和 `compactMessages` 压缩行为。 |
 
 ## 更新提醒

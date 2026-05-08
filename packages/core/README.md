@@ -19,6 +19,33 @@ CLI / Web adapter
 
 The core must remain **adapter-agnostic** (no terminal rendering, no HTTP) and **vendor-agnostic** (no Anthropic or OpenAI SDK imports). Adapters call `AgentRuntime.runTurn()` and consume `RuntimeEvent` objects from its async generator.
 
+### createAgent() — Primary Entry Point
+
+`createAgent()` is the preferred way to construct an agent. It wraps `new AgentRuntime()` with safe defaults so you only specify what you need:
+
+```typescript
+import { createAgent } from "@vole/core";
+
+// Layer 0 — bare loop
+const agent = createAgent({ model: provider });
+
+// Layer 1 — add tools
+const agent = createAgent({ model: provider, tools: [readFileTool], permissions: new AlwaysAllowPolicy() });
+
+// Full composition
+const agent = createAgent({
+  model: provider,
+  systemInstruction: "You are Vole.",
+  tools: allTools,
+  permissions: new DefaultPermissionPolicy(),
+  approvalResolver: cliResolver,
+  context: new DefaultContextAssembler({ workspaceFiles: ["AGENTS.md"] }),
+  compaction: { maxTokens: 60_000 },
+});
+```
+
+All fields except `model` are optional. Sessions are caller-managed: pass `recentMessages` to `runTurn()` and persist the new messages from the `turn_complete` event. See [Progressive Composition](../../docs/architecture/progressive-composition.md) for the full layer model.
+
 ## Core Concepts
 
 ### RuntimeEvent System
@@ -161,8 +188,9 @@ Every `ExecutableTool.execute(input, context)` receives a `ToolExecutionContext`
 |---|---|---|
 | `package.json` | Package manifest | Declares the core package and workspace dependencies on context, models, permissions, and tools. |
 | `tsconfig.json` | TypeScript config | Builds core with project references to all dependency packages. |
-| `src/index.ts` | Runtime core | All exports: 19 event types and unions (including `TurnCompleteEvent` and `compaction_triggered` with `summary`), `AgentRuntime`, `SessionMutex`, `AgentHooks`, `ExecutionContract`, `InMemoryRuntimeTraceStore`, `RuntimeTraceStore`, `ApprovalResolver`, `SubagentFactory`, `createSpawnSubagentTool`, `createSpawnSubagentAsyncTool`, `AsyncTaskStore`. |
-| `src/index.test.ts` | Runtime tests | Full behavioral test suite covering all event paths, permission policy, approval, hooks, stall detection, streaming, subagent tools, `SessionMutex` concurrency, and `ExecutionContract` behavior. |
+| `src/index.ts` | Runtime core | All exports: `createAgent`, `CreateAgentOptions`, 19 event types and unions, `AgentRuntime`, `AgentRuntimeDependencies`, `SessionMutex`, `AgentHooks`, `ExecutionContract`, `InMemoryRuntimeTraceStore`, `RuntimeTraceStore`, `ApprovalResolver`, `SubagentFactory`, `createSpawnSubagentTool`, `createSpawnSubagentAsyncTool`, `AsyncTaskStore`. |
+| `src/index.test.ts` | Runtime tests | Full behavioral test suite: all event paths, permission policy, approval, hooks, stall detection, streaming, subagent tools, `SessionMutex` concurrency, `ExecutionContract` behavior. |
+| `src/create-agent.test.ts` | Progressive composition tests | Layer-isolated tests: Layer 0 (bare loop), Layer 1 (tool dispatch), Layer 2 (permission evaluation), Layer 3 (session messages), Layer 4 (context assembler), multi-layer combinations. |
 
 ## Update Reminder
 

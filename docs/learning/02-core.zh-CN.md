@@ -62,6 +62,25 @@ English version: `02-core.md`（与本文件并列）
 
 ## 3. 公开接口
 
+首选入口是 `createAgent()`，它封装了 `AgentRuntime` 并提供合理默认值：
+
+```ts
+// 最小可用 — Layer 0
+const agent = createAgent({ model: provider });
+
+// 渐进式——按需添加各层
+const agent = createAgent({
+  model: provider,
+  systemInstruction: "你是 Vole。",
+  tools: [readFileTool, runShellTool],
+  permissions: new DefaultPermissionPolicy(),
+  approvalResolver: myResolver,
+  context: new DefaultContextAssembler({ workspaceFiles: ["AGENTS.md"] }),
+});
+```
+
+需要精细控制依赖时，直接使用 `AgentRuntime`：
+
 ```ts
 class AgentRuntime {
   constructor(dependencies: AgentRuntimeDependencies)
@@ -69,9 +88,9 @@ class AgentRuntime {
 }
 
 interface AgentRuntimeDependencies {
-  contextAssembler: ContextAssembler   // 必须 — 每次模型调用前组装 context
   modelProvider: ModelProvider         // 必须 — 厂商无关的模型接口
-  systemInstruction: string            // 必须 — 基础系统提示文本
+  contextAssembler?: ContextAssembler  // 可选 — 默认使用 MinimalContextAssembler
+  systemInstruction?: string           // 可选 — 默认为 ""
   permissionPolicy?: PermissionPolicy  // 可选 — 默认使用 DefaultPermissionPolicy
   approvalResolver?: ApprovalResolver  // 可选 — 处理 "ask" 决策时与用户的交互
   tools?: ExecutableTool[]             // 可选 — 注册的工具列表
@@ -88,8 +107,8 @@ interface AgentRuntimeInput {
 }
 ```
 
-关键点：`AgentRuntime` 的所有依赖从外部注入，自己只创建内部的 `update_todos` 工具。这使得
-它可以完全用 fake 进行测试。
+关键点：`AgentRuntime` 的所有依赖从外部注入，自己只创建内部的 `update_todos` 工具和默认的
+`MinimalContextAssembler`。这使得它可以在任意层用 fake 进行完整测试。
 
 ## 4. 实现流程
 

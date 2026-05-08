@@ -19,6 +19,33 @@ CLI / Web adapter
 
 Core 必须保持 **adapter 无关**（不含终端渲染或 HTTP 代码）和 **vendor 无关**（不导入 Anthropic 或 OpenAI SDK）。Adapter 调用 `AgentRuntime.runTurn()` 并消费其异步生成器产生的 `RuntimeEvent` 对象。
 
+### createAgent() — 首选入口
+
+`createAgent()` 是构造 agent 的首选方式。它封装了 `new AgentRuntime()`，提供合理默认值，只需指定所需的部分：
+
+```typescript
+import { createAgent } from "@vole/core";
+
+// Layer 0 — 裸 loop
+const agent = createAgent({ model: provider });
+
+// Layer 1 — 添加 tools
+const agent = createAgent({ model: provider, tools: [readFileTool], permissions: new AlwaysAllowPolicy() });
+
+// 完整组合
+const agent = createAgent({
+  model: provider,
+  systemInstruction: "你是 Vole。",
+  tools: allTools,
+  permissions: new DefaultPermissionPolicy(),
+  approvalResolver: cliResolver,
+  context: new DefaultContextAssembler({ workspaceFiles: ["AGENTS.md"] }),
+  compaction: { maxTokens: 60_000 },
+});
+```
+
+除 `model` 外所有字段均为可选。Sessions 由调用方管理：向 `runTurn()` 传入 `recentMessages`，并从 `turn_complete` 事件中取出新消息进行持久化。完整层叠模型详见 [Progressive Composition](../../docs/architecture/progressive-composition.zh-CN.md)。
+
 ## 核心概念
 
 ### RuntimeEvent 事件系统
@@ -159,8 +186,9 @@ const releaseB = await mutex.acquire("sess_B");   // 不等待
 |---|---|---|
 | `package.json` | Package manifest | 声明 core 包及对 context、models、permissions、tools 的 workspace 依赖。 |
 | `tsconfig.json` | TypeScript 配置 | 使用项目引用构建 core。 |
-| `src/index.ts` | 运行时核心 | 所有导出：19 种事件类型及联合类型（含 `TurnCompleteEvent` 和带 `summary` 字段的 `compaction_triggered`）、`AgentRuntime`、`SessionMutex`、`AgentHooks`、`ExecutionContract`、`InMemoryRuntimeTraceStore`、`RuntimeTraceStore`、`ApprovalResolver`、`SubagentFactory`、`createSpawnSubagentTool`、`createSpawnSubagentAsyncTool`、`AsyncTaskStore`。 |
+| `src/index.ts` | 运行时核心 | 所有导出：`createAgent`、`CreateAgentOptions`、19 种事件类型及联合类型、`AgentRuntime`、`AgentRuntimeDependencies`、`SessionMutex`、`AgentHooks`、`ExecutionContract`、`InMemoryRuntimeTraceStore`、`RuntimeTraceStore`、`ApprovalResolver`、`SubagentFactory`、`createSpawnSubagentTool`、`createSpawnSubagentAsyncTool`、`AsyncTaskStore`。 |
 | `src/index.test.ts` | 运行时测试 | 覆盖所有事件路径、权限策略、审批、hooks、停滞检测、流式、subagent 工具、`SessionMutex` 并发和 `ExecutionContract` 行为的完整测试套件。 |
+| `src/create-agent.test.ts` | 渐进式组合测试 | 层隔离测试：Layer 0（裸 loop）、Layer 1（tool dispatch）、Layer 2（权限评估）、Layer 3（session 消息）、Layer 4（context assembler）、多层组合。 |
 
 ## 更新提醒
 
