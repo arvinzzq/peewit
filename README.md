@@ -232,9 +232,9 @@ Start with the **[Learning Guide](./docs/learning/guide.md)** for the recommende
 | [04 — Models](./docs/learning/04-models.md) | `ModelProvider`, streaming, Anthropic vs OpenAI-compatible |
 | [05 — Permissions](./docs/learning/05-permissions.md) | Risk × autonomy mode → allow / ask / deny / block |
 | [06 — Tools](./docs/learning/06-tools.md) | Tool registry, sandbox, workspace boundary, result types |
+| [07 — Context](./docs/learning/07-context.md) | XML sections, prompt modes, `compactMessages`, cache hints |
 | [08 — Sessions](./docs/learning/08-sessions.md) | JSONL append, `#replay`, compaction boundary, mutex |
 | [09 — Taskflow](./docs/learning/09-taskflow.md) | `update_todos`, `TodoItem` state machine, `JsonlTaskFlowStore` |
-| [07 — Context](./docs/learning/07-context.md) | XML sections, prompt modes, `compactMessages`, cache hints |
 | [10 — Skills](./docs/learning/10-skills.md) | Three-source loading, progressive disclosure, `SkillManager` |
 | [11 — Scheduler](./docs/learning/11-scheduler.md) | `CronScheduler`, `BackgroundApprovalResolver`, `writeHeartbeat` |
 

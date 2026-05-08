@@ -232,9 +232,9 @@ Vole 也是一个架构学习项目。`docs/learning/` 目录包含 15 篇双语
 | [04 — Models](./docs/learning/04-models.zh-CN.md) | `ModelProvider`、流式输出、Anthropic vs OpenAI 兼容 |
 | [05 — Permissions](./docs/learning/05-permissions.zh-CN.md) | 风险 × 自主模式 → allow / ask / deny / block |
 | [06 — Tools](./docs/learning/06-tools.zh-CN.md) | 工具注册、沙箱、工作区边界、结果类型 |
+| [07 — Context](./docs/learning/07-context.zh-CN.md) | XML 段落、提示词模式、`compactMessages`、缓存提示 |
 | [08 — Sessions](./docs/learning/08-sessions.zh-CN.md) | JSONL 追加写、`#replay`、压缩边界、互斥锁 |
 | [09 — Taskflow](./docs/learning/09-taskflow.zh-CN.md) | `update_todos`、`TodoItem` 状态机、`JsonlTaskFlowStore` |
-| [07 — Context](./docs/learning/07-context.zh-CN.md) | XML 段落、提示词模式、`compactMessages`、缓存提示 |
 | [10 — Skills](./docs/learning/10-skills.zh-CN.md) | 三来源加载、渐进式披露、`SkillManager` |
 | [11 — Scheduler](./docs/learning/11-scheduler.zh-CN.md) | `CronScheduler`、`BackgroundApprovalResolver`、`writeHeartbeat` |
 
