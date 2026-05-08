@@ -1,11 +1,12 @@
 /**
- * INPUT: CLI args, config (including thinkingBudget), model providers, skill loader, session/trace stores, taskflow store, built-in tools, optional fake outputs and line reader.
+ * INPUT: CLI args (parsed by commander), config (including thinkingBudget), model providers, skill loader, session/trace stores, taskflow store, built-in tools, optional fake outputs and line reader.
  * OUTPUT: Chat, approvals, tool execution, todos, skill management subcommands, session/task/taskflow listings, daemon cron scheduling, trace, redacted config, stdout/stderr, gateway session registration, run --dream memory dreaming, session persistence of all turn messages including tool calls and compaction boundaries.
  * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
 import "dotenv/config";
+import { Command, type OptionValues } from "commander";
 import { createInterface } from "node:readline";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -69,138 +70,133 @@ export interface RunCliOptions {
   write?: (text: string) => void;
 }
 
-const helpText = `Usage: vole <command>
-
-Commands:
-  chat        Start an interactive chat session
-  chat --session <id>
-              Start or continue a named interactive chat session
-  chat --resume
-              Continue the most recently updated stored chat session
-  chat --fake <message>
-              Run one message-only turn with a fake provider
-  chat --fake-interactive
-              Start an interactive chat session with a fake provider
-  sessions    List stored chat sessions
-  run "<goal>"
-              Run a one-shot background task
-  run "<goal>" --mode auto|confirm
-              Run with explicit autonomy mode (default: confirm)
-  run --dream
-              Run memory dreaming — consolidate daily notes into MEMORY.md
-  tasks       List recent background task runs
-  tasks --limit N
-              Show last N runs
-  skills      List all skills with source, version, trust status
-  skills install <path>
-              Install a skill from a local .md file
-  skills enable <name>
-              Enable a disabled skill
-  skills disable <name>
-              Disable an enabled skill
-  skills trust <name>
-              Mark an installed skill as trusted
-  skills review <name>
-              Show full skill metadata and permission declarations
-  daemon      Start the task scheduler daemon (runs scheduled tasks)
-  daemon --once
-              Run all due tasks once and exit
-  taskflow list
-              List recent task records
-  taskflow list --limit N
-              Show last N records
-  taskflow show <id>
-              Show details of a task
-  taskflow cancel <id>
-              Mark a task as cancelled
-  --help      Show this help message
-  --version   Show the CLI version
-`;
-
 export async function runCli(args: string[], packageVersion: string, options: RunCliOptions = {}): Promise<CliResult> {
-  const [command, ...rest] = args;
+  let capturedOut = "";
+  let actionResult: CliResult | null = null;
 
-  if (command === undefined || command === "--help" || command === "-h") {
-    return {
-      exitCode: 0,
-      stdout: helpText,
-      stderr: ""
-    };
-  }
+  const program = new Command()
+    .name("vole")
+    .description("A capable coding and general-purpose agent.")
+    .version(packageVersion, "-v, --version", "Show version number")
+    .exitOverride()
+    .configureOutput({
+      writeOut: (str) => { capturedOut += str; },
+      writeErr: (str) => { capturedOut += str; },
+    })
+    .addHelpText("after", "\nRun `vole <command> --help` for command-specific options.");
 
-  if (command === "--version" || command === "-v") {
-    return {
-      exitCode: 0,
-      stdout: `${packageVersion}\n`,
-      stderr: ""
-    };
-  }
+  // ── chat ──────────────────────────────────────────────────────────────────
+  program.command("chat")
+    .description("Start an interactive chat session")
+    .argument("[extra...]", "Slash commands to run after a --fake turn")
+    .option("-s, --session <id>", "Continue a named session")
+    .option("-r, --resume", "Continue the most recently updated session")
+    .option("--fake <message>", "Run one turn with a fake provider and exit")
+    .option("--fake-interactive", "Interactive chat with a fake provider")
+    .action(async (extra: string[], opts: OptionValues) => {
+      const slashCmds = (extra as string[]).filter((a) => a.startsWith("/"));
+      if (opts["fake"] !== undefined) {
+        actionResult = await runFakeChatTurn({ message: opts["fake"] as string, slashCommands: slashCmds }, options);
+        return;
+      }
+      if (opts["fakeInteractive"]) {
+        const sid = typeof opts["session"] === "string" ? opts["session"] : undefined;
+        actionResult = await runInteractiveFakeChat(options, {
+          fakeInteractive: true, resume: false, ...(sid !== undefined ? { sessionId: sid } : {})
+        });
+        return;
+      }
+      const sid = typeof opts["session"] === "string" ? opts["session"] : undefined;
+      actionResult = await runInteractiveConfiguredChat(options, {
+        fakeInteractive: false,
+        resume: opts["resume"] === true,
+        ...(sid !== undefined ? { sessionId: sid } : {})
+      });
+    });
 
-  if (command === "chat") {
-    const parsedChatArgs = parseChatArgs(rest);
+  // ── sessions ──────────────────────────────────────────────────────────────
+  program.command("sessions")
+    .description("List stored chat sessions")
+    .action(async () => { actionResult = await runListSessions(options); });
 
-    if (rest[0] === "--fake") {
-      return runFakeChatTurn(parseFakeChatArgs(rest.slice(1)), options);
+  // ── run ───────────────────────────────────────────────────────────────────
+  program.command("run")
+    .description('Run a one-shot background task  e.g. vole run "fix the tests"')
+    .argument("[goal]", "Goal for the task")
+    .option("--mode <mode>", "Autonomy mode: auto | confirm | observe", "confirm")
+    .option("--dream", "Consolidate daily memory notes into MEMORY.md")
+    .action(async (goal: string | undefined, opts: OptionValues) => {
+      if (opts["dream"]) { actionResult = await runMemoryDreaming(options); return; }
+      const g = (goal ?? "").trim();
+      if (g === "") {
+        actionResult = { exitCode: 1, stdout: "", stderr: 'Missing goal. Usage: vole run "<goal>"\n' };
+        return;
+      }
+      const raw = opts["mode"] as string;
+      const mode: "auto" | "confirm" | "observe" = raw === "auto" ? "auto" : raw === "observe" ? "observe" : "confirm";
+      actionResult = await runBackgroundTask(g, mode, options);
+    });
+
+  // ── tasks ─────────────────────────────────────────────────────────────────
+  program.command("tasks")
+    .description("List recent background task runs")
+    .option("-n, --limit <n>", "Number of runs to show", (v) => parseInt(v, 10))
+    .action(async (opts: OptionValues) => {
+      actionResult = await runListTasks(options, opts["limit"] as number | undefined);
+    });
+
+  // ── skills ────────────────────────────────────────────────────────────────
+  const skillsCmd = program.command("skills").description("Manage agent skills");
+  skillsCmd.action(async () => { actionResult = await runSkillsList(options); });
+  skillsCmd.command("install <path>").description("Install a skill from a local .md file")
+    .action(async (p: string) => { actionResult = await runSkillsInstall(p, options); });
+  skillsCmd.command("enable <name>").description("Enable a disabled skill")
+    .action(async (n: string) => { actionResult = await runSkillsLifecycle("enable", n, options); });
+  skillsCmd.command("disable <name>").description("Disable a skill")
+    .action(async (n: string) => { actionResult = await runSkillsLifecycle("disable", n, options); });
+  skillsCmd.command("trust <name>").description("Mark an installed skill as trusted")
+    .action(async (n: string) => { actionResult = await runSkillsLifecycle("trust", n, options); });
+  skillsCmd.command("review <name>").description("Show full skill metadata and permissions")
+    .action(async (n: string) => { actionResult = await runSkillsReview(n, options); });
+
+  // ── daemon ────────────────────────────────────────────────────────────────
+  program.command("daemon")
+    .description("Start the task scheduler daemon")
+    .option("--once", "Run all due tasks once and exit")
+    .action(async (opts: OptionValues) => {
+      actionResult = await runDaemon(options, opts["once"] === true);
+    });
+
+  // ── taskflow ──────────────────────────────────────────────────────────────
+  const tfCmd = program.command("taskflow").description("Inspect cross-session task records");
+  tfCmd.action(async () => { actionResult = await runTaskflowList(options, undefined); });
+  tfCmd.command("list").description("List recent task records")
+    .option("-n, --limit <n>", "Number of records to show", (v) => parseInt(v, 10))
+    .action(async (opts: OptionValues) => { actionResult = await runTaskflowList(options, opts["limit"] as number | undefined); });
+  tfCmd.command("show <id>").description("Show details of a task")
+    .action(async (id: string) => { actionResult = await runTaskflowShow(id, options); });
+  tfCmd.command("cancel <id>").description("Mark a task as cancelled")
+    .action(async (id: string) => { actionResult = await runTaskflowCancel(id, options); });
+
+  try {
+    await program.parseAsync(args, { from: "user" });
+  } catch (err) {
+    if (err instanceof Error && "code" in err) {
+      const code = (err as { code: string }).code;
+      if (code === "commander.helpDisplayed" || code === "commander.version") {
+        return { exitCode: 0, stdout: capturedOut, stderr: "" };
+      }
+      if (code === "commander.unknownCommand") {
+        const match = err.message.match(/unknown command '(.+)'/);
+        const cmdName = match ? match[1] : (args[0] ?? "unknown");
+        return { exitCode: 1, stdout: program.helpInformation(), stderr: `Unknown command "${cmdName}".\n` };
+      }
+      return { exitCode: (err as { exitCode?: number }).exitCode ?? 1, stdout: capturedOut, stderr: `${err.message}\n` };
     }
-
-    if (parsedChatArgs.fakeInteractive) {
-      return runInteractiveFakeChat(options, parsedChatArgs);
-    }
-
-    return runInteractiveConfiguredChat(options, parsedChatArgs);
+    throw err;
   }
 
-  if (command === "sessions") {
-    return runListSessions(options);
-  }
-
-  if (command === "run") {
-    if (rest.includes("--dream")) {
-      return runMemoryDreaming(options);
-    }
-
-    const modeIndex = rest.indexOf("--mode");
-    const rawMode = modeIndex !== -1 ? rest[modeIndex + 1] : undefined;
-    const mode = rawMode === "auto" ? "auto" : rawMode === "observe" ? "observe" : "confirm";
-    const goal = rest.filter((arg) => !arg.startsWith("--") && arg !== rawMode).join(" ").trim();
-
-    if (goal === "") {
-      return {
-        exitCode: 1,
-        stdout: helpText,
-        stderr: `Missing goal for \`run\`. Usage: vole run "<goal>"\n`
-      };
-    }
-
-    return runBackgroundTask(goal, mode, options);
-  }
-
-  if (command === "tasks") {
-    const limitIndex = rest.indexOf("--limit");
-    const limitStr = limitIndex !== -1 ? rest[limitIndex + 1] : undefined;
-    const limit = limitStr !== undefined ? parseInt(limitStr, 10) : undefined;
-
-    return runListTasks(options, limit);
-  }
-
-  if (command === "skills") {
-    return runSkillsCommand(rest, options);
-  }
-
-  if (command === "daemon") {
-    const once = rest.includes("--once");
-    return runDaemon(options, once);
-  }
-
-  if (command === "taskflow") {
-    return runTaskflowCommand(rest, options);
-  }
-
-  return {
-    exitCode: 1,
-    stdout: helpText,
-    stderr: `Unknown command "${command}".\n`
-  };
+  return actionResult ?? { exitCode: 0, stdout: capturedOut, stderr: "" };
 }
 
 interface ParsedFakeChatArgs {
@@ -214,34 +210,13 @@ interface ParsedChatArgs {
   sessionId?: string;
 }
 
-function parseChatArgs(args: string[]): ParsedChatArgs {
-  const sessionIndex = args.indexOf("--session");
-
-  return {
-    fakeInteractive: args.includes("--fake-interactive"),
-    resume: args.includes("--resume"),
-    ...(sessionIndex === -1 || args[sessionIndex + 1] === undefined ? {} : { sessionId: args[sessionIndex + 1] })
-  };
-}
-
-function parseFakeChatArgs(args: string[]): ParsedFakeChatArgs {
-  const slashIndex = args.findIndex((arg) => arg.startsWith("/"));
-  const messageArgs = slashIndex === -1 ? args : args.slice(0, slashIndex);
-  const slashCommands = slashIndex === -1 ? [] : args.slice(slashIndex);
-
-  return {
-    message: messageArgs.join(" "),
-    slashCommands
-  };
-}
-
 async function runFakeChatTurn(input: ParsedFakeChatArgs, options: RunCliOptions): Promise<CliResult> {
   const { message, slashCommands } = input;
 
   if (message.trim() === "") {
     return {
       exitCode: 1,
-      stdout: helpText,
+      stdout: "",
       stderr: "Missing message for `chat --fake`.\n"
     };
   }
@@ -679,47 +654,6 @@ function resolveTaskflowFilePath(options: RunCliOptions): string {
   return join(dirname(sessionsDir), "taskflow.jsonl");
 }
 
-async function runTaskflowCommand(args: string[], options: RunCliOptions): Promise<CliResult> {
-  const subcommand = args[0];
-
-  if (subcommand === undefined || subcommand === "list") {
-    const limitIndex = args.indexOf("--limit");
-    const limitStr = limitIndex !== -1 ? args[limitIndex + 1] : undefined;
-    const limit = limitStr !== undefined ? parseInt(limitStr, 10) : undefined;
-    return runTaskflowList(options, limit);
-  }
-
-  if (subcommand === "show") {
-    const id = args[1];
-    if (id === undefined || id === "") {
-      return {
-        exitCode: 1,
-        stdout: helpText,
-        stderr: "Missing id for `taskflow show`. Usage: vole taskflow show <id>\n"
-      };
-    }
-    return runTaskflowShow(id, options);
-  }
-
-  if (subcommand === "cancel") {
-    const id = args[1];
-    if (id === undefined || id === "") {
-      return {
-        exitCode: 1,
-        stdout: helpText,
-        stderr: "Missing id for `taskflow cancel`. Usage: vole taskflow cancel <id>\n"
-      };
-    }
-    return runTaskflowCancel(id, options);
-  }
-
-  return {
-    exitCode: 1,
-    stdout: helpText,
-    stderr: `Unknown taskflow subcommand "${subcommand}".\n`
-  };
-}
-
 async function runTaskflowList(options: RunCliOptions, limit?: number): Promise<CliResult> {
   const filePath = resolveTaskflowFilePath(options);
   const store = new JsonlTaskFlowStore(filePath);
@@ -804,57 +738,6 @@ function resolveSkillsDirectory(config: EffectiveConfig, options: RunCliOptions)
     : config;
   const sessionsDir = resolveSessionsDirectory(effectiveConfig, options.env);
   return join(dirname(sessionsDir), "skills");
-}
-
-async function runSkillsCommand(args: string[], options: RunCliOptions): Promise<CliResult> {
-  const subcommand = args[0];
-
-  if (subcommand === undefined || subcommand === "") {
-    // List all skills
-    return runSkillsList(options);
-  }
-
-  if (subcommand === "install") {
-    const sourcePath = args[1];
-    if (sourcePath === undefined || sourcePath === "") {
-      return {
-        exitCode: 1,
-        stdout: helpText,
-        stderr: "Missing path for `skills install`. Usage: vole skills install <path>\n"
-      };
-    }
-    return runSkillsInstall(sourcePath, options);
-  }
-
-  if (subcommand === "enable" || subcommand === "disable" || subcommand === "trust") {
-    const name = args[1];
-    if (name === undefined || name === "") {
-      return {
-        exitCode: 1,
-        stdout: helpText,
-        stderr: `Missing name for \`skills ${subcommand}\`. Usage: vole skills ${subcommand} <name>\n`
-      };
-    }
-    return runSkillsLifecycle(subcommand, name, options);
-  }
-
-  if (subcommand === "review") {
-    const name = args[1];
-    if (name === undefined || name === "") {
-      return {
-        exitCode: 1,
-        stdout: helpText,
-        stderr: "Missing name for `skills review`. Usage: vole skills review <name>\n"
-      };
-    }
-    return runSkillsReview(name, options);
-  }
-
-  return {
-    exitCode: 1,
-    stdout: helpText,
-    stderr: `Unknown skills subcommand "${subcommand}".\n`
-  };
 }
 
 async function runSkillsList(options: RunCliOptions): Promise<CliResult> {
@@ -1119,6 +1002,8 @@ export class CliChatSession {
     this.#skillDefinitions = skillDefinitions;
     this.#gateway = gateway;
   }
+
+  get sessionId(): string { return this.#sessionId; }
 
   close(): void {
     this.#gateway?.unregister(this.#sessionId);

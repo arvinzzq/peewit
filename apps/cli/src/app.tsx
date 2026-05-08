@@ -44,37 +44,51 @@ function Spinner({ label }: { label: string }) {
 
 function StreamingMessage({ text }: { text: string }) {
   return (
-    <Box marginBottom={1}>
-      <Text color="green" bold>
-        {"Assistant: "}
-      </Text>
-      <Text>{text}</Text>
-      <Text dimColor>▊</Text>
+    <Box marginBottom={1} flexDirection="column">
+      <Text color="green" bold>{"Assistant"}</Text>
+      <Box paddingLeft={2}>
+        <Text>{text}</Text>
+        <Text color="blueBright">{"▊"}</Text>
+      </Box>
     </Box>
   );
 }
 
-function ToolProgress({ toolName }: { toolName: string }) {
+function ToolProgress({ toolName, input }: { toolName: string; input?: unknown }) {
+  const preview = input !== undefined
+    ? (() => {
+        try {
+          const s = JSON.stringify(input);
+          return s.length > 60 ? s.slice(0, 57) + "…" : s;
+        } catch { return ""; }
+      })()
+    : "";
   return (
-    <Box marginBottom={1}>
-      <Spinner label={`Running ${toolName}…`} />
+    <Box marginBottom={1} flexDirection="column">
+      <Spinner label={`${toolName}`} />
+      {preview !== "" && <Box paddingLeft={2}><Text dimColor>{preview}</Text></Box>}
     </Box>
   );
 }
 
 function TodosPanel({ todos }: { todos: TodoItem[] }) {
   if (todos.length === 0) return null;
+  const done = todos.filter(t => t.status === "completed").length;
   return (
-    <Box flexDirection="column" marginBottom={1}>
-      <Text dimColor bold>
-        {"Tasks:"}
-      </Text>
-      {todos.map((todo, i) => (
-        <Text key={i} dimColor>
-          {todo.status === "completed" ? "✓" : todo.status === "in_progress" ? "→" : "·"}{" "}
-          {todo.content}
-        </Text>
-      ))}
+    <Box flexDirection="column" marginBottom={1} borderStyle="single" borderColor="gray" paddingX={1}>
+      <Text dimColor bold>{`Tasks  ${done}/${todos.length}`}</Text>
+      {todos.map((todo, i) => {
+        const icon = todo.status === "completed" ? "✓" : todo.status === "in_progress" ? "›" : "·";
+        const color = todo.status === "completed" ? "green" : todo.status === "in_progress" ? "yellow" : undefined;
+        return (
+          <Box key={i}>
+            {color !== undefined
+              ? <Text color={color}>{icon} </Text>
+              : <Text>{icon} </Text>}
+            <Text dimColor={todo.status === "completed"}>{todo.content}</Text>
+          </Box>
+        );
+      })}
     </Box>
   );
 }
@@ -96,21 +110,34 @@ function ApprovalPrompt({
     }
   });
 
+  const inputPreview = (() => {
+    try {
+      const s = JSON.stringify(request.call.input, null, 2);
+      const lines = s.split("\n");
+      return lines.length > 6 ? lines.slice(0, 6).join("\n") + "\n  …" : s;
+    } catch { return ""; }
+  })();
+
+  const riskColor = request.decision.risk === "high" ? "red" : request.decision.risk === "medium" ? "yellow" : "green";
+
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1} marginBottom={1}>
-      <Text bold color="yellow">
-        {"⚠ Approval Required"}
-      </Text>
-      <Text>
-        {"Tool: "}
+      <Text bold color="yellow">{"⚠  Approval Required"}</Text>
+      <Box gap={1}>
+        <Text dimColor>{"Tool:"}</Text>
         <Text bold>{request.call.name}</Text>
-      </Text>
-      <Text>
-        {"Risk: "}
-        <Text color="yellow">{request.decision.risk}</Text>
-      </Text>
+        <Text dimColor>{"·"}</Text>
+        <Text dimColor>{"Risk:"}</Text>
+        <Text color={riskColor} bold>{request.decision.risk}</Text>
+      </Box>
+      {inputPreview !== "" && (
+        <Box flexDirection="column" marginTop={1} marginBottom={1}>
+          <Text dimColor>{"Input:"}</Text>
+          <Box paddingLeft={2}><Text dimColor>{inputPreview}</Text></Box>
+        </Box>
+      )}
       <Text dimColor>{request.decision.reason}</Text>
-      <Text color="yellow">{"Press y to approve, any other key to deny."}</Text>
+      <Box marginTop={1}><Text color="yellow">{"  y  approve    any other key  deny"}</Text></Box>
     </Box>
   );
 }
@@ -126,16 +153,16 @@ function SuggestionsBox({
   return (
     <Box flexDirection="column" marginBottom={1} paddingLeft={2}>
       {suggestions.map((s, i) => (
-        <Box key={s.command}>
+        <Box key={s.command} gap={2}>
           {i === selectedIndex ? (
             <Text color="cyan" bold>{s.command}</Text>
           ) : (
-            <Text>{s.command}</Text>
+            <Text dimColor>{s.command}</Text>
           )}
-          <Text dimColor>{`  ${s.description}`}</Text>
+          <Text dimColor>{s.description}</Text>
         </Box>
       ))}
-      <Text dimColor>{"Tab to complete · ↑↓ to select"}</Text>
+      <Text dimColor>{"Tab · complete    ↑↓ · select"}</Text>
     </Box>
   );
 }
@@ -144,7 +171,8 @@ function SuggestionsBox({
 
 type ChatMessage =
   | { role: "user" | "assistant"; content: string }
-  | { role: "tool_result"; toolName: string; content: string }
+  | { role: "tool_result"; toolName: string; content: string; ok: boolean }
+  | { role: "error"; content: string }
   | { role: "slash_result"; command: string; lines: string[] };
 
 // ─── Main App component ────────────────────────────────────────────────────────
@@ -161,6 +189,7 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
   // Session state
   const [session, setSession] = useState<CliChatSession | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string | undefined>(sessionId);
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -177,7 +206,7 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
 
   // Streaming state (current turn only)
   const [streamingText, setStreamingText] = useState("");
-  const [currentTool, setCurrentTool] = useState<string | null>(null);
+  const [currentTool, setCurrentTool] = useState<{ name: string; input?: unknown } | null>(null);
   const [todos, setTodos] = useState<TodoItem[]>([]);
 
   // Approval state
@@ -221,7 +250,10 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
       preferStreaming: true,
       ...(sessionId !== undefined ? { sessionId } : {})
     })
-      .then(setSession)
+      .then((s) => {
+        setSession(s);
+        setActiveSessionId(s.sessionId);
+      })
       .catch((err: unknown) => {
         setLoadError(err instanceof Error ? err.message : "Failed to create session.");
       });
@@ -232,16 +264,20 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
     if (event.type === "token_delta") {
       setStreamingText((prev) => prev + event.delta);
     } else if (event.type === "tool_started") {
-      setCurrentTool(event.toolName);
+      setCurrentTool({ name: event.toolName });
+    } else if (event.type === "tool_call_requested") {
+      setCurrentTool({ name: event.call.name, input: event.call.input });
     } else if (event.type === "tool_completed") {
       setCurrentTool(null);
       const resultText = renderToolResult(event.result);
-      setMessages((prev) => [...prev, { role: "tool_result", toolName: event.toolName, content: resultText }]);
+      setMessages((prev) => [...prev, { role: "tool_result", toolName: event.toolName, content: resultText, ok: true }]);
     } else if (event.type === "tool_failed") {
       setCurrentTool(null);
-      setMessages((prev) => [...prev, { role: "tool_result", toolName: event.toolName, content: `Error: ${event.error.message}` }]);
+      setMessages((prev) => [...prev, { role: "tool_result", toolName: event.toolName, content: event.error.message, ok: false }]);
     } else if (event.type === "todos_updated") {
       setTodos([...event.todos]);
+    } else if (event.type === "run_failed") {
+      setMessages((prev) => [...prev, { role: "error", content: event.error.message }]);
     }
   }, []);
 
@@ -260,7 +296,9 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
         const turn = await session.sendMessage(trimmed, { onEvent: handleEvent });
         setStreamingText("");
         setCurrentTool(null);
-        setMessages((prev) => [...prev, { role: "assistant", content: turn.assistantText }]);
+        if (turn.assistantText !== "") {
+          setMessages((prev) => [...prev, { role: "assistant", content: turn.assistantText }]);
+        }
       } finally {
         setIsSending(false);
       }
@@ -365,8 +403,8 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
 
   if (loadError !== null) {
     return (
-      <Box>
-        <Text color="red">{"Error: "}</Text>
+      <Box flexDirection="column" padding={1}>
+        <Text color="red" bold>{"Error"}</Text>
         <Text>{loadError}</Text>
       </Box>
     );
@@ -374,54 +412,76 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
 
   if (session === null) {
     return (
-      <Box>
-        <Spinner label="Loading Vole…" />
+      <Box padding={1}>
+        <Spinner label="Starting Vole…" />
       </Box>
     );
   }
 
+  const sidLabel = activeSessionId ? activeSessionId.slice(-8) : "…";
+  const modelLabel = `${config.model.provider}/${config.model.model}`;
+
   return (
     <Box flexDirection="column">
-      {/* Static header — rendered once */}
-      <Box marginBottom={1} flexDirection="column">
-        <Text bold>{"Vole chat"}</Text>
-        <Text dimColor>{"Type /help for commands or /exit to leave."}</Text>
+      {/* Header */}
+      <Box marginBottom={1} borderStyle="single" borderColor="gray" paddingX={1} flexDirection="row" gap={2}>
+        <Text bold color="cyan">{"vole"}</Text>
+        <Text dimColor>{"session"}</Text>
+        <Text color="blueBright">{sidLabel}</Text>
+        <Text dimColor>{"·"}</Text>
+        <Text dimColor>{modelLabel}</Text>
+        <Text dimColor>{"·  /help for commands"}</Text>
       </Box>
 
       {/* Past messages — Static prevents re-renders */}
       <Static items={messages}>
-        {(msg, i) =>
-          msg.role === "user" ? (
+        {(msg, i) => {
+          if (msg.role === "user") return (
             <Box key={i} marginBottom={1}>
-              <Text color="cyan" bold>{"You: "}</Text>
+              <Text color="cyan" bold>{"You  "}</Text>
               <Text>{msg.content}</Text>
             </Box>
-          ) : msg.role === "tool_result" ? (
-            <Box key={i} flexDirection="column" marginBottom={1}>
-              <Text color="yellow" dimColor>{`▶ ${msg.toolName}`}</Text>
-              <Text dimColor>{msg.content}</Text>
+          );
+          if (msg.role === "tool_result") return (
+            <Box key={i} flexDirection="column" marginBottom={1} paddingLeft={2}>
+              <Box gap={1}>
+                <Text color={msg.ok ? "green" : "red"}>{msg.ok ? "✓" : "✗"}</Text>
+                <Text dimColor bold>{msg.toolName}</Text>
+              </Box>
+              <Box paddingLeft={2}><Text dimColor>{msg.content.slice(0, 200)}{msg.content.length > 200 ? " …" : ""}</Text></Box>
             </Box>
-          ) : msg.role === "slash_result" ? (
-            <Box key={i} flexDirection="column" marginBottom={1}>
+          );
+          if (msg.role === "error") return (
+            <Box key={i} marginBottom={1} borderStyle="single" borderColor="red" paddingX={1}>
+              <Text color="red" bold>{"✗ "}</Text>
+              <Text color="red">{msg.content}</Text>
+            </Box>
+          );
+          if (msg.role === "slash_result") return (
+            <Box key={i} flexDirection="column" marginBottom={1} paddingLeft={2}>
               <Text color="blue" dimColor>{msg.command}</Text>
               {msg.lines.map((line, j) => (
                 <Text key={j} dimColor>{line}</Text>
               ))}
             </Box>
-          ) : (
+          );
+          // assistant
+          return (
             <Box key={i} flexDirection="column" marginBottom={1}>
-              <Text color="green" bold>{"Assistant:"}</Text>
-              <Text>{msg.content}</Text>
+              <Text color="green" bold>{"Assistant"}</Text>
+              <Box paddingLeft={2}>
+                <Text>{msg.content}</Text>
+              </Box>
             </Box>
-          )
-        }
+          );
+        }}
       </Static>
 
       {/* Live streaming text */}
       {streamingText !== "" && <StreamingMessage text={streamingText} />}
 
       {/* Tool progress */}
-      {currentTool !== null && <ToolProgress toolName={currentTool} />}
+      {currentTool !== null && <ToolProgress toolName={currentTool.name} input={currentTool.input} />}
 
       {/* Todos */}
       <TodosPanel todos={todos} />
@@ -440,10 +500,10 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
         <SuggestionsBox suggestions={suggestions} selectedIndex={suggestionIndex} />
       )}
 
-      {/* Input box — shown when idle */}
+      {/* Input row */}
       {!isSending && pendingApproval === null && (
-        <Box>
-          <Text color="cyan" bold>{"> "}</Text>
+        <Box gap={1}>
+          <Text color="cyan" bold>{"›"}</Text>
           <TextInput
             value={input}
             onChange={handleChange}
@@ -455,7 +515,7 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
 
       {/* Sending indicator */}
       {isSending && pendingApproval === null && (
-        <Box>
+        <Box gap={1}>
           <Spinner label="Thinking…" />
         </Box>
       )}
