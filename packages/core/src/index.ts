@@ -23,7 +23,7 @@ import {
   type PermissionPolicy,
   type PermissionRiskLevel
 } from "@vole/permissions";
-import { createUpdateTodosTool, type ExecutableTool, type TodoItem, type ToolExecutionResult, type SpawnSubagentResult, type SpawnSubagentAsyncResult } from "@vole/tools";
+import { createUpdateTodosTool, type CheckSubagentResult, type ExecutableTool, type TodoItem, type ToolExecutionResult, type SpawnSubagentResult, type SpawnSubagentAsyncResult } from "@vole/tools";
 
 export const corePackageName = "@vole/core";
 
@@ -799,6 +799,8 @@ function isPlanningOnly(content: string): boolean {
 // Core uses this instead of importing @vole/taskflow to avoid coupling.
 export interface AsyncTaskStore {
   create(record: { id: string; runtime: string; task: string; status: string; parentId?: string }): Promise<{ id: string }>;
+  update(id: string, updates: { status?: string; terminalSummary?: string }): Promise<unknown>;
+  get(id: string): Promise<{ id: string; status: string; terminalSummary?: string } | undefined>;
 }
 
 export interface AsyncSubagentOptions {
@@ -844,15 +846,63 @@ export function createSpawnSubagentAsyncTool(
         });
       }
 
-      // Fire and forget — run in background
+      // Fire and forget — run in background, tracking status transitions
       const message = input.context !== undefined ? `${input.goal}\n\nContext:\n${input.context}` : input.goal;
       void (async () => {
+        if (options?.taskStore !== undefined) {
+          await options.taskStore.update(taskId, { status: "running" });
+        }
         const subRuntime = factory.create(input.goal);
-        for await (const _event of subRuntime.runTurn({ message })) { /* consume */ }
+        let assistantText = "";
+        let failed = false;
+        for await (const event of subRuntime.runTurn({ message })) {
+          if (event.type === "assistant_message_created") assistantText = event.message.content;
+          if (event.type === "run_failed") failed = true;
+        }
+        if (options?.taskStore !== undefined) {
+          await options.taskStore.update(taskId, {
+            status: failed ? "failed" : "succeeded",
+            ...(assistantText.length > 0 ? { terminalSummary: assistantText } : {})
+          });
+        }
       })();
 
       const result: SpawnSubagentAsyncResult = { type: "spawn_subagent_async_result", taskId, status: "queued" };
       return result;
+    }
+  };
+}
+
+// createCheckSubagentTool returns an ExecutableTool that queries the status and result
+// of an async sub-agent task by taskId. Use after spawn_subagent_async.
+export function createCheckSubagentTool(taskStore: AsyncTaskStore): ExecutableTool {
+  return {
+    name: "check_subagent",
+    description: "Check the status and result of an async sub-agent by taskId. Returns status (queued/running/succeeded/failed) and result when complete. Use after spawn_subagent_async.",
+    risk: "low",
+    inputSchema: {
+      type: "object",
+      properties: {
+        taskId: { type: "string", description: "The taskId returned by spawn_subagent_async." }
+      },
+      required: ["taskId"]
+    },
+    async execute(rawInput): Promise<CheckSubagentResult | { ok: false; error: { code: string; message: string } }> {
+      const input = rawInput as { taskId?: unknown };
+      const taskId = typeof input.taskId === "string" ? input.taskId.trim() : "";
+      if (taskId === "") {
+        return { ok: false, error: { code: "invalid_input", message: "taskId is required." } };
+      }
+      const record = await taskStore.get(taskId);
+      if (record === undefined) {
+        return { ok: false, error: { code: "not_found", message: `No subagent task found with id "${taskId}".` } };
+      }
+      return {
+        type: "check_subagent_result",
+        taskId: record.id,
+        status: record.status,
+        result: record.terminalSummary
+      };
     }
   };
 }

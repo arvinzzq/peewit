@@ -12,6 +12,7 @@ import {
   createRuntimeEvent,
   isTerminalRuntimeEvent,
   runtimeEventTypes,
+  createCheckSubagentTool,
   createSpawnSubagentTool,
   createSpawnSubagentAsyncTool,
   type AgentHooks,
@@ -1547,10 +1548,18 @@ describe("createSpawnSubagentAsyncTool", () => {
     };
 
     const createdRecords: Array<{ id: string; runtime: string; task: string; status: string }> = [];
+    const updatedRecords: Array<{ id: string; updates: object }> = [];
     const taskStore: AsyncTaskStore = {
       async create(record) {
         createdRecords.push(record);
         return { id: record.id };
+      },
+      async update(id, updates) {
+        updatedRecords.push({ id, updates });
+      },
+      async get(id) {
+        const record = createdRecords.find((r) => r.id === id);
+        return record ? { id: record.id, status: record.status } : undefined;
       }
     };
 
@@ -1573,6 +1582,73 @@ describe("createSpawnSubagentAsyncTool", () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(subagentStarted).toBe(true);
     expect(subagentResolved).toBe(true);
+
+    // Status should have been updated to succeeded after completion
+    expect(updatedRecords.length).toBeGreaterThanOrEqual(2);
+    expect(updatedRecords[0]).toMatchObject({ updates: { status: "running" } });
+    expect(updatedRecords[updatedRecords.length - 1]).toMatchObject({ updates: { status: "succeeded" } });
+  });
+});
+
+describe("createCheckSubagentTool", () => {
+  test("returns status and result for a known taskId", async () => {
+    const records: Array<{ id: string; status: string; terminalSummary?: string }> = [
+      { id: "task_123", status: "succeeded", terminalSummary: "Done!" }
+    ];
+    const taskStore: AsyncTaskStore = {
+      async create(record) { return { id: record.id }; },
+      async update() {},
+      async get(id) { return records.find((r) => r.id === id); }
+    };
+
+    const tool = createCheckSubagentTool(taskStore);
+    const result = await tool.execute({ taskId: "task_123" }, { workspaceRoot: "/ws" });
+
+    expect(result).toMatchObject({
+      type: "check_subagent_result",
+      taskId: "task_123",
+      status: "succeeded",
+      result: "Done!"
+    });
+  });
+
+  test("returns not_found error for unknown taskId", async () => {
+    const taskStore: AsyncTaskStore = {
+      async create(record) { return { id: record.id }; },
+      async update() {},
+      async get() { return undefined; }
+    };
+
+    const tool = createCheckSubagentTool(taskStore);
+    const result = await tool.execute({ taskId: "task_unknown" }, { workspaceRoot: "/ws" });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "not_found" } });
+  });
+
+  test("returns invalid_input error for missing taskId", async () => {
+    const taskStore: AsyncTaskStore = {
+      async create(record) { return { id: record.id }; },
+      async update() {},
+      async get() { return undefined; }
+    };
+
+    const tool = createCheckSubagentTool(taskStore);
+    const result = await tool.execute({}, { workspaceRoot: "/ws" });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "invalid_input" } });
+  });
+
+  test("returns running status for in-progress task", async () => {
+    const taskStore: AsyncTaskStore = {
+      async create(record) { return { id: record.id }; },
+      async update() {},
+      async get(id) { return { id, status: "running" }; }
+    };
+
+    const tool = createCheckSubagentTool(taskStore);
+    const result = await tool.execute({ taskId: "task_abc" }, { workspaceRoot: "/ws" });
+
+    expect(result).toMatchObject({ type: "check_subagent_result", status: "running" });
   });
 });
 

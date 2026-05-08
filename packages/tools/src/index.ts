@@ -107,6 +107,13 @@ export interface SpawnSubagentAsyncResult {
   status: string;
 }
 
+export interface CheckSubagentResult {
+  type: "check_subagent_result";
+  taskId: string;
+  status: string;
+  result?: string | undefined;
+}
+
 export interface LoadSkillResult {
   ok: boolean;
   content?: string;
@@ -165,6 +172,7 @@ export type ToolExecutionResult =
   | AppendDailyMemoryResult
   | SpawnSubagentResult
   | SpawnSubagentAsyncResult
+  | CheckSubagentResult
   | LoadSkillResult
   | MemorySearchResult
   | MemoryGetResult

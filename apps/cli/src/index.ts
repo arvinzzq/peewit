@@ -12,7 +12,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, redactedConfig, resolveSessionsDirectory, type EffectiveConfig, type RedactedConfigView } from "@vole/config";
 import { DefaultContextAssembler } from "@vole/context";
-import { AgentRuntime, InMemoryRuntimeTraceStore, createSpawnSubagentTool, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore, type SubagentFactory } from "@vole/core";
+import { AgentRuntime, InMemoryRuntimeTraceStore, createCheckSubagentTool, createSpawnSubagentAsyncTool, createSpawnSubagentTool, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore, type SubagentFactory } from "@vole/core";
 import { SessionGateway, type GatewaySession } from "@vole/gateway";
 import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@vole/models";
 import { CLI_CAPABILITIES, filterToolsByProfile, type ToolProfile } from "@vole/adapters";
@@ -1196,7 +1196,15 @@ export class CliChatSession {
       })
     };
 
-    const allToolsRaw = [...builtInTools, createSpawnSubagentTool(factory)];
+    const taskflowPath = join(dirname(resolveSessionsDirectory(config, options.env)), "taskflow.jsonl");
+    const taskFlowStore = new JsonlTaskFlowStore(taskflowPath);
+
+    const allToolsRaw = [
+      ...builtInTools,
+      createSpawnSubagentTool(factory),
+      createSpawnSubagentAsyncTool(factory, { taskStore: taskFlowStore }),
+      createCheckSubagentTool(taskFlowStore)
+    ];
     const allTools = config.runtime.toolProfile !== undefined
       ? filterToolsByProfile(allToolsRaw, config.runtime.toolProfile as ToolProfile)
       : allToolsRaw;
