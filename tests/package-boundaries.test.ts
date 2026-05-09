@@ -31,7 +31,7 @@ describe("package boundaries", () => {
     expect(workspaceConfig).toContain("  - packages/*");
     // CLI app is the published package — name is "vole", private is removed.
     expect(readJson("apps/cli/package.json")).toMatchObject({
-      name: "vole",
+      name: "vole-agent",
       bin: { vole: "./dist/index.js" }
     });
 
