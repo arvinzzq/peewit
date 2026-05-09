@@ -1021,6 +1021,10 @@ export class CliChatSession {
     return this.#sessionStore.listSessions(query);
   }
 
+  async loadMessages(): Promise<Array<{ role: string; content: string | null }>> {
+    return this.#sessionStore.listMessages(this.#sessionId);
+  }
+
   close(): void {
     this.#gateway?.unregister(this.#sessionId);
   }

@@ -392,7 +392,7 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
     }
   }, [session, config, cliOptions, inkApprovalResolver]);
 
-  // Resume: switch to an existing session by ID (loads its full message history).
+  // Resume: switch to an existing session by ID, restore visible conversation history.
   const handleResumeSession = useCallback(async (target: SessionEntry) => {
     setSessionPicker(null);
     session?.close();
@@ -408,6 +408,19 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
         preferStreaming: true,
         sessionId: target.id
       });
+      // Restore visible conversation: user turns + assistant text responses.
+      // Tool call records are omitted — they add noise without context in history view.
+      const stored = await s.loadMessages();
+      const history: ChatMessage[] = stored.flatMap<ChatMessage>((m) => {
+        if (m.role === "user" && m.content) {
+          return [{ role: "user", content: m.content }];
+        }
+        if (m.role === "assistant" && m.content) {
+          return [{ role: "assistant", content: m.content }];
+        }
+        return [];
+      });
+      setMessages(history);
       setSession(s);
       setActiveSessionId(s.sessionId);
     } catch (err) {
