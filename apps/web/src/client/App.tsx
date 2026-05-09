@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { marked } from "marked";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -114,45 +115,23 @@ async function apiGet<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// ─── Markdown-lite renderer ────────────────────────────────────────────────────
-// Detects ``` code blocks and renders them with monospace background.
+// ─── Markdown renderer ────────────────────────────────────────────────────────
 
-interface Segment { type: "text" | "code"; content: string; lang?: string }
+// Configure marked once: disable strikethrough (model uses ~ for "approximately")
+marked.use({ tokenizer: { del() { return undefined as never; } } });
 
-function parseSegments(text: string): Segment[] {
-  const segs: Segment[] = [];
-  const re = /```(\w*)\n?([\s\S]*?)```/g;
-  let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) segs.push({ type: "text", content: text.slice(last, m.index) });
-    const lang = m[1] || undefined;
-    segs.push({ type: "code", content: m[2] ?? "", ...(lang !== undefined ? { lang } : {}) });
-    last = m.index + m[0].length;
-  }
-  if (last < text.length) segs.push({ type: "text", content: text.slice(last) });
-  return segs.length ? segs : [{ type: "text", content: text }];
-}
-
-function MessageText({ text, style }: { text: string; style?: React.CSSProperties }) {
-  const segs = parseSegments(text);
+function Markdown({ text, style }: { text: string; style?: React.CSSProperties }) {
+  const html = useMemo(() => marked.parse(text) as string, [text]);
   return (
-    <div style={style}>
-      {segs.map((seg, i) =>
-        seg.type === "code" ? (
-          <pre key={i} style={{
-            background: "#0d1117", border: "1px solid #30363d", borderRadius: "6px",
-            padding: "10px 14px", overflowX: "auto", fontSize: "13px",
-            fontFamily: "'SF Mono', 'Fira Code', monospace", color: "#e6edf3",
-            margin: "8px 0", whiteSpace: "pre"
-          }}>
-            {seg.content}
-          </pre>
-        ) : (
-          <span key={i} style={{ whiteSpace: "pre-wrap" }}>{seg.content}</span>
-        )
-      )}
-    </div>
+    <div
+      className="md"
+      style={style}
+      // marked output is safe — no user-controlled HTML injection possible since
+      // the content comes from the LLM, not raw user input. Markdown escapes
+      // angle brackets in text nodes; only intentional HTML passes through.
+      // eslint-disable-next-line react/no-danger
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
   );
 }
 
@@ -333,15 +312,27 @@ function ChatView({ sessionId, sessionTitle }: ChatViewProps) {
   const [pendingApproval, setPendingApproval] = useState<PendingApproval | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingText, currentTool]);
 
+  const stopTurn = useCallback(async () => {
+    abortControllerRef.current?.abort();
+    await fetch(`/api/sessions/${sessionId}/turns`, { method: "DELETE" }).catch(() => {});
+    setStreamingText("");
+    setCurrentTool(null);
+    setIsSending(false);
+  }, [sessionId]);
+
   const sendMessage = useCallback(
     async (msg: string) => {
       if (isSending || msg.trim() === "") return;
       const trimmed = msg.trim();
+
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
       setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
       setInput("");
@@ -352,7 +343,8 @@ function ChatView({ sessionId, sessionTitle }: ChatViewProps) {
       try {
         const response = await fetch(`/api/sessions/${sessionId}/turns`, {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: trimmed })
+          body: JSON.stringify({ message: trimmed }),
+          signal: controller.signal
         });
 
         if (!response.ok || response.body === null) throw new Error(`Server error: ${response.status}`);
@@ -414,10 +406,17 @@ function ChatView({ sessionId, sessionTitle }: ChatViewProps) {
 
         setStreamingText("");
         setCurrentTool(null);
-        if (lastAssistantText !== "") setMessages((prev) => [...prev, { role: "assistant", content: lastAssistantText }]);
+        if (lastAssistantText !== "" && !controller.signal.aborted) {
+          setMessages((prev) => [...prev, { role: "assistant", content: lastAssistantText }]);
+        }
       } catch (err) {
-        setMessages((prev) => [...prev, { role: "assistant", content: `Error: ${err instanceof Error ? err.message : String(err)}` }]);
+        if (err instanceof Error && err.name === "AbortError") {
+          // User-initiated stop — silent
+        } else {
+          setMessages((prev) => [...prev, { role: "assistant", content: `Error: ${err instanceof Error ? err.message : String(err)}` }]);
+        }
       } finally {
+        abortControllerRef.current = null;
         setIsSending(false);
       }
     },
@@ -440,7 +439,17 @@ function ChatView({ sessionId, sessionTitle }: ChatViewProps) {
     <>
       <div style={S.chatHeader}>
         <div style={S.chatTitle}>{sessionTitle ?? `Session ${sessionId.slice(-12)}`}</div>
-        <div style={S.chatStatus}>{isSending ? "⟳ Thinking…" : `#${sessionId.slice(-8)}`}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {isSending && (
+            <button
+              style={{ background: "transparent", border: "1px solid #444", color: "#f87171", borderRadius: "4px", padding: "2px 10px", cursor: "pointer", fontSize: "12px" }}
+              onClick={() => void stopTurn()}
+            >
+              ■ Stop
+            </button>
+          )}
+          <div style={S.chatStatus}>{isSending ? "⟳ Thinking…" : `#${sessionId.slice(-8)}`}</div>
+        </div>
       </div>
 
       <div style={S.messages}>
@@ -455,7 +464,7 @@ function ChatView({ sessionId, sessionTitle }: ChatViewProps) {
           return (
             <div key={i} style={S.msgAssistant}>
               <div style={S.msgAssistantInner}>
-                <MessageText text={msg.content} />
+                <Markdown text={msg.content} />
               </div>
             </div>
           );
@@ -464,7 +473,7 @@ function ChatView({ sessionId, sessionTitle }: ChatViewProps) {
         {streamingText !== "" && (
           <div style={S.streamingOuter}>
             <div style={S.streamingInner}>
-              <MessageText text={streamingText} />
+              <Markdown text={streamingText} />
               <span style={S.cursor} />
             </div>
           </div>
@@ -477,7 +486,7 @@ function ChatView({ sessionId, sessionTitle }: ChatViewProps) {
         {todos.length > 0 && (
           <div style={S.todos}>
             <div style={{ fontWeight: 600, marginBottom: "6px", fontSize: "12px", color: "#6e7681", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              {`Tasks  ${todos.filter(t => t.status === "completed").length}/${todos.length}`}
+              {`Todo  ${todos.filter(t => t.status === "completed").length}/${todos.length}`}
             </div>
             {todos.map((todo, i) => {
               const icon = todo.status === "completed" ? "✓" : todo.status === "in_progress" ? "›" : "·";
@@ -531,7 +540,30 @@ function ChatView({ sessionId, sessionTitle }: ChatViewProps) {
         </div>
       )}
 
-      <style>{`@keyframes blink { 50% { opacity: 0; } }`}</style>
+      <style>{`
+        @keyframes blink { 50% { opacity: 0; } }
+        .md { line-height: 1.65; }
+        .md p { margin: 0 0 10px; }
+        .md p:last-child { margin-bottom: 0; }
+        .md h1,.md h2,.md h3 { margin: 16px 0 8px; font-weight: 600; line-height: 1.3; }
+        .md h1 { font-size: 1.2em; border-bottom: 1px solid #21262d; padding-bottom: 6px; }
+        .md h2 { font-size: 1.1em; }
+        .md h3 { font-size: 1em; color: #8b949e; }
+        .md code { background: #161b22; border: 1px solid #30363d; border-radius: 3px; padding: 1px 5px; font-family: 'SF Mono','Fira Code',monospace; font-size: 0.88em; color: #7dd3fc; }
+        .md pre { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px 16px; overflow-x: auto; margin: 10px 0; }
+        .md pre code { background: none; border: none; padding: 0; color: #e6edf3; font-size: 13px; }
+        .md ul,.md ol { padding-left: 20px; margin: 6px 0 10px; }
+        .md li { margin: 3px 0; }
+        .md blockquote { border-left: 3px solid #30363d; margin: 8px 0; padding: 4px 14px; color: #8b949e; }
+        .md strong { font-weight: 600; color: #e6edf3; }
+        .md em { font-style: italic; color: #c9d1d9; }
+        .md a { color: #7c8cf8; text-decoration: none; }
+        .md a:hover { text-decoration: underline; }
+        .md hr { border: none; border-top: 1px solid #21262d; margin: 14px 0; }
+        .md table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 13px; }
+        .md th,.md td { border: 1px solid #30363d; padding: 6px 10px; text-align: left; }
+        .md th { background: #161b22; font-weight: 600; }
+      `}</style>
     </>
   );
 }

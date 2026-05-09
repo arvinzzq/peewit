@@ -1154,7 +1154,7 @@ export class CliChatSession {
     );
   }
 
-  async sendMessage(message: string, opts: { onEvent?: (event: RuntimeEvent) => void } = {}): Promise<CliChatTurnResult> {
+  async sendMessage(message: string, opts: { onEvent?: (event: RuntimeEvent) => void; signal?: AbortSignal } = {}): Promise<CliChatTurnResult> {
     const events: RuntimeEvent[] = [];
     const approvalStartIndex = this.#approvalPromptLog.length;
     await this.#ensureSession();
@@ -1168,7 +1168,7 @@ export class CliChatSession {
       })
     );
 
-    for await (const event of this.#runtime.runTurn({ sessionId: this.#sessionId, recentMessages, message })) {
+    for await (const event of this.#runtime.runTurn({ sessionId: this.#sessionId, recentMessages, message, ...(opts.signal !== undefined ? { signal: opts.signal } : {}) })) {
       await this.#traceStore.append(event);
       await this.#sessionStore.appendTraceEvent({ sessionId: this.#sessionId, event });
       events.push(event);

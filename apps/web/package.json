@@ -10,6 +10,7 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@hono/node-server": "^1.14.4",
     "@vole/adapters": "workspace:*",
     "@vole/config": "workspace:*",
     "@vole/context": "workspace:*",
@@ -19,8 +20,8 @@
     "@vole/sessions": "workspace:*",
     "@vole/skills": "workspace:*",
     "@vole/tools": "workspace:*",
-    "@hono/node-server": "^1.14.4",
     "hono": "^4.7.10",
+    "marked": "^18.0.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "ws": "^8.20.0"

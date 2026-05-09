@@ -5,7 +5,7 @@
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { render, Box, Text, useInput, useApp, useAnimation, useStdout, Static } from "ink";
 import TextInput from "ink-text-input";
 import { loadConfig, type EffectiveConfig } from "@vole/config";
@@ -452,11 +452,17 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
     }
   }, []);
 
+  // AbortController for the current in-flight turn
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // Send a message turn
   const sendMessage = useCallback(
     async (message: string) => {
       if (session === null || isSending || message.trim() === "") return;
       const trimmed = message.trim();
+
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
       setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
       setIsSending(true);
@@ -464,13 +470,14 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
       setCurrentTool(null);
 
       try {
-        const turn = await session.sendMessage(trimmed, { onEvent: handleEvent });
+        const turn = await session.sendMessage(trimmed, { onEvent: handleEvent, signal: controller.signal });
         setStreamingText("");
         setCurrentTool(null);
-        if (turn.assistantText !== "") {
+        if (turn.assistantText !== "" && !controller.signal.aborted) {
           setMessages((prev) => [...prev, { role: "assistant", content: turn.assistantText }]);
         }
       } finally {
+        abortControllerRef.current = null;
         setIsSending(false);
       }
     },
@@ -556,6 +563,18 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
       }
     },
     { isActive: !isSending && pendingApproval === null }
+  );
+
+  // Esc — stop in-progress turn
+  useInput(
+    (_, key) => {
+      if (key.escape) {
+        abortControllerRef.current?.abort();
+        setStreamingText("");
+        setCurrentTool(null);
+      }
+    },
+    { isActive: isSending }
   );
 
   // Ctrl+C exit handler
@@ -711,8 +730,9 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
 
       {/* Sending indicator */}
       {isSending && pendingApproval === null && (
-        <Box gap={1}>
+        <Box gap={2}>
           <Spinner label="Thinking…" />
+          <Text dimColor>{"Esc to stop"}</Text>
         </Box>
       )}
     </Box>

@@ -92,6 +92,9 @@ let sharedStore: SessionStore | undefined;
 /** Transient runtime state per active session in this process. */
 const sessions = new Map<string, WebSessionRuntime>();
 
+/** AbortControllers for in-flight turns — keyed by sessionId. */
+const runningTurns = new Map<string, AbortController>();
+
 function getOrCreateSharedStore(config: EffectiveConfig): SessionStore {
   if (sharedStore === undefined) {
     const directory = resolveSessionsDirectory(config, process.env as Record<string, string | undefined>);
@@ -344,10 +347,14 @@ app.post("/api/sessions/:id/turns", async (c) => {
   const recentRaw = await store.listMessages(id, { limit: 12 });
   const recentMessages = recentRaw.map((m) => ({ role: m.role, content: m.content }));
 
+  const controller = new AbortController();
+  runningTurns.set(id, controller);
+
   return streamSSE(c, async (stream) => {
     let assistantText = "";
 
-    for await (const event of session.runtime.runTurn({ sessionId: id, recentMessages, message })) {
+    try {
+    for await (const event of session.runtime.runTurn({ sessionId: id, recentMessages, message, signal: controller.signal })) {
       await session.traceStore.append(event);
       await store.appendTraceEvent({ sessionId: id, event });
 
@@ -359,16 +366,30 @@ app.post("/api/sessions/:id/turns", async (c) => {
 
       if (event.type === "run_completed" || event.type === "run_failed") break;
     }
+    } finally {
+      runningTurns.delete(id);
+    }
 
-    // Persist messages after the turn completes
-    await store.appendMessage({ sessionId: id, role: "user", content: message });
-    if (assistantText !== "") {
-      await store.appendMessage({ sessionId: id, role: "assistant", content: assistantText });
+    // Persist messages after the turn completes (skip if aborted mid-turn)
+    if (!controller.signal.aborted) {
+      await store.appendMessage({ sessionId: id, role: "user", content: message });
+      if (assistantText !== "") {
+        await store.appendMessage({ sessionId: id, role: "assistant", content: assistantText });
+      }
     }
 
     // Update gateway activity timestamp
     webGateway.touch(id);
   });
+});
+
+// DELETE /api/sessions/:id/turns — abort the running turn for a session
+app.delete("/api/sessions/:id/turns", (c) => {
+  const id = c.req.param("id");
+  const controller = runningTurns.get(id);
+  if (controller === undefined) return c.json({ ok: false, reason: "no running turn" }, 404);
+  controller.abort();
+  return c.json({ ok: true });
 });
 
 // GET /api/gateway/sessions — list all active web sessions registered in the gateway

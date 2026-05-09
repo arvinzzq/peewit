@@ -247,6 +247,7 @@ export interface AgentRuntimeInput {
   sessionId?: string;
   recentMessages?: ModelMessage[];
   message: string;
+  signal?: AbortSignal;
 }
 
 export interface ApprovalRequest {
@@ -463,6 +464,12 @@ export class AgentRuntime {
       if (userMsg) turnNewMessages.push({ ...userMsg });
 
       while (steps < this.#maxSteps) {
+        if (input.signal?.aborted) {
+          yield emitAndCollect(this.#event({ ...base, type: "run_failed", error: { message: "Aborted by user.", recoverable: false } }));
+          await this.#callAfterTurn(collectedEvents);
+          return;
+        }
+
         if (this.#compaction !== undefined) {
           const before = messages.length;
           messages = await compactMessages(messages, this.#modelProvider, this.#compaction);
@@ -505,6 +512,7 @@ export class AgentRuntime {
           let streamError: { message: string; recoverable: boolean; category: string } | undefined;
 
           for await (const streamEvent of this.#modelProvider.generateStream(modelInput)) {
+            if (input.signal?.aborted) break;
             if (streamEvent.type === "token_delta") {
               yield emitAndCollect(this.#event({ ...base, type: "token_delta", delta: streamEvent.delta }));
             } else if (streamEvent.type === "message_done") {
