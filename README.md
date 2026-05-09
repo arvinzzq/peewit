@@ -2,10 +2,11 @@
 
 > A personal general-purpose agent — OpenClaw-inspired, TypeScript, real and usable.
 
+[![npm](https://img.shields.io/npm/v/vole-agent?logo=npm&logoColor=white&color=cb3837)](https://www.npmjs.com/package/vole-agent)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-≥22-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-f69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
-[![Tests](https://img.shields.io/badge/tests-392%20passing-22c55e)](#development)
+[![Tests](https://img.shields.io/badge/tests-411%20passing-22c55e)](#development)
 
 Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
@@ -73,6 +74,16 @@ It is both a **real, usable product** and an **architecture learning project**. 
 
 ## Quick Start
 
+### Install (end users)
+
+```bash
+npm install -g vole-agent
+export VOLE_API_KEY=sk-ant-...   # or OPENROUTER_API_KEY
+vole chat
+```
+
+### From source (contributors)
+
 **Requirements:** Node.js ≥ 22, pnpm
 
 ```bash
@@ -98,7 +109,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 **Start chatting** (no build step required):
 
 ```bash
-pnpm cli chat
+pnpm cli -- chat
 ```
 
 ---
@@ -107,33 +118,39 @@ pnpm cli chat
 
 ### CLI
 
-The `pnpm cli` shortcut runs the CLI directly from source — no build step needed during development.
+The `pnpm cli --` shortcut runs the CLI directly from source — no build step needed during development.
 
 ```bash
-pnpm cli chat                           # interactive chat
-pnpm cli chat --resume                  # resume most recent session
-pnpm cli chat --session <id>            # named session
-pnpm cli run "<goal>"                   # one-shot background task (confirm mode)
-pnpm cli run "<goal>" --mode auto       # auto-approve low/medium risk tools
-pnpm cli run --dream                    # consolidate daily notes into MEMORY.md
-pnpm cli sessions                       # list stored sessions
-pnpm cli tasks                          # list recent background task runs
-pnpm cli skills                         # list loaded skills with trust status
-pnpm cli skills install <path>          # install a skill from a .md file
-pnpm cli skills trust <name>            # mark a skill as trusted
-pnpm cli daemon                         # start the cron scheduler daemon
-pnpm cli taskflow list                  # list task flow records
-pnpm cli taskflow show <id>
-pnpm cli taskflow cancel <id>
+pnpm cli -- chat                           # interactive chat
+pnpm cli -- chat --resume                  # resume most recent session
+pnpm cli -- chat --session <id>            # named session
+pnpm cli -- run "<goal>"                   # one-shot background task (confirm mode)
+pnpm cli -- run "<goal>" --mode auto       # auto-approve low/medium risk tools
+pnpm cli -- run --dream                    # consolidate daily notes into MEMORY.md
+pnpm cli -- sessions                       # list stored sessions
+pnpm cli -- tasks                          # list recent background task runs
+pnpm cli -- skills                         # list loaded skills with trust status
+pnpm cli -- skills install <path>          # install a skill from a .md file
+pnpm cli -- skills trust <name>            # mark a skill as trusted
+pnpm cli -- daemon                         # start the cron scheduler daemon
+pnpm cli -- web                            # open web dashboard (requires web build)
+pnpm cli -- taskflow list                  # list task flow records
+pnpm cli -- taskflow show <id>
+pnpm cli -- taskflow cancel <id>
 ```
 
 ### Web UI
 
 ```bash
+# Development (hot reload)
 pnpm --filter @vole/web run dev   # Hono on :3120, Vite on :5173
+
+# Installed (after npm install -g vole-agent)
+vole web                           # opens http://localhost:3120
+pnpm cli -- web                   # same, from source
 ```
 
-Open `http://localhost:5173`. Create or resume sessions, send messages, watch streaming responses, and approve tool actions from the browser.
+Open `http://localhost:5173` (dev) or `http://localhost:3120` (installed). Create or resume sessions, send messages, watch streaming responses, stop in-progress turns, and approve tool actions from the browser.
 
 REST + SSE API:
 
@@ -287,7 +304,7 @@ File-based config: `vole.config.json` (project) and `~/.vole/config.json` (user)
 ```bash
 pnpm install          # install all dependencies
 cp .env.example .env  # fill in your API key
-pnpm cli chat         # run CLI from source — no build needed
+pnpm cli -- chat      # run CLI from source — no build needed
 
 # Web UI
 pnpm --filter @vole/web run dev

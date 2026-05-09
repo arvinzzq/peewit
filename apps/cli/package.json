@@ -4,7 +4,7 @@
   "description": "A capable coding and general-purpose agent",
   "type": "module",
   "bin": {
-    "vole": "./dist/index.js"
+    "vole": "dist/index.js"
   },
   "files": [
     "dist/**/*.js",

@@ -2,10 +2,11 @@
 
 > 个人通用 Agent — 受 OpenClaw 启发，TypeScript 实现，真实可用。
 
+[![npm](https://img.shields.io/npm/v/vole-agent?logo=npm&logoColor=white&color=cb3837)](https://www.npmjs.com/package/vole-agent)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-≥22-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-f69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
-[![Tests](https://img.shields.io/badge/tests-392%20passing-22c55e)](#开发)
+[![Tests](https://img.shields.io/badge/tests-411%20passing-22c55e)](#开发)
 
 English version: [README.md](./README.md)
 
@@ -73,6 +74,16 @@ Vole 是一个从零开始用 TypeScript 构建的个人通用 Agent。
 
 ## 快速开始
 
+### 安装（终端用户）
+
+```bash
+npm install -g vole-agent
+export VOLE_API_KEY=sk-ant-...   # 或 OPENROUTER_API_KEY
+vole chat
+```
+
+### 从源码运行（贡献者）
+
 **环境要求：** Node.js ≥ 22，pnpm
 
 ```bash
@@ -98,7 +109,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 **开始聊天**（无需构建）：
 
 ```bash
-pnpm cli chat
+pnpm cli -- chat
 ```
 
 ---
@@ -107,33 +118,39 @@ pnpm cli chat
 
 ### CLI
 
-`pnpm cli` 直接从源码运行，开发阶段无需构建。
+`pnpm cli --` 直接从源码运行，开发阶段无需构建。
 
 ```bash
-pnpm cli chat                           # 交互式聊天
-pnpm cli chat --resume                  # 恢复最近会话
-pnpm cli chat --session <id>            # 命名会话
-pnpm cli run "<目标>"                   # 一次性后台任务（confirm 模式）
-pnpm cli run "<目标>" --mode auto       # 自动批准 low/medium 风险工具
-pnpm cli run --dream                    # 将日记合并进 MEMORY.md
-pnpm cli sessions                       # 列出所有会话
-pnpm cli tasks                          # 列出最近后台任务运行记录
-pnpm cli skills                         # 列出已加载技能（含信任状态）
-pnpm cli skills install <path>          # 从 .md 文件安装技能
-pnpm cli skills trust <name>            # 标记技能为已信任
-pnpm cli daemon                         # 启动 Cron 调度守护进程
-pnpm cli taskflow list                  # 列出 TaskFlow 记录
-pnpm cli taskflow show <id>
-pnpm cli taskflow cancel <id>
+pnpm cli -- chat                           # 交互式聊天
+pnpm cli -- chat --resume                  # 恢复最近会话
+pnpm cli -- chat --session <id>            # 命名会话
+pnpm cli -- run "<目标>"                   # 一次性后台任务（confirm 模式）
+pnpm cli -- run "<目标>" --mode auto       # 自动批准 low/medium 风险工具
+pnpm cli -- run --dream                    # 将日记合并进 MEMORY.md
+pnpm cli -- sessions                       # 列出所有会话
+pnpm cli -- tasks                          # 列出最近后台任务运行记录
+pnpm cli -- skills                         # 列出已加载技能（含信任状态）
+pnpm cli -- skills install <path>          # 从 .md 文件安装技能
+pnpm cli -- skills trust <name>            # 标记技能为已信任
+pnpm cli -- daemon                         # 启动 Cron 调度守护进程
+pnpm cli -- web                            # 打开 Web 界面（需先构建 web）
+pnpm cli -- taskflow list                  # 列出 TaskFlow 记录
+pnpm cli -- taskflow show <id>
+pnpm cli -- taskflow cancel <id>
 ```
 
 ### Web UI
 
 ```bash
+# 开发模式（热重载）
 pnpm --filter @vole/web run dev   # Hono 在 :3120，Vite 在 :5173
+
+# 已安装（npm install -g vole-agent）
+vole web                           # 打开 http://localhost:3120
+pnpm cli -- web                   # 同上，从源码运行
 ```
 
-在浏览器打开 `http://localhost:5173`。创建或恢复会话、发送消息、查看流式响应、在浏览器中审批工具操作。
+在浏览器打开 `http://localhost:5173`（开发）或 `http://localhost:3120`（已安装）。创建或恢复会话、发送消息、查看流式响应、中断进行中的轮次、在浏览器中审批工具操作。
 
 REST + SSE API：
 
@@ -287,7 +304,7 @@ Vole 也是一个架构学习项目。`docs/learning/` 目录包含 15 篇双语
 ```bash
 pnpm install          # 安装所有依赖
 cp .env.example .env  # 填入 API Key
-pnpm cli chat         # 从源码运行 CLI，无需构建
+pnpm cli -- chat      # 从源码运行 CLI，无需构建
 
 # Web UI
 pnpm --filter @vole/web run dev
