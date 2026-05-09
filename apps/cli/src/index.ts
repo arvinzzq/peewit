@@ -1005,6 +1005,10 @@ export class CliChatSession {
 
   get sessionId(): string { return this.#sessionId; }
 
+  async listSessions(query?: { limit?: number }): Promise<Array<{ id: string; title?: string; updatedAt: string }>> {
+    return this.#sessionStore.listSessions(query);
+  }
+
   close(): void {
     this.#gateway?.unregister(this.#sessionId);
   }

@@ -24,10 +24,11 @@ import { Markdown, StreamingMarkdown } from "./Markdown.js";
 
 const SLASH_COMMANDS = [
   { command: "/help",   description: "Show available commands" },
+  { command: "/resume", description: "Resume a previous session" },
   { command: "/trace",  description: "Show recent trace events" },
   { command: "/config", description: "Show redacted configuration" },
   { command: "/skills", description: "List loaded skills" },
-  { command: "/clear",  description: "Clear conversation display" },
+  { command: "/clear",  description: "Clear screen and reset context" },
   { command: "/exit",   description: "Leave chat" },
 ] as const;
 
@@ -88,6 +89,56 @@ function CompactHeader({ model, sessionId }: { model: string; sessionId: string 
       <Text dimColor>{"·"}</Text>
       <Text color="blueBright">{sessionId.slice(-8)}</Text>
       <Text dimColor>{"·  /help"}</Text>
+    </Box>
+  );
+}
+
+type SessionEntry = { id: string; title?: string; updatedAt: string };
+
+function SessionPicker({
+  sessions,
+  selectedIndex,
+  onSelect,
+  onCancel,
+}: {
+  sessions: SessionEntry[];
+  selectedIndex: number;
+  onSelect: (s: SessionEntry) => void;
+  onCancel: () => void;
+}) {
+  useInput((_, key) => {
+    if (key.escape) { onCancel(); return; }
+    if (key.return && sessions[selectedIndex] !== undefined) { onSelect(sessions[selectedIndex]!); return; }
+  });
+
+  if (sessions.length === 0) {
+    return (
+      <Box flexDirection="column" marginBottom={1}>
+        <Text dimColor>{"No previous sessions found."}</Text>
+        <Text dimColor>{"Esc  cancel"}</Text>
+      </Box>
+    );
+  }
+
+  return (
+    <Box flexDirection="column" marginBottom={1}>
+      <Text dimColor bold>{"Resume session  ↑↓ navigate · Enter select · Esc cancel"}</Text>
+      {sessions.map((s, i) => {
+        const label = s.title ?? s.id.slice(-12);
+        const date  = s.updatedAt.slice(0, 16).replace("T", "  ");
+        const active = i === selectedIndex;
+        return (
+          <Box key={s.id} gap={2}>
+            {active
+              ? <Text color={VOLE_COLOR} bold>{" ▶"}</Text>
+              : <Text dimColor>{"  "}</Text>}
+            <Text {...(active ? {} : { dimColor: true })}>{date}</Text>
+            {active
+              ? <Text color={VOLE_COLOR}>{label}</Text>
+              : <Text>{label}</Text>}
+          </Box>
+        );
+      })}
     </Box>
   );
 }
@@ -264,6 +315,12 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
   const [currentTool, setCurrentTool] = useState<{ name: string; input?: unknown } | null>(null);
   const [todos, setTodos] = useState<TodoItem[]>([]);
 
+  // Session picker state (active while /resume is open)
+  const [sessionPicker, setSessionPicker] = useState<{
+    sessions: SessionEntry[];
+    selectedIndex: number;
+  } | null>(null);
+
   // Approval state
   const [pendingApproval, setPendingApproval] = useState<{
     request: ApprovalRequest;
@@ -335,6 +392,29 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
     }
   }, [session, config, cliOptions, inkApprovalResolver]);
 
+  // Resume: switch to an existing session by ID (loads its full message history).
+  const handleResumeSession = useCallback(async (target: SessionEntry) => {
+    setSessionPicker(null);
+    session?.close();
+    setSession(null);
+    setMessages([]);
+    setStreamingText("");
+    setCurrentTool(null);
+    setTodos([]);
+    setPendingApproval(null);
+    try {
+      const s = await CliChatSession.createConfigured(config, cliOptions, {
+        approvalResolver: inkApprovalResolver,
+        preferStreaming: true,
+        sessionId: target.id
+      });
+      setSession(s);
+      setActiveSessionId(s.sessionId);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to resume session.");
+    }
+  }, [session, config, cliOptions, inkApprovalResolver]);
+
   // Event callback for streaming
   const handleEvent = useCallback((event: RuntimeEvent) => {
     if (event.type === "token_delta") {
@@ -388,6 +468,13 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
   const handleSlashCommand = useCallback(
     async (command: string) => {
       if (session === null) return;
+      if (command === "/resume") {
+        const sessions = await session.listSessions({ limit: 20 });
+        // Exclude the current session — no point resuming yourself
+        const resumable = sessions.filter((s) => s.id !== session.sessionId);
+        setSessionPicker({ sessions: resumable, selectedIndex: 0 });
+        return;
+      }
       if (command === "/clear") {
         // Clear terminal screen + start a fresh session (new session ID,
         // no message history — the model gets a clean context window).
@@ -398,7 +485,7 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
       const lines = await session.runSlashCommand(command);
       setMessages((prev) => [...prev, { role: "slash_result", command, lines }]);
     },
-    [session, writeToStdout, resetSession]
+    [session, writeToStdout, resetSession, handleResumeSession]
   );
 
   // Handle TextInput onChange — detects Tab (inserted as '\t') for autocomplete
@@ -423,9 +510,17 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
     [suggestionIndex]
   );
 
-  // ↑/↓ — navigate suggestions when autocomplete is open, history otherwise
+  // ↑/↓ — navigate session picker when open; otherwise suggestions / input history
   useInput(
-    (inputChar, key) => {
+    (_, key) => {
+      if (sessionPicker !== null) {
+        if (key.upArrow) {
+          setSessionPicker((p) => p && { ...p, selectedIndex: Math.max(0, p.selectedIndex - 1) });
+        } else if (key.downArrow) {
+          setSessionPicker((p) => p && { ...p, selectedIndex: Math.min(p.sessions.length - 1, p.selectedIndex + 1) });
+        }
+        return;
+      }
       if (key.upArrow) {
         if (showSuggestions) {
           setSuggestionIndex((i) => Math.max(0, i - 1));
@@ -573,13 +668,23 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
         />
       )}
 
+      {/* Session picker (shown while /resume is active) */}
+      {sessionPicker !== null && (
+        <SessionPicker
+          sessions={sessionPicker.sessions}
+          selectedIndex={sessionPicker.selectedIndex}
+          onSelect={(s) => void handleResumeSession(s)}
+          onCancel={() => setSessionPicker(null)}
+        />
+      )}
+
       {/* Autocomplete suggestions (above input) */}
-      {!isSending && pendingApproval === null && (
+      {!isSending && pendingApproval === null && sessionPicker === null && (
         <SuggestionsBox suggestions={suggestions} selectedIndex={suggestionIndex} />
       )}
 
       {/* Input row */}
-      {!isSending && pendingApproval === null && (
+      {!isSending && pendingApproval === null && sessionPicker === null && (
         <Box gap={1}>
           <Text color="cyan" bold>{"›"}</Text>
           <TextInput
