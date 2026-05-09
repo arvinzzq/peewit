@@ -1572,7 +1572,7 @@ async function main(): Promise<void> {
   // Real interactive chat → use Ink for streaming rendering
   // args[0] may be "--" when invoked as `pnpm cli -- chat`; skip it.
   const effectiveCommand = args.find((a) => a !== "--");
-  if (effectiveCommand === "chat" && !args.includes("--fake") && !args.includes("--fake-interactive")) {
+  if (effectiveCommand === "chat" && !args.includes("--help") && !args.includes("-h") && !args.includes("--fake") && !args.includes("--fake-interactive")) {
     const { runInkChat } = await import("./app.js");
     await runInkChat({ args, env: process.env });
     return;
@@ -1585,7 +1585,14 @@ async function main(): Promise<void> {
   });
   const lineIterator = terminal[Symbol.asyncIterator]();
 
-  const result = await runCli(args, "0.0.0", {
+  const selfDir = dirname(fileURLToPath(import.meta.url));
+  let pkgVersion = "0.0.0";
+  try {
+    const raw = await readFile(join(selfDir, "../package.json"), "utf8");
+    pkgVersion = (JSON.parse(raw) as { version: string }).version;
+  } catch { /* ignore */ }
+
+  const result = await runCli(args, pkgVersion, {
     env: process.env,
     readLine: async (prompt) => {
       process.stdout.write(prompt);
