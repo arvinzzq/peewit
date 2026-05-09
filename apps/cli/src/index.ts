@@ -191,7 +191,10 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
     .action(async (id: string) => { actionResult = await runTaskflowCancel(id, options); });
 
   try {
-    await program.parseAsync(args, { from: "user" });
+    // Strip a leading "--" separator inserted by pnpm/npm run scripts so that
+    // options like --no-open are not mistaken for positional arguments.
+    const commanderArgs = args[0] === "--" ? args.slice(1) : args;
+    await program.parseAsync(commanderArgs, { from: "user" });
   } catch (err) {
     if (err instanceof Error && "code" in err) {
       const code = (err as { code: string }).code;
