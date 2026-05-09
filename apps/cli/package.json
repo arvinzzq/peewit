@@ -7,11 +7,13 @@
     "vole": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist/**/*.js",
+    "dist/web"
   ],
   "scripts": {
     "build": "tsup",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "prepublishOnly": "bash ../../scripts/build-release.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.92.0",

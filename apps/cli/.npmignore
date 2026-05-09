@@ -1,0 +1,5 @@
+# Exclude source maps and TypeScript declaration files from the published package.
+# End users don't need them; they just add size.
+dist/*.map
+dist/*.d.ts
+dist/*.d.ts.map
