@@ -314,6 +314,24 @@ function ChatView({ sessionId, sessionTitle }: ChatViewProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Load historical messages when a session is opened
+  useEffect(() => {
+    setMessages([]);
+    setStreamingText("");
+    setCurrentTool(null);
+    setTodos([]);
+    apiGet<{ messages: Array<{ role: string; content: string | null }> }>(
+      `/api/sessions/${sessionId}/messages`
+    ).then(({ messages: stored }) => {
+      const history: ChatMessage[] = stored.flatMap<ChatMessage>((m) => {
+        if (m.role === "user" && m.content) return [{ role: "user", content: m.content }];
+        if (m.role === "assistant" && m.content) return [{ role: "assistant", content: m.content }];
+        return [];
+      });
+      setMessages(history);
+    }).catch(() => { /* session may be new — no messages yet */ });
+  }, [sessionId]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingText, currentTool]);
