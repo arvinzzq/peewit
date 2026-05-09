@@ -1509,12 +1509,20 @@ function traceEventLabel(event: RuntimeEvent): string {
 
 async function runWebDashboard(port: number, openBrowser: boolean): Promise<CliResult> {
   const selfDir = dirname(fileURLToPath(import.meta.url));
-  const webRoot = join(selfDir, "../../web");
-  const distServer = join(webRoot, "dist/server.js");
 
-  try {
-    await stat(distServer);
-  } catch {
+  // Production (npm install): web files are bundled alongside dist/index.js.
+  // Development (tsx src/):   web files live in apps/web/dist/.
+  const candidates: Array<{ server: string; cwd: string }> = [
+    { server: join(selfDir, "web", "server.js"),           cwd: join(selfDir, "web") },
+    { server: join(selfDir, "../../web", "dist", "server.js"), cwd: join(selfDir, "../../web") },
+  ];
+
+  let resolved: { server: string; cwd: string } | undefined;
+  for (const c of candidates) {
+    try { await stat(c.server); resolved = c; break; } catch { /* try next */ }
+  }
+
+  if (resolved === undefined) {
     return {
       exitCode: 1,
       stdout: "",
@@ -1523,10 +1531,10 @@ async function runWebDashboard(port: number, openBrowser: boolean): Promise<CliR
   }
 
   const url = `http://localhost:${port}`;
-  const child = spawn("node", [distServer], {
+  const child = spawn("node", [resolved.server], {
     env: { ...process.env, PORT: String(port) },
     stdio: "inherit",
-    cwd: webRoot
+    cwd: resolved.cwd
   });
 
   process.stdout.write(`Vole web dashboard → ${url}\n`);

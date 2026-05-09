@@ -29,9 +29,10 @@ describe("package boundaries", () => {
     expect(rootPackage.packageManager).toMatch(/^pnpm@/);
     expect(workspaceConfig).toContain("  - apps/*");
     expect(workspaceConfig).toContain("  - packages/*");
+    // CLI app is the published package — name is "vole", private is removed.
     expect(readJson("apps/cli/package.json")).toMatchObject({
-      name: "@vole/cli",
-      private: true
+      name: "vole",
+      bin: { vole: "./dist/index.js" }
     });
 
     for (const packagePath of workspacePackages) {
@@ -52,6 +53,8 @@ describe("package boundaries", () => {
 
       expect(manifest.dependencies ?? {}).not.toHaveProperty("@vole/cli");
       expect(manifest.devDependencies ?? {}).not.toHaveProperty("@vole/cli");
+      expect(manifest.dependencies ?? {}).not.toHaveProperty("vole");
+      expect(manifest.devDependencies ?? {}).not.toHaveProperty("vole");
     }
   });
 });
