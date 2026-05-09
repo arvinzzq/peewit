@@ -1371,7 +1371,7 @@ export function renderTodosProgress(events: RuntimeEvent[]): string[] {
   const todosEvent = [...events].reverse().find((e) => e.type === "todos_updated");
   if (todosEvent?.type !== "todos_updated" || todosEvent.todos.length === 0) return [];
 
-  const lines = ["Tasks:"];
+  const lines = ["Todo:"];
   for (const todo of todosEvent.todos) {
     const icon = todo.status === "completed" ? "✓" : todo.status === "in_progress" ? "→" : "·";
     lines.push(`  ${icon} ${todo.content}`);
@@ -1492,7 +1492,9 @@ async function main(): Promise<void> {
   const [command] = args;
 
   // Real interactive chat → use Ink for streaming rendering
-  if (command === "chat" && !args.includes("--fake") && !args.includes("--fake-interactive")) {
+  // args[0] may be "--" when invoked as `pnpm cli -- chat`; skip it.
+  const effectiveCommand = args.find((a) => a !== "--");
+  if (effectiveCommand === "chat" && !args.includes("--fake") && !args.includes("--fake-interactive")) {
     const { runInkChat } = await import("./app.js");
     await runInkChat({ args, env: process.env });
     return;

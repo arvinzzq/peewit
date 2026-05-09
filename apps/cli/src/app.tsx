@@ -6,7 +6,7 @@
  * Update this header and the parent directory docs when responsibilities change.
  */
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { render, Box, Text, useInput, useApp, useAnimation, Static } from "ink";
+import { render, Box, Text, useInput, useApp, useAnimation, useStdout, Static } from "ink";
 import TextInput from "ink-text-input";
 import { loadConfig, type EffectiveConfig } from "@vole/config";
 import type { RuntimeEvent } from "@vole/core";
@@ -18,6 +18,7 @@ import {
   type ApprovalResolution,
   type RunCliOptions
 } from "./index.js";
+import { Markdown, StreamingMarkdown } from "./Markdown.js";
 
 // ─── Slash commands registry ──────────────────────────────────────────────────
 
@@ -32,6 +33,8 @@ const SLASH_COMMANDS = [
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+const VOLE_COLOR = "#d9ff33";
+
 function Spinner({ label }: { label: string }) {
   const { frame } = useAnimation({ interval: 80 });
   const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
@@ -42,7 +45,58 @@ function Spinner({ label }: { label: string }) {
   );
 }
 
+function WelcomeScreen({ model, sessionId }: { model: string; sessionId: string }) {
+  return (
+    <Box flexDirection="column" marginBottom={1} gap={1}>
+      <Box flexDirection="row" gap={3} alignItems="flex-start">
+        {/* Vole ASCII art */}
+        <Box flexDirection="column">
+          <Text color={VOLE_COLOR}>{"  (\\_/)"}</Text>
+          <Text color={VOLE_COLOR}>{"  (•ᵥ•)"}</Text>
+          <Text color={VOLE_COLOR}>{"  />  \\"}</Text>
+        </Box>
+        {/* Info */}
+        <Box flexDirection="column" gap={1}>
+          <Box flexDirection="row" gap={1}>
+            <Text color={VOLE_COLOR} bold>{"vole"}</Text>
+            <Text dimColor>{"— a capable coding and general-purpose agent"}</Text>
+          </Box>
+          <Box flexDirection="row" gap={2}>
+            <Box flexDirection="row" gap={1}>
+              <Text dimColor>{"model"}</Text>
+              <Text>{model}</Text>
+            </Box>
+            <Text dimColor>{"·"}</Text>
+            <Box flexDirection="row" gap={1}>
+              <Text dimColor>{"session"}</Text>
+              <Text color="blueBright">{sessionId.slice(-8)}</Text>
+            </Box>
+          </Box>
+          <Text dimColor>{"Type /help for commands · /exit to leave"}</Text>
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
+function CompactHeader({ model, sessionId }: { model: string; sessionId: string }) {
+  return (
+    <Box marginBottom={1} flexDirection="row" gap={2} alignItems="center">
+      <Text color={VOLE_COLOR} bold>{"vole"}</Text>
+      <Text dimColor>{"·"}</Text>
+      <Text dimColor>{model}</Text>
+      <Text dimColor>{"·"}</Text>
+      <Text color="blueBright">{sessionId.slice(-8)}</Text>
+      <Text dimColor>{"·  /help"}</Text>
+    </Box>
+  );
+}
+
 function StreamingMessage({ text }: { text: string }) {
+  // Plain text during streaming — avoids ANSI height-calculation conflicts with
+  // Ink's throttledLog, which can cause a pending trailing render to re-write
+  // stale streaming text over the live area after the turn completes.
+  // Full markdown is applied once the message is committed to Static.
   return (
     <Box marginBottom={1} flexDirection="column">
       <Text color="green" bold>{"Assistant"}</Text>
@@ -76,7 +130,7 @@ function TodosPanel({ todos }: { todos: TodoItem[] }) {
   const done = todos.filter(t => t.status === "completed").length;
   return (
     <Box flexDirection="column" marginBottom={1} borderStyle="single" borderColor="gray" paddingX={1}>
-      <Text dimColor bold>{`Tasks  ${done}/${todos.length}`}</Text>
+      <Text dimColor bold>{`Todo  ${done}/${todos.length}`}</Text>
       {todos.map((todo, i) => {
         const icon = todo.status === "completed" ? "✓" : todo.status === "in_progress" ? "›" : "·";
         const color = todo.status === "completed" ? "green" : todo.status === "in_progress" ? "yellow" : undefined;
@@ -185,6 +239,7 @@ interface ChatAppProps {
 
 function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
   const { exit } = useApp();
+  const { write: writeToStdout } = useStdout();
 
   // Session state
   const [session, setSession] = useState<CliChatSession | null>(null);
@@ -259,6 +314,27 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
       });
   }, [config, cliOptions, inkApprovalResolver, sessionId]);
 
+  // Reset: close the current session and open a fresh one (new session ID → no message history).
+  const resetSession = useCallback(async () => {
+    session?.close();
+    setSession(null);
+    setMessages([]);
+    setStreamingText("");
+    setCurrentTool(null);
+    setTodos([]);
+    setPendingApproval(null);
+    try {
+      const s = await CliChatSession.createConfigured(config, cliOptions, {
+        approvalResolver: inkApprovalResolver,
+        preferStreaming: true
+      });
+      setSession(s);
+      setActiveSessionId(s.sessionId);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Failed to reset session.");
+    }
+  }, [session, config, cliOptions, inkApprovalResolver]);
+
   // Event callback for streaming
   const handleEvent = useCallback((event: RuntimeEvent) => {
     if (event.type === "token_delta") {
@@ -269,6 +345,8 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
       setCurrentTool({ name: event.call.name, input: event.call.input });
     } else if (event.type === "tool_completed") {
       setCurrentTool(null);
+      // update_todos result is always {ok:true} — TodosPanel already shows the content.
+      if (event.toolName === "update_todos") return;
       const resultText = renderToolResult(event.result);
       setMessages((prev) => [...prev, { role: "tool_result", toolName: event.toolName, content: resultText, ok: true }]);
     } else if (event.type === "tool_failed") {
@@ -311,13 +389,16 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
     async (command: string) => {
       if (session === null) return;
       if (command === "/clear") {
-        setMessages([]);
+        // Clear terminal screen + start a fresh session (new session ID,
+        // no message history — the model gets a clean context window).
+        writeToStdout("\x1b[2J\x1b[H");
+        void resetSession();
         return;
       }
       const lines = await session.runSlashCommand(command);
       setMessages((prev) => [...prev, { role: "slash_result", command, lines }]);
     },
-    [session]
+    [session, writeToStdout, resetSession]
   );
 
   // Handle TextInput onChange — detects Tab (inserted as '\t') for autocomplete
@@ -418,20 +499,17 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
     );
   }
 
-  const sidLabel = activeSessionId ? activeSessionId.slice(-8) : "…";
+  const sidLabel = activeSessionId ?? "…";
   const modelLabel = `${config.model.provider}/${config.model.model}`;
+  const hasMessages = messages.length > 0 || streamingText !== "" || currentTool !== null || isSending;
 
   return (
     <Box flexDirection="column">
-      {/* Header */}
-      <Box marginBottom={1} borderStyle="single" borderColor="gray" paddingX={1} flexDirection="row" gap={2}>
-        <Text bold color="cyan">{"vole"}</Text>
-        <Text dimColor>{"session"}</Text>
-        <Text color="blueBright">{sidLabel}</Text>
-        <Text dimColor>{"·"}</Text>
-        <Text dimColor>{modelLabel}</Text>
-        <Text dimColor>{"·  /help for commands"}</Text>
-      </Box>
+      {/* Welcome screen (empty state) or compact header (active chat) */}
+      {hasMessages
+        ? <CompactHeader model={modelLabel} sessionId={sidLabel} />
+        : <WelcomeScreen model={modelLabel} sessionId={sidLabel} />
+      }
 
       {/* Past messages — Static prevents re-renders */}
       <Static items={messages}>
@@ -469,8 +547,8 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
           return (
             <Box key={i} flexDirection="column" marginBottom={1}>
               <Text color="green" bold>{"Assistant"}</Text>
-              <Box paddingLeft={2}>
-                <Text>{msg.content}</Text>
+              <Box paddingLeft={2} flexDirection="column">
+                <Markdown>{msg.content}</Markdown>
               </Box>
             </Box>
           );
