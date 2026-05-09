@@ -1602,6 +1602,4 @@ async function main(): Promise<void> {
   process.exitCode = result.exitCode;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  void main();
-}
+void main();
