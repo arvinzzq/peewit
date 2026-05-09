@@ -9,6 +9,7 @@ import "dotenv/config";
 import { Command, type OptionValues } from "commander";
 import { createInterface } from "node:readline";
 import { readdir, readFile, stat } from "node:fs/promises";
+import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, redactedConfig, resolveSessionsDirectory, type EffectiveConfig, type RedactedConfigView } from "@vole/config";
@@ -165,6 +166,17 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
     .option("--once", "Run all due tasks once and exit")
     .action(async (opts: OptionValues) => {
       actionResult = await runDaemon(options, opts["once"] === true);
+    });
+
+  // ── web ───────────────────────────────────────────────────────────────────
+  program.command("web")
+    .description("Start the Vole web dashboard")
+    .option("-p, --port <port>", "Port to listen on", "3120")
+    .option("--no-open", "Don't open the browser automatically")
+    .action(async (opts: OptionValues) => {
+      const port = parseInt(opts["port"] as string, 10) || 3120;
+      const openBrowser = opts["open"] !== false;
+      actionResult = await runWebDashboard(port, openBrowser);
     });
 
   // ── taskflow ──────────────────────────────────────────────────────────────
@@ -1489,6 +1501,53 @@ function traceEventLabel(event: RuntimeEvent): string {
     case "run_failed":
       return "Failed run";
   }
+}
+
+async function runWebDashboard(port: number, openBrowser: boolean): Promise<CliResult> {
+  const selfDir = dirname(fileURLToPath(import.meta.url));
+  const webRoot = join(selfDir, "../../web");
+  const distServer = join(webRoot, "dist/server.js");
+
+  try {
+    await stat(distServer);
+  } catch {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: `Web app not built. Run first:\n  pnpm --filter @vole/web build\n`
+    };
+  }
+
+  const url = `http://localhost:${port}`;
+  const child = spawn("node", [distServer], {
+    env: { ...process.env, PORT: String(port) },
+    stdio: "inherit",
+    cwd: webRoot
+  });
+
+  process.stdout.write(`Vole web dashboard → ${url}\n`);
+  process.stdout.write("Press Ctrl+C to stop.\n");
+
+  if (openBrowser) {
+    const opener =
+      process.platform === "darwin" ? "open" :
+      process.platform === "win32"  ? "cmd" :
+      "xdg-open";
+    const openerArgs = process.platform === "win32" ? ["/c", "start", url] : [url];
+    setTimeout(() => {
+      spawn(opener, openerArgs, { stdio: "ignore", detached: true }).unref();
+    }, 800);
+  }
+
+  return new Promise<CliResult>((resolve) => {
+    const shutdown = () => {
+      child.kill();
+      resolve({ exitCode: 0, stdout: "Web server stopped.\n", stderr: "" });
+    };
+    process.once("SIGTERM", shutdown);
+    process.once("SIGINT", shutdown);
+    child.once("exit", (code) => resolve({ exitCode: code ?? 0, stdout: "", stderr: "" }));
+  });
 }
 
 async function main(): Promise<void> {
