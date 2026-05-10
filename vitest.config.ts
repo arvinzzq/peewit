@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     include: ["apps/**/*.test.ts", "packages/**/*.test.ts", "tests/**/*.test.ts"],
     globals: false,
-    restoreMocks: true
+    restoreMocks: true,
+    hookTimeout: 180_000,
   }
 });

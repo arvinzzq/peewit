@@ -20,6 +20,10 @@ CLI_WEB="apps/cli/dist/web"
 rm -rf "$CLI_WEB"
 mkdir -p "$CLI_WEB/client"
 cp "$WEB_DIST/server.js" "$CLI_WEB/server.js"
-cp -r "$WEB_DIST/client/." "$CLI_WEB/client"
+# Use tar pipe to copy client assets — avoids macOS cp xattr failures under set -e
+(cd "$WEB_DIST/client" && tar cf - .) | (cd "$CLI_WEB/client" && tar xf -)
+
+echo "→ Running bundle smoke tests…"
+SKIP_BUILD=1 pnpm run check:bundle
 
 echo "→ Done. Publish with: cd apps/cli && npm publish --access public"
