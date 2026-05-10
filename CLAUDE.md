@@ -14,6 +14,8 @@ Key docs:
 
 Run `pnpm run check` (typecheck + tests + docs:check). Do not commit if it fails.
 
+Before publishing to npm, also run `pnpm run check:bundle` — this builds the full release bundle and runs smoke tests against the actual `dist/` output. The `prepublishOnly` hook runs this automatically, but run it manually first to catch issues before triggering a version bump.
+
 ## Commit Rules
 
 **Code and docs move together in the same commit.** A feature or refactor commit must include:

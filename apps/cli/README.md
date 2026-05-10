@@ -10,15 +10,20 @@ npm install -g vole-agent
 
 ## Setup
 
-Set your API key in your shell profile or a `.env` file in your project root:
+Add your API key to `~/.vole/config.json` (created automatically on first run):
+
+```json
+{ "apiKey": "sk-ant-..." }
+```
+
+Or set an environment variable in your shell profile:
 
 ```bash
-# Anthropic
-export VOLE_API_KEY=sk-ant-...
-
-# or OpenRouter
-export OPENROUTER_API_KEY=sk-or-...
+export ANTHROPIC_API_KEY=sk-ant-...   # Anthropic
+export OPENROUTER_API_KEY=sk-or-...   # OpenRouter
 ```
+
+Sessions are stored per-project under `<git-root>/.vole/sessions/` when inside a git repository, or `~/.vole/sessions/` otherwise.
 
 ## Usage
 
@@ -68,7 +73,19 @@ Inside `vole chat`:
 
 ## Configuration
 
-All configuration is via environment variables:
+Configuration is loaded from (in order of precedence): environment variables → `vole.config.json` (project) → `~/.vole/config.json` (user) → defaults.
+
+**File format** (`~/.vole/config.json` or `vole.config.json`):
+
+```json
+{
+  "apiKey": "sk-ant-...",
+  "model": "claude-haiku-4-5",
+  "defaultMode": "confirm"
+}
+```
+
+**Environment variables:**
 
 | Variable | Default | Description |
 |---|---|---|

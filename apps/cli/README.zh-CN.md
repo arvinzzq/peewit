@@ -10,15 +10,20 @@ npm install -g vole-agent
 
 ## 配置
 
-在 shell 配置文件或项目根目录的 `.env` 文件中设置 API key：
+将 API key 写入 `~/.vole/config.json`（首次运行时自动创建）：
+
+```json
+{ "apiKey": "sk-ant-..." }
+```
+
+或在 shell 配置文件中设置环境变量：
 
 ```bash
-# Anthropic
-export VOLE_API_KEY=sk-ant-...
-
-# 或 OpenRouter
-export OPENROUTER_API_KEY=sk-or-...
+export ANTHROPIC_API_KEY=sk-ant-...   # Anthropic
+export OPENROUTER_API_KEY=sk-or-...   # OpenRouter
 ```
+
+在 git 仓库中运行时，会话存储在 `<git-root>/.vole/sessions/`；否则存储在 `~/.vole/sessions/`。
 
 ## 使用
 
@@ -66,7 +71,21 @@ vole sessions
 | `/help` | 显示所有指令 |
 | `/exit` | 退出对话 |
 
-## 环境变量配置
+## 环境变量与配置文件
+
+配置加载优先级：环境变量 → `vole.config.json`（项目级）→ `~/.vole/config.json`（用户级）→ 默认值。
+
+**配置文件格式**（`~/.vole/config.json` 或 `vole.config.json`）：
+
+```json
+{
+  "apiKey": "sk-ant-...",
+  "model": "claude-haiku-4-5",
+  "defaultMode": "confirm"
+}
+```
+
+**环境变量：**
 
 | 变量 | 默认值 | 说明 |
 |---|---|---|
