@@ -11,6 +11,7 @@ export default defineConfig({
   format: ["esm"],
   outDir: "dist",
   clean: true,
+  minify: true,
   // Bundle workspace packages; everything else resolves from node_modules at runtime.
   noExternal: [/^@vole\//],
   esbuildOptions(options) {
