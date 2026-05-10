@@ -461,6 +461,11 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
       if (session === null || isSending || message.trim() === "") return;
       const trimmed = message.trim();
 
+      if (config.secrets.apiKey === undefined) {
+        setMessages((prev) => [...prev, { role: "user", content: trimmed }, { role: "error", content: "No API key configured. Set VOLE_API_KEY or OPENROUTER_API_KEY in your .env file or environment." }]);
+        return;
+      }
+
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
@@ -754,14 +759,6 @@ export async function runInkChat({ args, env, sessionsDirectory }: InkChatArgs):
   } catch (err) {
     process.stderr.write(
       `Configuration error: ${err instanceof Error ? err.message : String(err)}\n`
-    );
-    process.exitCode = 1;
-    return;
-  }
-
-  if (config.secrets.apiKey === undefined) {
-    process.stderr.write(
-      "Missing VOLE_API_KEY or OPENROUTER_API_KEY. Set one to start `vole chat`, or use `vole chat --fake-interactive` for local learning.\n"
     );
     process.exitCode = 1;
     return;

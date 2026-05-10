@@ -227,10 +227,6 @@ app.post("/api/sessions", async (c) => {
     return c.json({ error: err instanceof Error ? err.message : "Config error" }, 400);
   }
 
-  if (config.secrets.apiKey === undefined) {
-    return c.json({ error: "Missing API key. Set VOLE_API_KEY or OPENROUTER_API_KEY." }, 400);
-  }
-
   // Optional: resume an existing session by passing { sessionId }
   const body = await c.req.json<{ sessionId?: string }>().catch(() => ({ sessionId: undefined }));
   const existingSessionId = body.sessionId;
@@ -341,6 +337,10 @@ app.post("/api/sessions/:id/turns", async (c) => {
     config = loadConfig({ env: process.env as Record<string, string | undefined> });
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : "Config error" }, 400);
+  }
+
+  if (config.secrets.apiKey === undefined) {
+    return c.json({ error: "No API key configured. Set VOLE_API_KEY or OPENROUTER_API_KEY in your environment or .env file." }, 400);
   }
 
   const store = getOrCreateSharedStore(config);

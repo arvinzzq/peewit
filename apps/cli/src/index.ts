@@ -1076,10 +1076,6 @@ export class CliChatSession {
   }
 
   static async createConfigured(config: EffectiveConfig, options: RunCliOptions = {}, sessionOptions: CreateChatSessionOptions = {}): Promise<CliChatSession> {
-    if (config.secrets.apiKey === undefined) {
-      throw new Error("Configured chat requires an API key.");
-    }
-
     const sessionId = sessionOptions.sessionId ?? createSessionId();
     const currentDate = new Date().toISOString().slice(0, 10);
     const approvalPromptLog: string[] = [];
