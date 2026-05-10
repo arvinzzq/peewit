@@ -9,6 +9,7 @@
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
+import { existsSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { serve } from "@hono/node-server";
@@ -437,11 +438,10 @@ app.post("/api/sessions/:id/approvals", async (c) => {
 });
 
 // Serve built client assets in production
-// In global install, CLI sets cwd to dist/web/ so client is at ./client/
-// In dev, cwd is apps/web/ so client is at ./dist/client/
-// Try both so the same build works in either context.
-app.use("/*", serveStatic({ root: "./client" }));
-app.use("/*", serveStatic({ root: "./dist/client" }));
+// Global install: cwd = dist/web/, client at ./client/
+// Dev: cwd = apps/web/, client at ./dist/client/
+const clientRoot = existsSync("./client") ? "./client" : "./dist/client";
+app.use("/*", serveStatic({ root: clientRoot }));
 
 // ─── Start server ─────────────────────────────────────────────────────────────
 
