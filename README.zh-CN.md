@@ -78,9 +78,16 @@ Vole 是一个从零开始用 TypeScript 构建的个人通用 Agent。
 
 ```bash
 npm install -g vole-agent
-export VOLE_API_KEY=sk-ant-...   # 或 OPENROUTER_API_KEY
 vole chat
 ```
+
+首次运行时，Vole 会提示配置 API Key。推荐写入 `~/.vole/config.json`：
+
+```json
+{ "apiKey": "sk-ant-..." }
+```
+
+也可以通过环境变量配置（`ANTHROPIC_API_KEY`、`OPENROUTER_API_KEY` 或 `VOLE_API_KEY`）。
 
 ### 从源码运行（贡献者）
 
@@ -293,7 +300,17 @@ Vole 也是一个架构学习项目。`docs/learning/` 目录包含 15 篇双语
 | `VOLE_SANDBOX` | 将 Shell 限制在工作区根目录：`true` / `false` | `false` |
 | `VOLE_THINKING_BUDGET` | Anthropic 推理深度：`off` / `minimal` … `max` / `adaptive` | `adaptive` |
 
-文件配置：`vole.config.json`（项目级）和 `~/.vole/config.json`（用户级）。
+**文件配置**（推荐已安装用户使用）：
+
+```json
+// ~/.vole/config.json  — 用户级，适用于所有项目
+{ "apiKey": "sk-ant-...", "model": "claude-haiku-4-5" }
+
+// vole.config.json  — 项目级，可提交到代码仓库
+{ "defaultMode": "auto", "sandbox": true }
+```
+
+配置文件自动加载，环境变量优先级高于文件配置。
 
 ---
 

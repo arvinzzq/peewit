@@ -78,9 +78,16 @@ It is both a **real, usable product** and an **architecture learning project**. 
 
 ```bash
 npm install -g vole-agent
-export VOLE_API_KEY=sk-ant-...   # or OPENROUTER_API_KEY
 vole chat
 ```
+
+On first run, Vole will prompt you to configure an API key. You can set one in `~/.vole/config.json`:
+
+```json
+{ "apiKey": "sk-ant-..." }
+```
+
+Or via environment variables (`ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, or `VOLE_API_KEY`).
 
 ### From source (contributors)
 
@@ -293,7 +300,17 @@ All settings are optional. Vole has safe defaults.
 | `VOLE_SANDBOX` | Restrict shell to workspace root: `true` / `false` | `false` |
 | `VOLE_THINKING_BUDGET` | Anthropic reasoning depth: `off` / `minimal` … `max` / `adaptive` | `adaptive` |
 
-File-based config: `vole.config.json` (project) and `~/.vole/config.json` (user).
+**File-based config** (recommended for installed users):
+
+```json
+// ~/.vole/config.json  — user-level, applied to all projects
+{ "apiKey": "sk-ant-...", "model": "claude-haiku-4-5" }
+
+// vole.config.json  — project-level, checked into the repo
+{ "defaultMode": "auto", "sandbox": true }
+```
+
+File config is loaded automatically. Environment variables override file values.
 
 ---
 
