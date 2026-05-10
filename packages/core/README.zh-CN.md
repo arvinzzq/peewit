@@ -83,7 +83,7 @@ run_completed | run_failed
 4. 进入 `while (steps < maxSteps)` 循环：
    - 若配置了 `compaction` 且消息数超过 `maxMessages`，可选地压缩消息历史。
    - 调用 `ModelProvider.generate()` 或 `generateStream()`（流式路径）。
-   - 若输出为 `type: "message"`：检测规划停滞，发出 `assistant_message_created` + `run_completed` 后退出。
+   - 若输出为 `type: "message"`：检测规划停滞，发出 `assistant_message_created` + `run_completed` 后退出。若最终纯文本响应为空，但模型在本轮同一响应中于工具调用前已生成文本（`lastToolCallText`），则以该预工具文本发出 `assistant_message_created`，确保模型有所表达时 turn 中始终有可展示的 assistant 消息。
    - 若输出为 `type: "tool_calls"`：逐个通过 `PermissionPolicy` 评估，执行已批准的工具，追加结果消息，重复循环。
 5. 达到 `maxSteps` 后发出 `run_failed`。
 6. 在 `finally` 块中始终释放 `SessionMutex`。

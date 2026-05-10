@@ -64,6 +64,8 @@ export interface ModelMessageOutput {
 export interface ModelToolCallsOutput {
   type: "tool_calls";
   calls: ModelToolCall[];
+  /** Text the model generated alongside the tool calls in the same response turn. */
+  text?: string;
   usage?: ModelUsage;
 }
 
@@ -93,7 +95,7 @@ export interface ModelProvider {
 
 export type StreamEvent =
   | { type: "token_delta"; delta: string }
-  | { type: "tool_calls"; calls: ModelToolCall[]; usage?: ModelUsage }
+  | { type: "tool_calls"; calls: ModelToolCall[]; text?: string; usage?: ModelUsage }
   | { type: "message_done"; content: string; usage?: ModelUsage }
   | { type: "error"; category: ModelErrorCategory; message: string; recoverable: boolean };
 
@@ -211,6 +213,7 @@ export class OpenAICompatibleProvider implements StreamingModelProvider {
       const rawToolCalls = message?.tool_calls;
 
       if (finishReason === "tool_calls" && rawToolCalls !== undefined && rawToolCalls.length > 0) {
+        const priorText = message?.content ?? "";
         return {
           type: "tool_calls",
           calls: rawToolCalls.map((tc) => ({
@@ -218,6 +221,7 @@ export class OpenAICompatibleProvider implements StreamingModelProvider {
             name: tc.function.name,
             input: parseToolCallArguments(tc.function.arguments)
           })),
+          ...(priorText ? { text: priorText } : {}),
           ...(data.usage ? { usage: this.#usage(data.usage) } : {})
         };
       }
@@ -315,7 +319,7 @@ export class OpenAICompatibleProvider implements StreamingModelProvider {
             name: acc.name,
             input: parseToolCallArguments(acc.arguments)
           }));
-        yield { type: "tool_calls", calls, ...(usage !== undefined ? { usage } : {}) };
+        yield { type: "tool_calls", calls, ...(textContent ? { text: textContent } : {}), ...(usage !== undefined ? { usage } : {}) };
       } else {
         yield { type: "message_done", content: textContent, ...(usage !== undefined ? { usage } : {}) };
       }
@@ -652,9 +656,11 @@ export class AnthropicProvider implements StreamingModelProvider {
       const toolUseBlocks = response.content.filter(isToolUseBlock);
 
       if (response.stop_reason === "tool_use" && toolUseBlocks.length > 0) {
+        const textBlock = response.content.find(isTextBlock);
         return {
           type: "tool_calls",
           calls: toolUseBlocks.map((b) => ({ id: b.id, name: b.name, input: b.input })),
+          ...(textBlock?.text ? { text: textBlock.text } : {}),
           usage: { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens }
         };
       }
@@ -751,7 +757,7 @@ export class AnthropicProvider implements StreamingModelProvider {
             name: block.name,
             input: parseToolCallArguments(block.inputJson)
           }));
-        yield { type: "tool_calls", calls, usage };
+        yield { type: "tool_calls", calls, ...(textContent ? { text: textContent } : {}), usage };
       } else {
         yield { type: "message_done", content: textContent, usage };
       }

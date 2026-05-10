@@ -455,6 +455,10 @@ export class AgentRuntime {
       // Mirrors OpenClaw's hasNonPlanToolActivity guard: if real work was done,
       // a subsequent message is reporting results, not planning — skip stall detection.
       let hadRealToolCallThisTurn = false;
+      // Text the model generated alongside a tool call in the same response.
+      // Carried forward so it can be committed as the turn's assistant text when
+      // the final text-only response is empty (model had nothing to add after the tool).
+      let lastToolCallText = "";
       this.#currentTodos = [];
 
       // Track all new messages for this turn (user + tool calls + tool results + final assistant)
@@ -508,6 +512,7 @@ export class AgentRuntime {
         if (this.#preferStreaming && isStreamingProvider(this.#modelProvider)) {
           let textContent = "";
           let streamedToolCalls: ModelToolCall[] | undefined;
+          let streamedToolCallText = "";
           let streamedUsage: ModelUsage | undefined;
           let streamError: { message: string; recoverable: boolean; category: string } | undefined;
 
@@ -520,6 +525,7 @@ export class AgentRuntime {
               streamedUsage = streamEvent.usage;
             } else if (streamEvent.type === "tool_calls") {
               streamedToolCalls = streamEvent.calls;
+              streamedToolCallText = streamEvent.text ?? "";
               streamedUsage = streamEvent.usage;
             } else if (streamEvent.type === "error") {
               streamError = { category: streamEvent.category, message: streamEvent.message, recoverable: streamEvent.recoverable };
@@ -529,7 +535,7 @@ export class AgentRuntime {
           if (streamError !== undefined) {
             output = { type: "error", category: streamError.category as never, message: streamError.message, recoverable: streamError.recoverable };
           } else if (streamedToolCalls !== undefined) {
-            output = { type: "tool_calls", calls: streamedToolCalls, ...(streamedUsage !== undefined ? { usage: streamedUsage } : {}) };
+            output = { type: "tool_calls", calls: streamedToolCalls, ...(streamedToolCallText ? { text: streamedToolCallText } : {}), ...(streamedUsage !== undefined ? { usage: streamedUsage } : {}) };
           } else {
             output = { type: "message", content: textContent, ...(streamedUsage !== undefined ? { usage: streamedUsage } : {}) };
           }
@@ -575,9 +581,17 @@ export class AgentRuntime {
           }
 
           stallCount = 0;
-          // Track the final assistant message
-          turnNewMessages.push({ role: "assistant", content: output.content });
-          yield emitAndCollect(this.#event({ ...base, type: "assistant_message_created", message: { role: "assistant", content: output.content } }));
+          if (output.content !== "") {
+            // Model produced a final text reply — commit it as the canonical assistant turn.
+            turnNewMessages.push({ role: "assistant", content: output.content });
+            yield emitAndCollect(this.#event({ ...base, type: "assistant_message_created", message: { role: "assistant", content: output.content } }));
+          } else if (lastToolCallText !== "") {
+            // Final reply is empty but the model narrated text alongside an earlier tool
+            // call in the same response. Surface that text as the assistant turn so the
+            // UI can display it. The text is already stored in the tool-call assistant
+            // message content, so we don't push a redundant entry to turnNewMessages.
+            yield emitAndCollect(this.#event({ ...base, type: "assistant_message_created", message: { role: "assistant", content: lastToolCallText } }));
+          }
           yield emitAndCollect(this.#event({ ...base, type: "turn_complete", messages: [...turnNewMessages] }));
           const completedEv = emitAndCollect(this.#event({ ...base, type: "run_completed" }));
           yield completedEv;
@@ -590,7 +604,10 @@ export class AgentRuntime {
         if (output.calls.some((c) => c.name !== "update_todos")) {
           hadRealToolCallThisTurn = true;
         }
-        const assistantToolCallMsg: ModelMessage = { role: "assistant", content: null, toolCalls: output.calls };
+        if (output.text) {
+          lastToolCallText = output.text;
+        }
+        const assistantToolCallMsg: ModelMessage = { role: "assistant", content: output.text ?? null, toolCalls: output.calls };
         messages = [...messages, assistantToolCallMsg];
         turnNewMessages.push({ ...assistantToolCallMsg });
 

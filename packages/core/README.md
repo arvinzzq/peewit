@@ -83,7 +83,7 @@ run_completed | run_failed
 4. Enters a `while (steps < maxSteps)` loop:
    - Optionally compacts message history if `compaction` is configured and `messages.length > maxMessages`.
    - Calls `ModelProvider.generate()` or `generateStream()` (streaming path).
-   - On `type: "message"`: checks for planning stall, emits `assistant_message_created` + `run_completed`, exits.
+   - On `type: "message"`: checks for planning stall, emits `assistant_message_created` + `run_completed`, exits. If the final text-only response is empty but the model generated text alongside an earlier tool call in the same response (`lastToolCallText`), `assistant_message_created` is emitted with that pre-tool text instead, so the turn always surfaces a displayable assistant message when the model said something.
    - On `type: "tool_calls"`: evaluates each call through `PermissionPolicy`, runs approved tools, accumulates `tool` role messages, repeats.
 5. If `maxSteps` is reached, emits `run_failed`.
 6. Always releases the `SessionMutex` in a `finally` block.

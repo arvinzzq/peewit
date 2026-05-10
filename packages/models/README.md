@@ -46,7 +46,7 @@ interface ModelInput {
 | type | When emitted | Contains |
 |---|---|---|
 | `"message"` | Model returned plain text | `content: string`, optional `usage` |
-| `"tool_calls"` | Model requested tool calls | `calls: ModelToolCall[]`, optional `usage` |
+| `"tool_calls"` | Model requested tool calls | `calls: ModelToolCall[]`, optional `text?: string` (text the model generated alongside the tool calls), optional `usage` |
 | `"error"` | Request failed | `category`, `message`, `recoverable: boolean` |
 
 Error categories (`authentication`, `rate_limit`, `network`, `invalid_request`, `model_unavailable`, `context_length`, `unknown`) allow callers to make informed retry decisions.
@@ -59,7 +59,7 @@ Error categories (`authentication`, `rate_limit`, `network`, `invalid_request`, 
 |---|---|
 | `"token_delta"` | Each text token arrives |
 | `"message_done"` | Stream completed as a text message |
-| `"tool_calls"` | Stream completed as tool calls |
+| `"tool_calls"` | Stream completed as tool calls; also carries `text?: string` — text the model generated alongside the tool calls |
 | `"error"` | Stream failed |
 
 The runtime accumulates `token_delta` events (yielding each to adapters immediately for live display) and converts the terminal event back into a `ModelOutput`-compatible shape for the rest of the loop logic.
