@@ -11,4 +11,9 @@ export default defineConfig({
   esbuildOptions(options) {
     options.platform = "node";
   },
+  // CJS packages (e.g. ws) use dynamic require() which ESM doesn't support.
+  // Inject a createRequire shim so those calls resolve at runtime.
+  banner: {
+    js: `import { createRequire } from "module"; const require = createRequire(import.meta.url);`,
+  },
 });

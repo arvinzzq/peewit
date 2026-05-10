@@ -1,6 +1,6 @@
 {
   "name": "vole-agent",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "A capable coding and general-purpose agent",
   "type": "module",
   "bin": {
