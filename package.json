@@ -7,6 +7,8 @@
   "packageManager": "pnpm@10.14.0",
   "scripts": {
     "cli": "tsx --env-file=.env apps/cli/src/index.ts",
+    "chat": "tsx --env-file=.env apps/cli/src/index.ts chat",
+    "web": "pnpm --filter @vole/web run dev",
     "docs:check": "tsx scripts/check-docs.ts",
     "typecheck": "tsc -b",
     "test": "vitest run --passWithNoTests",
