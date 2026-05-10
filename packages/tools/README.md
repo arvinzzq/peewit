@@ -164,9 +164,9 @@ Writes a structured Markdown status file to `{workspaceRoot}/HEARTBEAT.md`. Acce
 
 ### memory_search / memory_get
 
-Both tools operate within a `memoryDir` boundary:
+Both tools operate within a workspace root boundary:
 
-- `memory_search`: scans `MEMORY.md`, `USER.md`, and `memory/*.md` files; performs case-insensitive word-by-word matching across paragraphs; returns up to `maxResults` (default: 5) excerpts.
+- `memory_search`: scans `MEMORY.md`, `USER.md`, and `memory/*.md` files; performs case-insensitive word-by-word matching across paragraphs; scans ALL candidate files before applying the `maxResults` limit (default: 5), so a single large file cannot crowd out results from other files.
 - `memory_get`: reads a specific file by relative path. Rejects path traversal (`..`), absolute paths, and non-`.md` extensions.
 
 ## Implementation Principles

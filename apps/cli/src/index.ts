@@ -87,6 +87,7 @@ Narrate only when it genuinely helps: multi-step work, sensitive actions, or whe
 Keep narration brief; avoid restating what tool output already shows.
 
 ## Execution Bias
+- Pure conversational message (greeting, capability question, clarification): reply directly; do not call tools.
 - Actionable request: act in this turn, do not describe what you plan to do.
 - Non-final turn: use tools to advance, or ask for the one decision that blocks safe progress.
 - Continue until done or genuinely blocked; do not end with a plan or promise when tools can move work forward.
@@ -449,7 +450,7 @@ async function runBackgroundTask(
   })();
 
   const runtime = new AgentRuntime({
-    contextAssembler: createCliContextAssembler(config, currentDate),
+    contextAssembler: createCliContextAssembler(config),
     modelProvider: configuredProvider,
     systemInstruction: AGENT_SYSTEM_INSTRUCTION,
     runtime: {
@@ -594,7 +595,7 @@ async function runDaemonTask(
   })();
 
   const runtime = new AgentRuntime({
-    contextAssembler: createCliContextAssembler(config, currentDate),
+    contextAssembler: createCliContextAssembler(config),
     modelProvider: provider,
     systemInstruction: AGENT_SYSTEM_INSTRUCTION,
     runtime: {
@@ -1103,7 +1104,7 @@ export class CliChatSession {
 
     return new CliChatSession(
       new AgentRuntime({
-        contextAssembler: createCliContextAssembler(config, new Date().toISOString().slice(0, 10)),
+        contextAssembler: createCliContextAssembler(config),
         modelProvider: provider,
         systemInstruction: AGENT_SYSTEM_INSTRUCTION,
         runtime: {
@@ -1141,7 +1142,7 @@ export class CliChatSession {
 
     const factory: SubagentFactory = {
       create: (goal) => new AgentRuntime({
-        contextAssembler: createCliContextAssembler(redactedConfig(config), currentDate),
+        contextAssembler: createCliContextAssembler(redactedConfig(config)),
         modelProvider: configuredProvider,
         systemInstruction: `You are Vole, a sub-agent handling: ${goal}`,
         runtime: { mode: config.runtime.defaultMode, workspace: config.workspace.root, currentDate },
@@ -1175,7 +1176,7 @@ export class CliChatSession {
 
     return new CliChatSession(
       new AgentRuntime({
-        contextAssembler: createCliContextAssembler(config, currentDate),
+        contextAssembler: createCliContextAssembler(config),
         modelProvider: configuredProvider,
         systemInstruction: AGENT_SYSTEM_INSTRUCTION,
         runtime: {
@@ -1406,30 +1407,23 @@ function createConfiguredSessionStore(config: EffectiveConfig, options: RunCliOp
   });
 }
 
-function createCliContextAssembler(config: RedactedConfigView | EffectiveConfig, currentDate: string): DefaultContextAssembler {
-  const workspacePromptFiles = [
-    "AGENTS.md",
-    "SOUL.md",
-    "TOOLS.md",
-    "IDENTITY.md",
-    "HEARTBEAT.md",
-    "BOOTSTRAP.md"
-  ];
-
-  if (config.memory.longTermFiles === "read-only") {
-    workspacePromptFiles.push("USER.md", "MEMORY.md", `memory/${currentDate}.md`, `memory/${previousIsoDate(currentDate)}.md`);
-  }
-
+function createCliContextAssembler(_config: RedactedConfigView | EffectiveConfig): DefaultContextAssembler {
+  // Bootstrap files align with OpenClaw's documented workspace bootstrap list.
+  // Files that don't exist are silently skipped by DefaultContextAssembler.
+  // Daily memory files (memory/YYYY-MM-DD.md) are intentionally excluded: OpenClaw
+  // docs state they are accessed through memory tools, not injected at bootstrap.
   return new DefaultContextAssembler({
-    workspacePromptFiles
+    workspacePromptFiles: [
+      "AGENTS.md",
+      "SOUL.md",
+      "TOOLS.md",
+      "IDENTITY.md",
+      "HEARTBEAT.md",
+      "BOOTSTRAP.md",
+      "USER.md",
+      "MEMORY.md"
+    ]
   });
-}
-
-function previousIsoDate(currentDate: string): string {
-  const date = new Date(`${currentDate}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() - 1);
-
-  return date.toISOString().slice(0, 10);
 }
 
 function createSessionId(): string {

@@ -29,7 +29,9 @@ ExecutableTool[]    ← @vole/tools
 
 `ToolDefinition` 携带静态元数据（name、description、inputSchema、risk），`ExecutableTool` 在此基础上增加 `execute(input, context)` 方法。`ToolExecutionContext` 携带 `workspaceRoot: string`，是注入工具执行的唯一运行时依赖。
 
-`ToolExecutionResult` 是涵盖所有可能结果的判别联合类型，`ok: false` 的 `ToolExecutionFailure` 用于所有错误路径。
+### ToolExecutionResult
+
+涵盖所有可能结果的判别联合类型，`ok: false` 的 `ToolExecutionFailure` 用于所有错误路径。
 
 ### InMemoryToolRegistry
 
@@ -111,7 +113,7 @@ Shell 始终以 `cwd = context.workspaceRoot` 运行，默认超时 30 秒，可
 
 ### memory_search / memory_get
 
-在 `memoryDir` 边界内操作：`memory_search` 对 MEMORY.md、USER.md 和 memory/*.md 执行大小写不敏感段落匹配；`memory_get` 读取特定文件，拒绝路径遍历、绝对路径和非 `.md` 扩展名。
+在工作区根目录边界内操作：`memory_search` 对 MEMORY.md、USER.md 和 memory/*.md 执行大小写不敏感段落匹配；先扫描所有候选文件，再统一截取至 `maxResults`（默认 5）条——单个大文件不会排挤其他文件的结果。`memory_get` 读取特定文件，拒绝路径遍历、绝对路径和非 `.md` 扩展名。
 
 ## 实现原理
 

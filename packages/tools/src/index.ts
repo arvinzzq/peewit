@@ -894,7 +894,7 @@ export function createLoadSkillTool(skillFileMap: SkillFileMap): ExecutableTool 
   };
 }
 
-export function createMemorySearchTool(memoryDir: string): ExecutableTool {
+export function createMemorySearchTool(workspaceRoot: string): ExecutableTool {
   return {
     name: "memory_search",
     description: "Search over memory files (MEMORY.md, USER.md, memory/YYYY-MM-DD.md) for relevant content. Returns matching excerpts.",
@@ -915,9 +915,9 @@ export function createMemorySearchTool(memoryDir: string): ExecutableTool {
       // Collect candidate files
       const candidateFiles: string[] = [];
 
-      const rootMemoryMd = join(memoryDir, "MEMORY.md");
-      const rootUserMd = join(memoryDir, "USER.md");
-      const memorySubdir = join(memoryDir, "memory");
+      const rootMemoryMd = join(workspaceRoot, "MEMORY.md");
+      const rootUserMd = join(workspaceRoot, "USER.md");
+      const memorySubdir = join(workspaceRoot, "memory");
 
       for (const candidatePath of [rootMemoryMd, rootUserMd]) {
         try {
@@ -947,6 +947,8 @@ export function createMemorySearchTool(memoryDir: string): ExecutableTool {
       const queryWords = query.toLowerCase().split(/\s+/).filter((w) => w.length > 0);
       const matches: Array<{ file: string; excerpt: string }> = [];
 
+      // Scan all files before truncating to maxResults so that a single large file
+      // cannot crowd out matches in USER.md, daily notes, or other memory files.
       for (const filePath of candidateFiles) {
         let content: string;
         try {
@@ -956,25 +958,23 @@ export function createMemorySearchTool(memoryDir: string): ExecutableTool {
         }
 
         const paragraphs = content.split(/\n\n+/);
-        const relPath = relative(memoryDir, filePath);
+        const relPath = relative(workspaceRoot, filePath);
 
         for (const paragraph of paragraphs) {
           const lowerParagraph = paragraph.toLowerCase();
           if (queryWords.some((word) => lowerParagraph.includes(word))) {
             matches.push({ file: relPath, excerpt: paragraph.trim() });
-            if (matches.length >= maxResults) break;
           }
         }
-
-        if (matches.length >= maxResults) break;
       }
 
-      return { ok: true, results: matches, total: matches.length };
+      const truncated = matches.slice(0, maxResults);
+      return { ok: true, results: truncated, total: truncated.length };
     }
   };
 }
 
-export function createMemoryGetTool(memoryDir: string): ExecutableTool {
+export function createMemoryGetTool(workspaceRoot: string): ExecutableTool {
   return {
     name: "memory_get",
     description: "Read the full contents of a specific memory file. Valid paths: MEMORY.md, USER.md, memory/YYYY-MM-DD.md",
@@ -1001,11 +1001,11 @@ export function createMemoryGetTool(memoryDir: string): ExecutableTool {
         return { ok: true, error: "Only .md files are permitted." };
       }
 
-      const resolvedMemoryDir = resolve(memoryDir);
-      const resolvedPath = resolve(resolvedMemoryDir, requestedPath);
+      const resolvedRoot = resolve(workspaceRoot);
+      const resolvedPath = resolve(resolvedRoot, requestedPath);
 
-      // Ensure the resolved path stays inside memoryDir
-      if (!resolvedPath.startsWith(resolvedMemoryDir + "/") && resolvedPath !== resolvedMemoryDir) {
+      // Ensure the resolved path stays inside workspaceRoot
+      if (!resolvedPath.startsWith(resolvedRoot + "/") && resolvedPath !== resolvedRoot) {
         return { ok: true, error: "Path traversal is not permitted." };
       }
 

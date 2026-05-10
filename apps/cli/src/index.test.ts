@@ -138,10 +138,12 @@ describe("runCli", () => {
     }
   });
 
-  test("includes read-only long-term memory files when enabled", async () => {
+  test("always loads USER.md and MEMORY.md when present in workspace", async () => {
+    // OpenClaw alignment: USER.md and MEMORY.md are part of the standard bootstrap
+    // file list and are loaded whenever they exist, regardless of memory config.
     const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
     const workspace = await mkdtemp(join(tmpdir(), "vole-cli-workspace-"));
-    const inputs = ["Use long-term memory", "/exit"];
+    const inputs = ["Tell me about memory", "/exit"];
     const requests: Array<{ body: string }> = [];
 
     try {
@@ -151,26 +153,15 @@ describe("runCli", () => {
       const result = await runCli(["chat"], "0.0.0", {
         env: {
           VOLE_API_KEY: "secret-api-key",
-          VOLE_WORKSPACE_ROOT: workspace,
-          VOLE_LONG_TERM_MEMORY: "read-only"
+          VOLE_WORKSPACE_ROOT: workspace
         },
         sessionsDirectory: directory,
         readLine: async () => inputs.shift(),
         fetch: async (_url, init) => {
-          requests.push({
-            body: String(init?.body)
-          });
-
+          requests.push({ body: String(init?.body) });
           return new Response(
-            JSON.stringify({
-              choices: [{ message: { content: "Memory-aware response" } }]
-            }),
-            {
-              status: 200,
-              headers: {
-                "content-type": "application/json"
-              }
-            }
+            JSON.stringify({ choices: [{ message: { content: "Memory-aware response" } }] }),
+            { status: 200, headers: { "content-type": "application/json" } }
           );
         }
       });
@@ -187,7 +178,9 @@ describe("runCli", () => {
     }
   });
 
-  test("includes today and yesterday daily memory files when read-only memory is enabled", async () => {
+  test("does not inject daily memory files into bootstrap context", async () => {
+    // OpenClaw alignment: daily files (memory/YYYY-MM-DD.md) are accessed through
+    // memory tools (memory_search, memory_get), not injected at bootstrap time.
     const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
     const workspace = await mkdtemp(join(tmpdir(), "vole-cli-workspace-"));
     const today = new Date().toISOString().slice(0, 10);
@@ -209,47 +202,35 @@ describe("runCli", () => {
         sessionsDirectory: directory,
         readLine: async () => inputs.shift(),
         fetch: async (_url, init) => {
-          requests.push({
-            body: String(init?.body)
-          });
-
+          requests.push({ body: String(init?.body) });
           return new Response(
-            JSON.stringify({
-              choices: [{ message: { content: "Daily memory response" } }]
-            }),
-            {
-              status: 200,
-              headers: {
-                "content-type": "application/json"
-              }
-            }
+            JSON.stringify({ choices: [{ message: { content: "Daily memory response" } }] }),
+            { status: 200, headers: { "content-type": "application/json" } }
           );
         }
       });
 
       expect(result.exitCode).toBe(0);
       const body = JSON.parse(requests[0]?.body ?? "{}");
-      expect(body.messages[0].content).toContain(`### memory/${today}.md`);
-      expect(body.messages[0].content).toContain("Today we are working on daily memory.");
-      expect(body.messages[0].content).toContain(`### memory/${yesterday}.md`);
-      expect(body.messages[0].content).toContain("Yesterday we finished read-only memory.");
+      expect(body.messages[0].content).not.toContain(`### memory/${today}.md`);
+      expect(body.messages[0].content).not.toContain(`### memory/${yesterday}.md`);
+      expect(body.messages[0].content).not.toContain("Today we are working on daily memory.");
+      expect(body.messages[0].content).not.toContain("Yesterday we finished read-only memory.");
     } finally {
       await rm(directory, { force: true, recursive: true });
       await rm(workspace, { force: true, recursive: true });
     }
   });
 
-  test("omits long-term memory files by default", async () => {
+  test("daily memory files are never injected into bootstrap regardless of memory config", async () => {
+    // Ensure that even with files present, daily notes stay out of system prompt.
     const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
     const workspace = await mkdtemp(join(tmpdir(), "vole-cli-workspace-"));
-    const inputs = ["Do not use long-term memory", "/exit"];
+    const inputs = ["Hello", "/exit"];
     const requests: Array<{ body: string }> = [];
 
     try {
       const today = new Date().toISOString().slice(0, 10);
-
-      await writeFile(join(workspace, "USER.md"), "This should not be loaded by default.");
-      await writeFile(join(workspace, "MEMORY.md"), "This should also stay out.");
       await mkdir(join(workspace, "memory"));
       await writeFile(join(workspace, "memory", `${today}.md`), "Daily memory should stay out.");
 
@@ -261,30 +242,18 @@ describe("runCli", () => {
         sessionsDirectory: directory,
         readLine: async () => inputs.shift(),
         fetch: async (_url, init) => {
-          requests.push({
-            body: String(init?.body)
-          });
-
+          requests.push({ body: String(init?.body) });
           return new Response(
-            JSON.stringify({
-              choices: [{ message: { content: "Default memory response" } }]
-            }),
-            {
-              status: 200,
-              headers: {
-                "content-type": "application/json"
-              }
-            }
+            JSON.stringify({ choices: [{ message: { content: "Response" } }] }),
+            { status: 200, headers: { "content-type": "application/json" } }
           );
         }
       });
 
       expect(result.exitCode).toBe(0);
       const body = JSON.parse(requests[0]?.body ?? "{}");
-      expect(body.messages[0].content).not.toContain("### USER.md");
-      expect(body.messages[0].content).not.toContain("### MEMORY.md");
       expect(body.messages[0].content).not.toContain("### memory/");
-      expect(body.messages[0].content).not.toContain("This should not be loaded by default.");
+      expect(body.messages[0].content).not.toContain("Daily memory should stay out.");
     } finally {
       await rm(directory, { force: true, recursive: true });
       await rm(workspace, { force: true, recursive: true });
