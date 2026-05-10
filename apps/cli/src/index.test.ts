@@ -975,7 +975,7 @@ describe("runCli", () => {
   });
 
   test("chat session can return help through slash command", async () => {
-    const session = CliChatSession.createFake();
+    const session = await CliChatSession.createFake();
 
     expect(await session.runSlashCommand("/help")).toEqual([
       "Commands:",
@@ -989,7 +989,7 @@ describe("runCli", () => {
   });
 
   test("chat session returns unknown slash command message for unrecognised commands", async () => {
-    const session = CliChatSession.createFake();
+    const session = await CliChatSession.createFake();
 
     expect(await session.runSlashCommand("/bogus")).toEqual([
       "Unknown slash command: /bogus"
@@ -997,7 +997,7 @@ describe("runCli", () => {
   });
 
   test("chat session can return recent trace through slash command", async () => {
-    const session = CliChatSession.createFake();
+    const session = await CliChatSession.createFake();
 
     await session.sendMessage("Hello trace");
 
@@ -1013,7 +1013,7 @@ describe("runCli", () => {
   });
 
   test("chat session can return redacted config through slash command", async () => {
-    const session = CliChatSession.createFake("Fake response", {
+    const session = await CliChatSession.createFake("Fake response", {
       env: {
         VOLE_API_KEY: "secret-api-key"
       }

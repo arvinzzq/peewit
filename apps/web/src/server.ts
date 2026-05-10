@@ -340,7 +340,7 @@ app.post("/api/sessions/:id/turns", async (c) => {
   }
 
   if (config.secrets.apiKey === undefined) {
-    return c.json({ error: "No API key configured. Set VOLE_API_KEY or OPENROUTER_API_KEY in your environment or .env file." }, 400);
+    return c.json({ error: "No API key configured. Add one to ~/.vole/config.json or set VOLE_API_KEY / ANTHROPIC_API_KEY / OPENROUTER_API_KEY in your shell." }, 400);
   }
 
   const store = getOrCreateSharedStore(config);

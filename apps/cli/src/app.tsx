@@ -8,7 +8,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { render, Box, Text, useInput, useApp, useAnimation, useStdout, Static } from "ink";
 import TextInput from "ink-text-input";
-import { loadConfig, type EffectiveConfig } from "@vole/config";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { loadConfig, type EffectiveConfig, type LoadConfigInput } from "@vole/config";
 import type { RuntimeEvent } from "@vole/core";
 import type { TodoItem } from "@vole/tools";
 import {
@@ -462,7 +464,7 @@ function ChatApp({ config, cliOptions, sessionId }: ChatAppProps) {
       const trimmed = message.trim();
 
       if (config.secrets.apiKey === undefined) {
-        setMessages((prev) => [...prev, { role: "user", content: trimmed }, { role: "error", content: "No API key configured. Set VOLE_API_KEY or OPENROUTER_API_KEY in your .env file or environment." }]);
+        setMessages((prev) => [...prev, { role: "user", content: trimmed }, { role: "error", content: "No API key configured. Add one to ~/.vole/config.json (e.g. {\"apiKey\": \"sk-...\"}) or set VOLE_API_KEY / ANTHROPIC_API_KEY / OPENROUTER_API_KEY in your shell." }]);
         return;
       }
 
@@ -752,10 +754,18 @@ export interface InkChatArgs {
   sessionsDirectory?: string;
 }
 
+async function readJsonFile(path: string): Promise<unknown | undefined> {
+  try { return JSON.parse(await readFile(path, "utf8")); } catch { return undefined; }
+}
+
 export async function runInkChat({ args, env, sessionsDirectory }: InkChatArgs): Promise<void> {
   let config: EffectiveConfig;
   try {
-    config = loadConfig({ env });
+    const home = env.HOME ?? process.env.HOME;
+    const input: LoadConfigInput = { env };
+    if (home !== undefined) input.userConfig = await readJsonFile(join(home, ".vole", "config.json"));
+    input.projectConfig = await readJsonFile("vole.config.json");
+    config = loadConfig(input);
   } catch (err) {
     process.stderr.write(
       `Configuration error: ${err instanceof Error ? err.message : String(err)}\n`

@@ -151,6 +151,9 @@ importers:
       concurrently:
         specifier: ^9.1.2
         version: 9.2.1
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(postcss@8.5.13)(tsx@4.21.0)(typescript@6.0.3)
       tsx:
         specifier: ^4.19.4
         version: 4.21.0

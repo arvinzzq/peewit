@@ -12,7 +12,7 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadConfig, redactedConfig, resolveSessionsDirectory, type EffectiveConfig, type RedactedConfigView } from "@vole/config";
+import { loadConfig, redactedConfig, resolveSessionsDirectory, type EffectiveConfig, type LoadConfigInput, type RedactedConfigView } from "@vole/config";
 import { DefaultContextAssembler } from "@vole/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, createCheckSubagentTool, createSpawnSubagentAsyncTool, createSpawnSubagentTool, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore, type SubagentFactory } from "@vole/core";
 import { SessionGateway, type GatewaySession } from "@vole/gateway";
@@ -25,6 +25,28 @@ import { SkillLoader, SkillManager, toSkillSummary, type SkillDefinition } from 
 import { createAppendDailyMemoryTool, createAppendFileTool, createEditFileTool, createListDirectoryTool, createLoadSkillTool, createMemoryGetTool, createMemorySearchTool, createReadFileTool, createReadWebPageTool, createSearchFilesTool, createShellTool, createUpdateHeartbeatTool, createWriteFileTool, type SkillFileMap } from "@vole/tools";
 
 export const cliPackageName = "@vole/cli";
+
+// Read ~/.vole/config.json (user) and ./vole.config.json (project) if present,
+// and merge them into loadConfig. This makes the global install work without
+// requiring users to set shell env vars — they can just write a config file.
+async function readJsonFile(path: string): Promise<unknown | undefined> {
+  try {
+    return JSON.parse(await readFile(path, "utf8"));
+  } catch {
+    return undefined;
+  }
+}
+
+async function loadCliConfig(options: { env?: Record<string, string | undefined> } = {}): Promise<EffectiveConfig> {
+  const env = options.env ?? process.env as Record<string, string | undefined>;
+  const home = env.HOME ?? process.env.HOME;
+  const input: LoadConfigInput = { env };
+  if (home !== undefined) {
+    input.userConfig = await readJsonFile(join(home, ".vole", "config.json"));
+  }
+  input.projectConfig = await readJsonFile(join("vole.config.json"));
+  return loadConfig(input);
+}
 
 // Core system instruction — adapted from OpenClaw's execution bias section.
 // Loaded as the <identity> XML section; workspace files (SOUL.md, AGENTS.md)
@@ -236,7 +258,7 @@ async function runFakeChatTurn(input: ParsedFakeChatArgs, options: RunCliOptions
     };
   }
 
-  const session = CliChatSession.createFake(`Fake response to: ${message}`, options);
+  const session = await CliChatSession.createFake(`Fake response to: ${message}`, options);
   const turn = await session.sendMessage(message);
   const commandOutput = await renderSlashCommands(session, slashCommands);
   const assistantText = turn.assistantText;
@@ -251,7 +273,7 @@ async function runFakeChatTurn(input: ParsedFakeChatArgs, options: RunCliOptions
 }
 
 async function runInteractiveFakeChat(options: RunCliOptions, args: ParsedChatArgs): Promise<CliResult> {
-  const session = CliChatSession.createFake((message) => `Fake response to: ${message}`, options, {
+  const session = await CliChatSession.createFake((message) => `Fake response to: ${message}`, options, {
     ...(args.sessionId === undefined ? {} : { sessionId: args.sessionId })
   });
 
@@ -259,13 +281,13 @@ async function runInteractiveFakeChat(options: RunCliOptions, args: ParsedChatAr
 }
 
 async function runInteractiveConfiguredChat(options: RunCliOptions, args: ParsedChatArgs): Promise<CliResult> {
-  const config = loadConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig(options.env ? { env: options.env } : {});
 
   if (config.secrets.apiKey === undefined) {
     return {
       exitCode: 1,
       stdout: "",
-      stderr: "Missing VOLE_API_KEY or OPENROUTER_API_KEY. Set one to start `vole chat`, or use `vole chat --fake-interactive` for local learning.\n"
+      stderr: "No API key configured. Add one to ~/.vole/config.json or set VOLE_API_KEY / ANTHROPIC_API_KEY / OPENROUTER_API_KEY in your shell.\n"
     };
   }
 
@@ -299,7 +321,7 @@ async function runInteractiveConfiguredChat(options: RunCliOptions, args: Parsed
 }
 
 async function runListSessions(options: RunCliOptions): Promise<CliResult> {
-  const config = loadConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig(options.env ? { env: options.env } : {});
   const store = createConfiguredSessionStore(config, options, createSessionId());
   const sessions = await store.listSessions();
 
@@ -319,13 +341,13 @@ async function runListSessions(options: RunCliOptions): Promise<CliResult> {
 }
 
 async function runMemoryDreaming(options: RunCliOptions): Promise<CliResult> {
-  const config = loadConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig(options.env ? { env: options.env } : {});
 
   if (config.secrets.apiKey === undefined) {
     return {
       exitCode: 1,
       stdout: "",
-      stderr: "Missing VOLE_API_KEY or OPENROUTER_API_KEY. Set one to run memory dreaming.\n"
+      stderr: "No API key configured. Add one to ~/.vole/config.json or set VOLE_API_KEY / ANTHROPIC_API_KEY / OPENROUTER_API_KEY in your shell.\n"
     };
   }
 
@@ -351,13 +373,13 @@ async function runBackgroundTask(
   mode: "observe" | "confirm" | "auto",
   options: RunCliOptions
 ): Promise<CliResult> {
-  const config = loadConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig(options.env ? { env: options.env } : {});
 
   if (config.secrets.apiKey === undefined) {
     return {
       exitCode: 1,
       stdout: "",
-      stderr: "Missing VOLE_API_KEY or OPENROUTER_API_KEY. Set one to run background tasks.\n"
+      stderr: "No API key configured. Add one to ~/.vole/config.json or set VOLE_API_KEY / ANTHROPIC_API_KEY / OPENROUTER_API_KEY in your shell.\n"
     };
   }
 
@@ -452,7 +474,7 @@ async function runBackgroundTask(
 }
 
 async function runListTasks(options: RunCliOptions, limit?: number): Promise<CliResult> {
-  const config = loadConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig(options.env ? { env: options.env } : {});
   const effectiveConfig = options.sessionsDirectory
     ? { ...config, sessions: { directory: options.sessionsDirectory } }
     : config;
@@ -594,13 +616,13 @@ async function runDaemonTask(
 }
 
 async function runDaemon(options: RunCliOptions, once: boolean): Promise<CliResult> {
-  const config = loadConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig(options.env ? { env: options.env } : {});
 
   if (config.secrets.apiKey === undefined) {
     return {
       exitCode: 1,
       stdout: "",
-      stderr: "Missing VOLE_API_KEY or OPENROUTER_API_KEY. Set one to run the daemon.\n"
+      stderr: "No API key configured. Add one to ~/.vole/config.json or set VOLE_API_KEY / ANTHROPIC_API_KEY / OPENROUTER_API_KEY in your shell.\n"
     };
   }
 
@@ -660,8 +682,8 @@ async function runDaemon(options: RunCliOptions, once: boolean): Promise<CliResu
   });
 }
 
-function resolveTaskflowFilePath(options: RunCliOptions): string {
-  const config = loadConfig(options.env ? { env: options.env } : {});
+async function resolveTaskflowFilePath(options: RunCliOptions): Promise<string> {
+  const config = await loadCliConfig(options.env ? { env: options.env } : {});
   const effectiveConfig = options.sessionsDirectory
     ? { ...config, sessions: { directory: options.sessionsDirectory } }
     : config;
@@ -670,7 +692,7 @@ function resolveTaskflowFilePath(options: RunCliOptions): string {
 }
 
 async function runTaskflowList(options: RunCliOptions, limit?: number): Promise<CliResult> {
-  const filePath = resolveTaskflowFilePath(options);
+  const filePath = await resolveTaskflowFilePath(options);
   const store = new JsonlTaskFlowStore(filePath);
   const records = await store.list(limit !== undefined ? { limit } : {});
 
@@ -695,7 +717,7 @@ async function runTaskflowList(options: RunCliOptions, limit?: number): Promise<
 }
 
 async function runTaskflowShow(id: string, options: RunCliOptions): Promise<CliResult> {
-  const filePath = resolveTaskflowFilePath(options);
+  const filePath = await resolveTaskflowFilePath(options);
   const store = new JsonlTaskFlowStore(filePath);
   const record = await store.get(id);
 
@@ -728,7 +750,7 @@ async function runTaskflowShow(id: string, options: RunCliOptions): Promise<CliR
 }
 
 async function runTaskflowCancel(id: string, options: RunCliOptions): Promise<CliResult> {
-  const filePath = resolveTaskflowFilePath(options);
+  const filePath = await resolveTaskflowFilePath(options);
   const store = new JsonlTaskFlowStore(filePath);
   const updated = await store.update(id, { status: "cancelled" });
 
@@ -756,7 +778,7 @@ function resolveSkillsDirectory(config: EffectiveConfig, options: RunCliOptions)
 }
 
 async function runSkillsList(options: RunCliOptions): Promise<CliResult> {
-  const config = loadConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig(options.env ? { env: options.env } : {});
   const skillsDir = resolveSkillsDirectory(config, options);
   const loader = new SkillLoader();
   const skills = await loader.load({
@@ -774,7 +796,7 @@ async function runSkillsList(options: RunCliOptions): Promise<CliResult> {
 }
 
 async function runSkillsInstall(sourcePath: string, options: RunCliOptions): Promise<CliResult> {
-  const config = loadConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig(options.env ? { env: options.env } : {});
   const skillsDir = resolveSkillsDirectory(config, options);
   const manager = new SkillManager(skillsDir);
 
@@ -799,7 +821,7 @@ async function runSkillsLifecycle(
   name: string,
   options: RunCliOptions
 ): Promise<CliResult> {
-  const config = loadConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig(options.env ? { env: options.env } : {});
   const skillsDir = resolveSkillsDirectory(config, options);
   const manager = new SkillManager(skillsDir);
 
@@ -824,7 +846,7 @@ async function runSkillsLifecycle(
 }
 
 async function runSkillsReview(name: string, options: RunCliOptions): Promise<CliResult> {
-  const config = loadConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig(options.env ? { env: options.env } : {});
   const skillsDir = resolveSkillsDirectory(config, options);
   const manager = new SkillManager(skillsDir);
 
@@ -1032,12 +1054,12 @@ export class CliChatSession {
     this.#gateway?.unregister(this.#sessionId);
   }
 
-  static createFake(
+  static async createFake(
     responseContent: string | ((message: string) => string) = "Fake response to: Hello trace",
     options: RunCliOptions = {},
     sessionOptions: CreateChatSessionOptions = {}
-  ): CliChatSession {
-    const config = redactedConfig(loadConfig(options.env ? { env: options.env } : {}));
+  ): Promise<CliChatSession> {
+    const config = redactedConfig(await loadCliConfig(options.env ? { env: options.env } : {}));
     const approvalPromptLog: string[] = [];
     const provider =
       options.fakeModelOutputs
