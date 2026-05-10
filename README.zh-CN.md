@@ -100,6 +100,8 @@ pnpm install
 cp .env.example .env   # 填入 API Key
 ```
 
+> **`.env` 的替代方案**：`~/.vole/config.json` 会自动加载，同样可用于配置 API Key（例如 `{ "apiKey": "sk-ant-..." }`）。如果不想为每个项目单独维护 `.env` 文件，可以使用此方式。
+
 OpenRouter 最简配置：
 
 ```bash
@@ -337,6 +339,7 @@ pnpm run typecheck    # 仅 TypeScript
 pnpm run test         # 仅 vitest
 pnpm run test:watch   # vitest 监听模式
 pnpm run docs:check   # 双语标题数量一致性（EN ↔ zh-CN）
+pnpm run check:bundle # 构建 + 对打包产物进行冒烟测试（发布前运行）
 ```
 
 ### 生产构建

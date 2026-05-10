@@ -204,6 +204,11 @@ they always resolve to the same absolute path regardless of how each was launche
 parameter is injectable for testing — tests can simulate any `HOME` without changing
 `process.env`.
 
+Note: the CLI adapter further overrides `sessions.directory` when it detects a git
+repository: it stores sessions under `<git-root>/.vole/sessions/` instead of the global
+default. This override happens in the adapter before calling `loadConfig`, so
+`resolveSessionsDirectory` only sees the already-chosen path.
+
 ## 5. OpenClaw Alignment
 
 | OpenClaw | Vole | Notes |
@@ -219,9 +224,11 @@ parameter is injectable for testing — tests can simulate any `HOME` without ch
 **No disk reads — caller provides all inputs**
 
 `loadConfig` accepts `userConfig`, `projectConfig`, and `env` as parameters rather than
-reading files itself. The CLI loads the config files and passes them in; `loadConfig` just
-merges them. This keeps the package testable without filesystem mocks and free of file
-path assumptions.
+reading files itself. The CLI adapter reads config files at startup and passes the parsed
+objects in; `loadConfig` just merges them. Specifically, the CLI auto-reads
+`~/.vole/config.json` (user config) and `vole.config.json` in the project root (project
+config) before calling `loadConfig({ userConfig, projectConfig, env: process.env })`. This
+keeps the package testable without filesystem mocks and free of file path assumptions.
 
 **Permissive merge, strict validate**
 
@@ -278,6 +285,13 @@ silently ignoring the field, it fails loudly to prevent confusion.
 parameter. The only place `process.env` appears is in `resolveSessionsDirectory` as a
 fallback for `HOME`. This makes the package fully testable and portable.
 
+**File-based config loading lives in the adapter, not the package.** The CLI reads
+`~/.vole/config.json` and `vole.config.json` before calling `loadConfig`. These files follow
+the same structure as `EffectiveConfig` sections — they are plain JSON objects whose keys are
+merged by `applyConfig`. If a file is absent, the adapter passes `undefined` for that
+parameter, which `applyConfig` ignores. The precedence chain is therefore: env vars >
+`vole.config.json` > `~/.vole/config.json` > defaults.
+
 ## 9. Review Questions
 
 1. What happens if a config file sets `model.unknownField = "value"`?
@@ -309,3 +323,11 @@ fallback for `HOME`. This makes the package fully testable and portable.
    > in the Web UI and vice versa. Centralising the resolution logic prevents drift — if
    > one adapter changed how it expands `~/`, sessions directories would diverge and sessions
    > would appear to be missing.
+
+6. The CLI auto-loads `~/.vole/config.json` and `vole.config.json`. Why doesn't `loadConfig`
+   read these files itself?
+   > `loadConfig` is deliberately I/O-free so it can be tested without filesystem mocks and
+   > used in environments (e.g. browser/Web adapter) where those paths don't apply. File
+   > loading is the adapter's responsibility: the adapter reads the files, parses them, and
+   > passes the plain objects as `userConfig`/`projectConfig`. This keeps `@vole/config`
+   > a pure transformation package — it validates and merges; it never reads disk.

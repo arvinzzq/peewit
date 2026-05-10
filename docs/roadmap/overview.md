@@ -1,7 +1,7 @@
 # Vole Roadmap
 
 Status: Draft
-Date: 2026-05-02
+Date: 2026-05-10
 
 Simplified Chinese version: [overview.zh-CN.md](./overview.zh-CN.md)
 
@@ -128,7 +128,7 @@ User verification guide: [Phase 1 MVP Test Guide](../plans/phase-1-mvp-test-guid
 - The CLI can call an OpenAI-compatible model provider.
 - The Agent Core does not import CLI-specific code.
 - Each response produces a trace entry.
-- Model configuration can be loaded from config files and environment variables.
+- Model configuration can be loaded from config files and environment variables. File-based config auto-loading (`~/.vole/config.json` user-level and `vole.config.json` project-level) is implemented.
 - Missing API keys produce a clear CLI error.
 - Fake-provider paths remain available for local learning and tests.
 
@@ -316,6 +316,7 @@ Implementation plan: [Phase 5 Sessions and Memory](../plans/phase-5-sessions-and
 - Memory is separated from raw chat history.
 - The agent can use recent session history in context.
 - The first memory implementation can be replaced later.
+- Project-scoped sessions are implemented: the CLI detects the git repository root at startup and stores sessions under `<git-root>/.vole/sessions/`, falling back to `~/.vole/sessions/` when no git root is found.
 
 ### Non-Goals
 

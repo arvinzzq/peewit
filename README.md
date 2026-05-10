@@ -100,6 +100,8 @@ pnpm install
 cp .env.example .env   # fill in your API key
 ```
 
+> **Alternative to `.env`**: `~/.vole/config.json` is loaded automatically and works for API keys too (e.g. `{ "apiKey": "sk-ant-..." }`). Useful if you prefer not to manage per-project `.env` files.
+
 Minimal `.env` for OpenRouter:
 
 ```bash
@@ -337,6 +339,7 @@ pnpm run typecheck    # TypeScript only
 pnpm run test         # vitest only
 pnpm run test:watch   # vitest in watch mode
 pnpm run docs:check   # heading count parity (EN ↔ zh-CN)
+pnpm run check:bundle # build + smoke test the bundled output (run before publishing)
 ```
 
 ### Building for Production

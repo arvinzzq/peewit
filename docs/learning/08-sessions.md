@@ -230,6 +230,22 @@ boundary once means compaction is done exactly once and its result is durable.
 The boundary also records `messagesBefore` and `messagesAfter` counts, which make session
 files self-documenting about where compaction occurred.
 
+**Project-scoped sessions: git root detection in the CLI adapter**
+
+`@vole/sessions` stores sessions in whichever directory it is given — it has no concept
+of git repositories. The scoping logic lives in the CLI adapter:
+
+1. At startup the CLI walks up the filesystem from `process.cwd()` looking for a `.git`
+   directory.
+2. If one is found, sessions are stored at `<git-root>/.vole/sessions/`, keeping sessions
+   co-located with the project they belong to (and version-controllable if desired).
+3. If no git root is found (e.g. running outside any repo), the CLI falls back to the
+   global `~/.vole/sessions/` path.
+
+This is a purely adapter-level concern: `@vole/sessions`' `JsonlSessionStore` is given an
+absolute directory path and writes there unconditionally. The `@vole/config` package and
+the sessions package are both unaware of git; only the CLI adapter performs the detection.
+
 **`SessionTraceEventRecord` is generic**
 
 ```ts
@@ -340,3 +356,12 @@ can be tested without any file system.
    > `#replay()` calls `JSON.parse(line)` on each line. A corrupt line throws a parse
    > error, which propagates to the caller. The current implementation does not skip
    > corrupt lines. Recovery requires manually removing the corrupt last line from the file.
+
+7. The CLI stores sessions under `<git-root>/.vole/sessions/` when inside a git repo.
+   Which layer implements this — `@vole/sessions`, `@vole/config`, or the CLI adapter?
+   Why is it there and not in the sessions package?
+   > The CLI adapter. `@vole/sessions` is a dumb store that writes to whatever directory
+   > it receives. Git root detection is an adapter-level deployment decision, not a storage
+   > concern. Putting it in the sessions package would mix storage logic with environment
+   > topology knowledge, and would force every consumer (Web, tests) to carry git detection
+   > code they don't need.

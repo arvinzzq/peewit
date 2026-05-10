@@ -62,6 +62,16 @@ SessionStore（接口）
 
 `assertSafeSessionId(sessionId)` 验证 ID 匹配 `^[A-Za-z0-9_-]+$`，无路径分隔符、无点、无特殊字符，防止目录遍历攻击。
 
+### 会话列表
+
+`JsonlSessionStore` 的 `listSessions` 读取目录中所有 `.jsonl` 文件，逐一重放获取 `updatedAt`，按降序排列。时间复杂度为 O(n × 文件大小），对交互式会话列表（n 较小）可接受。
+
+### Session 存储位置
+
+`EffectiveConfig` 的 `sessions.directory` 字段控制 JSONL 文件的写入位置，默认为 `~/.vole/sessions`，Adapter 可在构建 store 前覆盖此值。
+
+CLI Adapter（`apps/cli/src/index.ts`）实现了**项目维度 Sessions**：启动时向上遍历目录树查找 `.git` 目录（`findGitRoot()`）。若找到 git 根目录，sessions 存储到 `<git-root>/.vole/sessions/`，使 session 历史随仓库存放；否则回退到全局 `~/.vole/sessions/`。该检测逻辑完全位于 CLI Adapter 层——`@vole/sessions` 包本身与存储位置无关，只负责向给定目录写入文件。
+
 ### 防御性副本
 
 两种存储实现始终返回记录副本（spread / `structuredClone`），防止调用者突变存储状态。

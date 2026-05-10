@@ -43,9 +43,30 @@ EffectiveConfig   ←─── CLI 和 Web Adapter 消费
 四层按顺序合并，后层覆盖前层：
 
 1. **默认值**：硬编码——`openai-compatible` provider、`gpt-4.1-mini`、`confirm` 模式、`maxSteps: 12`。
-2. **用户配置**：通常为 `~/.vole/config.json`——个人偏好。
-3. **项目配置**：通常为工作区中的 `.vole/config.json`——项目特定覆盖。
+2. **用户配置**（`userConfig` 参数）：个人偏好，文件层中优先级最低。
+3. **项目配置**（`projectConfig` 参数）：项目特定覆盖，优先级高于用户配置。
 4. **环境变量**：最高优先级，最后应用。
+
+`loadConfig()` 本身不读取任何文件，仅合并调用方传入的内容。Adapter 负责加载配置文件并作为 `userConfig` 和 `projectConfig` 传入。
+
+### 配置文件格式
+
+配置文件是纯 JSON 对象，只需包含要覆盖的键，其余值从下层继承。
+
+```json
+{ "model": { "model": "anthropic/claude-sonnet-4-5" } }
+```
+
+```json
+{ "runtime": { "defaultMode": "auto", "maxSteps": 20 } }
+```
+
+CLI Adapter 在调用 `loadConfig()` 前自动读取两个配置文件：
+
+- **`~/.vole/config.json`**——用户级配置（作为 `userConfig` 传入）。适合设置 API key、首选模型或个人自主模式默认值。
+- 工作区根目录下的 **`vole.config.json`**——项目级配置（作为 `projectConfig` 传入）。适合设置工具配置或执行契约等仓库特定配置。
+
+两个文件均为可选，不存在时静默跳过。
 
 ### 环境变量参考
 

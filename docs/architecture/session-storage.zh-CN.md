@@ -74,17 +74,17 @@ MVP 不需要：
 
 ## 5. Storage Backend
 
-MVP 应使用简单本地 file-based backend。
+MVP 使用简单本地 file-based backend。
 
-建议位置：
+默认位置：
 
 ```text
 ~/.vole/sessions/
 ```
 
-Project-local session storage 可以后续考虑，但对个人 CLI 使用来说，user-local storage 是更安全的默认值。
+**Project-local session storage 已实现。** CLI 在启动时检测 git 仓库根目录。找到 git root 时，sessions 存储在 `<git-root>/.vole/sessions/`，使会话历史与项目共存。未找到 git root 时，CLI 回退到 `~/.vole/sessions/`。
 
-Storage interface 应保持抽象，这样后续实现可以使用 SQLite、cloud sync 或 encrypted storage。
+Storage interface 保持抽象，这样后续实现可以使用 SQLite、cloud sync 或 encrypted storage。
 
 ## 6. Session Record
 

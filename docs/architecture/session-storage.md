@@ -76,17 +76,17 @@ MVP does not need:
 
 ## 5. Storage Backend
 
-The MVP should use a simple local file-based backend.
+The MVP uses a simple local file-based backend.
 
-Suggested location:
+Default location:
 
 ```text
 ~/.vole/sessions/
 ```
 
-Project-local session storage can be considered later, but user-local storage is a safer default for personal CLI usage.
+**Project-local session storage is implemented.** The CLI detects the git repository root on startup. When a git root is found, sessions are stored under `<git-root>/.vole/sessions/`, keeping session history co-located with the project. When no git root is found, the CLI falls back to `~/.vole/sessions/`.
 
-The storage interface should stay abstract so later implementations can use SQLite, cloud sync, or encrypted storage.
+The storage interface stays abstract so later implementations can use SQLite, cloud sync, or encrypted storage.
 
 ## 6. Session Record
 

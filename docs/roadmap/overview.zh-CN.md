@@ -1,7 +1,7 @@
 # Vole Roadmap
 
 状态：草案
-日期：2026-05-02
+日期：2026-05-10
 
 English version: [overview.md](./overview.md)
 
@@ -128,7 +128,7 @@ Roadmap 采用双轨方法：
 - CLI 可以调用 OpenAI-compatible model provider。
 - Agent Core 不导入 CLI-specific code。
 - 每次响应都会产生 trace entry。
-- 模型配置可以从配置文件和环境变量加载。
+- 模型配置可以从配置文件和环境变量加载。文件配置自动加载已实现（`~/.vole/config.json` 用户级、`vole.config.json` 项目级）。
 - 缺少 API key 时，CLI 产生清晰错误。
 - Fake-provider paths 保留用于本地学习和测试。
 
@@ -314,6 +314,7 @@ Agent 可以保存 session history，展示之前的 traces，并开始跨任务
 - Memory 与原始 chat history 分离。
 - Agent 可以在 context 中使用 recent session history。
 - 第一版 memory implementation 未来可以被替换。
+- 项目级会话已实现：CLI 在启动时检测 git 仓库根目录，将 sessions 存储在 `<git-root>/.vole/sessions/`；未找到 git root 时回退到 `~/.vole/sessions/`。
 
 ### 非目标
 

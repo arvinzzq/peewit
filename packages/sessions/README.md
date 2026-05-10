@@ -119,6 +119,12 @@ This format has four important properties:
 
 `listSessions` on `JsonlSessionStore` reads the directory with `readdir`, filters for `.jsonl` files, and replays each one to get its `updatedAt`. Sessions are then sorted by `updatedAt` descending. This is O(n × file_size) but is acceptable for interactive session lists where n is small.
 
+### Session Storage Location
+
+The `sessions.directory` field in `EffectiveConfig` controls where JSONL files are written. The default value is `~/.vole/sessions`, but adapters may override it before constructing the store.
+
+The CLI adapter (`apps/cli/src/index.ts`) implements **project-scoped sessions**: at startup it walks up the directory tree looking for a `.git` directory (`findGitRoot()`). If a git root is found, sessions are stored under `<git-root>/.vole/sessions/` so that session history stays with the repository. If no git root exists, it falls back to the global `~/.vole/sessions/`. This detection logic lives entirely in the CLI adapter layer — `@vole/sessions` itself is storage-location-agnostic and simply writes to whatever directory it is given.
+
 ### Defensive Copies
 
 Both store implementations always return copies of records (spread for plain objects, `structuredClone` for trace events with nested objects). This prevents callers from mutating stored records, which would silently corrupt the in-memory store.

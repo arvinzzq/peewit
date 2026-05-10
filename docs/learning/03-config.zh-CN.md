@@ -185,6 +185,10 @@ export function resolveSessionsDirectory(config, env?) {
 默认 sessions 目录是 `~/.vole/sessions`。CLI 和 Web 都调用这个辅助函数，无论各自如何启动，都始终
 解析到同一个绝对路径。`env` 参数可注入用于测试——测试可以模拟任何 `HOME` 而不用修改 `process.env`。
 
+注意：当 CLI 适配器检测到 git 仓库时，会进一步覆盖 `sessions.directory`：将 sessions 存储在
+`<git-root>/.vole/sessions/` 而非全局默认路径。这一覆盖发生在适配器调用 `loadConfig` 之前，
+因此 `resolveSessionsDirectory` 看到的已经是最终选定的路径。
+
 ## 5. OpenClaw 对齐
 
 | OpenClaw | Vole | 说明 |
@@ -199,8 +203,11 @@ export function resolveSessionsDirectory(config, env?) {
 
 **不读磁盘——调用者提供所有输入**
 
-`loadConfig` 接受 `userConfig`、`projectConfig`、`env` 作为参数，而非自己读文件。CLI 加载配置文件
-并传入；`loadConfig` 只负责合并。这使包无需文件系统 mock 即可测试，并且不含文件路径假设。
+`loadConfig` 接受 `userConfig`、`projectConfig`、`env` 作为参数，而非自己读文件。CLI 适配器在启动时
+读取配置文件并将解析后的对象传入；`loadConfig` 只负责合并。具体来说，CLI 在调用
+`loadConfig({ userConfig, projectConfig, env: process.env })` 之前，会自动读取
+`~/.vole/config.json`（用户配置）和项目根目录下的 `vole.config.json`（项目配置）。这使包无需文件系统
+mock 即可测试，并且不含文件路径假设。
 
 **宽容合并，严格验证**
 
@@ -249,6 +256,12 @@ API 密钥存在 `config.secrets.apiKey` 中。其他配置是惰性数据。这
 `process.env` 出现的唯一位置是 `resolveSessionsDirectory` 中作为 `HOME` 的回退。
 这使包完全可测试且可移植。
 
+**基于文件的配置加载在适配器中，而不在包中。** CLI 在调用 `loadConfig` 之前读取
+`~/.vole/config.json` 和 `vole.config.json`。这些文件遵循与 `EffectiveConfig` 各节相同的结构——
+它们是普通 JSON 对象，键由 `applyConfig` 合并。如果文件不存在，适配器对该参数传入 `undefined`，
+`applyConfig` 会忽略它。优先级链因此为：环境变量 > `vole.config.json` > `~/.vole/config.json` >
+默认值。
+
 ## 9. 复习问题
 
 1. 如果配置文件设置了 `model.unknownField = "value"` 会怎样？
@@ -274,3 +287,9 @@ API 密钥存在 `config.secrets.apiKey` 中。其他配置是惰性数据。这
    > 两个 adapter 需要解析到相同路径，以确保 CLI 创建的 session 在 Web UI 中可见，反之亦然。
    > 集中解析逻辑防止了漂移——如果某个 adapter 改变了展开 `~/` 的方式，sessions 目录就会分叉，
    > session 会看似丢失。
+
+6. CLI 自动加载 `~/.vole/config.json` 和 `vole.config.json`。为什么 `loadConfig` 不自己读这些文件？
+   > `loadConfig` 刻意不做 I/O，以便无需文件系统 mock 即可测试，并且可在不适用这些路径的环境（如
+   > 浏览器/Web 适配器）中使用。读文件是适配器的职责：适配器读取文件、解析，并将普通对象作为
+   > `userConfig`/`projectConfig` 传入。这让 `@vole/config` 保持为纯转换包——它验证并合并；
+   > 从不读磁盘。

@@ -41,6 +41,8 @@ MVP layers:
 5. CLI flags
 6. Runtime chat commands, when explicitly supported
 
+**File-based configuration is implemented.** The CLI adapter automatically loads `~/.vole/config.json` (user-level, applied to all projects) and `vole.config.json` (project-level, read from the current workspace). Both files are optional; missing files are silently ignored.
+
 Later layers:
 
 - Local uncommitted project config
@@ -50,18 +52,18 @@ Later layers:
 
 ## 4. Precedence
 
-Recommended precedence, highest wins:
+Effective precedence, highest wins:
 
 ```text
 Runtime command
   -> CLI flag
   -> Environment variable
-  -> Project config
-  -> User config
+  -> Project config  (vole.config.json)
+  -> User config     (~/.vole/config.json)
   -> Built-in default
 ```
 
-Project config should override user preferences only for project-scoped behavior. User config should still own user-specific defaults when the project does not specify them.
+Project config overrides user preferences only for project-scoped behavior. User config owns user-specific defaults when the project does not specify them.
 
 Secrets should not be copied into the final object as raw displayable values unless the consuming adapter needs a redacted status.
 
@@ -160,7 +162,9 @@ The redaction function should be shared with trace and prompt assembly where pra
 
 ## 9. Relationship to CLI
 
-The CLI loads configuration during startup through a shared config loader.
+The CLI loads configuration during startup through a shared config loader. It merges built-in defaults, `~/.vole/config.json`, `vole.config.json`, environment variables, and CLI flags in precedence order before constructing any dependencies.
+
+When a required setting is missing (for example, no API key is found), the CLI error message directs the user to `~/.vole/config.json` rather than a `.env` file.
 
 The CLI may display:
 
@@ -249,10 +253,11 @@ Any iteration that changes model providers, tools, permissions, CLI startup, ses
 
 The MVP configuration system is successful when:
 
-- Non-sensitive settings can be loaded from user and project config.
+- Non-sensitive settings can be loaded from user and project config files.
+- `~/.vole/config.json` and `vole.config.json` are loaded automatically on CLI startup.
 - Secrets are loaded from environment variables.
-- Effective config has deterministic precedence.
-- Invalid config produces understandable errors.
+- Effective config has deterministic precedence: env vars override project file, which overrides user file, which overrides built-in defaults.
+- Invalid config produces understandable errors that reference `~/.vole/config.json`.
 - CLI can display effective non-secret config.
 - Raw secrets do not appear in trace, prompt assembly reports, or CLI config output.
 - Agent Core receives configured dependencies instead of loading config itself.

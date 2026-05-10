@@ -58,12 +58,33 @@ interface EffectiveConfig {
 
 ### Configuration Precedence
 
-Three layers are merged in order, with later layers winning:
+Four layers are merged in order, with later layers winning:
 
 1. **Defaults**: hardcoded in `defaultConfig` — `openai-compatible` provider, `gpt-4.1-mini`, `confirm` mode, `maxSteps: 12`.
-2. **User config**: typically `~/.vole/config.json` — personal preferences.
-3. **Project config**: typically `.vole/config.json` in the workspace — project-specific overrides.
+2. **User config** (`userConfig` parameter): personal preferences, lowest file-layer precedence.
+3. **Project config** (`projectConfig` parameter): project-specific overrides, wins over user config.
 4. **Environment variables**: highest precedence, applied last.
+
+`loadConfig()` itself does not read any files — it only merges what the caller passes in. Adapters are responsible for loading config files and passing them as `userConfig` and `projectConfig`.
+
+### Config File Format
+
+Config files are plain JSON objects. Only the keys you want to override are required; all other values fall through to the layer below.
+
+```json
+{ "model": { "model": "anthropic/claude-sonnet-4-5" } }
+```
+
+```json
+{ "runtime": { "defaultMode": "auto", "maxSteps": 20 } }
+```
+
+The CLI adapter auto-loads two config files before calling `loadConfig()`:
+
+- **`~/.vole/config.json`** — user-level config (loaded as `userConfig`). Useful for setting your API key, preferred model, or personal autonomy mode defaults.
+- **`vole.config.json`** in the current workspace root — project-level config (loaded as `projectConfig`). Useful for repo-specific settings like tool profiles or execution contracts.
+
+Both files are optional. If a file does not exist it is silently skipped.
 
 ### Environment Variable Reference
 

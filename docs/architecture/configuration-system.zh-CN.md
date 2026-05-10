@@ -41,6 +41,8 @@ MVP 层级：
 5. CLI flags
 6. 明确支持时的 runtime chat commands
 
+**文件配置已落地。** CLI adapter 在启动时自动加载 `~/.vole/config.json`（用户级，适用于所有项目）和 `vole.config.json`（项目级，从当前工作区读取）。两个文件均为可选，缺失时静默忽略。
+
 后续层级：
 
 - 本地未提交的项目配置
@@ -50,18 +52,18 @@ MVP 层级：
 
 ## 4. 优先级
 
-推荐优先级，越靠上优先级越高：
+生效优先级，越靠上优先级越高：
 
 ```text
 Runtime command
   -> CLI flag
   -> Environment variable
-  -> Project config
-  -> User config
+  -> Project config  (vole.config.json)
+  -> User config     (~/.vole/config.json)
   -> Built-in default
 ```
 
-Project config 应只针对 project-scoped behavior 覆盖用户偏好。当项目未指定时，user config 仍应拥有用户特定默认值。
+Project config 只针对 project-scoped behavior 覆盖用户偏好。当项目未指定时，user config 拥有用户特定默认值。
 
 Secrets 不应作为可直接展示的 raw values 被复制到最终对象中，除非消费 adapter 只需要 redacted status。
 
@@ -160,7 +162,9 @@ Redaction function 应尽可能与 trace 和 prompt assembly 共享。
 
 ## 9. 与 CLI 的关系
 
-CLI 在启动时通过共享 config loader 加载配置。
+CLI 在启动时通过共享 config loader 加载配置。它按优先级顺序合并内置默认值、`~/.vole/config.json`、`vole.config.json`、环境变量和 CLI flags，再构造各依赖项。
+
+当必需配置缺失时（例如未找到 API Key），CLI 错误提示指向 `~/.vole/config.json`，而不是 `.env` 文件。
 
 CLI 可以展示：
 
@@ -249,10 +253,11 @@ Configuration 需要测试，因为它影响安全、启动和可复现性。
 
 MVP configuration system 成功标准：
 
-- 非敏感设置可以从用户配置和项目配置加载。
+- 非敏感设置可以从用户配置和项目配置文件加载。
+- `~/.vole/config.json` 和 `vole.config.json` 在 CLI 启动时自动加载。
 - Secrets 从环境变量加载。
-- Effective config 具有确定性优先级。
-- 无效配置会产生可理解错误。
+- Effective config 具有确定性优先级：环境变量覆盖项目配置，项目配置覆盖用户配置，用户配置覆盖内置默认值。
+- 无效配置会产生可理解错误，并指向 `~/.vole/config.json`。
 - CLI 可以展示生效的非 secret 配置。
 - Raw secrets 不会出现在 trace、prompt assembly reports 或 CLI config output 中。
 - Agent Core 接收 configured dependencies，而不是自己加载配置。
