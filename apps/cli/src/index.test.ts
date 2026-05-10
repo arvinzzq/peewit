@@ -681,6 +681,7 @@ describe("runCli", () => {
           VOLE_API_KEY: "secret-api-key",
           HOME: home
         },
+        cwd: home,
         readLine: async () => inputs.shift(),
         fetch: async () =>
           new Response(

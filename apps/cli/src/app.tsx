@@ -8,8 +8,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { render, Box, Text, useInput, useApp, useAnimation, useStdout, Static } from "ink";
 import TextInput from "ink-text-input";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { readFile, stat } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { loadConfig, type EffectiveConfig, type LoadConfigInput } from "@vole/config";
 import type { RuntimeEvent } from "@vole/core";
 import type { TodoItem } from "@vole/tools";
@@ -758,6 +758,16 @@ async function readJsonFile(path: string): Promise<unknown | undefined> {
   try { return JSON.parse(await readFile(path, "utf8")); } catch { return undefined; }
 }
 
+async function findGitRoot(from: string = process.cwd()): Promise<string | undefined> {
+  let dir = from;
+  while (true) {
+    try { await stat(join(dir, ".git")); return dir; } catch { /* continue */ }
+    const parent = dirname(dir);
+    if (parent === dir) return undefined;
+    dir = parent;
+  }
+}
+
 export async function runInkChat({ args, env, sessionsDirectory }: InkChatArgs): Promise<void> {
   let config: EffectiveConfig;
   try {
@@ -766,6 +776,10 @@ export async function runInkChat({ args, env, sessionsDirectory }: InkChatArgs):
     if (home !== undefined) input.userConfig = await readJsonFile(join(home, ".vole", "config.json"));
     input.projectConfig = await readJsonFile("vole.config.json");
     config = loadConfig(input);
+    if (config.sessions.directory === "~/.vole/sessions") {
+      const gitRoot = await findGitRoot();
+      if (gitRoot !== undefined) config.sessions.directory = join(gitRoot, ".vole", "sessions");
+    }
   } catch (err) {
     process.stderr.write(
       `Configuration error: ${err instanceof Error ? err.message : String(err)}\n`

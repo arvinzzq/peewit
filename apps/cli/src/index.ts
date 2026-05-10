@@ -37,7 +37,22 @@ async function readJsonFile(path: string): Promise<unknown | undefined> {
   }
 }
 
-async function loadCliConfig(options: { env?: Record<string, string | undefined> } = {}): Promise<EffectiveConfig> {
+// Walk up from cwd looking for a .git directory; returns that directory or undefined.
+async function findGitRoot(from: string = process.cwd()): Promise<string | undefined> {
+  let dir = from;
+  while (true) {
+    try {
+      await stat(join(dir, ".git"));
+      return dir;
+    } catch {
+      const parent = dirname(dir);
+      if (parent === dir) return undefined;
+      dir = parent;
+    }
+  }
+}
+
+async function loadCliConfig(options: { env?: Record<string, string | undefined>; cwd?: string } = {}): Promise<EffectiveConfig> {
   const env = options.env ?? process.env as Record<string, string | undefined>;
   const home = env.HOME ?? process.env.HOME;
   const input: LoadConfigInput = { env };
@@ -45,7 +60,19 @@ async function loadCliConfig(options: { env?: Record<string, string | undefined>
     input.userConfig = await readJsonFile(join(home, ".vole", "config.json"));
   }
   input.projectConfig = await readJsonFile(join("vole.config.json"));
-  return loadConfig(input);
+
+  const config = loadConfig(input);
+
+  // Project-scoped sessions: store in <git-root>/.vole/sessions when inside a git repo.
+  // Falls back to ~/.vole/sessions (the default) when not in a project.
+  if (config.sessions.directory === "~/.vole/sessions") {
+    const gitRoot = await findGitRoot(options.cwd);
+    if (gitRoot !== undefined) {
+      config.sessions.directory = join(gitRoot, ".vole", "sessions");
+    }
+  }
+
+  return config;
 }
 
 // Core system instruction — adapted from OpenClaw's execution bias section.
@@ -86,6 +113,7 @@ type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
 export interface RunCliOptions {
   env?: Record<string, string | undefined>;
+  cwd?: string;
   fakeModelOutputs?: ModelOutput[];
   fetch?: FetchLike;
   readLine?: (prompt: string) => Promise<string | undefined>;
@@ -281,7 +309,7 @@ async function runInteractiveFakeChat(options: RunCliOptions, args: ParsedChatAr
 }
 
 async function runInteractiveConfiguredChat(options: RunCliOptions, args: ParsedChatArgs): Promise<CliResult> {
-  const config = await loadCliConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
 
   if (config.secrets.apiKey === undefined) {
     return {
@@ -321,7 +349,7 @@ async function runInteractiveConfiguredChat(options: RunCliOptions, args: Parsed
 }
 
 async function runListSessions(options: RunCliOptions): Promise<CliResult> {
-  const config = await loadCliConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
   const store = createConfiguredSessionStore(config, options, createSessionId());
   const sessions = await store.listSessions();
 
@@ -341,7 +369,7 @@ async function runListSessions(options: RunCliOptions): Promise<CliResult> {
 }
 
 async function runMemoryDreaming(options: RunCliOptions): Promise<CliResult> {
-  const config = await loadCliConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
 
   if (config.secrets.apiKey === undefined) {
     return {
@@ -373,7 +401,7 @@ async function runBackgroundTask(
   mode: "observe" | "confirm" | "auto",
   options: RunCliOptions
 ): Promise<CliResult> {
-  const config = await loadCliConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
 
   if (config.secrets.apiKey === undefined) {
     return {
@@ -474,7 +502,7 @@ async function runBackgroundTask(
 }
 
 async function runListTasks(options: RunCliOptions, limit?: number): Promise<CliResult> {
-  const config = await loadCliConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
   const effectiveConfig = options.sessionsDirectory
     ? { ...config, sessions: { directory: options.sessionsDirectory } }
     : config;
@@ -616,7 +644,7 @@ async function runDaemonTask(
 }
 
 async function runDaemon(options: RunCliOptions, once: boolean): Promise<CliResult> {
-  const config = await loadCliConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
 
   if (config.secrets.apiKey === undefined) {
     return {
@@ -683,7 +711,7 @@ async function runDaemon(options: RunCliOptions, once: boolean): Promise<CliResu
 }
 
 async function resolveTaskflowFilePath(options: RunCliOptions): Promise<string> {
-  const config = await loadCliConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
   const effectiveConfig = options.sessionsDirectory
     ? { ...config, sessions: { directory: options.sessionsDirectory } }
     : config;
@@ -778,7 +806,7 @@ function resolveSkillsDirectory(config: EffectiveConfig, options: RunCliOptions)
 }
 
 async function runSkillsList(options: RunCliOptions): Promise<CliResult> {
-  const config = await loadCliConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
   const skillsDir = resolveSkillsDirectory(config, options);
   const loader = new SkillLoader();
   const skills = await loader.load({
@@ -796,7 +824,7 @@ async function runSkillsList(options: RunCliOptions): Promise<CliResult> {
 }
 
 async function runSkillsInstall(sourcePath: string, options: RunCliOptions): Promise<CliResult> {
-  const config = await loadCliConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
   const skillsDir = resolveSkillsDirectory(config, options);
   const manager = new SkillManager(skillsDir);
 
@@ -821,7 +849,7 @@ async function runSkillsLifecycle(
   name: string,
   options: RunCliOptions
 ): Promise<CliResult> {
-  const config = await loadCliConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
   const skillsDir = resolveSkillsDirectory(config, options);
   const manager = new SkillManager(skillsDir);
 
@@ -846,7 +874,7 @@ async function runSkillsLifecycle(
 }
 
 async function runSkillsReview(name: string, options: RunCliOptions): Promise<CliResult> {
-  const config = await loadCliConfig(options.env ? { env: options.env } : {});
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
   const skillsDir = resolveSkillsDirectory(config, options);
   const manager = new SkillManager(skillsDir);
 
@@ -1059,7 +1087,7 @@ export class CliChatSession {
     options: RunCliOptions = {},
     sessionOptions: CreateChatSessionOptions = {}
   ): Promise<CliChatSession> {
-    const config = redactedConfig(await loadCliConfig(options.env ? { env: options.env } : {}));
+    const config = redactedConfig(await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) }));
     const approvalPromptLog: string[] = [];
     const provider =
       options.fakeModelOutputs

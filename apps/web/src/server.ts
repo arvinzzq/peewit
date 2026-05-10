@@ -9,6 +9,8 @@
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
+import { stat } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { WebSocketServer } from "ws";
@@ -16,6 +18,25 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { WEB_CAPABILITIES, filterToolsByProfile, type ToolProfile } from "@vole/adapters";
 import { loadConfig, resolveSessionsDirectory, type EffectiveConfig } from "@vole/config";
+
+async function findGitRoot(from: string = process.cwd()): Promise<string | undefined> {
+  let dir = from;
+  while (true) {
+    try { await stat(join(dir, ".git")); return dir; } catch { /* continue */ }
+    const parent = dirname(dir);
+    if (parent === dir) return undefined;
+    dir = parent;
+  }
+}
+
+async function loadWebConfig(): Promise<EffectiveConfig> {
+  const config = loadConfig({ env: process.env as Record<string, string | undefined> });
+  if (config.sessions.directory === "~/.vole/sessions") {
+    const gitRoot = await findGitRoot();
+    if (gitRoot !== undefined) config.sessions.directory = join(gitRoot, ".vole", "sessions");
+  }
+  return config;
+}
 import { DefaultContextAssembler } from "@vole/context";
 import {
   AgentRuntime,
@@ -222,7 +243,7 @@ app.options("/api/*", (c) => c.text("", 200));
 app.post("/api/sessions", async (c) => {
   let config: EffectiveConfig;
   try {
-    config = loadConfig({ env: process.env as Record<string, string | undefined> });
+    config = await loadWebConfig();
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : "Config error" }, 400);
   }
@@ -243,7 +264,7 @@ app.post("/api/sessions", async (c) => {
 app.get("/api/sessions", async (c) => {
   let config: EffectiveConfig;
   try {
-    config = loadConfig({ env: process.env as Record<string, string | undefined> });
+    config = await loadWebConfig();
   } catch {
     return c.json({ sessions: [] });
   }
@@ -267,7 +288,7 @@ app.get("/api/sessions", async (c) => {
 app.get("/api/sessions/:id", async (c) => {
   let config: EffectiveConfig;
   try {
-    config = loadConfig({ env: process.env as Record<string, string | undefined> });
+    config = await loadWebConfig();
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : "Config error" }, 400);
   }
@@ -288,7 +309,7 @@ app.get("/api/sessions/:id", async (c) => {
 app.get("/api/sessions/:id/messages", async (c) => {
   let config: EffectiveConfig;
   try {
-    config = loadConfig({ env: process.env as Record<string, string | undefined> });
+    config = await loadWebConfig();
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : "Config error" }, 400);
   }
@@ -314,7 +335,7 @@ app.post("/api/sessions/:id/turns", async (c) => {
     // Session exists in store but has no active runtime — need to resume
     let config: EffectiveConfig;
     try {
-      config = loadConfig({ env: process.env as Record<string, string | undefined> });
+      config = await loadWebConfig();
     } catch (err) {
       return c.json({ error: err instanceof Error ? err.message : "Config error" }, 400);
     }
@@ -334,7 +355,7 @@ app.post("/api/sessions/:id/turns", async (c) => {
 
   let config: EffectiveConfig;
   try {
-    config = loadConfig({ env: process.env as Record<string, string | undefined> });
+    config = await loadWebConfig();
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : "Config error" }, 400);
   }
@@ -416,6 +437,10 @@ app.post("/api/sessions/:id/approvals", async (c) => {
 });
 
 // Serve built client assets in production
+// In global install, CLI sets cwd to dist/web/ so client is at ./client/
+// In dev, cwd is apps/web/ so client is at ./dist/client/
+// Try both so the same build works in either context.
+app.use("/*", serveStatic({ root: "./client" }));
 app.use("/*", serveStatic({ root: "./dist/client" }));
 
 // ─── Start server ─────────────────────────────────────────────────────────────
@@ -470,7 +495,7 @@ server.on("upgrade", (request, socket, head) => {
           const userMessage = msg.message;
           let config: EffectiveConfig;
           try {
-            config = loadConfig({ env: process.env as Record<string, string | undefined> });
+            config = await loadWebConfig();
           } catch {
             ws.send(JSON.stringify({ type: "error", message: "Config error." }));
             return;
