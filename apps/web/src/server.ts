@@ -33,7 +33,10 @@ async function findGitRoot(from: string = process.cwd()): Promise<string | undef
 async function loadWebConfig(): Promise<EffectiveConfig> {
   const config = loadConfig({ env: process.env as Record<string, string | undefined> });
   if (config.sessions.directory === "~/.vole/sessions") {
-    const gitRoot = await findGitRoot();
+    // VOLE_WEB_ROOT is set by the CLI launcher to the user's actual working directory.
+    // Without it (e.g. direct node invocation), fall back to process.cwd().
+    const searchFrom = process.env["VOLE_WEB_ROOT"] ?? process.cwd();
+    const gitRoot = await findGitRoot(searchFrom);
     if (gitRoot !== undefined) config.sessions.directory = join(gitRoot, ".vole", "sessions");
   }
   return config;

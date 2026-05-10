@@ -1581,7 +1581,9 @@ async function runWebDashboard(port: number, openBrowser: boolean): Promise<CliR
 
   const url = `http://localhost:${port}`;
   const child = spawn("node", [resolved.server], {
-    env: { ...process.env, PORT: String(port) },
+    // Pass the user's actual working directory so the web server can detect
+    // the git root and store sessions in the right project directory.
+    env: { ...process.env, PORT: String(port), VOLE_WEB_ROOT: process.cwd() },
     stdio: "inherit",
     cwd: resolved.cwd
   });
