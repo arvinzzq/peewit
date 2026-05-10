@@ -322,14 +322,14 @@ File config is loaded automatically. Environment variables override file values.
 
 ```bash
 pnpm install          # install all dependencies
-cp .env.example .env  # fill in your API key
-pnpm cli -- chat      # run CLI from source — no build needed
-
-# Web UI
-pnpm --filter @vole/web run dev
-# Hono API server: http://localhost:3120
-# Vite dev server:  http://localhost:5173
+cp .env.example .env  # fill in your API key (or use ~/.vole/config.json)
+pnpm chat             # interactive chat — mirrors `vole chat` after install
+pnpm web              # web UI dev server — mirrors `vole web` after install
+                      #   Hono API: http://localhost:3120
+                      #   Vite dev: http://localhost:5173 (hot reload)
 ```
+
+The workspace root defaults to the current directory — run `pnpm chat` from your project folder just like you would run `vole chat` after installing.
 
 ### Tests and Checks
 

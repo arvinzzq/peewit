@@ -322,14 +322,14 @@ Vole 也是一个架构学习项目。`docs/learning/` 目录包含 15 篇双语
 
 ```bash
 pnpm install          # 安装所有依赖
-cp .env.example .env  # 填入 API Key
-pnpm cli -- chat      # 从源码运行 CLI，无需构建
-
-# Web UI
-pnpm --filter @vole/web run dev
-# Hono API 服务器：http://localhost:3120
-# Vite 开发服务器：http://localhost:5173
+cp .env.example .env  # 填入 API Key（或使用 ~/.vole/config.json）
+pnpm chat             # 交互式聊天 — 与安装后的 vole chat 一致
+pnpm web              # Web UI 开发服务器 — 与安装后的 vole web 一致
+                      #   Hono API：http://localhost:3120
+                      #   Vite 开发：http://localhost:5173（热重载）
 ```
+
+workspace 根目录默认为当前目录 — 像使用已安装的 `vole chat` 一样，在项目目录下运行 `pnpm chat` 即可。
 
 ### 测试与检查
 
