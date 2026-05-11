@@ -48,7 +48,7 @@ The roadmap follows a dual-track approach:
 | Phase 13 | Partial | Memory and prompt enhancement | Foundations: @vole/memory package, inline directive parser. Hybrid search + DREAMS + flush + prompt sections in 13b. | @vole/memory split, parseInlineDirectives, EmbeddingProvider interface, MemoryFlushOptions |
 | Phase 14 | Partial | SQLite storage unification | SqliteSessionStore + SqliteTaskFlowStore shipped; memory index + migration in 14b | SQLite stores, FTS5 memory index, migration tooling |
 | Phase 15 | Partial | Channels and multi-agent identity | Channel interface + ChannelRegistry shipped; agents/<id>/ identity + real backends in 15b | agents/<id>/ layout, Channel interface, Telegram, Email |
-| Phase 16 | Planned | Sandbox and plugin runtime | Safe third-party skill execution, Docker / worker sandboxing, doctor tool | SandboxBackend, WorkerThreadSandbox, vole doctor |
+| Phase 16 | Partial | Sandbox and plugin runtime | SandboxBackend interface + WorkspaceSandbox + `vole doctor` read-only checks shipped; Docker + worker-thread backends and `--fix` actions in 16b | SandboxBackend, WorkerThreadSandbox, vole doctor |
 
 Some later-phase learning documents are listed as planned filenames before they exist. They should be created when that phase is being actively designed, not all at once during MVP setup.
 
@@ -614,10 +614,12 @@ Non-goals: no Slack / Discord / WhatsApp / webhook channels (Phase 17+); no cros
 
 ## 20. Phase 16: Sandbox and Plugin Runtime
 
-Status: Planned. Plan document: [phase-16-sandbox-and-plugin-runtime.md](../plans/phase-16-sandbox-and-plugin-runtime.md).
+Status: Partial. Plan document: [phase-16-sandbox-and-plugin-runtime.md](../plans/phase-16-sandbox-and-plugin-runtime.md).
 
 Goal: real sandbox backends (workspace, Docker, worker thread) instead of a single boolean; worker-thread-isolated plugin runtime so untrusted skills cannot crash the main process; `vole doctor` self-maintenance.
 
-Architecture added: `SandboxBackend` interface; `DockerSandbox`; `WorkerThreadSandbox` routing untrusted skills with timeout / memory caps; `vole doctor` and `vole doctor --fix` for stale subagent records, orphan TaskFlow rows, residual lock files.
+Architecture added (this phase): bilingual Phase 16 callouts on `sandboxing.md` and `plugin-system.md`; `SandboxBackend` interface in `@vole/permissions` with `SandboxCommand` / `SandboxOptions` / `SandboxResult` value types; `WorkspaceSandbox` reference backend with workspace-escape rejection, cwd containment, timeout surfacing, and non-zero exit propagation; `vole doctor` top-level CLI command running read-only checks across config, workspace, sessions directory, stale `.lock` files (dead PIDs), stale subagent TaskFlow rows (>60 min), orphan TaskFlow children, and missing skill source files.
+
+Deferred to Phase 16b: `DockerSandbox` backend (Docker availability gating, default image, mount strategy); `WorkerThreadSandbox` backend and untrusted-skill routing (worker bootstrap, restricted module map, RPC bridge, timeout / memory tests); `vole doctor --fix` idempotent remediations and "would-do" preview.
 
 Non-goals: no firejail / bubblewrap integration; no direct cgroup usage; no mandatory sandboxing of every tool; no remote sandbox dispatch.
