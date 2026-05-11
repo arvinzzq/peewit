@@ -1,6 +1,6 @@
 /**
- * INPUT: System instructions, runtime metadata, tool summaries, skill index, permission guidance, workspace prompt files, recent conversation messages, user messages, prompt mode, compaction options, and model provider for summarization.
- * OUTPUT: Provider-neutral model input assembled from named sections, conversation history, a per-section context assembly report, compacted message histories via compactMessages, PromptMode type for full/minimal/none assembly control, and MinimalContextAssembler as the null/pass-through implementation.
+ * INPUT: system instruction, runtime, tools, skills, permission guidance, workspace files, recent + user messages, prompt mode, compaction options, model provider; Phase 13b 6 policy strings (currentDateTime, executionBias, reasoning, replyTags, documentation, selfUpdate).
+ * OUTPUT: provider-neutral model input + section report + compacted histories; PromptMode; section order identity→runtime→current_date→tooling→execution_bias→safety→reasoning→reply_tags→skills→workspace→documentation→self_update→conversation_history→user_message.
  * POS: Context assembly layer; decides what the model sees before provider formatting.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -41,6 +41,18 @@ export interface ContextAssemblyInput {
   recentMessages?: ModelMessage[];
   userMessage: string;
   promptMode?: PromptMode;
+  /** Phase 13b Step 6: ISO date-time string (e.g. "2026-05-12T18:42:00+08:00") emitted as a standalone `<current-date>` section. */
+  currentDateTime?: string;
+  /** Phase 13b Step 6: execution-bias guidance (e.g. "prefer reading, decompose first, never delete without confirmation"). */
+  executionBias?: string;
+  /** Phase 13b Step 6: reasoning policy (e.g. "think step by step, surface uncertainty"). */
+  reasoningPolicy?: string;
+  /** Phase 13b Step 6: reply-tag conventions (e.g. "wrap top-level reply in <answer>"). */
+  replyTagsPolicy?: string;
+  /** Phase 13b Step 6: documentation policy (e.g. "update README in same logical change"). */
+  documentationPolicy?: string;
+  /** Phase 13b Step 6: self-update / memory-write guidance. */
+  selfUpdatePolicy?: string;
 }
 
 export interface ContextSectionReport {
@@ -142,6 +154,14 @@ export class DefaultContextAssembler implements ContextAssembler {
         sectionReports.push({ name: "runtime", included: false, reason: "No runtime metadata provided." });
       }
 
+      // Phase 13b Step 6: current-date — standalone block with full date/time when provided.
+      if (input.currentDateTime !== undefined && input.currentDateTime.length > 0) {
+        systemParts.push("", `<current-date>\n${input.currentDateTime}\n</current-date>`);
+        sectionReports.push({ name: "current_date", included: true });
+      } else {
+        sectionReports.push({ name: "current_date", included: false, reason: "No currentDateTime provided." });
+      }
+
       // tooling: available tools with name, description, risk level
       if (input.tools !== undefined && input.tools.length > 0) {
         const toolLines = input.tools.map((t) => `- ${t.name} [${t.risk}]: ${t.description}`).join("\n");
@@ -151,12 +171,36 @@ export class DefaultContextAssembler implements ContextAssembler {
         sectionReports.push({ name: "tooling", included: false, reason: "No tools registered." });
       }
 
+      // Phase 13b Step 6: execution-bias — guidance shaping how the agent picks its next action.
+      if (input.executionBias !== undefined && input.executionBias.length > 0) {
+        systemParts.push("", `<execution-bias>\n${input.executionBias}\n</execution-bias>`);
+        sectionReports.push({ name: "execution_bias", included: true });
+      } else {
+        sectionReports.push({ name: "execution_bias", included: false, reason: "No executionBias provided." });
+      }
+
       // safety: permission policy guidance
       if (input.permissionGuidance !== undefined && input.permissionGuidance.length > 0) {
         systemParts.push("", `<safety>\n${input.permissionGuidance}\n</safety>`);
         sectionReports.push({ name: "safety", included: true });
       } else {
         sectionReports.push({ name: "safety", included: false, reason: "No permission guidance provided." });
+      }
+
+      // Phase 13b Step 6: reasoning — how the agent should think.
+      if (input.reasoningPolicy !== undefined && input.reasoningPolicy.length > 0) {
+        systemParts.push("", `<reasoning>\n${input.reasoningPolicy}\n</reasoning>`);
+        sectionReports.push({ name: "reasoning", included: true });
+      } else {
+        sectionReports.push({ name: "reasoning", included: false, reason: "No reasoningPolicy provided." });
+      }
+
+      // Phase 13b Step 6: reply-tags — output tag conventions.
+      if (input.replyTagsPolicy !== undefined && input.replyTagsPolicy.length > 0) {
+        systemParts.push("", `<reply-tags>\n${input.replyTagsPolicy}\n</reply-tags>`);
+        sectionReports.push({ name: "reply_tags", included: true });
+      } else {
+        sectionReports.push({ name: "reply_tags", included: false, reason: "No replyTagsPolicy provided." });
       }
 
       // skills: compact skill index (name + description as routing trigger)
@@ -175,6 +219,22 @@ export class DefaultContextAssembler implements ContextAssembler {
         sectionReports.push({ name: "workspace", included: true });
       } else if (this.#workspacePromptFiles.length > 0) {
         sectionReports.push({ name: "workspace", included: false, reason: "No workspace prompt files found." });
+      }
+
+      // Phase 13b Step 6: documentation — when to update docs alongside code.
+      if (input.documentationPolicy !== undefined && input.documentationPolicy.length > 0) {
+        systemParts.push("", `<documentation>\n${input.documentationPolicy}\n</documentation>`);
+        sectionReports.push({ name: "documentation", included: true });
+      } else {
+        sectionReports.push({ name: "documentation", included: false, reason: "No documentationPolicy provided." });
+      }
+
+      // Phase 13b Step 6: self-update — when to write memory.
+      if (input.selfUpdatePolicy !== undefined && input.selfUpdatePolicy.length > 0) {
+        systemParts.push("", `<self-update>\n${input.selfUpdatePolicy}\n</self-update>`);
+        sectionReports.push({ name: "self_update", included: true });
+      } else {
+        sectionReports.push({ name: "self_update", included: false, reason: "No selfUpdatePolicy provided." });
       }
     }
 

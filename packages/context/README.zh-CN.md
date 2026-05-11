@@ -119,8 +119,8 @@ context 包接收 `ContextToolSummary[]`（name + description + risk）而非完
 |---|---|---|
 | `package.json` | Package manifest | 声明 context 包及对 models 的依赖（用于 `ModelInput`、`ModelMessage`、`ModelProvider`）。 |
 | `tsconfig.json` | TypeScript 配置 | 使用对 models 的项目引用构建 context。 |
-| `src/index.ts` | Context 组装器 | 所有导出：`ContextAssembler`、`DefaultContextAssembler`、`MinimalContextAssembler`、`ContextAssemblyInput/Result/Report`、`ContextRuntimeMetadata`、`ContextToolSummary`、`ContextSkillSummary`、`PromptMode`、`compactMessages`、`CompactionOptions`、`DEFAULT_COMPACTION_OPTIONS`。 |
-| `src/index.test.ts` | Context 测试 | 保护每种 prompt mode 下的 section 排序、包含/省略逻辑、格式、工作区文件加载、组装报告和 `compactMessages` 压缩行为。 |
+| `src/index.ts` | Context 组装器 | 所有导出：`ContextAssembler`、`DefaultContextAssembler`、`MinimalContextAssembler`、`ContextAssemblyInput/Result/Report`、`ContextRuntimeMetadata`、`ContextToolSummary`、`ContextSkillSummary`、`PromptMode`、`compactMessages`、`CompactionOptions`、`DEFAULT_COMPACTION_OPTIONS`，以及 Phase 13b 在 `ContextAssemblyInput` 上新增的六字段：`currentDateTime`、`executionBias`、`reasoningPolicy`、`replyTagsPolicy`、`documentationPolicy`、`selfUpdatePolicy`。 |
+| `src/index.test.ts` | Context 测试 | 保护每种 prompt mode 下的 section 排序、包含/省略逻辑、格式、工作区文件加载、组装报告、Phase 13b 六个 section 各自的 tag 断言、14 段完整顺序的集成测试，以及 `compactMessages` 压缩行为。 |
 
 ## 更新提醒
 

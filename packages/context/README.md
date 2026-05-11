@@ -121,8 +121,8 @@ The context package receives `ContextToolSummary[]` (name + description + risk) 
 |---|---|---|
 | `package.json` | Package manifest | Declares context package exports and dependency on models (for `ModelInput`, `ModelMessage`, `ModelProvider`). |
 | `tsconfig.json` | TypeScript config | Builds context with a project reference to models. |
-| `src/index.ts` | Context assembler | All exports: `ContextAssembler`, `DefaultContextAssembler`, `MinimalContextAssembler`, `ContextAssemblyInput/Result/Report`, `ContextRuntimeMetadata`, `ContextToolSummary`, `ContextSkillSummary`, `PromptMode`, `compactMessages`, `CompactionOptions`, `DEFAULT_COMPACTION_OPTIONS`. |
-| `src/index.test.ts` | Context tests | Protects section ordering, section inclusion/omission per prompt mode, tooling/safety/skills format, workspace file loading, assembly reports, and `compactMessages` compaction behavior. |
+| `src/index.ts` | Context assembler | All exports: `ContextAssembler`, `DefaultContextAssembler`, `MinimalContextAssembler`, `ContextAssemblyInput/Result/Report`, `ContextRuntimeMetadata`, `ContextToolSummary`, `ContextSkillSummary`, `PromptMode`, `compactMessages`, `CompactionOptions`, `DEFAULT_COMPACTION_OPTIONS`, plus Phase 13b six-section additions on `ContextAssemblyInput`: `currentDateTime`, `executionBias`, `reasoningPolicy`, `replyTagsPolicy`, `documentationPolicy`, `selfUpdatePolicy`. |
+| `src/index.test.ts` | Context tests | Protects section ordering, section inclusion/omission per prompt mode, tooling/safety/skills format, workspace file loading, assembly reports, six Phase 13b section additions (each tag-by-tag), full 14-section ordering integration test, and `compactMessages` compaction behavior. |
 
 ## Update Reminder
 

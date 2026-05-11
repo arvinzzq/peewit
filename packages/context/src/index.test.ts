@@ -215,6 +215,147 @@ describe("skills section", () => {
   });
 });
 
+describe("Phase 13b section additions", () => {
+  test("emits current-date as its own section when currentDateTime is provided", async () => {
+    const assembler = new DefaultContextAssembler();
+    const result = await assembler.assemble({
+      systemInstruction: "You are Vole.",
+      currentDateTime: "2026-05-12T18:42:00+08:00",
+      userMessage: "What time is it?"
+    });
+    const systemContent = result.modelInput.messages[0]?.content as string;
+    expect(systemContent).toContain("<current-date>");
+    expect(systemContent).toContain("2026-05-12T18:42:00+08:00");
+    expect(systemContent).toContain("</current-date>");
+    expect(result.report.includedSections).toContain("current_date");
+  });
+
+  test("emits execution-bias section when content provided", async () => {
+    const assembler = new DefaultContextAssembler();
+    const result = await assembler.assemble({
+      systemInstruction: "You are Vole.",
+      executionBias: "Prefer reading over writing. Decompose large tasks.",
+      userMessage: "Refactor the module."
+    });
+    const systemContent = result.modelInput.messages[0]?.content as string;
+    expect(systemContent).toContain("<execution-bias>");
+    expect(systemContent).toContain("Prefer reading over writing.");
+    expect(systemContent).toContain("</execution-bias>");
+    expect(result.report.includedSections).toContain("execution_bias");
+  });
+
+  test("emits reasoning section when content provided", async () => {
+    const assembler = new DefaultContextAssembler();
+    const result = await assembler.assemble({
+      systemInstruction: "You are Vole.",
+      reasoningPolicy: "Think step by step. Surface uncertainty.",
+      userMessage: "Plan the migration."
+    });
+    const systemContent = result.modelInput.messages[0]?.content as string;
+    expect(systemContent).toContain("<reasoning>");
+    expect(systemContent).toContain("Think step by step.");
+    expect(systemContent).toContain("</reasoning>");
+    expect(result.report.includedSections).toContain("reasoning");
+  });
+
+  test("emits reply-tags section when content provided", async () => {
+    const assembler = new DefaultContextAssembler();
+    const result = await assembler.assemble({
+      systemInstruction: "You are Vole.",
+      replyTagsPolicy: "Wrap top-level reply in <answer>.",
+      userMessage: "Hello."
+    });
+    const systemContent = result.modelInput.messages[0]?.content as string;
+    expect(systemContent).toContain("<reply-tags>");
+    expect(systemContent).toContain("Wrap top-level reply");
+    expect(systemContent).toContain("</reply-tags>");
+    expect(result.report.includedSections).toContain("reply_tags");
+  });
+
+  test("emits documentation section when content provided", async () => {
+    const assembler = new DefaultContextAssembler();
+    const result = await assembler.assemble({
+      systemInstruction: "You are Vole.",
+      documentationPolicy: "Update README in the same logical change as code.",
+      userMessage: "Add a feature."
+    });
+    const systemContent = result.modelInput.messages[0]?.content as string;
+    expect(systemContent).toContain("<documentation>");
+    expect(systemContent).toContain("README");
+    expect(systemContent).toContain("</documentation>");
+    expect(result.report.includedSections).toContain("documentation");
+  });
+
+  test("emits self-update section when content provided", async () => {
+    const assembler = new DefaultContextAssembler();
+    const result = await assembler.assemble({
+      systemInstruction: "You are Vole.",
+      selfUpdatePolicy: "Append durable facts to memory/YYYY-MM-DD.md via append_daily_memory.",
+      userMessage: "Note this preference."
+    });
+    const systemContent = result.modelInput.messages[0]?.content as string;
+    expect(systemContent).toContain("<self-update>");
+    expect(systemContent).toContain("append_daily_memory");
+    expect(systemContent).toContain("</self-update>");
+    expect(result.report.includedSections).toContain("self_update");
+  });
+
+  test("emits all 14 sections in documented order when every input is provided", async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "vole-context-fullsections-"));
+    try {
+      await writeFile(join(workspace, "AGENTS.md"), "Project conventions.");
+      const assembler = new DefaultContextAssembler({ workspacePromptFiles: ["AGENTS.md"] });
+      const result = await assembler.assemble({
+        systemInstruction: "You are Vole.",
+        runtime: { mode: "auto", workspace, currentDate: "2026-05-12" },
+        currentDateTime: "2026-05-12T18:42:00+08:00",
+        tools: [{ name: "read_file", description: "Read.", risk: "low" }],
+        executionBias: "Prefer reading.",
+        permissionGuidance: "Low-risk runs automatically.",
+        reasoningPolicy: "Think step by step.",
+        replyTagsPolicy: "Wrap reply.",
+        skillIndex: [{ name: "research", description: "Use for investigation." }],
+        documentationPolicy: "Update README with code.",
+        selfUpdatePolicy: "Append to daily memory.",
+        recentMessages: [{ role: "user", content: "earlier" }],
+        userMessage: "Now do it."
+      });
+      const systemContent = result.modelInput.messages[0]?.content as string;
+      // Verify ordering by checking that each tag appears after the previous one.
+      const ordered = [
+        "<identity>", "<runtime>", "<current-date>", "<tooling>", "<execution-bias>",
+        "<safety>", "<reasoning>", "<reply-tags>", "<skills>", "<workspace>",
+        "<documentation>", "<self-update>"
+      ];
+      let lastIdx = -1;
+      for (const tag of ordered) {
+        const idx = systemContent.indexOf(tag);
+        expect(idx, `expected ${tag} to appear after preceding sections`).toBeGreaterThan(lastIdx);
+        lastIdx = idx;
+      }
+      // conversation-history + user-message live in the messages array, not the system block.
+      expect(result.report.includedSections).toEqual([
+        "identity",
+        "runtime",
+        "current_date",
+        "tooling",
+        "execution_bias",
+        "safety",
+        "reasoning",
+        "reply_tags",
+        "skills",
+        "workspace",
+        "documentation",
+        "self_update",
+        "conversation_history",
+        "user_message"
+      ]);
+    } finally {
+      await rm(workspace, { force: true, recursive: true });
+    }
+  });
+});
+
 describe("workspace section", () => {
   test("loads configured workspace prompt files into the system message", async () => {
     const workspace = await mkdtemp(join(tmpdir(), "vole-context-workspace-"));
