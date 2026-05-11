@@ -64,6 +64,7 @@ vole sessions
 | `vole gateway status` | 显示当前进程的 lane 占用与跨进程 session 锁 |
 | `vole subagents list` | 列出近期子代理任务记录（taskflow） |
 | `vole subagents kill <id\|all>` | 把子代理任务标记为已取消（或用 "all" 停掉所有 running） |
+| `vole doctor` | 只读诊断：workspace、sessions、taskflow、skills 状态 |
 
 ## 对话内指令
 

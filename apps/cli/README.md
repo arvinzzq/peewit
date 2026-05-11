@@ -64,6 +64,7 @@ vole sessions
 | `vole gateway status` | Show lane occupancy in this process and cross-process session locks |
 | `vole subagents list` | List recent sub-agent task records (taskflow) |
 | `vole subagents kill <id\|all>` | Mark a sub-agent task as cancelled (or all running ones with "all") |
+| `vole doctor` | Read-only diagnostic checks for workspace, sessions, taskflow, and skills |
 
 ## Chat slash commands
 

@@ -1461,6 +1461,105 @@ describe("runCli", () => {
     }
   });
 
+  test("doctor reports ok summary on an empty workspace", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-doctor-empty-"));
+    try {
+      const sessionsDir = join(directory, "sessions");
+      await mkdir(sessionsDir, { recursive: true });
+      const result = await runCli(["doctor"], "0.0.0", {
+        sessionsDirectory: sessionsDir
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("vole doctor:");
+      expect(result.stdout).toContain("[OK]   sessions directory:");
+      expect(result.stdout).toContain("[OK]   stale session locks: no locks held");
+      expect(result.stdout).toContain("[OK]   stale subagents:");
+      expect(result.stdout).toContain("[OK]   orphan TaskFlow children: no orphans");
+      expect(result.stdout).toMatch(/Summary: \d+ check\(s\) — \d+ ok/);
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("doctor flags stale session locks", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-doctor-locks-"));
+    try {
+      const sessionsDir = join(directory, "sessions");
+      await mkdir(sessionsDir, { recursive: true });
+      await writeFile(
+        join(sessionsDir, "sess_dead.lock"),
+        JSON.stringify({ pid: 999999, startedAt: Date.now() - 7000 })
+      );
+      const result = await runCli(["doctor"], "0.0.0", {
+        sessionsDirectory: sessionsDir
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("[WARN] stale session locks: 1 stale lock");
+      expect(result.stdout).toContain("sess_dead — pid 999999 (dead)");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("doctor flags orphan TaskFlow children", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-doctor-orphan-"));
+    try {
+      const sessionsDir = join(directory, "sessions");
+      await mkdir(sessionsDir, { recursive: true });
+      const taskflowPath = join(directory, "taskflow.jsonl");
+      await writeFile(
+        taskflowPath,
+        JSON.stringify({
+          id: "task_orphan",
+          runtime: "subagent",
+          task: "Orphaned work",
+          status: "running",
+          parentId: "task_missing_parent",
+          createdAt: "2026-05-12T00:00:00.000Z",
+          updatedAt: new Date().toISOString()
+        }) + "\n"
+      );
+      const result = await runCli(["doctor"], "0.0.0", {
+        sessionsDirectory: sessionsDir
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("[WARN] orphan TaskFlow children: 1 orphan");
+      expect(result.stdout).toContain("task_orphan — parentId=task_missing_parent missing");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("doctor flags stale running subagents older than 60 minutes", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-doctor-stale-sa-"));
+    try {
+      const sessionsDir = join(directory, "sessions");
+      await mkdir(sessionsDir, { recursive: true });
+      const taskflowPath = join(directory, "taskflow.jsonl");
+      const oldIso = new Date(Date.now() - 90 * 60_000).toISOString();
+      await writeFile(
+        taskflowPath,
+        JSON.stringify({
+          id: "task_stuck",
+          runtime: "subagent",
+          task: "Long-running stuck job",
+          status: "running",
+          createdAt: oldIso,
+          updatedAt: oldIso
+        }) + "\n"
+      );
+      const result = await runCli(["doctor"], "0.0.0", {
+        sessionsDirectory: sessionsDir
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("[WARN] stale subagents: 1 stuck subagent");
+      expect(result.stdout).toContain("task_stuck — running since");
+      expect(result.stdout).toContain("Phase 16b");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
   test("gateway status surfaces alive and stale locks distinctly", async () => {
     const directory = await mkdtemp(join(tmpdir(), "vole-gw-locks-"));
     try {

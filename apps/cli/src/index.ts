@@ -1,6 +1,6 @@
 /**
  * INPUT: CLI args, config, model providers, skill loader, session/trace stores, taskflow store, built-in tools, optional fake outputs and line reader.
- * OUTPUT: Chat, approvals, tool execution, todos, skill subcommands, session/task/taskflow listings, daemon cron, trace, redacted config, stdout/stderr, GatewayCore admission for chat runs (global / subagent / session lanes), run --dream consolidation, session persistence of all turn messages and compaction boundaries.
+ * OUTPUT: Chat, approvals, tool execution, todos, skill subcommands, session/task/taskflow listings, daemon cron, trace, redacted config, stdout/stderr, GatewayCore admission for chat runs (global / subagent / session lanes), run --dream consolidation, session persistence of all turn messages and compaction boundaries, `vole doctor` read-only diagnostics.
  * POS: CLI adapter layer; translates terminal commands and approval prompts; submits chat runs to GatewayCore without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -248,6 +248,10 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
   program.command("compact").description("Print compaction status and how to trigger it in chat")
     .action(async () => { actionResult = await runCompactInfo(); });
 
+  // ── doctor ────────────────────────────────────────────────────────────────
+  program.command("doctor").description("Read-only diagnostic checks for workspace, sessions, taskflow, and skills")
+    .action(async () => { actionResult = await runDoctor(options); });
+
   // ── subagents ─────────────────────────────────────────────────────────────
   const saCmd = program.command("subagents").description("Inspect and control async sub-agents");
   saCmd.action(async () => { actionResult = await runSubagentsList(options); });
@@ -471,6 +475,224 @@ function isPidAlive(pid: number): boolean {
     }
     return true;
   }
+}
+
+type DoctorLevel = "ok" | "warn" | "error";
+
+interface DoctorCheck {
+  name: string;
+  level: DoctorLevel;
+  summary: string;
+  details: string[];
+}
+
+const DOCTOR_STALE_SUBAGENT_MINUTES = 60;
+
+async function runDoctor(options: RunCliOptions): Promise<CliResult> {
+  const checks: DoctorCheck[] = [];
+  let config: EffectiveConfig | undefined;
+
+  // 1. Config load
+  try {
+    config = await loadCliConfig({
+      ...(options.env ? { env: options.env } : {}),
+      ...(options.cwd ? { cwd: options.cwd } : {})
+    });
+    const hasKey = config.secrets.apiKey !== undefined;
+    checks.push({
+      name: "config",
+      level: hasKey ? "ok" : "warn",
+      summary: hasKey
+        ? `provider=${config.model.provider}, model=${config.model.model}`
+        : `provider=${config.model.provider}, model=${config.model.model} (no API key configured)`,
+      details: hasKey
+        ? []
+        : ["Set VOLE_API_KEY (or ANTHROPIC_API_KEY / OPENROUTER_API_KEY), or add an apiKey field to ~/.vole/config.json."]
+    });
+  } catch (error) {
+    checks.push({
+      name: "config",
+      level: "error",
+      summary: "failed to load configuration",
+      details: [error instanceof Error ? error.message : String(error)]
+    });
+  }
+
+  // 2. Workspace root
+  if (config !== undefined) {
+    const root = config.workspace.root;
+    try {
+      const s = await stat(root);
+      if (s.isDirectory()) {
+        checks.push({ name: "workspace", level: "ok", summary: root, details: [] });
+      } else {
+        checks.push({
+          name: "workspace",
+          level: "error",
+          summary: `${root} is not a directory`,
+          details: []
+        });
+      }
+    } catch {
+      checks.push({
+        name: "workspace",
+        level: "error",
+        summary: `${root} does not exist`,
+        details: ["Create the directory or update workspace.root in your config."]
+      });
+    }
+  }
+
+  // 3. Sessions directory + stale session locks
+  let sessionsDir: string | undefined;
+  if (config !== undefined) {
+    const effectiveConfig = options.sessionsDirectory
+      ? { ...config, sessions: { directory: options.sessionsDirectory } }
+      : config;
+    sessionsDir = resolveSessionsDirectory(effectiveConfig, options.env);
+    let lockEntries: string[] = [];
+    let directoryExists = true;
+    try {
+      const entries = await readdir(sessionsDir);
+      lockEntries = entries.filter((e) => e.endsWith(".lock"));
+    } catch (error) {
+      if (error instanceof Error && "code" in error && (error as { code?: string }).code === "ENOENT") {
+        directoryExists = false;
+      } else {
+        checks.push({
+          name: "sessions directory",
+          level: "error",
+          summary: `cannot read ${sessionsDir}`,
+          details: [error instanceof Error ? error.message : String(error)]
+        });
+        directoryExists = false;
+      }
+    }
+
+    if (directoryExists) {
+      checks.push({ name: "sessions directory", level: "ok", summary: sessionsDir, details: [] });
+    } else {
+      checks.push({
+        name: "sessions directory",
+        level: "ok",
+        summary: `${sessionsDir} (will be created on first run)`,
+        details: []
+      });
+    }
+
+    if (directoryExists && lockEntries.length > 0) {
+      const stale: string[] = [];
+      for (const entry of lockEntries.sort()) {
+        const sessionId = entry.slice(0, -".lock".length);
+        const lockPath = join(sessionsDir, entry);
+        try {
+          const body = JSON.parse(await readFile(lockPath, "utf8")) as { pid?: number; startedAt?: number };
+          if (typeof body.pid === "number" && !isPidAlive(body.pid)) {
+            const age = typeof body.startedAt === "number" ? `${Math.round((Date.now() - body.startedAt) / 1000)}s` : "?";
+            stale.push(`${sessionId} — pid ${body.pid} (dead), held ${age}`);
+          }
+        } catch {
+          stale.push(`${sessionId} — lock file unreadable`);
+        }
+      }
+      checks.push(stale.length === 0
+        ? { name: "stale session locks", level: "ok", summary: "all live", details: [] }
+        : { name: "stale session locks", level: "warn", summary: `${stale.length} stale lock(s)`, details: stale }
+      );
+    } else if (directoryExists) {
+      checks.push({ name: "stale session locks", level: "ok", summary: "no locks held", details: [] });
+    }
+  }
+
+  // 4. TaskFlow store: stale running subagents + orphan children
+  if (config !== undefined && sessionsDir !== undefined) {
+    const taskflowPath = join(dirname(sessionsDir), "taskflow.jsonl");
+    const store = new JsonlTaskFlowStore(taskflowPath);
+    try {
+      const all = await store.list();
+      const cutoff = Date.now() - DOCTOR_STALE_SUBAGENT_MINUTES * 60_000;
+      const stale = all.filter((r) =>
+        r.runtime === "subagent" &&
+        (r.status === "running" || r.status === "queued") &&
+        Date.parse(r.updatedAt) < cutoff
+      );
+      checks.push(stale.length === 0
+        ? { name: "stale subagents", level: "ok", summary: `none older than ${DOCTOR_STALE_SUBAGENT_MINUTES} minutes`, details: [] }
+        : {
+            name: "stale subagents",
+            level: "warn",
+            summary: `${stale.length} stuck subagent(s)`,
+            details: stale.map((r) => `${r.id} — ${r.status} since ${r.updatedAt}`)
+          }
+      );
+
+      const ids = new Set(all.map((r) => r.id));
+      const orphans = all.filter((r) => r.parentId !== undefined && !ids.has(r.parentId));
+      checks.push(orphans.length === 0
+        ? { name: "orphan TaskFlow children", level: "ok", summary: "no orphans", details: [] }
+        : {
+            name: "orphan TaskFlow children",
+            level: "warn",
+            summary: `${orphans.length} orphan(s)`,
+            details: orphans.map((r) => `${r.id} — parentId=${r.parentId ?? "?"} missing`)
+          }
+      );
+    } catch (error) {
+      checks.push({
+        name: "taskflow",
+        level: "error",
+        summary: "failed to read taskflow store",
+        details: [error instanceof Error ? error.message : String(error)]
+      });
+    }
+  }
+
+  // 5. Skill metadata pointing at missing files
+  if (config !== undefined) {
+    try {
+      const skillsDir = resolveSkillsDirectory(config, options);
+      const loader = new SkillLoader();
+      const skills = await loader.load({ workspaceRoot: config.workspace.root, userSkillsDir: skillsDir });
+      const missing: string[] = [];
+      for (const skill of skills) {
+        if (skill.filePath === "") continue;
+        try {
+          await stat(skill.filePath);
+        } catch {
+          missing.push(`${skill.name} → missing ${skill.filePath}`);
+        }
+      }
+      checks.push(missing.length === 0
+        ? { name: "skill files", level: "ok", summary: `${skills.length} skill(s), all files present`, details: [] }
+        : { name: "skill files", level: "warn", summary: `${missing.length} skill(s) point at missing files`, details: missing }
+      );
+    } catch (error) {
+      checks.push({
+        name: "skill files",
+        level: "warn",
+        summary: "could not enumerate skills",
+        details: [error instanceof Error ? error.message : String(error)]
+      });
+    }
+  }
+
+  // Render
+  const lines: string[] = ["vole doctor:", ""];
+  for (const c of checks) {
+    const tag = c.level === "ok" ? "[OK]   " : c.level === "warn" ? "[WARN] " : "[ERR]  ";
+    lines.push(`${tag}${c.name}: ${c.summary}`);
+    for (const d of c.details) lines.push(`         ${d}`);
+  }
+  const ok = checks.filter((c) => c.level === "ok").length;
+  const warn = checks.filter((c) => c.level === "warn").length;
+  const err = checks.filter((c) => c.level === "error").length;
+  lines.push("");
+  lines.push(`Summary: ${checks.length} check(s) — ${ok} ok, ${warn} warning(s), ${err} error(s).`);
+  if (warn > 0 || err > 0) {
+    lines.push("Note: `vole doctor --fix` is Phase 16b work; for now, resolve issues manually.");
+  }
+
+  return { exitCode: err > 0 ? 1 : 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
 }
 
 async function runCompactInfo(): Promise<CliResult> {
