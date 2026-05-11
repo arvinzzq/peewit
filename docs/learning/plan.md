@@ -40,6 +40,7 @@ Ordered by dependency: each module only uses concepts from modules above it.
 | 12 | `@vole/gateway` | 49 | Session lifecycle, concurrent-run guard | ⬜ |
 | 13 | `apps/cli` | 1597+514 | CLI adapter, Ink rendering, slash commands | ⬜ |
 | 14 | `apps/web` | — | Web adapter, SSE streaming, REST API | ⬜ |
+| 15 | `@vole/lanes` | 142 | FIFO queue with concurrency cap; three-tier admission | ⬜ |
 
 ---
 
@@ -61,6 +62,7 @@ Ordered by dependency: each module only uses concepts from modules above it.
 | `gateway` | Creates / resumes sessions; prevents concurrent runs |
 | `apps/cli` | Terminal UI (Ink), slash commands, streaming output, permission prompts |
 | `apps/web` | HTTP + SSE server; browser client in React |
+| `lanes` | FIFO admission primitive; three tiers (global / subagent / session) the gateway composes |
 
 ---
 
@@ -80,7 +82,7 @@ Ordered by dependency: each module only uses concepts from modules above it.
 | Stage 1 | Agent Loop Mental Model | ✅ complete | [01-concepts.md](./01-concepts.md) |
 | Stage 2 | Core Loop in Code | ✅ complete | [02-core.md](./02-core.md) |
 | Stage 3 | Foundation Modules | ✅ complete | 03-config, 04-models, 05-permissions, 06-tools, 08-sessions, 09-taskflow, 07-context, 10-skills, 11-scheduler |
-| Stage 4 | Extension Systems | ✅ complete | 12-adapters, 13-gateway |
+| Stage 4 | Extension Systems | ✅ complete (Phase 11 adds 16-lanes; 13-gateway rewrite pending Phase 11 Step 3) | 12-adapters, 13-gateway, 16-lanes |
 | Stage 5 | System Synthesis | ✅ complete | 14-cli, 15-web |
 
 ## Module Progress
@@ -101,3 +103,4 @@ Ordered by dependency: each module only uses concepts from modules above it.
 | 12 | gateway | ✅ complete | [13-gateway.md](./13-gateway.md) |
 | 13 | apps/cli | ✅ complete | [14-cli.md](./14-cli.md) |
 | 14 | apps/web | ✅ complete | [15-web.md](./15-web.md) |
+| 15 | lanes | ✅ complete | [16-lanes.md](./16-lanes.md) |

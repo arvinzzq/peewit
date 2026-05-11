@@ -1,11 +1,19 @@
 # Module 12: @vole/gateway
 
-Status: Complete
-Date: 2026-05-07
+Status: Complete (Phase 10 baseline) · Phase 11 Step 3 expansion in progress
+Date: 2026-05-07 (last full review); 2026-05-11 (forward-looking note added)
 
 Simplified Chinese version: `13-gateway.zh-CN.md`
 
 Related source: `packages/gateway/src/index.ts`
+
+> **Forward-looking note**: This document describes the 49-line Phase 10 `SessionGateway` registry.
+> Phase 11 Step 3 expands the package into a `GatewayCore` with `submit / subscribe / cancel /
+> status`, lane-based admission via `@vole/lanes` (see [16-lanes.md](./16-lanes.md)), and a
+> cross-process file lock around session JSONL. When Step 3 lands, this document will be rewritten
+> end-to-end. Until then: read this for the historical baseline; read
+> [Phase 11 plan](../plans/phase-11-gateway-and-lanes.md), [gateway.md](../architecture/gateway.md),
+> and [lanes.md](../architecture/lanes.md) for what is coming.
 
 ## 0. How to Use This Document
 

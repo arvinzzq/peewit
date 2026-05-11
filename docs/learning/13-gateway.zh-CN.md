@@ -1,11 +1,13 @@
 # 模块 12：@vole/gateway
 
-状态：已完成
-日期：2026-05-07
+状态：已完成（Phase 10 基线）· Phase 11 Step 3 扩展进行中
+日期：2026-05-07（上次完整复盘）；2026-05-11（增加前瞻提示）
 
 英文版：`13-gateway.md`
 
 相关源码：`packages/gateway/src/index.ts`
+
+> **前瞻提示**：本文档描述的是 49 行的 Phase 10 `SessionGateway` 注册表。Phase 11 Step 3 把这个 package 扩展为 `GatewayCore`，新增 `submit / subscribe / cancel / status`，通过 `@vole/lanes` 做 lane 准入（见 [16-lanes.zh-CN.md](./16-lanes.zh-CN.md)），并在 session JSONL 周围加跨进程文件锁。Step 3 落地后会端到端重写本文档。在此之前：阅读本文档了解历史基线；阅读 [Phase 11 计划](../plans/phase-11-gateway-and-lanes.zh-CN.md)、[gateway.zh-CN.md](../architecture/gateway.zh-CN.md) 与 [lanes.zh-CN.md](../architecture/lanes.zh-CN.md) 了解未来形态。
 
 ## 0. 如何使用本文档
 

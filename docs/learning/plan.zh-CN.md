@@ -39,6 +39,7 @@
 | 12 | `@vole/gateway` | 49 | 会话生命周期、并发运行守卫 | ⬜ |
 | 13 | `apps/cli` | 1597+514 | CLI 适配器、Ink 渲染、slash 命令 | ⬜ |
 | 14 | `apps/web` | — | Web 适配器、SSE 流式、REST API | ⬜ |
+| 15 | `@vole/lanes` | 142 | 带并发上限的 FIFO 队列；三层准入 | ⬜ |
 
 ---
 
@@ -60,6 +61,7 @@
 | `gateway` | 创建/恢复会话；防止并发运行 |
 | `apps/cli` | 终端 UI（Ink）、slash 命令、流式输出、权限提示 |
 | `apps/web` | HTTP + SSE 服务端；React 浏览器客户端 |
+| `lanes` | FIFO 准入原语；gateway 组合的三层（global / subagent / session） |
 
 ---
 
@@ -79,7 +81,7 @@
 | 阶段一 | Agent Loop 心智模型 | ✅ 已完成 | [01-concepts.zh-CN.md](./01-concepts.zh-CN.md) |
 | 阶段二 | 核心循环代码 | ✅ 已完成 | [02-core.zh-CN.md](./02-core.zh-CN.md) |
 | 阶段三 | 基础层模块 | ✅ 已完成 | 03-config、04-models、05-permissions、06-tools、08-sessions、09-taskflow、07-context、10-skills、11-scheduler |
-| 阶段四 | 扩展系统 | ✅ 已完成 | 12-adapters、13-gateway |
+| 阶段四 | 扩展系统 | ✅ 已完成（Phase 11 新增 16-lanes；13-gateway 等待 Phase 11 Step 3 重写） | 12-adapters、13-gateway、16-lanes |
 | 阶段五 | 系统综合 | ✅ 已完成 | 14-cli、15-web |
 
 ## 模块进度
@@ -100,3 +102,4 @@
 | 12 | gateway | ✅ 已完成 | [13-gateway.zh-CN.md](./13-gateway.zh-CN.md) |
 | 13 | apps/cli | ✅ 已完成 | [14-cli.zh-CN.md](./14-cli.zh-CN.md) |
 | 14 | apps/web | ✅ 已完成 | [15-web.zh-CN.md](./15-web.zh-CN.md) |
+| 15 | lanes | ✅ 已完成 | [16-lanes.zh-CN.md](./16-lanes.zh-CN.md) |
