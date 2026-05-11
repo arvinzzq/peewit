@@ -15,7 +15,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, redactedConfig, resolveSessionsDirectory, type EffectiveConfig, type LoadConfigInput, type RedactedConfigView } from "@vole/config";
 import { DefaultContextAssembler } from "@vole/context";
-import { AgentRuntime, InMemoryRuntimeTraceStore, createCheckSubagentTool, createSpawnSubagentAsyncTool, createSpawnSubagentTool, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore, type SubagentFactory } from "@vole/core";
+import { AgentRuntime, InMemoryRuntimeTraceStore, createCheckSubagentTool, createSpawnSubagentAsyncTool, createSpawnSubagentTool, type AgentRuntimeInput, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore, type SubagentFactory } from "@vole/core";
 import { GatewayCore, type GatewaySession } from "@vole/gateway";
 import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@vole/models";
 import { CLI_CAPABILITIES, filterToolsByProfile, type ToolProfile } from "@vole/adapters";
@@ -1231,15 +1231,44 @@ export class CliChatSession {
 
     const builtInTools = createCliBuiltInTools(options, config, skillFileMap);
 
+    // Phase 12: per-agent spawn depth limit. Orchestrator pattern can lift this to 2
+    // via config; default is 1 (children cannot spawn further). Hard cap is 5.
+    const MAX_SPAWN_DEPTH = 1;
+    const SPAWN_TOOL_NAMES = new Set(["spawn_subagent", "spawn_subagent_async", "subagents"]);
+
     const factory: SubagentFactory = {
-      create: (goal) => new AgentRuntime({
-        contextAssembler: createCliContextAssembler(redactedConfig(config)),
-        modelProvider: configuredProvider,
-        systemInstruction: `You are Vole, a sub-agent handling: ${goal}`,
-        runtime: { mode: config.runtime.defaultMode, workspace: config.workspace.root, currentDate },
-        tools: createCliBuiltInTools(options, config),
-        maxSteps: 8
-      })
+      create: (goal, factoryOptions) => {
+        const depth = factoryOptions?.depth ?? 1;
+        const stripSpawnTools = depth >= MAX_SPAWN_DEPTH;
+        const builtIns = createCliBuiltInTools(options, config);
+        // Sub-agents only get the built-in tool set (no spawn tools by default); the
+        // explicit strip is a belt-and-suspenders guard if the built-in list grows later.
+        const childTools = stripSpawnTools
+          ? builtIns.filter((t) => !SPAWN_TOOL_NAMES.has(t.name))
+          : builtIns;
+        const runtime = new AgentRuntime({
+          contextAssembler: createCliContextAssembler(redactedConfig(config)),
+          modelProvider: configuredProvider,
+          systemInstruction: `You are Vole, a sub-agent handling: ${goal}`,
+          runtime: { mode: config.runtime.defaultMode, workspace: config.workspace.root, currentDate },
+          tools: childTools,
+          maxSteps: 8,
+          depth
+        });
+        // Fork mode: thread the parent's recent messages (provided by the spawn tool
+        // via execContext.parentRecentMessages) into the child's FIRST runTurn call.
+        // Tool calls are filtered out to keep token use bounded and to avoid replaying
+        // tool-result content the child has no context for.
+        const firstTurnInput: Partial<AgentRuntimeInput> | undefined =
+          factoryOptions?.contextMode === "fork" && factoryOptions.parentMessages
+            ? {
+                recentMessages: factoryOptions.parentMessages
+                  .filter((m) => m.role === "user" || m.role === "assistant")
+                  .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }))
+              }
+            : undefined;
+        return firstTurnInput !== undefined ? { runtime, firstTurnInput } : runtime;
+      }
     };
 
     const taskflowPath = join(dirname(resolveSessionsDirectory(config, options.env)), "taskflow.jsonl");

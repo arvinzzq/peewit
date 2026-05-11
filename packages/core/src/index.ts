@@ -23,7 +23,7 @@ import {
   type PermissionPolicy,
   type PermissionRiskLevel
 } from "@vole/permissions";
-import { createUpdateTodosTool, type CheckSubagentResult, type ExecutableTool, type TodoItem, type ToolExecutionResult, type SpawnSubagentResult, type SpawnSubagentAsyncResult } from "@vole/tools";
+import { createUpdateTodosTool, type CheckSubagentResult, type ExecutableTool, type TodoItem, type ToolExecutionContext, type ToolExecutionResult, type SpawnSubagentResult, type SpawnSubagentAsyncResult } from "@vole/tools";
 
 export const corePackageName = "@vole/core";
 
@@ -287,6 +287,8 @@ export interface AgentRuntimeDependencies {
   executionContract?: ExecutionContract;
   /** Phase 12: push-completion mailbox. When provided alongside an `input.sessionId`, runTurn drains pending announcements addressed to that session id at the start of every turn. */
   taskStore?: AsyncTaskStore;
+  /** Phase 12: this runtime's spawn depth — 0 for top-level user runs, parent depth + 1 for spawned children. Threaded to tool execution context so spawn tools can stamp the next level. */
+  depth?: number;
   createRunId?: () => string;
   createEventId?: () => string;
   now?: () => string;
@@ -341,6 +343,7 @@ export class AgentRuntime {
   readonly #promptMode: PromptMode | undefined;
   readonly #hooks: AgentHooks | undefined;
   readonly #taskStore: AsyncTaskStore | undefined;
+  readonly #depth: number;
   readonly #executionContract: ExecutionContract;
   readonly #createRunId: () => string;
   readonly #createEventId: () => string;
@@ -368,6 +371,7 @@ export class AgentRuntime {
     this.#promptMode = dependencies.promptMode;
     this.#hooks = dependencies.hooks;
     this.#taskStore = dependencies.taskStore;
+    this.#depth = dependencies.depth ?? 0;
     this.#createRunId = dependencies.createRunId ?? randomId("run");
     this.#createEventId = dependencies.createEventId ?? randomId("evt");
     this.#now = dependencies.now ?? (() => new Date().toISOString());
@@ -681,9 +685,19 @@ export class AgentRuntime {
 
           let result: Awaited<ReturnType<typeof tool.execute>>;
           try {
-            result = await tool.execute(call.input, {
-              workspaceRoot: this.#runtime?.workspace ?? process.cwd()
-            });
+            // Phase 12: thread parent context into tool execution so spawn tools
+            // can request a fork transcript and stamp the next spawn depth.
+            // parentRecentMessages: everything assembled for the model this turn.
+            //   This is the most accurate snapshot of "what the parent agent knows now".
+            // parentSessionId: forwarded so child session keys can be composed.
+            // depth: child runs at this+1, so spawn_subagent* read it via execContext.
+            const execContext: ToolExecutionContext = {
+              workspaceRoot: this.#runtime?.workspace ?? process.cwd(),
+              parentRecentMessages: messages.map((m) => ({ role: m.role, content: m.content })),
+              ...(input.sessionId !== undefined ? { parentSessionId: input.sessionId } : {}),
+              depth: this.#depth
+            };
+            result = await tool.execute(call.input, execContext);
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "Unknown tool execution error.";
             yield emitAndCollect(this.#event({ ...base, type: "tool_failed", callId: call.id, toolName: call.name, error: { message: errorMessage } }));
@@ -901,9 +915,38 @@ export interface AsyncSubagentOptions {
   parentTaskId?: string;
 }
 
+// Phase 12: factory options. The gateway / spawn tool populates these so the
+// factory can build the child with the correct context, depth, and parent linkage.
+export interface SubagentFactoryOptions {
+  /** Context mode: "isolated" (default) starts with empty transcript; "fork" copies parent's recent messages. */
+  contextMode?: "isolated" | "fork";
+  /** Used when contextMode === "fork": the parent's recent messages to thread into the child's first turn. */
+  parentMessages?: ReadonlyArray<{ role: string; content: string | null }>;
+  /** The depth this child will run at (parent depth + 1). The factory uses this to strip further-spawning tools when depth >= maxSpawnDepth. */
+  depth?: number;
+  /** Parent's session id; the factory may use it to compose the child's session key. */
+  parentSessionKey?: string;
+}
+
+// Convenience shape: a factory may return either an AgentRuntime directly or a
+// runtime plus first-turn input fragments (e.g. recentMessages for fork mode).
+export interface SubagentRuntimeHandle {
+  runtime: AgentRuntime;
+  /** Additional input to pass to the FIRST runTurn call (e.g. forked recentMessages). */
+  firstTurnInput?: Partial<AgentRuntimeInput>;
+}
+
 // SubagentFactory creates a new AgentRuntime for a sub-agent goal.
+// Backwards compatible: implementations may return either a bare AgentRuntime or a SubagentRuntimeHandle.
 export interface SubagentFactory {
-  create(goal: string): AgentRuntime;
+  create(goal: string, options?: SubagentFactoryOptions): AgentRuntime | SubagentRuntimeHandle;
+}
+
+function resolveSubagentHandle(result: AgentRuntime | SubagentRuntimeHandle): SubagentRuntimeHandle {
+  if ((result as SubagentRuntimeHandle).runtime !== undefined) {
+    return result as SubagentRuntimeHandle;
+  }
+  return { runtime: result as AgentRuntime };
 }
 
 // createSpawnSubagentAsyncTool returns an ExecutableTool that spawns a sub-agent asynchronously.
@@ -920,12 +963,13 @@ export function createSpawnSubagentAsyncTool(
       type: "object",
       properties: {
         goal: { type: "string", description: "The complete goal for the sub-agent." },
-        context: { type: "string", description: "Optional background context." }
+        context: { type: "string", description: "Optional background context." },
+        contextMode: { type: "string", enum: ["isolated", "fork"], description: "isolated (default): empty transcript. fork: copy parent's recent messages." }
       },
       required: ["goal"]
     },
-    async execute(rawInput) {
-      const input = rawInput as { goal: string; context?: string };
+    async execute(rawInput, execContext) {
+      const input = rawInput as { goal: string; context?: string; contextMode?: "isolated" | "fork" };
       const taskId = `task_${crypto.randomUUID()}`;
 
       // Create a task record if store is available
@@ -941,14 +985,25 @@ export function createSpawnSubagentAsyncTool(
 
       // Fire and forget — run in background, tracking status transitions
       const message = input.context !== undefined ? `${input.goal}\n\nContext:\n${input.context}` : input.goal;
+      const factoryOptions: SubagentFactoryOptions = {
+        contextMode: input.contextMode ?? "isolated",
+        depth: (execContext?.depth ?? 0) + 1,
+        ...(execContext?.parentRecentMessages !== undefined ? { parentMessages: execContext.parentRecentMessages } : {}),
+        ...(execContext?.parentSessionId !== undefined ? { parentSessionKey: execContext.parentSessionId } : {})
+      };
       void (async () => {
         if (options?.taskStore !== undefined) {
           await options.taskStore.update(taskId, { status: "running" });
         }
-        const subRuntime = factory.create(input.goal);
+        const handle = resolveSubagentHandle(factory.create(input.goal, factoryOptions));
+        const subRuntime = handle.runtime;
         let assistantText = "";
         let failed = false;
-        for await (const event of subRuntime.runTurn({ message })) {
+        const firstInput: AgentRuntimeInput = {
+          message,
+          ...(handle.firstTurnInput ?? {})
+        };
+        for await (const event of subRuntime.runTurn(firstInput)) {
           if (event.type === "assistant_message_created") assistantText = event.message.content;
           if (event.type === "run_failed") failed = true;
         }
@@ -1032,15 +1087,26 @@ export function createSpawnSubagentTool(factory: SubagentFactory): ExecutableToo
       },
       required: ["goal"]
     },
-    async execute(rawInput, _execContext): Promise<SpawnSubagentResult> {
-      const input = rawInput as { goal: string; context?: string };
+    async execute(rawInput, execContext): Promise<SpawnSubagentResult> {
+      const input = rawInput as { goal: string; context?: string; contextMode?: "isolated" | "fork" };
 
-      const subRuntime = factory.create(input.goal);
+      const factoryOptions: SubagentFactoryOptions = {
+        contextMode: input.contextMode ?? "isolated",
+        depth: (execContext?.depth ?? 0) + 1,
+        ...(execContext?.parentRecentMessages !== undefined ? { parentMessages: execContext.parentRecentMessages } : {}),
+        ...(execContext?.parentSessionId !== undefined ? { parentSessionKey: execContext.parentSessionId } : {})
+      };
+      const handle = resolveSubagentHandle(factory.create(input.goal, factoryOptions));
+      const subRuntime = handle.runtime;
       let assistantText = "";
       let failed = false;
       let errorMsg = "";
 
-      for await (const event of subRuntime.runTurn({ message: input.goal })) {
+      const firstInput: AgentRuntimeInput = {
+        message: input.goal,
+        ...(handle.firstTurnInput ?? {})
+      };
+      for await (const event of subRuntime.runTurn(firstInput)) {
         if (event.type === "assistant_message_created") {
           assistantText = event.message.content;
         }

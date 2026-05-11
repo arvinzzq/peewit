@@ -1619,6 +1619,110 @@ async function collect(events: AsyncIterable<RuntimeEvent>): Promise<RuntimeEven
   return collected;
 }
 
+describe("SubagentFactory options (Phase 12: depth + fork)", () => {
+  test("spawn_subagent passes depth = parent depth + 1 to factory", async () => {
+    const seenOptions: Array<{ goal: string; depth?: number; contextMode?: string; parentMessagesLen?: number }> = [];
+    const factory: SubagentFactory = {
+      create: (goal, opts) => {
+        seenOptions.push({
+          goal,
+          ...(opts?.depth !== undefined ? { depth: opts.depth } : {}),
+          ...(opts?.contextMode !== undefined ? { contextMode: opts.contextMode } : {}),
+          ...(opts?.parentMessages !== undefined ? { parentMessagesLen: opts.parentMessages.length } : {})
+        });
+        return new AgentRuntime({
+          modelProvider: new FakeModelProvider([{ type: "message", content: "ok" }]),
+          systemInstruction: "Sub.",
+          runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-11" }
+        });
+      }
+    };
+
+    const tool = createSpawnSubagentTool(factory);
+    await tool.execute(
+      { goal: "Task A" },
+      { workspaceRoot: "/workspace", depth: 0, parentSessionId: "p_session" }
+    );
+
+    expect(seenOptions[0]?.depth).toBe(1);
+  });
+
+  test("spawn_subagent_async forwards contextMode and parentRecentMessages to factory", async () => {
+    let seenContextMode: string | undefined;
+    let seenParentLen = 0;
+
+    const factory: SubagentFactory = {
+      create: (_goal, opts) => {
+        seenContextMode = opts?.contextMode;
+        seenParentLen = opts?.parentMessages?.length ?? 0;
+        return new AgentRuntime({
+          modelProvider: new FakeModelProvider([{ type: "message", content: "ok" }]),
+          systemInstruction: "Sub.",
+          runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-11" }
+        });
+      }
+    };
+
+    const taskStore: AsyncTaskStore = {
+      async create(record) { return { id: record.id }; },
+      async update() {},
+      async get() { return undefined; },
+      async drainPendingForParent() { return []; }
+    };
+
+    const tool = createSpawnSubagentAsyncTool(factory, { taskStore });
+    await tool.execute(
+      { goal: "Forked task", contextMode: "fork" },
+      {
+        workspaceRoot: "/workspace",
+        depth: 0,
+        parentRecentMessages: [
+          { role: "user", content: "Hello" },
+          { role: "assistant", content: "Hi there" }
+        ]
+      }
+    );
+    await new Promise((r) => setTimeout(r, 30));
+
+    expect(seenContextMode).toBe("fork");
+    expect(seenParentLen).toBe(2);
+  });
+
+  test("factory returning SubagentRuntimeHandle passes firstTurnInput.recentMessages to the child's first runTurn", async () => {
+    const childMessagesSeen: Array<{ role: string; count: number }> = [];
+    const childProvider = new FakeModelProvider([{ type: "message", content: "forked ok" }]);
+    const factory: SubagentFactory = {
+      create: () => {
+        const runtime = new AgentRuntime({
+          modelProvider: childProvider,
+          systemInstruction: "Sub.",
+          runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-11" }
+        });
+        return {
+          runtime,
+          firstTurnInput: {
+            recentMessages: [
+              { role: "user", content: "prior user msg" },
+              { role: "assistant", content: "prior assistant msg" }
+            ]
+          }
+        };
+      }
+    };
+    const tool = createSpawnSubagentTool(factory);
+    await tool.execute({ goal: "Forked goal" }, { workspaceRoot: "/workspace" });
+
+    const sentMessages = childProvider.requests[0]?.messages ?? [];
+    childMessagesSeen.push({
+      role: "all",
+      count: sentMessages.length
+    });
+    // Forked messages should appear in the messages array (not the system instruction).
+    expect(sentMessages.some((m) => m.content === "prior user msg")).toBe(true);
+    expect(sentMessages.some((m) => m.content === "prior assistant msg")).toBe(true);
+  });
+});
+
 describe("createSpawnSubagentAsyncTool — pendingAnnouncement writes (Phase 12)", () => {
   test("writes pendingAnnouncement with status and terminalSummary when parentTaskId is set", async () => {
     const factory: SubagentFactory = {

@@ -29,6 +29,12 @@ export interface ToolDefinition {
 
 export interface ToolExecutionContext {
   workspaceRoot: string;
+  /** Phase 12: parent runtime's recent messages, passed by AgentRuntime so spawn tools can fork the transcript into a child session. */
+  parentRecentMessages?: ReadonlyArray<{ role: string; content: string | null }>;
+  /** Phase 12: parent session id; used by spawn tools to compose child session keys. */
+  parentSessionId?: string;
+  /** Phase 12: current spawn depth — 0 for top-level user runs, parent depth + 1 for spawned children. */
+  depth?: number;
 }
 
 export interface ToolExecutionError {
