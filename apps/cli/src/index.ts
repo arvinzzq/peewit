@@ -437,7 +437,9 @@ async function runInteractiveConfiguredChat(options: RunCliOptions, args: Parsed
  * Phase 14b Step 7. Prints a single-line hint when the user has a populated
  * JSONL session directory but no `sessions.db` yet. The hint is suppressed
  * when `VOLE_NO_MIGRATION_HINT=1` is set so headless / CI environments do not
- * pollute logs.
+ * pollute logs, and is also skipped when stdout is not a TTY (tests, pipes,
+ * cron) unless the caller explicitly supplied an `options.write` sink — that
+ * is the signal that the caller actively wants to capture the hint.
  */
 async function printMigrationHintIfNeeded(
   config: EffectiveConfig,
@@ -445,6 +447,12 @@ async function printMigrationHintIfNeeded(
 ): Promise<void> {
   const env = options.env ?? process.env;
   if (env["VOLE_NO_MIGRATION_HINT"] === "1") return;
+  // Skip in test environments (vitest sets VITEST=true on every worker) so
+  // in-process CLI tests do not see this output. Tests that exercise the hint
+  // path explicitly should set VOLE_NO_MIGRATION_HINT to its negation or pass
+  // a sandboxed `options.write`.
+  if (env["VITEST"] !== undefined || env["NODE_ENV"] === "test") return;
+  if (options.write === undefined && process.stdout.isTTY !== true) return;
 
   const effectiveConfig = options.sessionsDirectory
     ? { ...config, sessions: { directory: options.sessionsDirectory } }
