@@ -1,6 +1,6 @@
 # Run Queue
 
-Status: Active
+Status: Active (Phase 0–10 shipped via SessionMutex; Phase 11 replaces it with lanes)
 Date: 2026-05-11
 
 Simplified Chinese version: [run-queue.zh-CN.md](./run-queue.zh-CN.md)
@@ -9,7 +9,7 @@ Simplified Chinese version: [run-queue.zh-CN.md](./run-queue.zh-CN.md)
 
 The run queue controls how Vole accepts, orders, executes, and persists agent runs.
 
-OpenClaw research shows that runs are serialized per session and coordinated through queues and session write locks. Vole should adopt this architecture in stages.
+OpenClaw research shows that runs are serialized per session and coordinated through queues and session write locks. Vole adopts this architecture in stages: a single in-process `SessionMutex` through Phase 10, then a real three-tier lane system in Phase 11 (see [Lanes](./lanes.md) and [Gateway](./gateway.md)).
 
 The core rule:
 
@@ -29,27 +29,31 @@ That creates risks:
 
 The run queue gives Vole predictable execution and persistence behavior.
 
-## 3. MVP Scope
+## 3. Phased Scope
 
-MVP does not need a complex distributed queue.
-
-MVP should include:
+Phase 0–10 shipped a single-process MVP with:
 
 - Explicit run IDs
-- One active run per CLI session
+- One active run per CLI session (enforced by `SessionMutex`)
 - In-memory run state
 - Safe cancellation path
 - Ordered session writes
 - Trace events tied to run ID
+- Background run scheduling via `vole daemon` (Phase 8)
 
-MVP can defer:
+Phase 11 expands this with:
 
-- Persistent queue
-- Cross-process coordination
-- Background run scheduling
-- Multi-agent routing
-- Remote node execution
-- Run retry policy
+- Three-tier lane admission (global / subagent / session) — see [Lanes](./lanes.md)
+- Cross-process file lock around session JSONL writes
+- Structured session keys (`agent:<id>:<lane-type>:<uuid>`)
+- Gateway-mediated submit / cancel / subscribe — see [Gateway](./gateway.md)
+
+Still deferred to later phases:
+
+- Persistent / disk-backed queue (Phase 14 SQLite TaskFlow handles cross-session persistence)
+- Remote node execution (Phase 17+)
+- Run retry policy at the queue level
+- Steering messages (Phase 12 introduces `subagents steer`; user-facing steering is later)
 
 ## 4. Run Identity
 
@@ -69,47 +73,42 @@ The run ID should appear in trace metadata and session records.
 
 ## 5. Session Serialization
 
-Vole should eventually serialize runs per session.
+Vole serializes runs per session.
 
 Rule:
 
 Only one run should actively mutate a session at a time.
 
-If a second run is requested for the same session, the system can:
+Through Phase 10 this was enforced by `SessionMutex` in `packages/sessions`. Phase 11 replaces the mutex with a session lane whose concurrency is fixed at 1; the lane is the strict generalization of the mutex. The user-visible behavior is identical: a second submit for the same session waits for the first to finish (queued, not rejected).
 
-- Reject it
-- Queue it
-- Ask the user whether to cancel the active run
-- Treat it as a steering message in future phases
-
-MVP can start by rejecting overlapping runs inside the same CLI process.
+If a second run is requested for the same session, the system queues it on the session lane. Future phases may add steering paths that let an active run absorb new instructions instead of waiting in line.
 
 ## 6. Global Queue
 
-A future global queue can limit total concurrent work across sessions.
+Phase 11 introduces a global lane (default concurrency 16) plus a dedicated subagent lane (default concurrency 8). Every run passes through the global lane; sub-agent-initiated runs also pass through the subagent lane.
 
-This matters when Vole supports:
+This bounds total concurrent work across:
 
 - Multiple sessions
-- Web UI
+- CLI + Web running side by side
 - Background automation
-- Messaging channels
-- Multi-agent routing
+- Sub-agent spawns
+- Future messaging channels
 
-MVP can defer a global queue, but the run model should leave room for one.
+Configuration lives under `gateway.lanes.*`. Defaults match OpenClaw's documented limits and can be tuned per workspace.
 
 ## 7. Session Write Lock
 
 Session write locks protect session history and trace persistence.
 
-The lock should ensure:
+The lock ensures:
 
 - Messages are appended in order.
 - Tool observations attach to the correct run.
 - Trace events remain ordered for a session.
 - Compaction or memory flush does not race with normal writes.
 
-MVP can use simple single-process ordering. Later phases can implement explicit locks in the session storage layer.
+Phase 0–10 relied on `SessionMutex` for in-process ordering. Phase 11 layers a process-aware file lock on top: the session lane orders writes within one Node process, while a `.lock` sidecar file (with PID + start time, 60 s acquire timeout) prevents a second `vole` process from interleaving writes on the same session JSONL. Stale locks (PID no longer alive) are reclaimed automatically.
 
 ## 8. Run States
 

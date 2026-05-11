@@ -1,6 +1,6 @@
 # Run Queue
 
-状态：活跃
+状态：活跃（Phase 0–10 通过 SessionMutex 交付；Phase 11 以 lane 替换）
 日期：2026-05-11
 
 English version: [run-queue.md](./run-queue.md)
@@ -9,7 +9,7 @@ English version: [run-queue.md](./run-queue.md)
 
 Run queue 控制 Vole 如何接受、排序、执行和持久化 agent runs。
 
-OpenClaw 调研显示，runs 会按 session 序列化，并通过 queues 和 session write locks 协调。Vole 应分阶段采用这个架构。
+OpenClaw 调研显示，runs 会按 session 序列化，并通过 queues 和 session write locks 协调。Vole 分阶段采用这个架构：Phase 10 之前用单进程 `SessionMutex`，Phase 11 起改为真正的三层 lane 系统（见 [Lanes](./lanes.zh-CN.md) 与 [Gateway](./gateway.zh-CN.md)）。
 
 核心规则：
 
@@ -29,27 +29,31 @@ OpenClaw 调研显示，runs 会按 session 序列化，并通过 queues 和 ses
 
 Run queue 给 Vole 提供可预测执行和持久化行为。
 
-## 3. MVP 范围
+## 3. 分阶段范围
 
-MVP 不需要复杂 distributed queue。
+Phase 0–10 交付了单进程 MVP，包含：
 
-MVP 应包含：
-
-- Explicit run IDs
-- 每个 CLI session 一个 active run
-- In-memory run state
-- Safe cancellation path
-- Ordered session writes
+- 显式 run ID
+- 每个 CLI session 一个 active run（由 `SessionMutex` 强制）
+- 进程内 run state
+- 安全的 cancellation 路径
+- 有序的 session 写入
 - 绑定 run ID 的 trace events
+- 通过 `vole daemon` 的后台 run 调度（Phase 8）
 
-MVP 可以延后：
+Phase 11 在此之上扩展：
 
-- Persistent queue
-- Cross-process coordination
-- Background run scheduling
-- Multi-agent routing
-- Remote node execution
-- Run retry policy
+- 三层 lane 准入（global / subagent / session）—— 见 [Lanes](./lanes.zh-CN.md)
+- session JSONL 写入周围的跨进程文件锁
+- 结构化 session key（`agent:<id>:<lane-type>:<uuid>`）
+- gateway 中介的 submit / cancel / subscribe —— 见 [Gateway](./gateway.zh-CN.md)
+
+仍延后到后续 phase：
+
+- 持久化 / 磁盘后端 queue（Phase 14 SQLite TaskFlow 处理跨 session 持久化）
+- 远程节点执行（Phase 17+）
+- Queue 层面的 run 重试策略
+- Steering 消息（Phase 12 引入 `subagents steer`；面向用户的 steering 更晚）
 
 ## 4. Run Identity
 
@@ -69,47 +73,42 @@ Run ID 应出现在 trace metadata 和 session records 中。
 
 ## 5. Session Serialization
 
-Vole 最终应按 session 序列化 runs。
+Vole 按 session 序列化 runs。
 
 规则：
 
 同一时间只有一个 run 应主动 mutate 一个 session。
 
-如果同一 session 请求第二个 run，系统可以：
+Phase 10 之前由 `packages/sessions` 中的 `SessionMutex` 强制。Phase 11 将 mutex 替换为并发固定为 1 的 session lane；lane 是 mutex 的严格泛化。用户可见行为相同：同一 session 的第二次提交等待第一个完成（排队，不拒绝）。
 
-- Reject it
-- Queue it
-- 询问用户是否取消 active run
-- 在未来 phases 中把它当作 steering message
-
-MVP 可以从在同一 CLI process 内拒绝 overlapping runs 开始。
+如果同一 session 请求第二个 run，系统在 session lane 上排队。未来 phase 可能加入 steering 路径，让活跃 run 吸收新指令而非排队等待。
 
 ## 6. Global Queue
 
-未来 global queue 可以限制跨 sessions 的总并发工作。
+Phase 11 引入 global lane（默认并发 16），加上一个专门的 subagent lane（默认并发 8）。每个 run 都穿过 global lane；子代理触发的 run 也穿过 subagent lane。
 
-当 Vole 支持以下能力时，这会很重要：
+这限定了跨以下场景的总并发工作：
 
-- Multiple sessions
-- Web UI
-- Background automation
-- Messaging channels
-- Multi-agent routing
+- 多个 session
+- CLI 与 Web 并行运行
+- 后台自动化
+- 子代理 spawn
+- 未来的消息 channel
 
-MVP 可以延后 global queue，但 run model 应为它留空间。
+配置位于 `gateway.lanes.*`。默认值对齐 OpenClaw 文档的限值，可以按 workspace 调整。
 
 ## 7. Session Write Lock
 
 Session write locks 保护 session history 和 trace persistence。
 
-Lock 应确保：
+Lock 确保：
 
 - Messages 按顺序追加。
 - Tool observations 附到正确 run。
 - Trace events 在一个 session 内保持顺序。
 - Compaction 或 memory flush 不与普通 writes 竞争。
 
-MVP 可以使用简单 single-process ordering。后续 phases 可以在 session storage layer 实现显式 locks。
+Phase 0–10 依赖 `SessionMutex` 做进程内排序。Phase 11 在其上叠加进程感知的文件锁：session lane 在一个 Node 进程内排序写入，`.lock` 旁车文件（含 PID + 启动时间，60 秒 acquire 超时）阻止第二个 `vole` 进程交错写入同一 session JSONL。陈旧锁（PID 已死）被自动回收。
 
 ## 8. Run States
 
