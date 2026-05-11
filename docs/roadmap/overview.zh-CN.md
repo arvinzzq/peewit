@@ -43,8 +43,16 @@ Roadmap 采用双轨方法：
 | Phase 8 | Complete | 后台自动化 | Agent 可以运行定时和事件触发任务 | Scheduler、daemon、task queue |
 | Phase 9 | Complete | Plugin 和 skill 生态 | 用户可以安装、启用、禁用和审查能力 | Plugin metadata、permission declarations、versioning |
 | Phase 10 | Complete | 完整个人 Agent 平台 | OpenClaw-like 的个人 Agent，具备多模型、多 Agent、多节点和沙箱化工具 | Gateway、multi-agent runtime、node protocol、sandboxing |
+| Phase 11 | 计划中 | Gateway 与 lane 基础设施 | 跨进程安全的运行时基础 | GatewayCore、LaneRegistry、session key 命名、文件锁 |
+| Phase 12 | 计划中 | 多代理运行时成熟化 | 推送式完成、fork 模式、深度与并发策略的子代理 | 子代理 push announce、fork context、子代理管理面板 |
+| Phase 13 | 计划中 | 记忆与提示增强 | 混合记忆搜索、DREAMS.md 审阅、完整 14 段 prompt | EmbeddingProvider、DREAMS 工作流、压缩前 flush、inline 指令 |
+| Phase 14 | 计划中 | SQLite 存储统一升级 | 规模化的 session / TaskFlow / 记忆索引 | SQLite store、FTS5 记忆索引、迁移工具 |
+| Phase 15 | 计划中 | Channels 与多 Agent 身份 | Telegram 与 Email channel，独立 Agent 身份 | agents/<id>/ 布局、Channel 接口、Telegram、Email |
+| Phase 16 | 计划中 | 沙箱与插件运行时 | 第三方 skill 的安全执行、Docker / worker 沙箱、doctor 工具 | SandboxBackend、WorkerThreadSandbox、vole doctor |
 
 部分后续阶段的学习文档会先以 planned filenames 的形式列出，实际文件尚未存在。它们应该在对应 phase 被正式设计时创建，而不是在 MVP setup 阶段一次性全部创建。
+
+Phase 11–16 已规划。每个 phase 在 `docs/plans/phase-NN-*.md` 下都有详细计划文档；下方第 15–20 节仅作总览。
 
 进度细节保存在 phase plan 文档中。Roadmap status 应保持高层，只在 phase 开始、完成或 scope 出现实质变化时更新。
 
@@ -532,3 +540,75 @@ Phase 0–10 已全部完成。OpenClaw 对齐 Backlog 最初追踪 18 项能力
 | WebSocket 支持 | ✓ 已交付 | `apps/web` 的 `/ws/:id` 双向通道 |
 | Thinking Budget 配置 | ✓ 已交付 | `VOLE_THINKING_BUDGET`、Anthropic provider |
 | 记忆 Dreaming / 晋升 | ✓ 已交付 | `vole run --dream` 整理流程 |
+
+### 已知的折扣交付
+
+Phase 0–10 的部分设计虽然写入了架构文档，但实际交付比原设计窄。新成员不应假设这些能力按文档描述存在：
+
+| 能力 | 设计 | 实际交付 | 由哪个 Phase 关闭 |
+| --- | --- | --- | --- |
+| 子代理 `fork` 上下文模式 | `openclaw-alignment.md` Gap 15 中已记录 | 仅实现 `isolated` 模式；`fork` 参数未暴露 | Phase 12 |
+| "多 Agent" 语义 | Phase 10 目标列出多 Agent | 仅交付子代理；未构建独立 Agent 身份 | Phase 15 |
+| 沙箱多后端 | `sandboxing.md` 暗示多后端 | 仅 `cwd` 限制与路径穿越检查 | Phase 16 |
+| Channels（Telegram / Slack / Email） | `openclaw-architecture-map.md` §9–10 把 channels 列入 Phase 7+ | 无 channel package 或后端 | Phase 15 |
+| 混合记忆搜索 | `memory-system.md` 提及混合检索 | `memory_search` 仅关键词 | Phase 13 |
+
+## 15. Phase 11：Gateway 与 Lane 基础设施
+
+状态：计划中。计划文档：[phase-11-gateway-and-lanes.zh-CN.md](../plans/phase-11-gateway-and-lanes.zh-CN.md)。
+
+目标：建立后续所有 phase 共同依赖的运行时基础 —— 真正的 gateway 层、三层 lane 队列（global / subagent / session）、规范化的 session key 命名，以及跨进程写锁。
+
+新增架构：扩展的 `GatewayCore`（含 `submit / subscribe / cancel`）；新 `packages/lanes`；结构化 session key（`agent:<id>:<lane-type>:<uuid>`）；session JSONL 周围的进程感知文件锁。
+
+非目标：不做 gateway HTTP / Unix socket 传输；不做多进程 daemon；不做 SQLite 迁移（Phase 14）；除 session key 形态外不改子代理行为（Phase 12）。
+
+## 16. Phase 12：多代理运行时成熟化
+
+状态：计划中。计划文档：[phase-12-multi-agent-runtime-maturity.zh-CN.md](../plans/phase-12-multi-agent-runtime-maturity.zh-CN.md)。
+
+目标：把子代理从"轮询式隔离 spawn"升级到 OpenClaw 级别 —— 推送式完成、`fork` 上下文模式、深度与并发策略，以及 `subagents` 管理面板。
+
+新增架构：TaskFlow 记录的 `pendingAnnouncementForParent`；`SubagentFactory.create(goal, { contextMode, depth, parentSessionKey })`；lane 强制并发与 per-parent `maxChildrenPerAgent`；`runTimeoutSeconds` 取消；新 `subagents` 工具族。
+
+非目标：不做 child 的进程或 worker-thread 隔离；不做 per-child 身份（Phase 15）；不把 child 事件流并入父代理对用户可见的事件流。
+
+## 17. Phase 13：记忆与提示增强
+
+状态：计划中。计划文档：[phase-13-memory-and-prompt-enhancement.zh-CN.md](../plans/phase-13-memory-and-prompt-enhancement.zh-CN.md)。
+
+目标：基于 embedding 的混合记忆检索、可审阅的 DREAMS.md promotion 流程、与 OpenClaw 对齐的完整 14 段 system prompt、压缩前记忆 flush，以及 inline 指令解析（`/think`、`/stop`、`/compact`、`NO_REPLY`）。
+
+新增架构：新 `packages/memory`；带 OpenAI 与 Voyage 适配的 `EmbeddingProvider`；`memory_search` 中的 reciprocal rank fusion；`DREAMS.md` 与 `vole memory review`；六个新 prompt section（Reasoning、Reply Tags、Documentation、Self-Update、Execution Bias、Current Date & Time）。
+
+非目标：不做 Gemini / Mistral embedding；不做 SQLite（Phase 14）；不做 memory-core 插件接口（Phase 16）；不做 per-agent 记忆隔离（Phase 15）。
+
+## 18. Phase 14：SQLite 存储统一升级
+
+状态：计划中。计划文档：[phase-14-sqlite-storage-unification.zh-CN.md](../plans/phase-14-sqlite-storage-unification.zh-CN.md)。
+
+目标：把所有持久化 store 从 JSONL 迁移到 SQLite —— sessions、TaskFlow 记录、记忆索引 —— 带 FTS5 关键词搜索、索引化查询，以及原子多记录更新。
+
+新增架构：`better-sqlite3` 依赖；`SqliteSessionStore`、`SqliteTaskFlowStore`、带 FTS5 与可选 `sqlite-vec` 的 SQLite 记忆索引；`vole migrate jsonl-to-sqlite` 命令；启动迁移提示；schema 版本控制。
+
+非目标：不做 PostgreSQL / 远程数据库；不做 schema migration DSL；不从代码库移除 JSONL store。
+
+## 19. Phase 15：Channels 与多 Agent 身份
+
+状态：计划中。计划文档：[phase-15-channels-and-multi-agent-identity.zh-CN.md](../plans/phase-15-channels-and-multi-agent-identity.zh-CN.md)。
+
+目标：引入独立的多 Agent 身份（`agents/<id>/` 各自拥有 SOUL / AGENTS / MEMORY / 凭证）和真实 channel 集成（Telegram、Email），让 Vole 成为多界面个人代理平台。
+
+新增架构：per-agent workspace 子树；`agents.list[]` 配置；`vole agents` CLI 子命令；带 `Channel` 接口的 `packages/channels`；Telegram 与 Email 后端；带 MEMORY.md 访问隐私防护的 gateway channel 路由。
+
+非目标：不做 Slack / Discord / WhatsApp / webhook channel（Phase 17+）；不做跨 Agent 直接调用；不做托管多租户部署；不做 Agent 进程隔离。
+
+## 20. Phase 16：沙箱与插件运行时
+
+状态：计划中。计划文档：[phase-16-sandbox-and-plugin-runtime.zh-CN.md](../plans/phase-16-sandbox-and-plugin-runtime.zh-CN.md)。
+
+目标：用真正的沙箱后端（workspace、Docker、worker thread）取代单一布尔；worker-thread 隔离的插件运行时让不可信 skill 不会弄崩主进程；`vole doctor` 自维护。
+
+新增架构：`SandboxBackend` 接口；`DockerSandbox`；把不可信 skill 路由至 `WorkerThreadSandbox`（带 timeout / 内存上限）；`vole doctor` 与 `vole doctor --fix` 处理陈旧子代理记录、孤儿 TaskFlow 行、残留锁文件。
+
+非目标：不做 firejail / bubblewrap 集成；不直接使用 cgroup；不强制每个工具沙箱化；不做远程沙箱派发。

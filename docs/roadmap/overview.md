@@ -43,8 +43,16 @@ The roadmap follows a dual-track approach:
 | Phase 8 | Complete | Background automation | Agent can run scheduled and event-triggered tasks | Scheduler, daemon, task queue |
 | Phase 9 | Complete | Plugin and skill ecosystem | User can install, enable, disable, and review capabilities | Plugin metadata, permission declarations, versioning |
 | Phase 10 | Complete | Full personal agent platform | OpenClaw-like personal agent with multiple models, agents, nodes, and sandboxed tools | Gateway, multi-agent runtime, node protocol, sandboxing |
+| Phase 11 | Planned | Gateway and lanes | Cross-process safe runtime infrastructure | GatewayCore, LaneRegistry, session key naming, file lock |
+| Phase 12 | Planned | Multi-agent runtime maturity | Push-completion sub-agents with fork mode, depth and concurrency policy | Sub-agent push announce, fork context, sub-agent management surface |
+| Phase 13 | Planned | Memory and prompt enhancement | Hybrid memory search, DREAMS.md review, full 14-section prompt | EmbeddingProvider, DREAMS workflow, pre-compaction flush, inline directives |
+| Phase 14 | Planned | SQLite storage unification | Indexed session / TaskFlow / memory storage at scale | SQLite stores, FTS5 memory index, migration tooling |
+| Phase 15 | Planned | Channels and multi-agent identity | Telegram and email channels with independent agent identities | agents/<id>/ layout, Channel interface, Telegram, Email |
+| Phase 16 | Planned | Sandbox and plugin runtime | Safe third-party skill execution, Docker / worker sandboxing, doctor tool | SandboxBackend, WorkerThreadSandbox, vole doctor |
 
 Some later-phase learning documents are listed as planned filenames before they exist. They should be created when that phase is being actively designed, not all at once during MVP setup.
+
+Phases 11–16 are planned. Each has a detailed plan document under `docs/plans/phase-NN-*.md`; sections 15–20 below summarize them at a glance.
 
 Progress detail lives in the phase plan documents. Roadmap status should stay high level and should be updated when a phase starts, completes, or materially changes scope.
 
@@ -535,3 +543,75 @@ Full design and iteration history: [OpenClaw Alignment Plan](../plans/openclaw-a
 | WebSocket support | ✓ Shipped | `apps/web` `/ws/:id` bidirectional channel |
 | Thinking budget configuration | ✓ Shipped | `VOLE_THINKING_BUDGET`, Anthropic provider |
 | Memory dreaming / promotion | ✓ Shipped | `vole run --dream` consolidation flow |
+
+### Known Partial Deliveries
+
+Some Phase 0–10 designs landed in architecture documents but shipped narrower than the original design. New contributors should not assume these capabilities exist as documented:
+
+| Capability | Design | Actual delivery | Closes in |
+| --- | --- | --- | --- |
+| Sub-agent `fork` context mode | Documented in `openclaw-alignment.md` Gap 15 | Only `isolated` mode implemented; `fork` parameter not exposed | Phase 12 |
+| "Multi-agent" semantics | Phase 10 goal listed multi-agent | Only sub-agents shipped; independent agent identities not built | Phase 15 |
+| Sandbox multi-backend | `sandboxing.md` implies multiple backends | Only `cwd` restriction and path traversal checks | Phase 16 |
+| Channels (Telegram / Slack / Email) | `openclaw-architecture-map.md` §9–10 lists channels under Phase 7+ | No channel package or backend present | Phase 15 |
+| Hybrid memory search | `memory-system.md` mentions hybrid retrieval | `memory_search` is keyword-only | Phase 13 |
+
+## 15. Phase 11: Gateway and Lanes
+
+Status: Planned. Plan document: [phase-11-gateway-and-lanes.md](../plans/phase-11-gateway-and-lanes.md).
+
+Goal: establish the runtime infrastructure that every subsequent phase depends on — a real gateway layer, three-tier lane queues (global / subagent / session), normalized session key naming, and cross-process write locks.
+
+Architecture added: expanded `GatewayCore` with `submit / subscribe / cancel`; new `packages/lanes`; structured session keys (`agent:<id>:<lane-type>:<uuid>`); process-aware file lock around session JSONL.
+
+Non-goals: no gateway HTTP / Unix socket transport; no multi-process daemon; no SQLite migration (Phase 14); no sub-agent behavior changes beyond key shape (Phase 12).
+
+## 16. Phase 12: Multi-Agent Runtime Maturity
+
+Status: Planned. Plan document: [phase-12-multi-agent-runtime-maturity.md](../plans/phase-12-multi-agent-runtime-maturity.md).
+
+Goal: upgrade sub-agents from polling-based isolated spawn to OpenClaw-grade execution — push-based completion, `fork` context mode, depth and concurrency policy, and a `subagents` management surface.
+
+Architecture added: `pendingAnnouncementForParent` on TaskFlow records; `SubagentFactory.create(goal, { contextMode, depth, parentSessionKey })`; lane-enforced concurrency and per-parent `maxChildrenPerAgent`; `runTimeoutSeconds` cancellation; new `subagents` tool family.
+
+Non-goals: no process or worker-thread isolation of children; no per-child identity (Phase 15); no streaming of child events into parent's user-facing stream.
+
+## 17. Phase 13: Memory and Prompt Enhancement
+
+Status: Planned. Plan document: [phase-13-memory-and-prompt-enhancement.md](../plans/phase-13-memory-and-prompt-enhancement.md).
+
+Goal: hybrid memory retrieval with embeddings, reviewable DREAMS.md promotion workflow, a complete 14-section system prompt aligned with OpenClaw, pre-compaction memory flush, and inline directive parsing (`/think`, `/stop`, `/compact`, `NO_REPLY`).
+
+Architecture added: new `packages/memory`; `EmbeddingProvider` with OpenAI and Voyage adapters; reciprocal rank fusion in `memory_search`; `DREAMS.md` plus `vole memory review`; six new prompt sections (Reasoning, Reply Tags, Documentation, Self-Update, Execution Bias, Current Date & Time).
+
+Non-goals: no Gemini / Mistral embeddings; no SQLite (Phase 14); no memory-core plugin interface (Phase 16); no per-agent memory isolation (Phase 15).
+
+## 18. Phase 14: SQLite Storage Unification
+
+Status: Planned. Plan document: [phase-14-sqlite-storage-unification.md](../plans/phase-14-sqlite-storage-unification.md).
+
+Goal: migrate all persistent stores from JSONL to SQLite — sessions, TaskFlow records, and the memory index — with FTS5 keyword search, indexed queries, and atomic multi-record updates.
+
+Architecture added: `better-sqlite3` dependency; `SqliteSessionStore`, `SqliteTaskFlowStore`, SQLite memory index with FTS5 plus optional `sqlite-vec`; `vole migrate jsonl-to-sqlite` command; startup migration prompt; schema versioning.
+
+Non-goals: no PostgreSQL / remote database; no schema migration DSL; no removal of JSONL stores from the codebase.
+
+## 19. Phase 15: Channels and Multi-Agent Identity
+
+Status: Planned. Plan document: [phase-15-channels-and-multi-agent-identity.md](../plans/phase-15-channels-and-multi-agent-identity.md).
+
+Goal: introduce independent multi-agent identity (`agents/<id>/` with own SOUL / AGENTS / MEMORY / credentials) and real channel integrations (Telegram and email) so Vole becomes a multi-surface personal agent platform.
+
+Architecture added: per-agent workspace subtree; `agents.list[]` config; `vole agents` CLI subcommands; `packages/channels` with `Channel` interface; Telegram and Email backends; gateway channel routing with privacy guards on MEMORY.md access.
+
+Non-goals: no Slack / Discord / WhatsApp / webhook channels (Phase 17+); no cross-agent direct invocation; no hosted multi-tenant deployment; no agent process isolation.
+
+## 20. Phase 16: Sandbox and Plugin Runtime
+
+Status: Planned. Plan document: [phase-16-sandbox-and-plugin-runtime.md](../plans/phase-16-sandbox-and-plugin-runtime.md).
+
+Goal: real sandbox backends (workspace, Docker, worker thread) instead of a single boolean; worker-thread-isolated plugin runtime so untrusted skills cannot crash the main process; `vole doctor` self-maintenance.
+
+Architecture added: `SandboxBackend` interface; `DockerSandbox`; `WorkerThreadSandbox` routing untrusted skills with timeout / memory caps; `vole doctor` and `vole doctor --fix` for stale subagent records, orphan TaskFlow rows, residual lock files.
+
+Non-goals: no firejail / bubblewrap integration; no direct cgroup usage; no mandatory sandboxing of every tool; no remote sandbox dispatch.
