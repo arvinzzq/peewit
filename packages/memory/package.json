@@ -16,6 +16,10 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@vole/tools": "workspace:*"
+    "@vole/tools": "workspace:*",
+    "better-sqlite3": "^12.9.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13"
   }
 }

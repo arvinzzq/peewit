@@ -5,10 +5,12 @@ import { tmpdir } from "node:os";
 import type { AppendDailyMemoryResult, MemoryGetResult, MemorySearchResult } from "@vole/tools";
 import {
   FakeEmbeddingProvider,
+  SqliteMemoryIndex,
   applyDreamDecision,
   createAppendDailyMemoryTool,
   createMemoryGetTool,
   createMemorySearchTool,
+  openWorkspaceMemoryIndex,
   parseDreamsFile,
   readDreamsFile,
   serializeDreamsFile,
@@ -402,6 +404,90 @@ describe("createMemoryGetTool", () => {
       expect(result.content).toBeUndefined();
     } finally {
       await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("SqliteMemoryIndex (FTS5)", () => {
+  test("indexes paragraphs and finds matches via FTS5", async () => {
+    const ws = await mkdtemp(join(tmpdir(), "vole-memidx-"));
+    try {
+      await writeFile(
+        join(ws, "MEMORY.md"),
+        "User prefers concise responses.\n\nProject uses TypeScript and pnpm workspaces."
+      );
+      const index = new SqliteMemoryIndex({ databasePath: join(ws, "idx.db") });
+      try {
+        const stats = await index.reindex(ws);
+        expect(stats.filesReindexed).toBe(1);
+        expect(stats.paragraphsIndexed).toBe(2);
+
+        const results = index.search("typescript");
+        expect(results.length).toBeGreaterThan(0);
+        expect(results[0]?.excerpt).toContain("TypeScript");
+      } finally {
+        index.close();
+      }
+    } finally {
+      await rm(ws, { force: true, recursive: true });
+    }
+  });
+
+  test("reindex is idempotent when content has not changed", async () => {
+    const ws = await mkdtemp(join(tmpdir(), "vole-memidx-idem-"));
+    try {
+      await writeFile(join(ws, "MEMORY.md"), "Stable fact one.\n\nStable fact two.");
+      const index = new SqliteMemoryIndex({ databasePath: join(ws, "idx.db") });
+      try {
+        const first = await index.reindex(ws);
+        expect(first.filesReindexed).toBe(1);
+        const second = await index.reindex(ws);
+        expect(second.filesReindexed).toBe(0);
+        const stats = index.stats();
+        expect(stats.files).toBe(1);
+        expect(stats.paragraphs).toBe(2);
+      } finally {
+        index.close();
+      }
+    } finally {
+      await rm(ws, { force: true, recursive: true });
+    }
+  });
+
+  test("reindex replaces rows when file content changes", async () => {
+    const ws = await mkdtemp(join(tmpdir(), "vole-memidx-replace-"));
+    try {
+      await writeFile(join(ws, "MEMORY.md"), "First version.");
+      const index = new SqliteMemoryIndex({ databasePath: join(ws, "idx.db") });
+      try {
+        await index.reindex(ws);
+        expect(index.search("version").length).toBeGreaterThan(0);
+        await writeFile(join(ws, "MEMORY.md"), "Replacement text uses chromium browser.");
+        const after = await index.reindex(ws);
+        expect(after.filesReindexed).toBe(1);
+        expect(index.search("chromium").length).toBeGreaterThan(0);
+        expect(index.search("first").length).toBe(0);
+      } finally {
+        index.close();
+      }
+    } finally {
+      await rm(ws, { force: true, recursive: true });
+    }
+  });
+
+  test("openWorkspaceMemoryIndex creates the index file", async () => {
+    const ws = await mkdtemp(join(tmpdir(), "vole-memidx-open-"));
+    try {
+      await mkdir(join(ws, ".vole"), { recursive: true });
+      const index = openWorkspaceMemoryIndex(ws);
+      try {
+        const stats = index.stats();
+        expect(stats.files).toBe(0);
+      } finally {
+        index.close();
+      }
+    } finally {
+      await rm(ws, { force: true, recursive: true });
     }
   });
 });

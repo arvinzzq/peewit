@@ -1,13 +1,14 @@
 /**
- * INPUT: Workspace root, memory file paths (MEMORY.md, USER.md, memory/YYYY-MM-DD.md), search queries, append content, current date, optional EmbeddingProvider for vector-augmented retrieval.
- * OUTPUT: Memory tools (memory_search, memory_get, append_daily_memory) returning MemorySearchResult / MemoryGetResult / AppendDailyMemoryResult; EmbeddingProvider interface plus FakeEmbeddingProvider; hybrid retrieval with reciprocal rank fusion when an EmbeddingProvider is supplied, keyword-only otherwise.
- * POS: Memory layer; owns workspace-file reads/writes for the agent's durable mailbox plus retrieval ranking. Replaces the equivalent factories that previously lived in @vole/tools.
+ * INPUT: Workspace root, memory file paths (MEMORY.md, USER.md, memory/YYYY-MM-DD.md), search queries, append content, current date, optional EmbeddingProvider, optional SQLite FTS5 index path.
+ * OUTPUT: memory_search / memory_get / append_daily_memory tools; EmbeddingProvider + FakeEmbeddingProvider + hybrid RRF retrieval; DREAMS.md primitives; SqliteMemoryIndex (FTS5-backed reindex + search) plus openWorkspaceMemoryIndex helper.
+ * POS: Memory layer; owns workspace-file reads/writes for the agent's durable mailbox plus retrieval ranking.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
 import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, writeFile as writeFileFs, access } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
+import Database from "better-sqlite3";
 import type {
   AppendDailyMemoryResult,
   ExecutableTool,
@@ -478,3 +479,155 @@ export function createAppendDailyMemoryTool(
     }
   };
 }
+
+// ─── Phase 14b Step 5: SQLite FTS5 memory index ────────────────────────────────
+
+export const SQLITE_MEMORY_INDEX_SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS memory_files (
+    file TEXT PRIMARY KEY,
+    contentHash TEXT NOT NULL,
+    indexedAt TEXT NOT NULL
+  );
+
+  CREATE VIRTUAL TABLE IF NOT EXISTS memory_paragraphs USING fts5(
+    file UNINDEXED,
+    paragraphIdx UNINDEXED,
+    excerpt,
+    tokenize = 'porter unicode61'
+  );
+`;
+
+export interface SqliteMemoryIndexOptions {
+  databasePath: string;
+}
+
+export interface MemoryIndexSearchResult {
+  file: string;
+  excerpt: string;
+  score: number;
+}
+
+/**
+ * SqliteMemoryIndex stores every paragraph from MEMORY.md, USER.md, and
+ * memory/*.md inside a SQLite FTS5 virtual table for fast keyword search.
+ * Each file's content hash is recorded in `memory_files`; reindexing is
+ * idempotent — only files whose hash changed have their rows replaced. The
+ * search returns FTS5 bm25 scores (lower = more relevant) flipped to a
+ * descending "score" for caller convenience.
+ *
+ * The index is a complement, not a replacement, for the in-memory hybrid
+ * `memory_search` tool. Callers that want fast keyword-only retrieval at
+ * scale should use this index; the hybrid retriever continues to work for
+ * the vector + keyword RRF path documented in createMemorySearchTool.
+ */
+export class SqliteMemoryIndex {
+  readonly #db: Database.Database;
+
+  constructor(options: SqliteMemoryIndexOptions) {
+    this.#db = new Database(options.databasePath);
+    this.#db.pragma("journal_mode = WAL");
+    this.#db.pragma("synchronous = NORMAL");
+    this.#db.exec(SQLITE_MEMORY_INDEX_SCHEMA_SQL);
+  }
+
+  close(): void {
+    this.#db.close();
+  }
+
+  /**
+   * Reindex every MEMORY.md / USER.md / memory/*.md file under workspaceRoot.
+   * Returns the number of files reindexed (excluding skipped no-change files).
+   */
+  async reindex(workspaceRoot: string): Promise<{ filesReindexed: number; paragraphsIndexed: number }> {
+    const root = resolve(workspaceRoot);
+    const candidates: string[] = [];
+    for (const candidate of [join(root, "MEMORY.md"), join(root, "USER.md")]) {
+      try {
+        await access(candidate);
+        candidates.push(candidate);
+      } catch {
+        // skip
+      }
+    }
+    try {
+      const entries = await readdir(join(root, "memory"), { recursive: true, withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isFile() && entry.name.endsWith(".md")) {
+          const dir = typeof entry.parentPath === "string" ? entry.parentPath : (entry as unknown as { path: string }).path;
+          candidates.push(join(dir, entry.name));
+        }
+      }
+    } catch {
+      // memory dir missing
+    }
+
+    let filesReindexed = 0;
+    let paragraphsIndexed = 0;
+    for (const filePath of candidates) {
+      let content: string;
+      try {
+        content = await readFile(filePath, "utf8");
+      } catch {
+        continue;
+      }
+      const hash = createHash("sha256").update(content).digest("hex");
+      const relPath = relative(root, filePath);
+      const existing = this.#db
+        .prepare("SELECT contentHash FROM memory_files WHERE file = ?")
+        .get(relPath) as { contentHash?: string } | undefined;
+      if (existing?.contentHash === hash) continue;
+
+      const paragraphs = content.split(/\n\n+/).map((p) => p.trim()).filter((p) => p.length > 0);
+      const tx = this.#db.transaction(() => {
+        this.#db.prepare("DELETE FROM memory_paragraphs WHERE file = ?").run(relPath);
+        const insertPara = this.#db.prepare("INSERT INTO memory_paragraphs (file, paragraphIdx, excerpt) VALUES (?, ?, ?)");
+        paragraphs.forEach((excerpt, idx) => {
+          insertPara.run(relPath, idx, excerpt);
+        });
+        this.#db
+          .prepare("INSERT OR REPLACE INTO memory_files (file, contentHash, indexedAt) VALUES (?, ?, ?)")
+          .run(relPath, hash, new Date().toISOString());
+      });
+      tx();
+      filesReindexed++;
+      paragraphsIndexed += paragraphs.length;
+    }
+    return { filesReindexed, paragraphsIndexed };
+  }
+
+  /**
+   * Run an FTS5 MATCH query and return the top `limit` paragraphs ranked by
+   * bm25. The score is `-bm25(memory_paragraphs)` so higher = better.
+   */
+  search(query: string, limit = 5): MemoryIndexSearchResult[] {
+    const trimmed = query.trim();
+    if (trimmed.length === 0) return [];
+    // FTS5 MATCH expects a query string; wrap user input in quotes to avoid
+    // treating it as a column qualifier or operator.
+    const ftsQuery = trimmed.split(/\s+/).map((token) => `"${token.replace(/"/g, '""')}"`).join(" OR ");
+    const rows = this.#db
+      .prepare(
+        "SELECT file, excerpt, bm25(memory_paragraphs) AS score FROM memory_paragraphs WHERE memory_paragraphs MATCH ? ORDER BY score ASC LIMIT ?"
+      )
+      .all(ftsQuery, limit) as Array<{ file: string; excerpt: string; score: number }>;
+    return rows.map((row) => ({ file: row.file, excerpt: row.excerpt, score: -row.score }));
+  }
+
+  /** Returns the number of files currently tracked in the index. */
+  stats(): { files: number; paragraphs: number } {
+    const filesRow = this.#db.prepare("SELECT COUNT(*) AS n FROM memory_files").get() as { n: number };
+    const parasRow = this.#db.prepare("SELECT COUNT(*) AS n FROM memory_paragraphs").get() as { n: number };
+    return { files: filesRow.n, paragraphs: parasRow.n };
+  }
+}
+
+/**
+ * Convenience helper: open (creating if needed) a SQLite memory index file
+ * under `<workspaceRoot>/.vole/memory-index.db`. Caller is responsible for
+ * calling `close()` when finished.
+ */
+export function openWorkspaceMemoryIndex(workspaceRoot: string): SqliteMemoryIndex {
+  const dbPath = resolve(workspaceRoot, ".vole", "memory-index.db");
+  return new SqliteMemoryIndex({ databasePath: dbPath });
+}
+
