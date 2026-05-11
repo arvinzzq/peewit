@@ -1,7 +1,7 @@
 /**
- * INPUT: CLI args (parsed by commander), config (including thinkingBudget), model providers, skill loader, session/trace stores, taskflow store, built-in tools, optional fake outputs and line reader.
- * OUTPUT: Chat, approvals, tool execution, todos, skill management subcommands, session/task/taskflow listings, daemon cron scheduling, trace, redacted config, stdout/stderr, gateway session registration, run --dream memory dreaming, session persistence of all turn messages including tool calls and compaction boundaries.
- * POS: CLI adapter layer; translates terminal commands and approval prompts without owning agent behavior.
+ * INPUT: CLI args, config, model providers, skill loader, session/trace stores, taskflow store, built-in tools, optional fake outputs and line reader.
+ * OUTPUT: Chat, approvals, tool execution, todos, skill subcommands, session/task/taskflow listings, daemon cron, trace, redacted config, stdout/stderr, GatewayCore admission for chat runs (global / subagent / session lanes), run --dream consolidation, session persistence of all turn messages and compaction boundaries.
+ * POS: CLI adapter layer; translates terminal commands and approval prompts; submits chat runs to GatewayCore without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { loadConfig, redactedConfig, resolveSessionsDirectory, type EffectiveConfig, type LoadConfigInput, type RedactedConfigView } from "@vole/config";
 import { DefaultContextAssembler } from "@vole/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, createCheckSubagentTool, createSpawnSubagentAsyncTool, createSpawnSubagentTool, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore, type SubagentFactory } from "@vole/core";
-import { SessionGateway, type GatewaySession } from "@vole/gateway";
+import { GatewayCore, type GatewaySession } from "@vole/gateway";
 import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@vole/models";
 import { CLI_CAPABILITIES, filterToolsByProfile, type ToolProfile } from "@vole/adapters";
 import { BackgroundApprovalResolver, CronScheduler, JsonlTaskStore, writeHeartbeat, type HeartbeatState, type TaskDefinition, type TaskRunRecord } from "@vole/scheduler";
@@ -101,8 +101,8 @@ Keep narration brief; avoid restating what tool output already shows.
 - Add to end of file: append_file.
 - Create new files or intentional full replacement: write_file.`;
 
-/** Module-level SessionGateway singleton — tracks all active CLI sessions in this process. */
-const cliGateway = new SessionGateway();
+/** Module-level GatewayCore singleton — tracks active CLI sessions and admits every chat run through global / subagent / session lanes. */
+const cliGateway = new GatewayCore();
 
 export interface CliResult {
   exitCode: number;
@@ -1052,7 +1052,7 @@ export class CliChatSession {
   readonly #config: RedactedConfigView;
   readonly #approvalPromptLog: string[];
   readonly #skillDefinitions: SkillDefinition[];
-  readonly #gateway: SessionGateway | undefined;
+  readonly #gateway: GatewayCore | undefined;
 
   constructor(
     runtime: AgentRuntime,
@@ -1063,7 +1063,7 @@ export class CliChatSession {
     _recentMessageLimit = 12,
     approvalPromptLog: string[] = [],
     skillDefinitions: SkillDefinition[] = [],
-    gateway?: SessionGateway
+    gateway?: GatewayCore
   ) {
     this.#runtime = runtime;
     this.#config = config;
@@ -1224,7 +1224,30 @@ export class CliChatSession {
       })
     );
 
-    for await (const event of this.#runtime.runTurn({ sessionId: this.#sessionId, recentMessages, message, ...(opts.signal !== undefined ? { signal: opts.signal } : {}) })) {
+    // Route every chat run through the gateway when one is configured (production path).
+    // The gateway threads work through the global / subagent / session lanes and handles cancel.
+    // When no gateway is wired (createFake test path), fall back to direct runTurn.
+    const runId = `run_${crypto.randomUUID()}`;
+    const sessionId = this.#sessionId;
+    const runtime = this.#runtime;
+    const gateway = this.#gateway;
+    if (gateway !== undefined && opts.signal !== undefined) {
+      opts.signal.addEventListener("abort", () => { gateway.cancel(runId); }, { once: true });
+    }
+    const eventStream: AsyncIterable<RuntimeEvent> = gateway !== undefined
+      ? gateway.submit<RuntimeEvent>({
+          runId,
+          sessionKey: sessionId,
+          agentId: "default",
+          run: async function* (signal: AbortSignal) {
+            for await (const event of runtime.runTurn({ sessionId, recentMessages, message, signal })) {
+              yield event;
+            }
+          }
+        })
+      : runtime.runTurn({ sessionId, recentMessages, message, ...(opts.signal !== undefined ? { signal: opts.signal } : {}) });
+
+    for await (const event of eventStream) {
       await this.#traceStore.append(event);
       await this.#sessionStore.appendTraceEvent({ sessionId: this.#sessionId, event });
       events.push(event);
