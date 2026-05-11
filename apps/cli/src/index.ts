@@ -394,6 +394,8 @@ async function runInteractiveConfiguredChat(options: RunCliOptions, args: Parsed
 
   const sessionId = args.sessionId ?? resumedSessionId;
 
+  await printMigrationHintIfNeeded(config, options);
+
   return runInteractiveLoop(
     await CliChatSession.createConfigured(config, options, {
       ...(sessionId === undefined ? {} : { sessionId })
@@ -401,6 +403,56 @@ async function runInteractiveConfiguredChat(options: RunCliOptions, args: Parsed
     resumedSessionId === undefined ? "Vole chat" : `Vole chat\nResumed session: ${resumedSessionId}`,
     options
   );
+}
+
+/**
+ * Phase 14b Step 7. Prints a single-line hint when the user has a populated
+ * JSONL session directory but no `sessions.db` yet. The hint is suppressed
+ * when `VOLE_NO_MIGRATION_HINT=1` is set so headless / CI environments do not
+ * pollute logs.
+ */
+async function printMigrationHintIfNeeded(
+  config: EffectiveConfig,
+  options: RunCliOptions
+): Promise<void> {
+  const env = options.env ?? process.env;
+  if (env["VOLE_NO_MIGRATION_HINT"] === "1") return;
+
+  const effectiveConfig = options.sessionsDirectory
+    ? { ...config, sessions: { directory: options.sessionsDirectory } }
+    : config;
+  const sessionsDir = resolveSessionsDirectory(effectiveConfig, options.env);
+  const sessionsDbPath = join(sessionsDir, "sessions.db");
+  const taskflowJsonlPath = join(dirname(sessionsDir), "taskflow.jsonl");
+
+  let jsonlSessions = 0;
+  try {
+    jsonlSessions = (await readdir(sessionsDir)).filter((entry) => entry.endsWith(".jsonl")).length;
+  } catch {
+    jsonlSessions = 0;
+  }
+
+  let sessionsDbExists = false;
+  try {
+    await stat(sessionsDbPath);
+    sessionsDbExists = true;
+  } catch {
+    sessionsDbExists = false;
+  }
+
+  let taskflowJsonlExists = false;
+  try {
+    await stat(taskflowJsonlPath);
+    taskflowJsonlExists = true;
+  } catch {
+    taskflowJsonlExists = false;
+  }
+
+  const haveJsonlData = jsonlSessions > 0 || taskflowJsonlExists;
+  if (!haveJsonlData || sessionsDbExists) return;
+
+  const write = options.write ?? ((text: string) => process.stdout.write(text));
+  write(`[vole] Detected ${jsonlSessions} JSONL session file(s)${taskflowJsonlExists ? " + taskflow.jsonl" : ""}. Run \`vole migrate jsonl-to-sqlite\` to preview a SQLite migration, or \`--apply\` to perform it. Suppress this hint with VOLE_NO_MIGRATION_HINT=1.\n`);
 }
 
 async function runListSessions(options: RunCliOptions): Promise<CliResult> {
