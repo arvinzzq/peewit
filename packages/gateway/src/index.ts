@@ -64,6 +64,10 @@ export interface RunRequest<TEvent = unknown> {
   sessionKey: string;
   agentId: string;
   isSubagent?: boolean;
+  /** Phase 12: when isSubagent === true, the session key of the parent. Used by the per-parent child counter to enforce maxChildrenPerAgent. */
+  parentSessionKey?: string;
+  /** Phase 12: wall-clock budget for this run. When > 0, the gateway arms a setTimeout that calls cancel(runId) on expiry; the run surfaces a timed-out status. */
+  runTimeoutSeconds?: number;
   /**
    * Caller-supplied work that emits runtime events.
    * The gateway invokes this inside the lane chain and forwards events to consumers.
@@ -78,6 +82,7 @@ export interface RunHandle {
   agentId: string;
   isSubagent: boolean;
   startedAt: string;
+  parentSessionKey?: string;
 }
 
 export interface GatewayStatus {
@@ -88,6 +93,34 @@ export interface GatewayStatus {
 export interface GatewayCoreOptions {
   lanes?: LaneRegistryOptions;
   now?: () => string;
+  /** Phase 12: max active children per parent session before new spawns are rejected. Default 5. */
+  maxChildrenPerAgent?: number;
+}
+
+export const DEFAULT_MAX_CHILDREN_PER_AGENT = 5;
+
+export class ChildLimitExceededError extends Error {
+  readonly code = "max_children_per_agent_exceeded";
+  readonly parentSessionKey: string;
+  readonly limit: number;
+  constructor(parentSessionKey: string, limit: number) {
+    super(`Parent session "${parentSessionKey}" already has ${limit} active children (max).`);
+    this.name = "ChildLimitExceededError";
+    this.parentSessionKey = parentSessionKey;
+    this.limit = limit;
+  }
+}
+
+export class RunTimeoutError extends Error {
+  readonly code = "run_timeout";
+  readonly runId: string;
+  readonly timeoutSeconds: number;
+  constructor(runId: string, timeoutSeconds: number) {
+    super(`Run "${runId}" exceeded its ${timeoutSeconds}s timeout.`);
+    this.name = "RunTimeoutError";
+    this.runId = runId;
+    this.timeoutSeconds = timeoutSeconds;
+  }
 }
 
 /**
@@ -161,38 +194,80 @@ class AsyncEventQueue<T> implements AsyncIterable<T> {
 
 export class GatewayCore extends SessionGateway {
   readonly #lanes: LaneRegistry;
-  readonly #activeRuns = new Map<string, { handle: RunHandle; controller: AbortController }>();
+  readonly #activeRuns = new Map<string, { handle: RunHandle; controller: AbortController; timeoutHandle?: ReturnType<typeof setTimeout> }>();
   readonly #now: () => string;
+  readonly #maxChildrenPerAgent: number;
 
   constructor(options: GatewayCoreOptions = {}) {
     super();
     this.#lanes = new LaneRegistry(options.lanes ?? {});
     this.#now = options.now ?? (() => new Date().toISOString());
+    this.#maxChildrenPerAgent = options.maxChildrenPerAgent ?? DEFAULT_MAX_CHILDREN_PER_AGENT;
   }
 
   /**
    * Submit a run for execution. The returned async iterable yields events as the
    * caller's run function produces them. Execution waits for global / subagent /
    * session lane slots before starting.
+   *
+   * Phase 12 admission: when isSubagent === true and parentSessionKey is set, the
+   * gateway counts active children for that parent and rejects (via the returned
+   * iterable's first iteration throwing) if the count is at maxChildrenPerAgent.
+   * Per-parent admission happens BEFORE the lane chain so one runaway parent does
+   * not starve other parents on the shared subagent lane.
    */
   submit<TEvent = unknown>(req: RunRequest<TEvent>): AsyncIterable<TEvent> {
+    const queue = new AsyncEventQueue<TEvent>();
+
+    // Phase 12 per-parent admission: enforce maxChildrenPerAgent for sub-agent runs
+    // with a known parent. Reject up front so the caller's iteration immediately throws.
+    if (req.isSubagent === true && req.parentSessionKey !== undefined) {
+      const active = this.#countActiveChildrenOf(req.parentSessionKey);
+      if (active >= this.#maxChildrenPerAgent) {
+        queue.fail(new ChildLimitExceededError(req.parentSessionKey, this.#maxChildrenPerAgent));
+        return queue;
+      }
+    }
+
     const controller = new AbortController();
     const handle: RunHandle = {
       runId: req.runId,
       sessionKey: req.sessionKey,
       agentId: req.agentId,
       isSubagent: req.isSubagent === true,
-      startedAt: this.#now()
+      startedAt: this.#now(),
+      ...(req.parentSessionKey !== undefined ? { parentSessionKey: req.parentSessionKey } : {})
     };
-    this.#activeRuns.set(req.runId, { handle, controller });
+    const entry: { handle: RunHandle; controller: AbortController; timeoutHandle?: ReturnType<typeof setTimeout> } = {
+      handle,
+      controller
+    };
+    this.#activeRuns.set(req.runId, entry);
 
-    const queue = new AsyncEventQueue<TEvent>();
+    // Phase 12 timeout: arm a timer that aborts the run when runTimeoutSeconds > 0.
+    // The run function's AbortSignal carries the timeout reason so the caller can
+    // surface a "timed_out" terminal status instead of a generic cancellation.
+    if (req.runTimeoutSeconds !== undefined && req.runTimeoutSeconds > 0) {
+      const timeoutMs = req.runTimeoutSeconds * 1000;
+      const timeoutReason = new RunTimeoutError(req.runId, req.runTimeoutSeconds);
+      entry.timeoutHandle = setTimeout(() => {
+        controller.abort(timeoutReason);
+      }, timeoutMs);
+    }
+
     const lanes = this.#lanes;
-
     const laneOptions = req.isSubagent === true
       ? { sessionId: req.sessionKey, isSubagent: true as const }
       : { sessionId: req.sessionKey };
     const activeRuns = this.#activeRuns;
+    const cleanup = (): void => {
+      const e = activeRuns.get(req.runId);
+      if (e?.timeoutHandle !== undefined) {
+        clearTimeout(e.timeoutHandle);
+      }
+      activeRuns.delete(req.runId);
+    };
+
     void runThroughLanes(
       lanes,
       laneOptions,
@@ -209,15 +284,25 @@ export class GatewayCore extends SessionGateway {
       }
     )
       .then(() => {
-        activeRuns.delete(req.runId);
+        cleanup();
         queue.close();
       })
       .catch((err: unknown) => {
-        activeRuns.delete(req.runId);
+        cleanup();
         queue.fail(err);
       });
 
     return queue;
+  }
+
+  #countActiveChildrenOf(parentSessionKey: string): number {
+    let count = 0;
+    for (const entry of this.#activeRuns.values()) {
+      if (entry.handle.parentSessionKey === parentSessionKey) {
+        count++;
+      }
+    }
+    return count;
   }
 
   /**

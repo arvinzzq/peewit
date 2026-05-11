@@ -331,3 +331,152 @@ describe("GatewayCore.status", () => {
     expect(status.activeRuns).toEqual([]);
   });
 });
+
+describe("GatewayCore — per-parent maxChildrenPerAgent (Phase 12)", () => {
+  test("rejects a sub-agent run when the parent already has maxChildrenPerAgent active children", async () => {
+    const gateway = new GatewayCore({ maxChildrenPerAgent: 2 });
+    const parent = "agent:default:main";
+    const gates = [deferred<void>(), deferred<void>(), deferred<void>()];
+
+    // Two children start and hold open.
+    const child1 = collect(
+      gateway.submit<string>({
+        runId: "child_1",
+        sessionKey: "agent:default:subagent:1",
+        agentId: "default",
+        isSubagent: true,
+        parentSessionKey: parent,
+        run: async function* () {
+          yield "ping1";
+          await gates[0]!.promise;
+        }
+      })
+    );
+    const child2 = collect(
+      gateway.submit<string>({
+        runId: "child_2",
+        sessionKey: "agent:default:subagent:2",
+        agentId: "default",
+        isSubagent: true,
+        parentSessionKey: parent,
+        run: async function* () {
+          yield "ping2";
+          await gates[1]!.promise;
+        }
+      })
+    );
+
+    await new Promise((r) => setTimeout(r, 20));
+
+    // Third child must be rejected with ChildLimitExceededError.
+    await expect(
+      collect(
+        gateway.submit<string>({
+          runId: "child_3",
+          sessionKey: "agent:default:subagent:3",
+          agentId: "default",
+          isSubagent: true,
+          parentSessionKey: parent,
+          run: async function* () { yield "ping3"; await gates[2]!.promise; }
+        })
+      )
+    ).rejects.toThrow(/max_children_per_agent_exceeded|already has 2 active children/);
+
+    gates[0]!.resolve();
+    gates[1]!.resolve();
+    await Promise.all([child1, child2]);
+  });
+
+  test("a different parent's children do not count against the limit", async () => {
+    const gateway = new GatewayCore({ maxChildrenPerAgent: 1 });
+    const gate1 = deferred<void>();
+
+    const c1 = collect(
+      gateway.submit<string>({
+        runId: "c_p1",
+        sessionKey: "agent:default:subagent:x",
+        agentId: "default",
+        isSubagent: true,
+        parentSessionKey: "agent:default:p1",
+        run: async function* () { yield "ok"; await gate1.promise; }
+      })
+    );
+
+    // Different parent: should be admitted even though limit is 1.
+    let secondStarted = false;
+    const gate2 = deferred<void>();
+    const c2 = collect(
+      gateway.submit<string>({
+        runId: "c_p2",
+        sessionKey: "agent:default:subagent:y",
+        agentId: "default",
+        isSubagent: true,
+        parentSessionKey: "agent:default:p2",
+        run: async function* () { secondStarted = true; yield "ok2"; await gate2.promise; }
+      })
+    );
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(secondStarted).toBe(true);
+
+    gate1.resolve();
+    gate2.resolve();
+    await Promise.all([c1, c2]);
+  });
+});
+
+describe("GatewayCore — runTimeoutSeconds (Phase 12)", () => {
+  test("aborts a long-running child when runTimeoutSeconds elapses", async () => {
+    const gateway = new GatewayCore();
+    let abortReason: unknown;
+
+    const submission = collect(
+      gateway.submit<string>({
+        runId: "run_timeout",
+        sessionKey: "agent:default:subagent:t",
+        agentId: "default",
+        isSubagent: true,
+        runTimeoutSeconds: 0.05, // 50ms
+        run: async function* (signal) {
+          yield "started";
+          await new Promise<void>((resolve) => {
+            signal.addEventListener(
+              "abort",
+              () => {
+                abortReason = signal.reason;
+                resolve();
+              },
+              { once: true }
+            );
+          });
+        }
+      })
+    );
+
+    await submission;
+
+    expect((abortReason as { code?: string })?.code).toBe("run_timeout");
+  });
+
+  test("does not abort a quick run before the timeout fires", async () => {
+    const gateway = new GatewayCore();
+    let aborted = false;
+
+    const events = await collect(
+      gateway.submit<string>({
+        runId: "run_quick",
+        sessionKey: "agent:default:subagent:q",
+        agentId: "default",
+        isSubagent: true,
+        runTimeoutSeconds: 2,
+        run: async function* (signal) {
+          yield "fast";
+          if (signal.aborted) aborted = true;
+        }
+      })
+    );
+
+    expect(events).toEqual(["fast"]);
+    expect(aborted).toBe(false);
+  });
+});
