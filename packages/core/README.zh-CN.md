@@ -135,6 +135,8 @@ const releaseB = await mutex.acquire("sess_B");   // 不等待
 
 `compaction_triggered` 事件现在包含 `summary: string` 字段。Phase 2 成功时该字段包含从压缩后消息中提取的摘要文本；适配器使用它调用 session store 的 `appendCompactBoundary()`。
 
+`memory_flush_triggered`（Phase 13b Step 5）在 `compaction_triggered` 之前触发，前提是：(a) 本轮预计会发生 compaction，并且 (b) `compaction.memoryFlush.enabled !== false`。事件形状为 `{ executed: boolean; toolsInvoked: string[]; reason?: "disabled" | "model_error" }`。当 `executed: true` 时，runtime 额外做了一次静默模型调用——附带 flush 提示词，把模型返回的 memory-write 工具调用就地执行（跳过 high/blocked 风险工具），并丢弃助手文本——所以 flush 在 `toolsInvoked` 与 session 轨迹中可观察，但永远不会出现在用户可见的消息流中。当 `executed: false` 时，本轮未做这次副调用（config 禁用、模型错误或未预测到 compaction）。
+
 所有钩子错误在非生产环境用 `console.warn` 捕获记录。
 
 ### ExecutionContract
