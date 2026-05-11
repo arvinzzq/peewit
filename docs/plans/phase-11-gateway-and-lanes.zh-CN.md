@@ -1,9 +1,26 @@
 # Phase 11：Gateway 与 Lane 基础设施
 
-状态：计划中
+状态：完成
 日期：2026-05-11
 
 English version: [phase-11-gateway-and-lanes.md](./phase-11-gateway-and-lanes.md)
+
+## 进度
+
+状态：完成
+
+已完成提交：
+
+- [x] Step 1：docs(arch) — `a8eec7f`
+- [x] Step 2：feat(lanes) `packages/lanes`，含 `FifoLane`、`LaneRegistry`、`runThroughLanes` — `be672de`
+- [x] Step 2.5：docs(learning) `16-lanes.md` + `13-gateway.md` 前瞻提示 — `847600e`
+- [x] Step 3：feat(gateway) `GatewayCore` 含 `submit`、`cancel`、`status` — `84155e1`
+- [x] Step 4：feat(sessions) 跨进程 `acquireSessionFileLock` + `JsonlSessionStore` 集成 — `6118d07`
+- [x] Step 5a：refactor(cli) 聊天 run 通过 `GatewayCore.submit` 路由 — `621bdf9`
+- [x] Step 5b：refactor(web) HTTP 与 WebSocket turn 通过 `GatewayCore.submit` 路由 — `664eff2`
+- [x] Step 5c：refactor(core) 移除 `SessionMutex`；lane 准入成为唯一的进程内串行化 — `5cd723d`
+- [x] Step 6：feat(cli) `vole gateway status` 命令 — `ad6b504`
+- [x] Step 7：docs 标记 Phase 11 完成 + roadmap 更新 — （本次提交）
 
 ## 1. 目的
 

@@ -1,9 +1,26 @@
 # Phase 11: Gateway and Lanes
 
-Status: Planned
+Status: Complete
 Date: 2026-05-11
 
 Simplified Chinese version: [phase-11-gateway-and-lanes.zh-CN.md](./phase-11-gateway-and-lanes.zh-CN.md)
+
+## Progress
+
+Status: Complete
+
+Completed commits:
+
+- [x] Step 1: docs(arch) — `a8eec7f`
+- [x] Step 2: feat(lanes) `packages/lanes` with `FifoLane`, `LaneRegistry`, `runThroughLanes` — `be672de`
+- [x] Step 2.5: docs(learning) `16-lanes.md` + forward-looking note on `13-gateway.md` — `847600e`
+- [x] Step 3: feat(gateway) `GatewayCore` with `submit`, `cancel`, `status` — `84155e1`
+- [x] Step 4: feat(sessions) cross-process `acquireSessionFileLock` + `JsonlSessionStore` integration — `6118d07`
+- [x] Step 5a: refactor(cli) route chat runs through `GatewayCore.submit` — `621bdf9`
+- [x] Step 5b: refactor(web) route HTTP + WebSocket turns through `GatewayCore.submit` — `664eff2`
+- [x] Step 5c: refactor(core) remove `SessionMutex`; lane admission is now the only in-process serializer — `5cd723d`
+- [x] Step 6: feat(cli) `vole gateway status` command — `ad6b504`
+- [x] Step 7: docs mark Phase 11 complete + roadmap update — (this commit)
 
 ## 1. Purpose
 

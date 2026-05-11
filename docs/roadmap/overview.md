@@ -43,7 +43,7 @@ The roadmap follows a dual-track approach:
 | Phase 8 | Complete | Background automation | Agent can run scheduled and event-triggered tasks | Scheduler, daemon, task queue |
 | Phase 9 | Complete | Plugin and skill ecosystem | User can install, enable, disable, and review capabilities | Plugin metadata, permission declarations, versioning |
 | Phase 10 | Complete | Full personal agent platform | OpenClaw-like personal agent with multiple models, agents, nodes, and sandboxed tools | Gateway, multi-agent runtime, node protocol, sandboxing |
-| Phase 11 | Planned | Gateway and lanes | Cross-process safe runtime infrastructure | GatewayCore, LaneRegistry, session key naming, file lock |
+| Phase 11 | Complete | Gateway and lanes | Cross-process safe runtime infrastructure | GatewayCore, LaneRegistry, session key naming, file lock |
 | Phase 12 | Planned | Multi-agent runtime maturity | Push-completion sub-agents with fork mode, depth and concurrency policy | Sub-agent push announce, fork context, sub-agent management surface |
 | Phase 13 | Planned | Memory and prompt enhancement | Hybrid memory search, DREAMS.md review, full 14-section prompt | EmbeddingProvider, DREAMS workflow, pre-compaction flush, inline directives |
 | Phase 14 | Planned | SQLite storage unification | Indexed session / TaskFlow / memory storage at scale | SQLite stores, FTS5 memory index, migration tooling |
@@ -558,13 +558,13 @@ Some Phase 0–10 designs landed in architecture documents but shipped narrower 
 
 ## 15. Phase 11: Gateway and Lanes
 
-Status: Planned. Plan document: [phase-11-gateway-and-lanes.md](../plans/phase-11-gateway-and-lanes.md).
+Status: Complete. Plan document: [phase-11-gateway-and-lanes.md](../plans/phase-11-gateway-and-lanes.md).
 
 Goal: establish the runtime infrastructure that every subsequent phase depends on — a real gateway layer, three-tier lane queues (global / subagent / session), normalized session key naming, and cross-process write locks.
 
-Architecture added: expanded `GatewayCore` with `submit / subscribe / cancel`; new `packages/lanes`; structured session keys (`agent:<id>:<lane-type>:<uuid>`); process-aware file lock around session JSONL.
+Architecture added: expanded `GatewayCore` with `submit / cancel / status`; new `packages/lanes`; process-aware file lock around session JSONL via `acquireSessionFileLock`; `SessionMutex` removed in favour of lane composition; new `vole gateway status` command surfaces in-process lane occupancy and cross-process `.lock` sidecars.
 
-Non-goals: no gateway HTTP / Unix socket transport; no multi-process daemon; no SQLite migration (Phase 14); no sub-agent behavior changes beyond key shape (Phase 12).
+Non-goals: no gateway HTTP / Unix socket transport; no multi-process daemon; no SQLite migration (Phase 14); no sub-agent behavior changes beyond key shape (Phase 12). The `subscribe` API and normalized `agent:<id>:<lane-type>:<uuid>` session key format are deferred to Phase 12 alongside the multi-agent runtime maturity work.
 
 ## 16. Phase 12: Multi-Agent Runtime Maturity
 
