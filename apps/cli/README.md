@@ -61,6 +61,7 @@ vole sessions
 | `vole skills` | List loaded skills (also `install`/`enable`/`disable`/`trust`/`review` subcommands) |
 | `vole daemon` | Start the cron scheduler daemon (use `--once` for a one-shot run) |
 | `vole taskflow list/show/cancel` | Inspect cross-session task records |
+| `vole gateway status` | Show lane occupancy in this process and cross-process session locks |
 
 ## Chat slash commands
 

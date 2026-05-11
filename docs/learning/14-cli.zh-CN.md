@@ -105,11 +105,14 @@ export async function runCli(args, packageVersion, options = {}): Promise<CliRes
   if (command === "skills")   return runSkillsCommand(rest, options);
   if (command === "daemon")   return runDaemon(options, once);
   if (command === "taskflow") return runTaskflowCommand(rest, options);
+  if (command === "gateway")  return runGatewayStatus(options);
 }
 ```
 
 纯派发——路由器本身没有业务逻辑。每个分支返回带 `exitCode`、`stdout`、`stderr` 的 `CliResult`。
 整个 CLI 是一个从 args 到结果的函数，使其极易测试。
+
+`vole gateway status`（Phase 11 Step 6）打印两个视图：当前 CLI 调用的进程内 gateway 状态（lane 占用、活跃 run —— 一次性 CLI 调用通常为空）；以及跨进程视图，扫描 sessions 目录下其他 vole 进程留下的 `.lock` 旁车文件，读取它们的 pid + startedAt，将每条标为 `alive` 或 `stale`。两视图组合：lane 在一个 Node 进程内排序写入；文件锁与 `.lock` 视图在多进程间排序写入。
 
 ### RunCliOptions：六个可注入接缝
 

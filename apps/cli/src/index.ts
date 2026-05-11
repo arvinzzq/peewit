@@ -9,6 +9,7 @@ import "dotenv/config";
 import { Command, type OptionValues } from "commander";
 import { createInterface } from "node:readline";
 import { readdir, readFile, stat } from "node:fs/promises";
+import type { Stats } from "node:fs";
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -236,6 +237,12 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
       actionResult = await runWebDashboard(port, openBrowser);
     });
 
+  // ── gateway ───────────────────────────────────────────────────────────────
+  const gwCmd = program.command("gateway").description("Inspect run admission and active sessions");
+  gwCmd.action(async () => { actionResult = await runGatewayStatus(options); });
+  gwCmd.command("status").description("Show lane occupancy and active runs across processes")
+    .action(async () => { actionResult = await runGatewayStatus(options); });
+
   // ── taskflow ──────────────────────────────────────────────────────────────
   const tfCmd = program.command("taskflow").description("Inspect cross-session task records");
   tfCmd.action(async () => { actionResult = await runTaskflowList(options, undefined); });
@@ -373,6 +380,84 @@ async function runListSessions(options: RunCliOptions): Promise<CliResult> {
     stdout: ["Sessions:", ...sessions.map((session) => `${session.id}\t${session.updatedAt}${session.title ? `\t${session.title}` : ""}`)].join("\n") + "\n",
     stderr: ""
   };
+}
+
+async function runGatewayStatus(options: RunCliOptions): Promise<CliResult> {
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
+  const effectiveConfig = options.sessionsDirectory
+    ? { ...config, sessions: { directory: options.sessionsDirectory } }
+    : config;
+  const directory = resolveSessionsDirectory(effectiveConfig, options.env);
+
+  const lines: string[] = ["Gateway status:", ""];
+
+  // In-process view: this CLI invocation's own gateway.
+  // For a standalone `vole gateway status` call this is usually empty; for a long-running
+  // CliChatSession or vole daemon, this reflects the active state of that process.
+  const inProc = cliGateway.status();
+  lines.push("In-process (this CLI invocation):");
+  lines.push(`  Lanes: global ${inProc.lanes.global.active}/${cliGateway.defaultLaneConcurrency.global} (queued ${inProc.lanes.global.queued}), subagent ${inProc.lanes.subagent.active}/${cliGateway.defaultLaneConcurrency.subagent} (queued ${inProc.lanes.subagent.queued}), sessions=${inProc.lanes.sessions.length}`);
+  if (inProc.activeRuns.length === 0) {
+    lines.push("  Active runs: (none)");
+  } else {
+    lines.push("  Active runs:");
+    for (const run of inProc.activeRuns) {
+      lines.push(`    ${run.runId} → ${run.sessionKey}${run.isSubagent ? " [subagent]" : ""} (started ${run.startedAt})`);
+    }
+  }
+  lines.push("");
+
+  // Cross-process view: scan the sessions directory for .lock sidecars.
+  lines.push(`Cross-process session locks under ${directory}:`);
+  let lockEntries: string[] = [];
+  try {
+    const entries = await readdir(directory);
+    lockEntries = entries.filter((e) => e.endsWith(".lock"));
+  } catch (error) {
+    if (error instanceof Error && "code" in error && (error as { code?: string }).code === "ENOENT") {
+      lines.push("  (sessions directory does not exist yet)");
+      return { exitCode: 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
+    }
+    throw error;
+  }
+  if (lockEntries.length === 0) {
+    lines.push("  (no active locks)");
+  } else {
+    const now = Date.now();
+    for (const entry of lockEntries.sort()) {
+      const sessionId = entry.slice(0, -".lock".length);
+      const path = join(directory, entry);
+      let body: { pid?: number; startedAt?: number } = {};
+      let mtime: Stats | undefined;
+      try {
+        body = JSON.parse(await readFile(path, "utf8")) as typeof body;
+        mtime = await stat(path);
+      } catch {
+        lines.push(`  ${sessionId} — (lock file unreadable)`);
+        continue;
+      }
+      const pid = typeof body.pid === "number" ? body.pid : undefined;
+      const alive = pid !== undefined ? isPidAlive(pid) : false;
+      const ageMs = typeof body.startedAt === "number" ? now - body.startedAt : (mtime ? now - mtime.mtimeMs : undefined);
+      const ageStr = ageMs === undefined ? "?" : `${Math.round(ageMs / 100) / 10}s`;
+      const pidStr = pid === undefined ? "?" : `pid ${pid} (${alive ? "alive" : "stale"})`;
+      lines.push(`  ${sessionId} — ${pidStr}, held ${ageStr}`);
+    }
+  }
+
+  return { exitCode: 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
+}
+
+function isPidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && (error as { code?: string }).code === "ESRCH") {
+      return false;
+    }
+    return true;
+  }
 }
 
 async function runMemoryDreaming(options: RunCliOptions): Promise<CliResult> {

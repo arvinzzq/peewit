@@ -1382,4 +1382,62 @@ describe("runCli", () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("VOLE_LONG_TERM_MEMORY=write");
   });
+
+  test("gateway status reports empty state when sessions directory does not exist", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-gw-empty-"));
+    try {
+      await rm(directory, { recursive: true, force: true }); // remove so directory does not exist
+      const result = await runCli(["gateway", "status"], "0.0.0", {
+        sessionsDirectory: directory
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Gateway status:");
+      expect(result.stdout).toContain("In-process (this CLI invocation):");
+      expect(result.stdout).toContain("Active runs: (none)");
+      expect(result.stdout).toContain("(sessions directory does not exist yet)");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("gateway status reports no active locks when directory is empty", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-gw-noLocks-"));
+    try {
+      const result = await runCli(["gateway", "status"], "0.0.0", {
+        sessionsDirectory: directory
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("(no active locks)");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("gateway status surfaces alive and stale locks distinctly", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-gw-locks-"));
+    try {
+      // Lock #1: held by the test process itself (alive)
+      await writeFile(
+        join(directory, "sess_live.lock"),
+        JSON.stringify({ pid: process.pid, startedAt: Date.now() - 1500 })
+      );
+      // Lock #2: held by a definitely-dead pid (stale)
+      await writeFile(
+        join(directory, "sess_stale.lock"),
+        JSON.stringify({ pid: 999999, startedAt: Date.now() - 9000 })
+      );
+
+      const result = await runCli(["gateway", "status"], "0.0.0", {
+        sessionsDirectory: directory
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("sess_live");
+      expect(result.stdout).toContain("alive");
+      expect(result.stdout).toContain("sess_stale");
+      expect(result.stdout).toContain("stale");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
 });

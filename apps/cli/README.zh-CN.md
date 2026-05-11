@@ -61,6 +61,7 @@ vole sessions
 | `vole skills` | 列出已加载技能（含 `install`/`enable`/`disable`/`trust`/`review` 子命令） |
 | `vole daemon` | 启动 Cron 调度守护进程（`--once` 仅执行一次） |
 | `vole taskflow list/show/cancel` | 查看跨会话任务记录 |
+| `vole gateway status` | 显示当前进程的 lane 占用与跨进程 session 锁 |
 
 ## 对话内指令
 

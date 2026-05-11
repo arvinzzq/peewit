@@ -116,6 +116,7 @@ export async function runCli(args, packageVersion, options = {}): Promise<CliRes
   if (command === "skills")   return runSkillsCommand(rest, options);
   if (command === "daemon")   return runDaemon(options, once);
   if (command === "taskflow") return runTaskflowCommand(rest, options);
+  if (command === "gateway")  return runGatewayStatus(options);
   // ...
 }
 ```
@@ -123,6 +124,8 @@ export async function runCli(args, packageVersion, options = {}): Promise<CliRes
 Pure dispatch — no business logic in the router itself. Every branch returns a `CliResult`
 with `exitCode`, `stdout`, `stderr`. The entire CLI is a function from args to a result,
 making it trivially testable.
+
+`vole gateway status` (Phase 11 Step 6) prints two views: the in-process gateway state for this CLI invocation (lane occupancy, active runs — usually empty for a one-shot CLI call) and the cross-process view, which scans the sessions directory for `.lock` sidecars left by other vole processes, reads their pid + startedAt, and marks each entry as `alive` or `stale`. The two views compose: lanes order writes within one Node process; the file lock and the `.lock` view order writes across processes.
 
 ### RunCliOptions: six injectable seams
 
