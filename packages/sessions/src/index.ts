@@ -690,3 +690,286 @@ export async function acquireSessionFileLock(
     await new Promise<void>((resolve) => setTimeout(resolve, retryIntervalMs));
   }
 }
+
+// ----------------------------------------------------------------------------
+// SqliteSessionStore — Phase 14 Step 3
+// ----------------------------------------------------------------------------
+
+import Database from "better-sqlite3";
+
+export interface SqliteSessionStoreDependencies extends InMemorySessionStoreDependencies {
+  /** Absolute path to the SQLite database file. */
+  databasePath: string;
+}
+
+/**
+ * SqliteSessionStore is a drop-in replacement for `JsonlSessionStore` backed by
+ * better-sqlite3 with WAL journaling. It implements the same `SessionStore`
+ * contract — consumers do not branch on backend.
+ *
+ * Schema:
+ *   sessions(id PK, title?, createdAt, updatedAt)
+ *   messages(id PK, sessionId FK, role, content?, toolCallsJson?, toolCallId?, createdAt)
+ *     index: (sessionId, createdAt)
+ *   trace_events(id INTEGER PK, sessionId FK, eventJson, createdAt)
+ *     index: (sessionId, createdAt)
+ *   compact_boundaries(id INTEGER PK, sessionId FK, summary, messagesBefore, messagesAfter, createdAt)
+ *
+ * Like the JSONL store, listMessages applies the latest compact_boundary's
+ * effect: after a boundary, only the summary (as a synthetic system message)
+ * plus messages newer than the boundary are returned.
+ */
+export class SqliteSessionStore implements SessionStore {
+  readonly #db: Database.Database;
+  readonly #createSessionId: () => string;
+  readonly #createMessageId: () => string;
+  readonly #now: () => string;
+
+  constructor(dependencies: SqliteSessionStoreDependencies) {
+    this.#db = new Database(dependencies.databasePath);
+    this.#db.pragma("journal_mode = WAL");
+    this.#db.pragma("synchronous = NORMAL");
+    this.#db.pragma("foreign_keys = ON");
+    this.#initSchema();
+    this.#createSessionId = dependencies.createSessionId ?? randomId("sess");
+    this.#createMessageId = dependencies.createMessageId ?? randomId("msg");
+    this.#now = dependencies.now ?? (() => new Date().toISOString());
+  }
+
+  /** Close the underlying database. Call this at process shutdown for clean WAL checkpointing. */
+  close(): void {
+    this.#db.close();
+  }
+
+  #initSchema(): void {
+    this.#db.exec(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS sessions_updated_idx ON sessions(updatedAt DESC);
+
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        sessionId TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        role TEXT NOT NULL,
+        content TEXT,
+        toolCallsJson TEXT,
+        toolCallId TEXT,
+        createdAt TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS messages_session_created_idx ON messages(sessionId, createdAt);
+
+      CREATE TABLE IF NOT EXISTS trace_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sessionId TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        eventJson TEXT NOT NULL,
+        createdAt TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS trace_events_session_created_idx ON trace_events(sessionId, createdAt);
+
+      CREATE TABLE IF NOT EXISTS compact_boundaries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sessionId TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        summary TEXT NOT NULL,
+        messagesBefore INTEGER NOT NULL,
+        messagesAfter INTEGER NOT NULL,
+        createdAt TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS compact_boundaries_session_created_idx ON compact_boundaries(sessionId, createdAt);
+
+      CREATE TABLE IF NOT EXISTS schema_version (
+        version INTEGER PRIMARY KEY
+      );
+    `);
+    const row = this.#db.prepare("SELECT version FROM schema_version LIMIT 1").get() as { version?: number } | undefined;
+    if (row === undefined) {
+      this.#db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(1);
+    }
+  }
+
+  async createSession(input: CreateSessionInput = {}): Promise<SessionRecord> {
+    const timestamp = this.#now();
+    const session: SessionRecord = {
+      id: this.#createSessionId(),
+      ...(input.title === undefined ? {} : { title: input.title }),
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+    this.#db
+      .prepare("INSERT INTO sessions (id, title, createdAt, updatedAt) VALUES (?, ?, ?, ?)")
+      .run(session.id, session.title ?? null, session.createdAt, session.updatedAt);
+    return { ...session };
+  }
+
+  async getSession(sessionId: string): Promise<SessionRecord | undefined> {
+    const row = this.#db
+      .prepare("SELECT id, title, createdAt, updatedAt FROM sessions WHERE id = ?")
+      .get(sessionId) as { id: string; title: string | null; createdAt: string; updatedAt: string } | undefined;
+    if (row === undefined) return undefined;
+    return rowToSessionRecord(row);
+  }
+
+  async listSessions(query: ListSessionsQuery = {}): Promise<SessionRecord[]> {
+    const limit = query.limit ?? -1;
+    const stmt = limit < 0
+      ? this.#db.prepare("SELECT id, title, createdAt, updatedAt FROM sessions ORDER BY updatedAt DESC")
+      : this.#db.prepare("SELECT id, title, createdAt, updatedAt FROM sessions ORDER BY updatedAt DESC LIMIT ?");
+    const rows = (limit < 0 ? stmt.all() : stmt.all(limit)) as Array<{
+      id: string;
+      title: string | null;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+    return rows.map(rowToSessionRecord);
+  }
+
+  async appendMessage(input: AppendSessionMessageInput): Promise<SessionMessageRecord> {
+    const session = await this.getSession(input.sessionId);
+    if (session === undefined) throw new Error(`Unknown session "${input.sessionId}".`);
+    const timestamp = this.#now();
+    const message: SessionMessageRecord = {
+      id: this.#createMessageId(),
+      sessionId: input.sessionId,
+      role: input.role,
+      content: input.content,
+      createdAt: timestamp,
+      ...(input.toolCalls !== undefined ? { toolCalls: input.toolCalls } : {}),
+      ...(input.toolCallId !== undefined ? { toolCallId: input.toolCallId } : {})
+    };
+    this.#db.transaction(() => {
+      this.#db
+        .prepare("INSERT INTO messages (id, sessionId, role, content, toolCallsJson, toolCallId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .run(
+          message.id,
+          message.sessionId,
+          message.role,
+          message.content,
+          message.toolCalls === undefined ? null : JSON.stringify(message.toolCalls),
+          message.toolCallId ?? null,
+          message.createdAt
+        );
+      this.#db.prepare("UPDATE sessions SET updatedAt = ? WHERE id = ?").run(timestamp, input.sessionId);
+    })();
+    return { ...message };
+  }
+
+  async listMessages(sessionId: string, query: ListSessionMessagesQuery = {}): Promise<SessionMessageRecord[]> {
+    // Find the latest compact boundary for this session, if any.
+    const boundary = this.#db
+      .prepare("SELECT summary, createdAt FROM compact_boundaries WHERE sessionId = ? ORDER BY createdAt DESC LIMIT 1")
+      .get(sessionId) as { summary: string; createdAt: string } | undefined;
+
+    const messageRows = (this.#db
+      .prepare(
+        boundary === undefined
+          ? "SELECT id, sessionId, role, content, toolCallsJson, toolCallId, createdAt FROM messages WHERE sessionId = ? ORDER BY createdAt ASC"
+          : "SELECT id, sessionId, role, content, toolCallsJson, toolCallId, createdAt FROM messages WHERE sessionId = ? AND createdAt > ? ORDER BY createdAt ASC"
+      )
+      .all(boundary === undefined ? sessionId : [sessionId, boundary.createdAt])) as Array<{
+        id: string;
+        sessionId: string;
+        role: SessionMessageRole;
+        content: string | null;
+        toolCallsJson: string | null;
+        toolCallId: string | null;
+        createdAt: string;
+      }>;
+
+    const messages: SessionMessageRecord[] = [];
+    if (boundary !== undefined && boundary.summary.length > 0) {
+      messages.push({
+        id: `cmpct_${boundary.createdAt}`,
+        sessionId,
+        role: "system",
+        content: boundary.summary,
+        createdAt: boundary.createdAt
+      });
+    }
+    for (const row of messageRows) {
+      messages.push(rowToMessageRecord(row));
+    }
+    return query.limit === undefined ? messages : messages.slice(-query.limit);
+  }
+
+  async appendCompactBoundary(input: AppendCompactBoundaryInput): Promise<void> {
+    const session = await this.getSession(input.sessionId);
+    if (session === undefined) throw new Error(`Unknown session "${input.sessionId}".`);
+    const timestamp = this.#now();
+    this.#db.transaction(() => {
+      this.#db
+        .prepare("INSERT INTO compact_boundaries (sessionId, summary, messagesBefore, messagesAfter, createdAt) VALUES (?, ?, ?, ?, ?)")
+        .run(input.sessionId, input.summary, input.messagesBefore, input.messagesAfter, timestamp);
+      this.#db.prepare("UPDATE sessions SET updatedAt = ? WHERE id = ?").run(timestamp, input.sessionId);
+    })();
+  }
+
+  async appendTraceEvent<TEvent>(input: AppendSessionTraceEventInput<TEvent>): Promise<SessionTraceEventRecord<TEvent>> {
+    const session = await this.getSession(input.sessionId);
+    if (session === undefined) throw new Error(`Unknown session "${input.sessionId}".`);
+    const timestamp = this.#now();
+    this.#db.transaction(() => {
+      this.#db
+        .prepare("INSERT INTO trace_events (sessionId, eventJson, createdAt) VALUES (?, ?, ?)")
+        .run(input.sessionId, JSON.stringify(input.event), timestamp);
+      this.#db.prepare("UPDATE sessions SET updatedAt = ? WHERE id = ?").run(timestamp, input.sessionId);
+    })();
+    return {
+      sessionId: input.sessionId,
+      event: structuredClone(input.event),
+      createdAt: timestamp
+    };
+  }
+
+  async listTraceEvents<TEvent = unknown>(
+    sessionId: string,
+    query: ListSessionTraceEventsQuery = {}
+  ): Promise<SessionTraceEventRecord<TEvent>[]> {
+    const limit = query.limit ?? -1;
+    const stmt = limit < 0
+      ? this.#db.prepare("SELECT eventJson, createdAt FROM trace_events WHERE sessionId = ? ORDER BY createdAt ASC")
+      : this.#db.prepare("SELECT eventJson, createdAt FROM trace_events WHERE sessionId = ? ORDER BY createdAt ASC LIMIT ?");
+    const rows = (limit < 0
+      ? stmt.all(sessionId)
+      : stmt.all(sessionId, limit)) as Array<{ eventJson: string; createdAt: string }>;
+    return rows.map((row) => ({
+      sessionId,
+      event: JSON.parse(row.eventJson) as TEvent,
+      createdAt: row.createdAt
+    }));
+  }
+}
+
+function rowToSessionRecord(row: { id: string; title: string | null; createdAt: string; updatedAt: string }): SessionRecord {
+  return {
+    id: row.id,
+    ...(row.title !== null ? { title: row.title } : {}),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt
+  };
+}
+
+function rowToMessageRecord(row: {
+  id: string;
+  sessionId: string;
+  role: SessionMessageRole;
+  content: string | null;
+  toolCallsJson: string | null;
+  toolCallId: string | null;
+  createdAt: string;
+}): SessionMessageRecord {
+  const toolCalls = row.toolCallsJson === null
+    ? undefined
+    : (JSON.parse(row.toolCallsJson) as Array<{ id: string; name: string; input: unknown }>);
+  return {
+    id: row.id,
+    sessionId: row.sessionId,
+    role: row.role,
+    content: row.content,
+    createdAt: row.createdAt,
+    ...(toolCalls !== undefined ? { toolCalls } : {}),
+    ...(row.toolCallId !== null ? { toolCallId: row.toolCallId } : {})
+  };
+}

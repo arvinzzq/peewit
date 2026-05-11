@@ -7,6 +7,7 @@ import {
   DEFAULT_LOCK_ACQUIRE_TIMEOUT_MS,
   InMemorySessionStore,
   JsonlSessionStore,
+  SqliteSessionStore,
   type SessionStore
 } from "./index.js";
 
@@ -729,6 +730,155 @@ describe("JsonlSessionStore — file lock integration", () => {
       expect(messageLines).toHaveLength(20);
     } finally {
       await rm(directory, { force: true, recursive: true });
+    }
+  });
+});
+
+describe("SqliteSessionStore (Phase 14 Step 3)", () => {
+  test("creates a session and appends messages with ordering", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-sqlite-"));
+    try {
+      let n = 0;
+      const store = new SqliteSessionStore({
+        databasePath: join(dir, "sessions.sqlite"),
+        createSessionId: () => "sess_sqlite_1",
+        createMessageId: () => `msg_${++n}`
+      });
+      const session = await store.createSession({ title: "First" });
+      expect(session.id).toBe("sess_sqlite_1");
+      expect(session.title).toBe("First");
+
+      await store.appendMessage({ sessionId: "sess_sqlite_1", role: "user", content: "hi" });
+      await store.appendMessage({ sessionId: "sess_sqlite_1", role: "assistant", content: "hello" });
+
+      const messages = await store.listMessages("sess_sqlite_1");
+      expect(messages).toHaveLength(2);
+      expect(messages[0]?.content).toBe("hi");
+      expect(messages[1]?.content).toBe("hello");
+      store.close();
+    } finally {
+      await rm(dir, { force: true, recursive: true });
+    }
+  });
+
+  test("persists tool calls and tool call ids", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-sqlite-"));
+    try {
+      let n = 0;
+      const store = new SqliteSessionStore({
+        databasePath: join(dir, "sessions.sqlite"),
+        createSessionId: () => "sess_tools",
+        createMessageId: () => `msg_${++n}`
+      });
+      await store.createSession();
+      await store.appendMessage({
+        sessionId: "sess_tools",
+        role: "assistant",
+        content: null,
+        toolCalls: [{ id: "tc_1", name: "read_file", input: { path: "x.md" } }]
+      });
+      await store.appendMessage({
+        sessionId: "sess_tools",
+        role: "tool",
+        content: "file contents",
+        toolCallId: "tc_1"
+      });
+
+      const messages = await store.listMessages("sess_tools");
+      expect(messages[0]?.toolCalls?.[0]?.name).toBe("read_file");
+      expect(messages[1]?.toolCallId).toBe("tc_1");
+      store.close();
+    } finally {
+      await rm(dir, { force: true, recursive: true });
+    }
+  });
+
+  test("listSessions returns sessions in updatedAt descending order", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-sqlite-"));
+    try {
+      let counter = 0;
+      let clock = 0;
+      const store = new SqliteSessionStore({
+        databasePath: join(dir, "sessions.sqlite"),
+        createSessionId: () => `sess_${++counter}`,
+        createMessageId: () => `msg_${++counter}`,
+        now: () => `2026-05-11T00:00:0${clock++}.000Z`
+      });
+      await store.createSession({ title: "A" });
+      await store.createSession({ title: "B" });
+      const list = await store.listSessions();
+      // updatedAt of B (later clock) should sort first.
+      expect(list[0]?.title).toBe("B");
+      expect(list[1]?.title).toBe("A");
+      store.close();
+    } finally {
+      await rm(dir, { force: true, recursive: true });
+    }
+  });
+
+  test("compact_boundary truncates listMessages output to the summary plus newer messages", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-sqlite-"));
+    try {
+      let n = 0;
+      let clock = 0;
+      const store = new SqliteSessionStore({
+        databasePath: join(dir, "sessions.sqlite"),
+        createSessionId: () => "sess_compact",
+        createMessageId: () => `msg_${++n}`,
+        now: () => `2026-05-11T00:00:${String(clock++).padStart(2, "0")}.000Z`
+      });
+      await store.createSession();
+      await store.appendMessage({ sessionId: "sess_compact", role: "user", content: "old1" });
+      await store.appendMessage({ sessionId: "sess_compact", role: "user", content: "old2" });
+      await store.appendCompactBoundary({
+        sessionId: "sess_compact",
+        summary: "User asked twice.",
+        messagesBefore: 2,
+        messagesAfter: 0
+      });
+      await store.appendMessage({ sessionId: "sess_compact", role: "user", content: "new1" });
+
+      const messages = await store.listMessages("sess_compact");
+      expect(messages).toHaveLength(2); // summary + new1
+      expect(messages[0]?.role).toBe("system");
+      expect(messages[0]?.content).toBe("User asked twice.");
+      expect(messages[1]?.content).toBe("new1");
+      store.close();
+    } finally {
+      await rm(dir, { force: true, recursive: true });
+    }
+  });
+
+  test("trace events round-trip through JSON encoding", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-sqlite-"));
+    try {
+      const store = new SqliteSessionStore({
+        databasePath: join(dir, "sessions.sqlite"),
+        createSessionId: () => "sess_trace"
+      });
+      await store.createSession();
+      await store.appendTraceEvent({ sessionId: "sess_trace", event: { type: "run_started", runId: "r1" } });
+      await store.appendTraceEvent({ sessionId: "sess_trace", event: { type: "run_completed", runId: "r1" } });
+      const events = await store.listTraceEvents("sess_trace");
+      expect(events).toHaveLength(2);
+      expect((events[0]?.event as { type: string }).type).toBe("run_started");
+      expect((events[1]?.event as { type: string }).type).toBe("run_completed");
+      store.close();
+    } finally {
+      await rm(dir, { force: true, recursive: true });
+    }
+  });
+
+  test("appendMessage on unknown session throws", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-sqlite-"));
+    try {
+      const store = new SqliteSessionStore({ databasePath: join(dir, "sessions.sqlite") });
+      await expect(
+        store.appendMessage({ sessionId: "nope", role: "user", content: "hi" })
+      ).rejects.toThrow(/Unknown session/);
+      store.close();
+    } finally {
+      await rm(dir, { force: true, recursive: true });
     }
   });
 });

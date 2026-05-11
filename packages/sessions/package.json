@@ -14,5 +14,11 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.9.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13"
   }
 }
