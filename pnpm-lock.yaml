@@ -192,6 +192,8 @@ importers:
         specifier: workspace:*
         version: link:../adapters
 
+  packages/lanes: {}
+
   packages/models:
     dependencies:
       '@anthropic-ai/sdk':

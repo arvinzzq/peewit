@@ -30,6 +30,9 @@
       "path": "./packages/context"
     },
     {
+      "path": "./packages/lanes"
+    },
+    {
       "path": "./packages/models"
     },
     {

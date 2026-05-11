@@ -8,6 +8,7 @@ const workspacePackages = [
   "packages/config",
   "packages/core",
   "packages/context",
+  "packages/lanes",
   "packages/models",
   "packages/tools",
   "packages/permissions",
