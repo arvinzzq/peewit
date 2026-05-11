@@ -1,5 +1,12 @@
-import { describe, expect, test } from "vitest";
-import { DefaultPermissionPolicy, type PermissionPolicy } from "./index.js";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import {
+  DefaultPermissionPolicy,
+  WorkspaceSandbox,
+  type PermissionPolicy
+} from "./index.js";
 
 describe("default permission policy", () => {
   test("auto-allows low-risk actions in confirm mode", () => {
@@ -127,6 +134,91 @@ describe("default permission policy", () => {
         risk: "blocked",
         reason: "Blocked actions are denied."
       });
+    }
+  });
+});
+
+describe("WorkspaceSandbox", () => {
+  let workspaceRoot: string;
+
+  beforeEach(async () => {
+    workspaceRoot = await mkdtemp(join(tmpdir(), "vole-workspace-sandbox-"));
+  });
+
+  afterEach(async () => {
+    await rm(workspaceRoot, { recursive: true, force: true });
+  });
+
+  test("reports available true and identifies as workspace backend", async () => {
+    const sandbox = new WorkspaceSandbox({ workspaceRoot });
+    expect(sandbox.name).toBe("workspace");
+    await expect(sandbox.available()).resolves.toBe(true);
+  });
+
+  test("executes a benign command and captures stdout and exit code", async () => {
+    const sandbox = new WorkspaceSandbox({ workspaceRoot });
+    const result = await sandbox.execute({ command: "echo hello-sandbox" });
+    expect(result.completed).toBe(true);
+    if (result.completed) {
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("hello-sandbox");
+    }
+  });
+
+  test("rejects sandbox-escape commands", async () => {
+    const sandbox = new WorkspaceSandbox({ workspaceRoot });
+    const result = await sandbox.execute({ command: "cd / && ls" });
+    expect(result).toEqual({
+      completed: false,
+      reason: "rejected",
+      message: "Command rejected: workspace sandbox prevents execution outside workspace."
+    });
+  });
+
+  test("rejects path-traversal commands", async () => {
+    const sandbox = new WorkspaceSandbox({ workspaceRoot });
+    const result = await sandbox.execute({ command: "cat /../etc/passwd" });
+    expect(result).toMatchObject({ completed: false, reason: "rejected" });
+  });
+
+  test("rejects cwd outside the workspace", async () => {
+    const sandbox = new WorkspaceSandbox({ workspaceRoot });
+    const result = await sandbox.execute(
+      { command: "pwd" },
+      { cwd: "/tmp" }
+    );
+    expect(result).toMatchObject({
+      completed: false,
+      reason: "rejected",
+      message: "Command rejected: requested cwd is outside the workspace."
+    });
+  });
+
+  test("accepts a subdirectory cwd inside the workspace", async () => {
+    const sandbox = new WorkspaceSandbox({ workspaceRoot });
+    await sandbox.execute({ command: "mkdir -p sub" });
+    const result = await sandbox.execute({ command: "pwd" }, { cwd: "sub" });
+    expect(result.completed).toBe(true);
+    if (result.completed) {
+      expect(result.stdout).toContain("sub");
+    }
+  });
+
+  test("surfaces timeout as a non-completed result", async () => {
+    const sandbox = new WorkspaceSandbox({ workspaceRoot });
+    const result = await sandbox.execute(
+      { command: "sleep 1" },
+      { timeoutMs: 50 }
+    );
+    expect(result).toMatchObject({ completed: false, reason: "timeout" });
+  });
+
+  test("propagates non-zero exit codes", async () => {
+    const sandbox = new WorkspaceSandbox({ workspaceRoot });
+    const result = await sandbox.execute({ command: "exit 7" });
+    expect(result.completed).toBe(true);
+    if (result.completed) {
+      expect(result.exitCode).toBe(7);
     }
   });
 });

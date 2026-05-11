@@ -72,6 +72,28 @@ const agent = createAgent({
 
 适用场景：Layer 1 测试中需要 tool calls 直接执行而不配置 `ApprovalResolver`；或在所有注册工具都被视为安全的沙箱评估环境中。
 
+### Sandbox 后端（Phase 16）
+
+Permissions 还拥有**执行边界抽象**。`SandboxBackend` 是 tools 在自身地址空间外运行代码（shell 命令、不可信 skill）时调用的接口。每个后端报告稳定的 `name`，并实现 `available()` 用于优雅降级、`execute(command, options)` 用于实际执行。
+
+```typescript
+interface SandboxBackend {
+  readonly name: "workspace" | "docker" | "worker";
+  execute(command: SandboxCommand, options?: SandboxOptions): Promise<SandboxResult>;
+  available(): Promise<boolean>;
+}
+```
+
+`SandboxResult` 是带 tag 的联合：完成的执行报告 exit code + stdout + stderr + duration；未完成的执行报告原因（`"timeout" | "rejected" | "unavailable"`）和可读 message。调用方总能看到明确的结果——常规 sandbox 拒绝不会抛异常。
+
+`WorkspaceSandbox` 是默认后端与参考实现：
+- 将 `cwd` 钉到 workspace root，拒绝任何位于其外的 `cwd`。
+- 拒绝匹配 workspace-escape 启发式的 shell 片段（`cd /`、`cd ~`、`/../`）。
+- 遵守 `timeoutMs`，将超时报告为 `{ completed: false, reason: "timeout" }`。
+- `available(): true` 无条件成立；无外部依赖。
+
+`DockerSandbox`（每次执行起容器）与 `WorkerThreadSandbox`（JS skill 隔离）推迟到 Phase 16b。两者都将实现同一 `SandboxBackend` 接口，调用方代码无需修改。
+
 ## 实现原理
 
 ### 为何独立一个包
@@ -95,8 +117,8 @@ const agent = createAgent({
 |---|---|---|
 | `package.json` | Package manifest | 声明 permissions 包（不依赖其他工作区包）。 |
 | `tsconfig.json` | TypeScript 配置 | 构建 permissions 包。 |
-| `src/index.ts` | 权限策略 | 所有导出：`AutonomyMode`、`PermissionRiskLevel`、`PermissionDecisionType`、`PermissionAction`、`PermissionEvaluationInput`、`PermissionDecision`、`PermissionPolicy`、`DefaultPermissionPolicy`、`AlwaysAllowPolicy`。 |
-| `src/index.test.ts` | 权限测试 | 覆盖决策矩阵所有单元格：observe/confirm/auto × low/medium/high/blocked。 |
+| `src/index.ts` | 权限策略 + sandbox 后端 | 所有导出：`AutonomyMode`、`PermissionRiskLevel`、`PermissionDecisionType`、`PermissionAction`、`PermissionEvaluationInput`、`PermissionDecision`、`PermissionPolicy`、`DefaultPermissionPolicy`、`AlwaysAllowPolicy`，以及 Phase 16 sandbox 接口：`SandboxBackend`、`SandboxBackendName`、`SandboxCommand`、`SandboxOptions`、`SandboxResult`、`WorkspaceSandboxOptions`、`WorkspaceSandbox`。 |
+| `src/index.test.ts` | 权限 + sandbox 测试 | 覆盖决策矩阵所有单元格（observe/confirm/auto × low/medium/high/blocked），以及 `WorkspaceSandbox` 契约（available、良性命令、escape 拒绝、cwd 包含、timeout、非零退出码）。 |
 
 ## 更新提醒
 

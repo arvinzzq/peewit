@@ -88,6 +88,28 @@ const agent = createAgent({
 
 Use when: Layer 1 tests that need tool calls to execute without configuring an `ApprovalResolver`. Also useful in sandboxed evaluation environments where every registered tool is considered safe by definition.
 
+### Sandbox Backends (Phase 16)
+
+Permissions also owns the **execution-boundary abstraction**. `SandboxBackend` is the interface tools call when they need to run code outside their own address space (shell commands, untrusted skills). Each backend reports a stable `name` and implements `available()` for graceful degradation and `execute(command, options)` for actual work.
+
+```typescript
+interface SandboxBackend {
+  readonly name: "workspace" | "docker" | "worker";
+  execute(command: SandboxCommand, options?: SandboxOptions): Promise<SandboxResult>;
+  available(): Promise<boolean>;
+}
+```
+
+`SandboxResult` is a discriminated union: completed runs report exit code + stdout + stderr + duration; non-completed runs report a reason (`"timeout" | "rejected" | "unavailable"`) and a human-readable message. Callers always see explicit outcomes — there are no thrown exceptions for routine sandbox refusals.
+
+`WorkspaceSandbox` is the default backend and the reference implementation:
+- Pins `cwd` to the workspace root, refusing any requested `cwd` outside it.
+- Rejects shell snippets matching workspace-escape heuristics (`cd /`, `cd ~`, `/../`).
+- Honors `timeoutMs` and reports timeouts as `{ completed: false, reason: "timeout" }`.
+- Reports `available(): true` unconditionally; it has no external dependency.
+
+`DockerSandbox` (per-execution containers) and `WorkerThreadSandbox` (JS skill isolation) are deferred to Phase 16b. Both will implement the same `SandboxBackend` interface, so callers do not change.
+
 ## Implementation Principles
 
 ### Why a Separate Package
@@ -112,8 +134,8 @@ Tools with `risk: "blocked"` are designed to be permanently unavailable. They ma
 |---|---|---|
 | `package.json` | Package manifest | Declares the permissions package, export entrypoint, and build scripts. |
 | `tsconfig.json` | TypeScript config | Builds the permissions package (no dependencies on other workspace packages). |
-| `src/index.ts` | Permission policy | All exports: `AutonomyMode`, `PermissionRiskLevel`, `PermissionDecisionType`, `PermissionAction`, `PermissionEvaluationInput`, `PermissionDecision`, `PermissionPolicy`, `DefaultPermissionPolicy`, `AlwaysAllowPolicy`. |
-| `src/index.test.ts` | Permission tests | Covers all cells of the decision matrix: observe/confirm/auto × low/medium/high/blocked. |
+| `src/index.ts` | Permission policy + sandbox backends | All exports: `AutonomyMode`, `PermissionRiskLevel`, `PermissionDecisionType`, `PermissionAction`, `PermissionEvaluationInput`, `PermissionDecision`, `PermissionPolicy`, `DefaultPermissionPolicy`, `AlwaysAllowPolicy`, plus the Phase 16 sandbox surface: `SandboxBackend`, `SandboxBackendName`, `SandboxCommand`, `SandboxOptions`, `SandboxResult`, `WorkspaceSandboxOptions`, `WorkspaceSandbox`. |
+| `src/index.test.ts` | Permission + sandbox tests | Covers every cell of the decision matrix (observe/confirm/auto × low/medium/high/blocked) and the `WorkspaceSandbox` contract (availability, benign command, escape rejection, cwd containment, timeout, non-zero exit). |
 
 ## Update Reminder
 
