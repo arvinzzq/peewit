@@ -1,9 +1,24 @@
 # Phase 12: Multi-Agent Runtime Maturity
 
-Status: Planned
+Status: Complete
 Date: 2026-05-11
 
 Simplified Chinese version: [phase-12-multi-agent-runtime-maturity.zh-CN.md](./phase-12-multi-agent-runtime-maturity.zh-CN.md)
+
+## Progress
+
+Status: Complete
+
+Completed commits:
+
+- [x] Step 1: docs(arch) rewrite `multi-agent-runtime.md` for Phase 12 — `25b76f2`
+- [x] Step 2: feat(taskflow) `PendingAnnouncement` type, `pendingAnnouncement` field, `drainPendingForParent` — `61c4f7a`
+- [x] Step 3: feat(core,cli) push-completion drain in `AgentRuntime.runTurn` + CLI wiring — `689f431`
+- [x] Step 3 supplement: feat(core) write `pendingAnnouncement` on async subagent completion + NO_REPLY suppression — `0ec50b5`
+- [x] Step 4: feat(core,tools,cli) `SubagentFactoryOptions`, `fork` context mode, depth-based tool stripping — `b6b4498`
+- [x] Step 5: feat(gateway) per-parent `maxChildrenPerAgent` + `runTimeoutSeconds` — `908de02`
+- [x] Step 6: feat(core,adapters,cli) `subagents` management tool + `vole subagents` CLI — `9938aff`
+- [x] Step 7: docs mark Phase 12 complete + roadmap update — (this commit)
 
 ## 1. Purpose
 

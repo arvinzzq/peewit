@@ -1,9 +1,24 @@
 # Phase 12：多代理运行时成熟化
 
-状态：计划中
+状态：完成
 日期：2026-05-11
 
 English version: [phase-12-multi-agent-runtime-maturity.md](./phase-12-multi-agent-runtime-maturity.md)
+
+## 进度
+
+状态：完成
+
+已完成提交：
+
+- [x] Step 1：docs(arch) 重写 `multi-agent-runtime.md` 适配 Phase 12 — `25b76f2`
+- [x] Step 2：feat(taskflow) `PendingAnnouncement` 类型、`pendingAnnouncement` 字段、`drainPendingForParent` — `61c4f7a`
+- [x] Step 3：feat(core,cli) `AgentRuntime.runTurn` 中的推送完成 drain + CLI 接线 — `689f431`
+- [x] Step 3 补充：feat(core) async 子代理完成时写 `pendingAnnouncement` + NO_REPLY 抑制 — `0ec50b5`
+- [x] Step 4：feat(core,tools,cli) `SubagentFactoryOptions`、`fork` 上下文模式、按深度剥工具 — `b6b4498`
+- [x] Step 5：feat(gateway) per-parent `maxChildrenPerAgent` + `runTimeoutSeconds` — `908de02`
+- [x] Step 6：feat(core,adapters,cli) `subagents` 管理工具 + `vole subagents` CLI — `9938aff`
+- [x] Step 7：docs 标记 Phase 12 完成 + roadmap 更新 — （本次提交）
 
 ## 1. 目的
 

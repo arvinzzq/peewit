@@ -44,7 +44,7 @@ The roadmap follows a dual-track approach:
 | Phase 9 | Complete | Plugin and skill ecosystem | User can install, enable, disable, and review capabilities | Plugin metadata, permission declarations, versioning |
 | Phase 10 | Complete | Full personal agent platform | OpenClaw-like personal agent with multiple models, agents, nodes, and sandboxed tools | Gateway, multi-agent runtime, node protocol, sandboxing |
 | Phase 11 | Complete | Gateway and lanes | Cross-process safe runtime infrastructure | GatewayCore, LaneRegistry, session key naming, file lock |
-| Phase 12 | Planned | Multi-agent runtime maturity | Push-completion sub-agents with fork mode, depth and concurrency policy | Sub-agent push announce, fork context, sub-agent management surface |
+| Phase 12 | Complete | Multi-agent runtime maturity | Push-completion sub-agents with fork mode, depth and concurrency policy | Sub-agent push announce, fork context, sub-agent management surface |
 | Phase 13 | Planned | Memory and prompt enhancement | Hybrid memory search, DREAMS.md review, full 14-section prompt | EmbeddingProvider, DREAMS workflow, pre-compaction flush, inline directives |
 | Phase 14 | Planned | SQLite storage unification | Indexed session / TaskFlow / memory storage at scale | SQLite stores, FTS5 memory index, migration tooling |
 | Phase 15 | Planned | Channels and multi-agent identity | Telegram and email channels with independent agent identities | agents/<id>/ layout, Channel interface, Telegram, Email |
@@ -568,13 +568,13 @@ Non-goals: no gateway HTTP / Unix socket transport; no multi-process daemon; no 
 
 ## 16. Phase 12: Multi-Agent Runtime Maturity
 
-Status: Planned. Plan document: [phase-12-multi-agent-runtime-maturity.md](../plans/phase-12-multi-agent-runtime-maturity.md).
+Status: Complete. Plan document: [phase-12-multi-agent-runtime-maturity.md](../plans/phase-12-multi-agent-runtime-maturity.md).
 
 Goal: upgrade sub-agents from polling-based isolated spawn to OpenClaw-grade execution — push-based completion, `fork` context mode, depth and concurrency policy, and a `subagents` management surface.
 
-Architecture added: `pendingAnnouncementForParent` on TaskFlow records; `SubagentFactory.create(goal, { contextMode, depth, parentSessionKey })`; lane-enforced concurrency and per-parent `maxChildrenPerAgent`; `runTimeoutSeconds` cancellation; new `subagents` tool family.
+Architecture added: `pendingAnnouncement` + `drainPendingForParent` on `@vole/taskflow`; AgentRuntime drains the mailbox at every turn start and injects each child's terminal summary as a `system` message; `SubagentFactoryOptions` with `contextMode`, `depth`, `parentSessionKey`, `parentMessages`; CLI factory strips spawn tools when `depth >= maxSpawnDepth` and threads parent transcript into `fork` mode; gateway-enforced `maxChildrenPerAgent` (default 5) and `runTimeoutSeconds`; new `subagents` model-callable tool plus `vole subagents list/kill` CLI surface; `NO_REPLY` suppression for fire-and-forget children.
 
-Non-goals: no process or worker-thread isolation of children; no per-child identity (Phase 15); no streaming of child events into parent's user-facing stream.
+Non-goals: no process or worker-thread isolation of children; no per-child identity (Phase 15); no streaming of child events into parent's user-facing stream; real-time cross-process cancellation deferred to daemon RPC (Phase 17+).
 
 ## 17. Phase 13: Memory and Prompt Enhancement
 
