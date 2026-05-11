@@ -4,7 +4,7 @@ English version: [README.md](./README.md)
 
 ## 架构概述
 
-`@vole/sessions` 负责**会话持久化边界**：以会话为范围存储对话消息和运行时 trace 事件，将持久化关注点与运行时编排、权限逻辑和 UI 渲染完全分离。
+`@vole/sessions` 负责**会话持久化边界**：以会话为范围存储对话消息和运行时 trace 事件，并通过旁车文件锁串行化跨进程写入。将持久化关注点与运行时编排、权限逻辑和 UI 渲染完全分离。
 
 ```
 CLI / Web adapter
@@ -12,7 +12,8 @@ CLI / Web adapter
     ▼
 SessionStore（接口）
     ├─ InMemorySessionStore   （进程内，用于测试和临时使用）
-    └─ JsonlSessionStore      （JSONL 文件，用于持久化）
+    └─ JsonlSessionStore      （JSONL 文件 + per-session .lock 旁车）
+                                └─ acquireSessionFileLock（跨进程）
 ```
 
 ## 核心概念
@@ -76,14 +77,24 @@ CLI Adapter（`apps/cli/src/index.ts`）实现了**项目维度 Sessions**：启
 
 两种存储实现始终返回记录副本（spread / `structuredClone`），防止调用者突变存储状态。
 
+### 跨进程文件锁
+
+`JsonlSessionStore` 在每次 JSONL 追加周围包一个旁车文件锁 `{directory}/{sessionId}.lock`。锁文件是包含持有者 pid 与 `startedAt` 时间戳的小型 JSON 文档。获取使用 Node 的 `wx` 标志（atomic create-if-not-exists）。若锁已被持有，acquirer 每 `retryIntervalMs`（默认 50 ms）轮询直到持有者释放或锁被判定为陈旧；总超时为 `acquireTimeoutMs`（默认 60 s）。
+
+锁被判定为陈旧当 `startedAt` 比 `staleAfterMs`（默认 60 s）更早，或持有 pid 不再存活（`process.kill(pid, 0)` 抛 `ESRCH`）。陈旧锁被删除并由下一个 waiter 重新获取，因此崩溃进程不会永久阻塞后续调用。
+
+锁层与 `@vole/lanes` 中的进程内 session lane 组合：lane 在一个 Node 进程内串行化提交，文件锁在多进程间串行化。测试中可传 `fileLock: { enabled: false }` 构造无锁开销的 store。
+
+`acquireSessionFileLock(lockPath, options)` 作为独立辅助函数导出。当你需要对针对 sessions 目录的自定义文件操作做跨进程安全时使用。
+
 ## 文件清单
 
 | 文件 | 角色 | 用途 |
 |---|---|---|
 | `package.json` | Package manifest | 声明 sessions 包（不依赖其他工作区包）。 |
 | `tsconfig.json` | TypeScript 配置 | 构建 sessions 包。 |
-| `src/index.ts` | Session 存储 | 所有导出：`SessionRecord`、`SessionMessageRecord`、`SessionTraceEventRecord`、`SessionStore`、`InMemorySessionStore`、`JsonlSessionStore`、相关依赖类型。 |
-| `src/index.test.ts` | Session 测试 | 保护创建/列表/获取、消息顺序、trace 持久化、`limit` 查询、`updatedAt` 更新、防御性副本、JSONL 重放、不安全 ID 拒绝、`compact_boundary` 重放（消息重置为摘要）以及 `toolCalls`/`toolCallId` 字段持久化。 |
+| `src/index.ts` | Session 存储 | 所有导出：`SessionRecord`、`SessionMessageRecord`、`SessionTraceEventRecord`、`SessionStore`、`InMemorySessionStore`、`JsonlSessionStore`、相关依赖类型、`JsonlFileLockOptions`、`acquireSessionFileLock`、`SessionFileLock`、`AcquireSessionFileLockOptions`、`DEFAULT_LOCK_ACQUIRE_TIMEOUT_MS`、`DEFAULT_LOCK_RETRY_INTERVAL_MS`、`DEFAULT_LOCK_STALE_AFTER_MS`。 |
+| `src/index.test.ts` | Session 测试 | 保护创建/列表/获取、消息顺序、trace 持久化、`limit` 查询、`updatedAt` 更新、防御性副本、JSONL 重放、不安全 ID 拒绝、`compact_boundary` 重放（消息重置为摘要）、`toolCalls`/`toolCallId` 字段持久化，以及文件锁的获取/释放/幂等/超时/陈旧 pid 回收/陈旧时长回收/进程内串行化，store 层锁集成。 |
 
 ## 更新提醒
 

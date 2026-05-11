@@ -1,8 +1,14 @@
 import { describe, expect, test } from "vitest";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "./index.js";
+import {
+  acquireSessionFileLock,
+  DEFAULT_LOCK_ACQUIRE_TIMEOUT_MS,
+  InMemorySessionStore,
+  JsonlSessionStore,
+  type SessionStore
+} from "./index.js";
 
 
 describe("in-memory session store", () => {
@@ -518,6 +524,209 @@ describe("jsonl session store", () => {
         }
       ]);
       await expect(readFile(join(directory, "sess_trace.jsonl"), "utf8")).resolves.toContain("\"type\":\"trace\"");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+});
+
+describe("acquireSessionFileLock", () => {
+  test("creates the lock file with pid and startedAt; release removes it", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-lock-"));
+    try {
+      const lockPath = join(directory, "sess.lock");
+
+      const lock = await acquireSessionFileLock(lockPath, { pid: 12345, now: () => 1_000_000 });
+
+      const body = JSON.parse(await readFile(lockPath, "utf8")) as { pid: number; startedAt: number };
+      expect(body.pid).toBe(12345);
+      expect(body.startedAt).toBe(1_000_000);
+
+      await lock.release();
+      await expect(stat(lockPath)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("release is idempotent", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-lock-"));
+    try {
+      const lockPath = join(directory, "sess.lock");
+      const lock = await acquireSessionFileLock(lockPath, { pid: 1 });
+      await lock.release();
+      // Second release must not throw.
+      await expect(lock.release()).resolves.toBeUndefined();
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("times out when the lock is held by a live other process", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-lock-"));
+    try {
+      const lockPath = join(directory, "sess.lock");
+      // Plant an existing lock from a "different live pid".
+      await writeFile(lockPath, JSON.stringify({ pid: 99999, startedAt: Date.now() }));
+
+      await expect(
+        acquireSessionFileLock(lockPath, {
+          pid: 1,
+          acquireTimeoutMs: 50,
+          retryIntervalMs: 5,
+          isProcessAlive: () => true
+        })
+      ).rejects.toThrow(/Timed out acquiring session file lock/);
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("reclaims a stale lock when the holder pid is dead", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-lock-"));
+    try {
+      const lockPath = join(directory, "sess.lock");
+      await writeFile(lockPath, JSON.stringify({ pid: 99999, startedAt: Date.now() }));
+
+      const lock = await acquireSessionFileLock(lockPath, {
+        pid: 1,
+        acquireTimeoutMs: 500,
+        retryIntervalMs: 5,
+        isProcessAlive: (pid) => pid !== 99999
+      });
+
+      const body = JSON.parse(await readFile(lockPath, "utf8")) as { pid: number };
+      expect(body.pid).toBe(1);
+
+      await lock.release();
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("reclaims a stale lock that is older than staleAfterMs", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-lock-"));
+    try {
+      const lockPath = join(directory, "sess.lock");
+      // Plant an old lock from "live" pid but well past stale threshold.
+      const oldStartedAt = 1_000_000;
+      await writeFile(lockPath, JSON.stringify({ pid: 99999, startedAt: oldStartedAt }));
+
+      const lock = await acquireSessionFileLock(lockPath, {
+        pid: 1,
+        acquireTimeoutMs: 500,
+        retryIntervalMs: 5,
+        staleAfterMs: 100,
+        now: () => oldStartedAt + 10_000,
+        isProcessAlive: () => true
+      });
+
+      await lock.release();
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("second acquire waits for first release in-process", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-lock-"));
+    try {
+      const lockPath = join(directory, "sess.lock");
+      const first = await acquireSessionFileLock(lockPath, { pid: 1, retryIntervalMs: 5 });
+
+      let secondAcquired = false;
+      const secondPromise = acquireSessionFileLock(lockPath, {
+        pid: 2,
+        retryIntervalMs: 5,
+        isProcessAlive: (pid) => pid === 1
+      }).then((lock) => {
+        secondAcquired = true;
+        return lock;
+      });
+
+      await new Promise((r) => setTimeout(r, 30));
+      expect(secondAcquired).toBe(false);
+
+      await first.release();
+      const second = await secondPromise;
+      expect(secondAcquired).toBe(true);
+      await second.release();
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("default acquire timeout constant is exposed", () => {
+    expect(DEFAULT_LOCK_ACQUIRE_TIMEOUT_MS).toBe(60_000);
+  });
+});
+
+describe("JsonlSessionStore — file lock integration", () => {
+  test("acquires and releases the lock around each append", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-store-lock-"));
+    try {
+      const store = new JsonlSessionStore({
+        directory,
+        createSessionId: () => "sess_locktest",
+        createMessageId: () => "msg_1"
+      });
+
+      const session = await store.createSession();
+      expect(session.id).toBe("sess_locktest");
+
+      await store.appendMessage({ sessionId: "sess_locktest", role: "user", content: "hi" });
+
+      // Lock file should be cleaned up after each write.
+      await expect(stat(join(directory, "sess_locktest.lock"))).rejects.toMatchObject({ code: "ENOENT" });
+
+      // JSONL still contains the writes.
+      const content = await readFile(join(directory, "sess_locktest.jsonl"), "utf8");
+      expect(content).toContain("\"type\":\"session\"");
+      expect(content).toContain("\"type\":\"message\"");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("can be disabled via fileLock.enabled=false", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-store-nolock-"));
+    try {
+      const store = new JsonlSessionStore({
+        directory,
+        createSessionId: () => "sess_nolock",
+        createMessageId: () => "msg_1",
+        fileLock: { enabled: false }
+      });
+
+      await store.createSession();
+      await store.appendMessage({ sessionId: "sess_nolock", role: "user", content: "hi" });
+
+      // No .lock file should have been created.
+      await expect(stat(join(directory, "sess_nolock.lock"))).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("serializes concurrent appends inside the same process", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-store-concurrent-"));
+    try {
+      let messageCounter = 0;
+      const store = new JsonlSessionStore({
+        directory,
+        createSessionId: () => "sess_concurrent",
+        createMessageId: () => `msg_${++messageCounter}`
+      });
+
+      await store.createSession();
+
+      const appends = Array.from({ length: 20 }, (_, i) =>
+        store.appendMessage({ sessionId: "sess_concurrent", role: "user", content: `msg_${i}` })
+      );
+      await Promise.all(appends);
+
+      const content = await readFile(join(directory, "sess_concurrent.jsonl"), "utf8");
+      const messageLines = content.split("\n").filter((line) => line.includes("\"type\":\"message\""));
+      expect(messageLines).toHaveLength(20);
     } finally {
       await rm(directory, { force: true, recursive: true });
     }

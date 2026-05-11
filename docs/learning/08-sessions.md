@@ -1,7 +1,7 @@
 # Module 07: @vole/sessions
 
-Status: Complete
-Date: 2026-05-07
+Status: Complete · Phase 11 Step 4 added cross-process file lock
+Date: 2026-05-07; cross-process lock section added 2026-05-11
 
 Simplified Chinese version: `08-sessions.zh-CN.md` (create alongside this file)
 
@@ -21,7 +21,10 @@ two store implementations: `InMemorySessionStore` and `JsonlSessionStore`.
 - What does `#replay()` do, and what are its performance implications?
 - If a session file has 50 messages with a `compact_boundary` after message 20, how many
   messages does `listMessages()` return? Which ones?
-- Why is `SessionMutex` in `@vole/core` rather than here?
+- Why is `SessionMutex` in `@vole/core` rather than here? (Phase 11+ replaces it with a
+  session lane in `@vole/lanes`.)
+- The Phase 11 cross-process file lock lives in this package, not in `@vole/lanes`. Why
+  the asymmetry?
 - What is the difference between `SessionMessageRecord` and `ModelMessage`?
 - `@vole/sessions` uses append-only writes; `@vole/taskflow` uses read-modify-write.
   Why does each module choose a different strategy?
@@ -171,12 +174,33 @@ function assertSafeSessionId(sessionId: string): void {
 Called before constructing the file path. Prevents `../../../etc/passwd`-style path
 traversal attacks when session IDs come from user input.
 
+### Cross-process file lock
+
+Phase 11 Step 4 wraps every `#append` call in `acquireSessionFileLock` so two `vole`
+processes targeting the same workspace cannot interleave writes to the same JSONL file.
+
+The lock is a sidecar file at `{directory}/{sessionId}.lock` whose body is a small JSON
+document: `{ pid, startedAt }`. Acquisition uses Node's `wx` flag — atomic create-if-not-
+exists. When the file already exists, the acquirer polls (default 50 ms intervals) until
+either the holder releases the lock or the lock is judged stale. A lock is stale when its
+`startedAt` is older than `staleAfterMs` (default 60 s) OR when the holding pid is no
+longer alive (`process.kill(pid, 0)` throws `ESRCH`). Stale locks are deleted and re-
+acquired by the next waiter. The total acquire timeout defaults to 60 s.
+
+`acquireSessionFileLock(lockPath, options)` is also exported as a stand-alone helper. It
+is fully injectable (`pid`, `now`, `isProcessAlive`) for deterministic testing.
+
+The file lock composes with the in-process session lane in `@vole/lanes`: the session
+lane orders writes within one Node process; the file lock orders writes across processes.
+The two layers do not know about each other and can be enabled independently.
+
 ## 5. OpenClaw Alignment
 
 | OpenClaw | Vole | Notes |
 |---|---|---|
 | `session-store.ts` | `JsonlSessionStore` | Persistent session store |
-| Session-level write locks | `SessionMutex` in `@vole/core` | Concurrency at a higher layer |
+| In-process session lane | `SessionMutex` (Phase 10) → session lane in `@vole/lanes` (Phase 11+) | Replaced by lane composition |
+| Process-aware file write lock | `acquireSessionFileLock` (Phase 11 Step 4) | Same semantics: pid + startedAt sidecar, stale reclaim |
 | Transcript persistence | `appendMessage` / `listMessages` | Same concept |
 | Per-session execution trace | `appendTraceEvent` / `listTraceEvents` | OpenClaw traces are more detailed |
 
@@ -206,14 +230,23 @@ sessions with tens of thousands of messages it would be slow.
 The tradeoff: no cache means no cache invalidation bugs, no stale reads, and no memory
 pressure from keeping sessions resident.
 
-**`SessionMutex` lives in `@vole/core`, not here**
+**In-process serialization lives elsewhere; cross-process serialization lives here**
 
-The sessions package has no concurrency protection. `SessionMutex` is owned by
-`AgentRuntime`. This keeps the separation clean: sessions is pure storage with no
-concurrency logic; core is the coordinator that decides when runs may execute.
+The sessions package does not own per-session in-process serialization. Phase 10 used
+`SessionMutex` in `@vole/core` for this; Phase 11 replaces it with a session lane in
+`@vole/lanes` (concurrency 1 is the strict generalization of the mutex). The reason:
+in-process ordering is a *scheduling* concern that depends on knowing what "a run" is —
+knowledge that belongs to the gateway and runtime, not the storage layer.
 
-If sessions had its own mutex, it would need to know about run boundaries — knowledge
-that belongs to core.
+Cross-process serialization is different. It depends only on the file path, and any
+process that touches the JSONL must honour it regardless of how the run was scheduled.
+That makes it a *storage* concern. Hence the file lock lives next to the writer in
+`packages/sessions`, where it can be applied automatically to every `#append`.
+
+The two layers compose:
+
+- `@vole/lanes` session lane: one writer at a time within one process.
+- `@vole/sessions` file lock: one process at a time on the same file.
 
 **`compact_boundary` persists the compaction result**
 
@@ -270,6 +303,12 @@ Test categories:
 - `updatedAt` derivation from appended records
 - Session ID safety enforcement
 - Missing session file returns empty (not an error)
+- File lock: acquisition, idempotent release, timeout when held by a live other process,
+  stale reclaim by dead pid, stale reclaim by age, in-process serialization between two
+  acquirers
+- Store-level lock integration: `.lock` sidecar is created and cleaned up around each
+  append; concurrent appends serialize correctly; `fileLock: { enabled: false }` disables
+  the layer cleanly
 
 ## 8. Insights
 

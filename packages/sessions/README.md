@@ -4,7 +4,7 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ## Architecture Overview
 
-`@vole/sessions` owns the **session persistence boundary**: it stores conversation messages and runtime trace events with session scope. It keeps persistence concerns completely separate from runtime orchestration, permission logic, and UI rendering.
+`@vole/sessions` owns the **session persistence boundary**: it stores conversation messages and runtime trace events with session scope, and serializes cross-process writes with a sidecar file lock. It keeps persistence concerns completely separate from runtime orchestration, permission logic, and UI rendering.
 
 ```
 CLI / Web adapter
@@ -12,7 +12,8 @@ CLI / Web adapter
     ▼
 SessionStore (interface)
     ├─ InMemorySessionStore   (in-process, for testing and ephemeral use)
-    └─ JsonlSessionStore      (JSONL files, for durable persistence)
+    └─ JsonlSessionStore      (JSONL files + per-session .lock sidecar)
+                                └─ acquireSessionFileLock (cross-process)
 ```
 
 ## Core Concepts
@@ -129,14 +130,24 @@ The CLI adapter (`apps/cli/src/index.ts`) implements **project-scoped sessions**
 
 Both store implementations always return copies of records (spread for plain objects, `structuredClone` for trace events with nested objects). This prevents callers from mutating stored records, which would silently corrupt the in-memory store.
 
+### Cross-Process File Lock
+
+`JsonlSessionStore` wraps every JSONL append in a sidecar file lock at `{directory}/{sessionId}.lock`. The lock file is a small JSON document containing the holder's pid and `startedAt` timestamp. Acquisition uses Node's `wx` flag (atomic create-if-not-exists). When the lock is already held, the acquirer polls every `retryIntervalMs` (default 50 ms) until the holder releases or the lock is determined stale, with a total timeout of `acquireTimeoutMs` (default 60 s).
+
+A lock is treated as stale if its `startedAt` is older than `staleAfterMs` (default 60 s) or if the holding pid is no longer alive (`process.kill(pid, 0)` throws `ESRCH`). Stale locks are deleted and re-acquired by the next waiter, so a crashed process does not permanently block subsequent invocations.
+
+The lock layer composes with the in-process session lane in `@vole/lanes`: lanes serialize submissions within one Node process, file lock serializes across processes. For tests, pass `fileLock: { enabled: false }` to construct a store without the locking overhead.
+
+`acquireSessionFileLock(lockPath, options)` is exported as a stand-alone helper. Use it when you need cross-process safety around custom file operations that target the sessions directory.
+
 ## File Inventory
 
 | File | Role | Purpose |
 |---|---|---|
 | `package.json` | Package manifest | Declares the sessions package, export entrypoint, and build scripts (no workspace package dependencies). |
 | `tsconfig.json` | TypeScript config | Builds the sessions package. |
-| `src/index.ts` | Session store | All exports: `SessionRecord`, `SessionMessageRecord`, `SessionTraceEventRecord`, `SessionStore`, `InMemorySessionStore`, `JsonlSessionStore`, `InMemorySessionStoreDependencies`, `JsonlSessionStoreDependencies`. |
-| `src/index.test.ts` | Session tests | Protects create/list/get, message append/list ordering, trace event persistence, `limit` queries, `updatedAt` bumping, defensive copies, JSONL replay correctness, unsafe session ID rejection, `compact_boundary` replay (messages reset to summary), and `toolCalls`/`toolCallId` field persistence. |
+| `src/index.ts` | Session store | All exports: `SessionRecord`, `SessionMessageRecord`, `SessionTraceEventRecord`, `SessionStore`, `InMemorySessionStore`, `JsonlSessionStore`, `InMemorySessionStoreDependencies`, `JsonlSessionStoreDependencies`, `JsonlFileLockOptions`, `acquireSessionFileLock`, `SessionFileLock`, `AcquireSessionFileLockOptions`, `DEFAULT_LOCK_ACQUIRE_TIMEOUT_MS`, `DEFAULT_LOCK_RETRY_INTERVAL_MS`, `DEFAULT_LOCK_STALE_AFTER_MS`. |
+| `src/index.test.ts` | Session tests | Protects create/list/get, message append/list ordering, trace event persistence, `limit` queries, `updatedAt` bumping, defensive copies, JSONL replay correctness, unsafe session ID rejection, `compact_boundary` replay (messages reset to summary), `toolCalls`/`toolCallId` field persistence, file lock acquisition / release / idempotence / timeout / stale-pid reclaim / stale-age reclaim / in-process serialization, and store-level lock integration. |
 
 ## Update Reminder
 

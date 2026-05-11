@@ -1,11 +1,11 @@
 /**
- * INPUT: Session creation requests, conversation messages (including tool_use and tool_result), compaction boundaries, runtime trace events, persistence directories, and injectable ID/time providers.
- * OUTPUT: Session records, message/trace records, compact_boundary records, session store contracts, in-memory storage, and JSONL session storage.
- * POS: Session storage layer; owns replayable short-term conversation state with compaction support.
+ * INPUT: Session creation requests, conversation messages (including tool_use and tool_result), compaction boundaries, runtime trace events, persistence directories, injectable ID/time providers, and cross-process file lock options.
+ * OUTPUT: Session records, message/trace records, compact_boundary records, session store contracts, in-memory storage, JSONL session storage with cross-process file lock, and acquireSessionFileLock helper.
+ * POS: Session storage layer; owns replayable short-term conversation state with compaction support and cross-process write serialization. The in-process lane (in @vole/lanes) serializes within one Node process; this file lock serializes across processes targeting the same session JSONL.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 export const sessionsPackageName = "@vole/sessions";
@@ -231,6 +231,18 @@ export class InMemorySessionStore implements SessionStore {
 
 export interface JsonlSessionStoreDependencies extends InMemorySessionStoreDependencies {
   directory: string;
+  /** Optional cross-process file lock configuration. Defaults are applied when omitted. Pass `{ enabled: false }` to disable for tests. */
+  fileLock?: JsonlFileLockOptions;
+}
+
+export interface JsonlFileLockOptions {
+  enabled?: boolean;
+  acquireTimeoutMs?: number;
+  retryIntervalMs?: number;
+  staleAfterMs?: number;
+  pid?: number;
+  now?: () => number;
+  isProcessAlive?: (pid: number) => boolean;
 }
 
 type JsonlSessionRecord =
@@ -259,12 +271,23 @@ export class JsonlSessionStore implements SessionStore {
   readonly #createSessionId: () => string;
   readonly #createMessageId: () => string;
   readonly #now: () => string;
+  readonly #fileLock: Required<Omit<JsonlFileLockOptions, "pid" | "now" | "isProcessAlive">> & Pick<JsonlFileLockOptions, "pid" | "now" | "isProcessAlive">;
 
   constructor(dependencies: JsonlSessionStoreDependencies) {
     this.#directory = dependencies.directory;
     this.#createSessionId = dependencies.createSessionId ?? randomId("sess");
     this.#createMessageId = dependencies.createMessageId ?? randomId("msg");
     this.#now = dependencies.now ?? (() => new Date().toISOString());
+    const fl = dependencies.fileLock ?? {};
+    this.#fileLock = {
+      enabled: fl.enabled ?? true,
+      acquireTimeoutMs: fl.acquireTimeoutMs ?? DEFAULT_LOCK_ACQUIRE_TIMEOUT_MS,
+      retryIntervalMs: fl.retryIntervalMs ?? DEFAULT_LOCK_RETRY_INTERVAL_MS,
+      staleAfterMs: fl.staleAfterMs ?? DEFAULT_LOCK_STALE_AFTER_MS,
+      ...(fl.pid !== undefined ? { pid: fl.pid } : {}),
+      ...(fl.now !== undefined ? { now: fl.now } : {}),
+      ...(fl.isProcessAlive !== undefined ? { isProcessAlive: fl.isProcessAlive } : {})
+    };
   }
 
   async createSession(input: CreateSessionInput = {}): Promise<SessionRecord> {
@@ -393,7 +416,21 @@ export class JsonlSessionStore implements SessionStore {
 
   async #append(sessionId: string, record: JsonlSessionRecord): Promise<void> {
     await mkdir(this.#directory, { recursive: true });
-    await writeFile(this.#filePath(sessionId), `${JSON.stringify(record)}\n`, { flag: "a" });
+    if (this.#fileLock.enabled) {
+      const lock = await acquireSessionFileLock(this.#lockPath(sessionId), this.#fileLock);
+      try {
+        await writeFile(this.#filePath(sessionId), `${JSON.stringify(record)}\n`, { flag: "a" });
+      } finally {
+        await lock.release();
+      }
+    } else {
+      await writeFile(this.#filePath(sessionId), `${JSON.stringify(record)}\n`, { flag: "a" });
+    }
+  }
+
+  #lockPath(sessionId: string): string {
+    assertSafeSessionId(sessionId);
+    return join(this.#directory, `${sessionId}.lock`);
   }
 
   async #replay(sessionId: string): Promise<{
@@ -517,4 +554,139 @@ function cloneTraceEventRecord<TEvent>(traceEvent: SessionTraceEventRecord<TEven
 
 function randomId(prefix: string): () => string {
   return () => `${prefix}_${crypto.randomUUID()}`;
+}
+
+// ----------------------------------------------------------------------------
+// Cross-process session file lock
+// ----------------------------------------------------------------------------
+
+export const DEFAULT_LOCK_ACQUIRE_TIMEOUT_MS = 60_000;
+export const DEFAULT_LOCK_RETRY_INTERVAL_MS = 50;
+export const DEFAULT_LOCK_STALE_AFTER_MS = 60_000;
+
+export interface AcquireSessionFileLockOptions {
+  acquireTimeoutMs?: number;
+  retryIntervalMs?: number;
+  staleAfterMs?: number;
+  pid?: number;
+  now?: () => number;
+  isProcessAlive?: (pid: number) => boolean;
+}
+
+export interface SessionFileLock {
+  readonly lockPath: string;
+  release(): Promise<void>;
+}
+
+interface LockFileBody {
+  pid: number;
+  startedAt: number;
+}
+
+function defaultIsProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ESRCH") {
+      return false;
+    }
+    // EPERM means the process exists but we lack permission to signal it — count as alive.
+    return true;
+  }
+}
+
+/**
+ * Acquire an exclusive cross-process lock on the given `.lock` sidecar path.
+ *
+ * Uses `open` with `wx` flag (atomic create-if-not-exists). When the lock is
+ * already held, polls every `retryIntervalMs` until the holder releases or the
+ * lock is determined to be stale (process dead or older than `staleAfterMs`).
+ * Throws after `acquireTimeoutMs` total elapsed.
+ */
+export async function acquireSessionFileLock(
+  lockPath: string,
+  options: AcquireSessionFileLockOptions = {}
+): Promise<SessionFileLock> {
+  const acquireTimeoutMs = options.acquireTimeoutMs ?? DEFAULT_LOCK_ACQUIRE_TIMEOUT_MS;
+  const retryIntervalMs = options.retryIntervalMs ?? DEFAULT_LOCK_RETRY_INTERVAL_MS;
+  const staleAfterMs = options.staleAfterMs ?? DEFAULT_LOCK_STALE_AFTER_MS;
+  const pid = options.pid ?? process.pid;
+  const nowFn = options.now ?? (() => Date.now());
+  const isProcessAlive = options.isProcessAlive ?? defaultIsProcessAlive;
+
+  const startTime = nowFn();
+  const body: LockFileBody = { pid, startedAt: nowFn() };
+  const serialized = JSON.stringify(body);
+
+  let released = false;
+  const release = async (): Promise<void> => {
+    if (released) {
+      return;
+    }
+    released = true;
+    try {
+      await unlink(lockPath);
+    } catch (error) {
+      if (isNodeError(error) && error.code === "ENOENT") {
+        return;
+      }
+      throw error;
+    }
+  };
+
+  while (true) {
+    try {
+      await writeFile(lockPath, serialized, { flag: "wx" });
+      return { lockPath, release };
+    } catch (error) {
+      if (!isNodeError(error) || error.code !== "EEXIST") {
+        throw error;
+      }
+    }
+
+    // Lock exists: inspect it. Reclaim if stale.
+    let existing: LockFileBody | undefined;
+    try {
+      const text = await readFile(lockPath, "utf8");
+      existing = JSON.parse(text) as LockFileBody;
+    } catch (readError) {
+      if (!isNodeError(readError) || (readError.code !== "ENOENT" && !(readError instanceof SyntaxError))) {
+        // Corrupt or unreadable — treat as stale and try to remove.
+        existing = undefined;
+      }
+    }
+
+    let stale = false;
+    if (existing === undefined) {
+      stale = true;
+    } else {
+      const age = nowFn() - existing.startedAt;
+      if (age > staleAfterMs) {
+        stale = true;
+      } else if (typeof existing.pid === "number" && !isProcessAlive(existing.pid)) {
+        stale = true;
+      }
+    }
+
+    if (stale) {
+      try {
+        await unlink(lockPath);
+      } catch (unlinkError) {
+        if (!isNodeError(unlinkError) || unlinkError.code !== "ENOENT") {
+          throw unlinkError;
+        }
+      }
+      // Retry creation immediately after clearing stale lock.
+      continue;
+    }
+
+    if (nowFn() - startTime > acquireTimeoutMs) {
+      throw new Error(
+        `Timed out acquiring session file lock at ${lockPath} after ${acquireTimeoutMs}ms (held by pid ${existing?.pid ?? "?"}).`
+      );
+    }
+
+    await new Promise<void>((resolve) => setTimeout(resolve, retryIntervalMs));
+  }
 }
