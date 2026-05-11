@@ -33,6 +33,17 @@ describe("runCli", () => {
     expect(result.stderr).toContain("OPENROUTER_API_KEY");
   });
 
+  test("bare `vole` (no args) defaults to interactive chat", async () => {
+    const result = await runCli([], "0.0.0", {
+      env: {},
+      readLine: async () => undefined
+    });
+
+    // No API key → chat rejects before reading any input
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("No API key");
+  });
+
   test("runs an interactive configured-provider chat loop", async () => {
     const directory = await mkdtemp(join(tmpdir(), "vole-cli-sessions-"));
     const inputs = ["Hello configured", "/exit"];

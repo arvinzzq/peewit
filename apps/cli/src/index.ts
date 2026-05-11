@@ -123,6 +123,12 @@ export interface RunCliOptions {
 }
 
 export async function runCli(args: string[], packageVersion: string, options: RunCliOptions = {}): Promise<CliResult> {
+  // Bare invocation (no args, or only "--" separator) → default to interactive chat
+  const effectiveArgs = args[0] === "--" ? args.slice(1) : args;
+  if (effectiveArgs.length === 0) {
+    return runInteractiveConfiguredChat(options, { fakeInteractive: false, resume: false });
+  }
+
   let capturedOut = "";
   let actionResult: CliResult | null = null;
 
@@ -1613,8 +1619,12 @@ async function main(): Promise<void> {
 
   // Real interactive chat → use Ink for streaming rendering
   // args[0] may be "--" when invoked as `pnpm cli -- chat`; skip it.
+  // No subcommand (bare `vole`) also defaults to chat.
   const effectiveCommand = args.find((a) => a !== "--");
-  if (effectiveCommand === "chat" && !args.includes("--help") && !args.includes("-h") && !args.includes("--fake") && !args.includes("--fake-interactive")) {
+  // Route to Ink chat when: explicit "chat" subcommand, OR no subcommand with a real TTY
+  // (bare `vole` defaults to chat in interactive terminals; non-TTY contexts get commander/help).
+  const useInkChat = effectiveCommand === "chat" || (effectiveCommand === undefined && process.stdin.isTTY === true);
+  if (useInkChat && !args.includes("--help") && !args.includes("-h") && !args.includes("--fake") && !args.includes("--fake-interactive")) {
     const { runInkChat } = await import("./app.js");
     await runInkChat({ args, env: process.env });
     return;
