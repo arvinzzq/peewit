@@ -66,6 +66,10 @@ vole sessions
 | `vole subagents kill <id\|all>` | Mark a sub-agent task as cancelled (or all running ones with "all") |
 | `vole doctor` | Read-only diagnostic checks for workspace, sessions, taskflow, and skills |
 | `vole doctor --fix` | Apply idempotent remediations (delete stale .lock files, cancel stuck subagents, cancel orphan TaskFlow children) |
+| `vole agents list` | List per-agent identity directories under `agents/` and the active default |
+| `vole agents create <id>` | Create `agents/<id>/` with seed AGENTS.md / SOUL.md / USER.md / MEMORY.md |
+| `vole agents switch <id>` | Set `.vole/active-agent` so subsequent runs use this agent |
+| `vole agents remove <id> --confirm` | Archive `agents/<id>/` to `agents/.archive/` |
 | `vole memory review` | List pending DREAMS.md candidate entries |
 | `vole memory review approve <id\|all>` | Promote DREAMS.md entry into MEMORY.md |
 | `vole memory review reject <id\|all>` | Archive DREAMS.md entry under DREAMS/archive/ |

@@ -1461,6 +1461,70 @@ describe("runCli", () => {
     }
   });
 
+  test("agents list reports no agents when none exist", async () => {
+    const ws = await mkdtemp(join(tmpdir(), "vole-agents-empty-"));
+    try {
+      const result = await runCli(["agents", "list"], "0.0.0", {
+        cwd: ws,
+        env: { ...process.env, VOLE_WORKSPACE_ROOT: ws }
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("(no agents found");
+    } finally {
+      await rm(ws, { force: true, recursive: true });
+    }
+  });
+
+  test("agents create + list + switch + remove round-trip", async () => {
+    const ws = await mkdtemp(join(tmpdir(), "vole-agents-rt-"));
+    try {
+      const env = { ...process.env, VOLE_WORKSPACE_ROOT: ws };
+
+      const create = await runCli(["agents", "create", "work"], "0.0.0", { cwd: ws, env });
+      expect(create.exitCode).toBe(0);
+      expect(create.stdout).toContain("Created agent work at");
+
+      const list1 = await runCli(["agents", "list"], "0.0.0", { cwd: ws, env });
+      expect(list1.exitCode).toBe(0);
+      expect(list1.stdout).toContain("  work");
+      expect(list1.stdout).toContain("Active: work");
+
+      const create2 = await runCli(["agents", "create", "personal"], "0.0.0", { cwd: ws, env });
+      expect(create2.exitCode).toBe(0);
+
+      const sw = await runCli(["agents", "switch", "personal"], "0.0.0", { cwd: ws, env });
+      expect(sw.exitCode).toBe(0);
+      expect(sw.stdout).toContain("Active agent set to personal");
+
+      const list2 = await runCli(["agents", "list"], "0.0.0", { cwd: ws, env });
+      expect(list2.stdout).toContain("Active: personal");
+
+      const removeNoConfirm = await runCli(["agents", "remove", "personal"], "0.0.0", { cwd: ws, env });
+      expect(removeNoConfirm.exitCode).toBe(1);
+      expect(removeNoConfirm.stderr).toContain("--confirm");
+
+      const remove = await runCli(["agents", "remove", "personal", "--confirm"], "0.0.0", { cwd: ws, env });
+      expect(remove.exitCode).toBe(0);
+      expect(remove.stdout).toContain("Archived agent personal");
+    } finally {
+      await rm(ws, { force: true, recursive: true });
+    }
+  });
+
+  test("agents create refuses invalid ids", async () => {
+    const ws = await mkdtemp(join(tmpdir(), "vole-agents-invalid-"));
+    try {
+      const result = await runCli(["agents", "create", "..bad"], "0.0.0", {
+        cwd: ws,
+        env: { ...process.env, VOLE_WORKSPACE_ROOT: ws }
+      });
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("Invalid agent id");
+    } finally {
+      await rm(ws, { force: true, recursive: true });
+    }
+  });
+
   test("migrate jsonl-to-sqlite defaults to dry-run and reports counts", async () => {
     const directory = await mkdtemp(join(tmpdir(), "vole-migrate-"));
     try {

@@ -5,7 +5,8 @@
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
-import { join } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 export const configPackageName = "@vole/config";
 
@@ -37,6 +38,10 @@ export interface EffectiveConfig {
   };
   workspace: {
     root: string;
+  };
+  agents: {
+    /** Default agent id when no `.vole/active-agent` file is present. */
+    default?: string;
   };
   runtime: {
     defaultMode: AutonomyMode;
@@ -99,6 +104,7 @@ const defaultConfig: EffectiveConfig = {
   workspace: {
     root: "."
   },
+  agents: {},
   runtime: {
     defaultMode: "confirm",
     maxSteps: 12
@@ -142,6 +148,7 @@ export function redactedConfig(config: EffectiveConfig): RedactedConfigView {
     ...config,
     model: { ...config.model },
     workspace: { ...config.workspace },
+    agents: { ...config.agents },
     runtime: { ...config.runtime },
     trace: { ...config.trace },
     tools: { ...config.tools },
@@ -158,6 +165,7 @@ function cloneConfig(config: EffectiveConfig): EffectiveConfig {
   return {
     model: { ...config.model },
     workspace: { ...config.workspace },
+    agents: { ...config.agents },
     runtime: { ...config.runtime },
     trace: { ...config.trace },
     tools: { ...config.tools },
@@ -179,6 +187,7 @@ function applyConfig(config: EffectiveConfig, value: unknown): void {
 
   applyObject(config.model, value.model);
   applyObject(config.workspace, value.workspace);
+  applyObject(config.agents, value.agents);
   applyObject(config.runtime, value.runtime);
   applyObject(config.trace, value.trace);
   applyObject(config.tools, value.tools);
@@ -228,6 +237,9 @@ function applyEnv(config: EffectiveConfig, env: Record<string, string | undefine
   }
   if (env.VOLE_WORKSPACE_ROOT !== undefined) {
     config.workspace.root = env.VOLE_WORKSPACE_ROOT;
+  }
+  if (env.VOLE_AGENT !== undefined) {
+    config.agents.default = env.VOLE_AGENT;
   }
   if (env.VOLE_LONG_TERM_MEMORY !== undefined) {
     config.memory.longTermFiles = env.VOLE_LONG_TERM_MEMORY as LongTermMemoryFilePolicy;
@@ -374,4 +386,160 @@ export function resolveSessionsDirectory(
   const home = env?.HOME ?? process.env.HOME;
 
   return home === undefined ? directory : join(home, directory.slice(2));
+}
+
+// ─── Phase 15b Steps 2 + 3: per-agent identity ─────────────────────────────────
+
+export interface AgentIdentity {
+  /** Stable agent id; matches the directory name under `agents/`. */
+  id: string;
+  /** Absolute path of `<workspaceRoot>/agents/<id>/`. */
+  root: string;
+  /** Markdown bodies that exist for this agent. Missing files are simply omitted. */
+  files: {
+    agentsMd?: string;
+    soulMd?: string;
+    userMd?: string;
+    memoryMd?: string;
+    identityMd?: string;
+    toolsMd?: string;
+  };
+}
+
+const AGENT_IDENTITY_FILES = [
+  ["AGENTS.md", "agentsMd"],
+  ["SOUL.md", "soulMd"],
+  ["USER.md", "userMd"],
+  ["MEMORY.md", "memoryMd"],
+  ["IDENTITY.md", "identityMd"],
+  ["TOOLS.md", "toolsMd"]
+] as const;
+
+const AGENT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/;
+
+export function isValidAgentId(id: string): boolean {
+  return AGENT_ID_RE.test(id) && !id.startsWith(".");
+}
+
+/**
+ * Scan `<workspaceRoot>/agents/` for sub-directories. Returns the alphabetized
+ * list of valid agent ids. Hidden directories (starting with `.`) such as
+ * `.archive` are excluded. Returns an empty list when the `agents/` directory
+ * is missing.
+ */
+export function listAgentDirectories(workspaceRoot: string): string[] {
+  const root = resolve(workspaceRoot, "agents");
+  let entries: string[];
+  try {
+    entries = readdirSync(root);
+  } catch {
+    return [];
+  }
+  return entries
+    .filter((name) => isValidAgentId(name))
+    .filter((name) => {
+      try {
+        return statSync(join(root, name)).isDirectory();
+      } catch {
+        return false;
+      }
+    })
+    .sort();
+}
+
+/**
+ * Resolve which agent should be active for a given workspace. Precedence:
+ *   1. `<workspaceRoot>/.vole/active-agent` file (one line, agent id).
+ *   2. `config.agents.default`.
+ *   3. The first id returned by `listAgentDirectories(workspaceRoot)`.
+ * Returns `undefined` when no agents exist.
+ */
+export function resolveActiveAgentId(workspaceRoot: string, config: EffectiveConfig): string | undefined {
+  const activeFile = resolve(workspaceRoot, ".vole", "active-agent");
+  try {
+    const value = readFileSync(activeFile, "utf8").trim();
+    if (value.length > 0 && isValidAgentId(value)) return value;
+  } catch {
+    // file missing — fall through
+  }
+  if (config.agents.default !== undefined && isValidAgentId(config.agents.default)) {
+    return config.agents.default;
+  }
+  const all = listAgentDirectories(workspaceRoot);
+  return all[0];
+}
+
+/**
+ * Load the identity files for one agent. Throws when the agent directory does
+ * not exist; missing markdown files are simply not present on the returned
+ * record.
+ */
+export function loadAgentIdentity(workspaceRoot: string, agentId: string): AgentIdentity {
+  if (!isValidAgentId(agentId)) {
+    throw new ConfigValidationError(`Invalid agent id "${agentId}". Must match ${AGENT_ID_RE.source}.`);
+  }
+  const agentRoot = resolve(workspaceRoot, "agents", agentId);
+  if (!existsSync(agentRoot)) {
+    throw new ConfigValidationError(`Agent "${agentId}" not found at ${agentRoot}.`);
+  }
+  const files: AgentIdentity["files"] = {};
+  for (const [filename, key] of AGENT_IDENTITY_FILES) {
+    try {
+      files[key] = readFileSync(join(agentRoot, filename), "utf8");
+    } catch {
+      // missing — skip
+    }
+  }
+  return { id: agentId, root: agentRoot, files };
+}
+
+/**
+ * Create `<workspaceRoot>/agents/<id>/` and seed empty markdown stubs. Refuses
+ * to overwrite an existing agent directory. Returns the agent root path.
+ */
+export function createAgentDirectory(workspaceRoot: string, agentId: string): string {
+  if (!isValidAgentId(agentId)) {
+    throw new ConfigValidationError(`Invalid agent id "${agentId}". Must match ${AGENT_ID_RE.source}.`);
+  }
+  const agentRoot = resolve(workspaceRoot, "agents", agentId);
+  if (existsSync(agentRoot)) {
+    throw new ConfigValidationError(`Agent "${agentId}" already exists at ${agentRoot}.`);
+  }
+  mkdirSync(agentRoot, { recursive: true });
+  const banner = `# ${agentId}\n\n`;
+  writeFileSync(join(agentRoot, "AGENTS.md"), `${banner}Project conventions and operating rules for this agent.\n`);
+  writeFileSync(join(agentRoot, "SOUL.md"), `${banner}Persona, tone, and values for this agent.\n`);
+  writeFileSync(join(agentRoot, "USER.md"), `${banner}Notes about the user that this agent should remember.\n`);
+  writeFileSync(join(agentRoot, "MEMORY.md"), `${banner}Long-term consolidated memory for this agent.\n`);
+  return agentRoot;
+}
+
+/** Write `<workspaceRoot>/.vole/active-agent` so subsequent runs use this id. */
+export function setActiveAgentId(workspaceRoot: string, agentId: string): void {
+  if (!isValidAgentId(agentId)) {
+    throw new ConfigValidationError(`Invalid agent id "${agentId}".`);
+  }
+  const dir = resolve(workspaceRoot, ".vole");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "active-agent"), `${agentId}\n`);
+}
+
+/**
+ * Move `agents/<id>/` to `agents/.archive/<id>-<timestamp>/`. Refuses to remove
+ * a missing agent. Returns the archive path.
+ */
+export function archiveAgentDirectory(workspaceRoot: string, agentId: string): string {
+  if (!isValidAgentId(agentId)) {
+    throw new ConfigValidationError(`Invalid agent id "${agentId}".`);
+  }
+  const agentRoot = resolve(workspaceRoot, "agents", agentId);
+  if (!existsSync(agentRoot)) {
+    throw new ConfigValidationError(`Agent "${agentId}" not found at ${agentRoot}.`);
+  }
+  const archiveBase = resolve(workspaceRoot, "agents", ".archive");
+  mkdirSync(archiveBase, { recursive: true });
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const archivePath = join(archiveBase, `${agentId}-${timestamp}`);
+  renameSync(agentRoot, archivePath);
+  return archivePath;
 }

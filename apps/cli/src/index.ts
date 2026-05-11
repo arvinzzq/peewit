@@ -13,7 +13,21 @@ import type { Stats } from "node:fs";
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadConfig, redactedConfig, resolveSessionsDirectory, type EffectiveConfig, type LoadConfigInput, type RedactedConfigView } from "@vole/config";
+import {
+  archiveAgentDirectory,
+  createAgentDirectory,
+  isValidAgentId,
+  listAgentDirectories,
+  loadAgentIdentity,
+  loadConfig,
+  redactedConfig,
+  resolveActiveAgentId,
+  resolveSessionsDirectory,
+  setActiveAgentId,
+  type EffectiveConfig,
+  type LoadConfigInput,
+  type RedactedConfigView
+} from "@vole/config";
 import { DefaultContextAssembler, parseInlineDirectives } from "@vole/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, createCheckSubagentTool, createSpawnSubagentAsyncTool, createSpawnSubagentTool, createSubagentsTool, type AgentRuntimeInput, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore, type SubagentControlSurface, type SubagentFactory } from "@vole/core";
 import { GatewayCore, type GatewaySession } from "@vole/gateway";
@@ -265,6 +279,19 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
     .description("Migrate JSONL sessions + taskflow data into SQLite databases. Defaults to dry-run; pass --apply to actually write.")
     .option("--apply", "Write to the SQLite databases. Without this flag, the command only previews counts.")
     .action(async (opts: OptionValues) => { actionResult = await runMigrateJsonlToSqlite(options, { apply: opts["apply"] === true }); });
+
+  // ── agents ────────────────────────────────────────────────────────────────
+  const agentsCmd = program.command("agents").description("Manage per-agent identity directories under <workspace>/agents/");
+  agentsCmd.action(async () => { actionResult = await runAgentsList(options); });
+  agentsCmd.command("list").description("List agents under agents/ and the active default")
+    .action(async () => { actionResult = await runAgentsList(options); });
+  agentsCmd.command("create <id>").description("Create agents/<id>/ with seed AGENTS.md / SOUL.md / USER.md / MEMORY.md")
+    .action(async (id: string) => { actionResult = await runAgentsCreate(id, options); });
+  agentsCmd.command("switch <id>").description("Set .vole/active-agent so subsequent runs use this agent")
+    .action(async (id: string) => { actionResult = await runAgentsSwitch(id, options); });
+  agentsCmd.command("remove <id>").description("Archive agents/<id>/ to agents/.archive/")
+    .option("--confirm", "Required: confirm that you want to archive the agent")
+    .action(async (id: string, opts: OptionValues) => { actionResult = await runAgentsRemove(id, options, { confirm: opts["confirm"] === true }); });
 
   // ── memory ────────────────────────────────────────────────────────────────
   const memCmd = program.command("memory").description("Inspect and curate workspace memory");
@@ -830,6 +857,85 @@ async function runDoctor(options: RunCliOptions, flags: { fix?: boolean } = {}):
   }
 
   return { exitCode: err > 0 || fixesFailed > 0 ? 1 : 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
+}
+
+async function runAgentsList(options: RunCliOptions): Promise<CliResult> {
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
+  const workspace = config.workspace.root;
+  const ids = listAgentDirectories(workspace);
+  const active = resolveActiveAgentId(workspace, config);
+  const lines: string[] = ["Agents:", ""];
+  if (ids.length === 0) {
+    lines.push("  (no agents found under agents/)");
+    lines.push("");
+    lines.push("Create one with `vole agents create <id>`.");
+    return { exitCode: 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
+  }
+  for (const id of ids) {
+    const marker = id === active ? " (active)" : "";
+    let summary = "";
+    try {
+      const identity = loadAgentIdentity(workspace, id);
+      const present = Object.keys(identity.files);
+      summary = present.length > 0 ? `  [${present.join(", ")}]` : "  [empty]";
+    } catch {
+      summary = "  [unreadable]";
+    }
+    lines.push(`  ${id}${marker}${summary}`);
+  }
+  lines.push("");
+  lines.push(`Active: ${active ?? "(none)"}`);
+  return { exitCode: 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
+}
+
+async function runAgentsCreate(id: string, options: RunCliOptions): Promise<CliResult> {
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
+  if (!isValidAgentId(id)) {
+    return { exitCode: 1, stdout: "", stderr: `Invalid agent id "${id}". Use letters, digits, dot, dash, or underscore.\n` };
+  }
+  try {
+    const agentRoot = createAgentDirectory(config.workspace.root, id);
+    return { exitCode: 0, stdout: `Created agent ${id} at ${agentRoot}.\n`, stderr: "" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { exitCode: 1, stdout: "", stderr: `${message}\n` };
+  }
+}
+
+async function runAgentsSwitch(id: string, options: RunCliOptions): Promise<CliResult> {
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
+  if (!isValidAgentId(id)) {
+    return { exitCode: 1, stdout: "", stderr: `Invalid agent id "${id}".\n` };
+  }
+  const known = listAgentDirectories(config.workspace.root);
+  if (!known.includes(id)) {
+    return { exitCode: 1, stdout: "", stderr: `Agent "${id}" not found under agents/. Create it with \`vole agents create ${id}\`.\n` };
+  }
+  try {
+    setActiveAgentId(config.workspace.root, id);
+    return { exitCode: 0, stdout: `Active agent set to ${id}.\n`, stderr: "" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { exitCode: 1, stdout: "", stderr: `${message}\n` };
+  }
+}
+
+async function runAgentsRemove(id: string, options: RunCliOptions, flags: { confirm: boolean }): Promise<CliResult> {
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
+  if (!flags.confirm) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: `Refusing to remove agent "${id}" without --confirm. Archive moves the directory under agents/.archive/.\n`
+    };
+  }
+  try {
+    const archivePath = archiveAgentDirectory(config.workspace.root, id);
+    return { exitCode: 0, stdout: `Archived agent ${id} to ${archivePath}.\n`, stderr: "" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { exitCode: 1, stdout: "", stderr: `${message}\n` };
+  }
 }
 
 async function runMigrateJsonlToSqlite(

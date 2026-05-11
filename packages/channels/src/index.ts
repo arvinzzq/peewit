@@ -212,3 +212,77 @@ export function sessionKeyForInbound(msg: InboundMessage): string {
   const tail = msg.threadKey ?? msg.externalUserId;
   return `channel:${msg.channelId}:${tail}`;
 }
+
+// ----------------------------------------------------------------------------
+// Phase 15b Step 7: channel ↔ gateway bridge
+// ----------------------------------------------------------------------------
+
+export interface ChannelInboundDispatch {
+  sessionKey: string;
+  agentId: string;
+  body: string;
+  channelMetadata: {
+    channelId: string;
+    externalUserId: string;
+    threadKey?: string;
+    receivedAt: string;
+  };
+}
+
+export type ChannelInboundSubmitter = (dispatch: ChannelInboundDispatch) => Promise<void>;
+
+/**
+ * Build the InboundHandler the channel passes to `start(handler)`. The handler
+ * derives a gateway-compatible session key from the message, then forwards the
+ * body + agentId + channel metadata to a generic submitter. Channels and the
+ * gateway stay decoupled — adapters supply the submitter that bridges them.
+ */
+export function createGatewayInboundHandler(
+  channel: Pick<Channel, "id" | "agentId">,
+  submit: ChannelInboundSubmitter
+): InboundHandler {
+  return {
+    async onMessage(msg: InboundMessage): Promise<void> {
+      const sessionKey = sessionKeyForInbound(msg);
+      const channelMetadata: ChannelInboundDispatch["channelMetadata"] = {
+        channelId: msg.channelId,
+        externalUserId: msg.externalUserId,
+        receivedAt: msg.receivedAt,
+        ...(msg.threadKey !== undefined ? { threadKey: msg.threadKey } : {})
+      };
+      await submit({
+        sessionKey,
+        agentId: channel.agentId,
+        body: msg.body,
+        channelMetadata
+      });
+    }
+  };
+}
+
+/**
+ * Convenience: start every registered channel with an inbound handler that
+ * routes through `submit`. Returns the registry for chaining.
+ */
+export async function bridgeRegistryToSubmitter(
+  registry: ChannelRegistry,
+  submit: ChannelInboundSubmitter
+): Promise<ChannelRegistry> {
+  const handler: InboundHandler = {
+    async onMessage(msg: InboundMessage): Promise<void> {
+      const sessionKey = sessionKeyForInbound(msg);
+      const channelMetadata: ChannelInboundDispatch["channelMetadata"] = {
+        channelId: msg.channelId,
+        externalUserId: msg.externalUserId,
+        receivedAt: msg.receivedAt,
+        ...(msg.threadKey !== undefined ? { threadKey: msg.threadKey } : {})
+      };
+      // Look up the channel to read its agentId.
+      const channel = registry.get(msg.channelId);
+      const agentId = channel === undefined ? "default" : channel.agentId;
+      await submit({ sessionKey, agentId, body: msg.body, channelMetadata });
+    }
+  };
+  await registry.startAll(handler);
+  return registry;
+}

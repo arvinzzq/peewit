@@ -3,7 +3,10 @@ import {
   ChannelRegistry,
   ChannelRegistryError,
   FakeChannel,
+  bridgeRegistryToSubmitter,
+  createGatewayInboundHandler,
   sessionKeyForInbound,
+  type ChannelInboundDispatch,
   type InboundMessage
 } from "./index.js";
 
@@ -129,5 +132,54 @@ describe("sessionKeyForInbound", () => {
       receivedAt: "2026-05-12T00:00:00.000Z"
     };
     expect(sessionKeyForInbound(msg)).toBe("channel:email:alice@example.com");
+  });
+});
+
+describe("Phase 15b Step 7 bridge", () => {
+  test("createGatewayInboundHandler routes inbound through the submitter", async () => {
+    const dispatched: ChannelInboundDispatch[] = [];
+    const handler = createGatewayInboundHandler(
+      { id: "f-bridge", agentId: "work" },
+      async (dispatch) => {
+        dispatched.push(dispatch);
+      }
+    );
+    await handler.onMessage({
+      channelId: "f-bridge",
+      externalUserId: "u1",
+      threadKey: "thread-1",
+      body: "hello",
+      receivedAt: "2026-05-12T00:00:00Z"
+    });
+    expect(dispatched).toHaveLength(1);
+    expect(dispatched[0]).toMatchObject({
+      sessionKey: "channel:f-bridge:thread-1",
+      agentId: "work",
+      body: "hello",
+      channelMetadata: { channelId: "f-bridge", externalUserId: "u1", threadKey: "thread-1" }
+    });
+  });
+
+  test("bridgeRegistryToSubmitter pipes every channel through the submitter", async () => {
+    const registry = new ChannelRegistry();
+    const a = new FakeChannel({ id: "a", agentId: "work" });
+    const b = new FakeChannel({ id: "b", agentId: "personal" });
+    registry.add(a);
+    registry.add(b);
+
+    const dispatched: ChannelInboundDispatch[] = [];
+    await bridgeRegistryToSubmitter(registry, async (dispatch) => {
+      dispatched.push(dispatch);
+    });
+
+    await a.injectInbound({ externalUserId: "u1", body: "from-a", receivedAt: "2026-05-12T00:00:00Z" });
+    await b.injectInbound({ externalUserId: "u2", body: "from-b", receivedAt: "2026-05-12T00:00:01Z" });
+
+    expect(dispatched.map((d) => `${d.agentId}:${d.body}`).sort()).toEqual([
+      "personal:from-b",
+      "work:from-a"
+    ]);
+
+    await registry.stopAll();
   });
 });

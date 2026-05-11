@@ -66,6 +66,10 @@ vole sessions
 | `vole subagents kill <id\|all>` | 把子代理任务标记为已取消（或用 "all" 停掉所有 running） |
 | `vole doctor` | 只读诊断：workspace、sessions、taskflow、skills 状态 |
 | `vole doctor --fix` | 幂等修复：删除 stale `.lock`、取消僵死子代理、取消孤儿 TaskFlow 子任务 |
+| `vole agents list` | 列出 `agents/` 下的 per-agent 身份目录以及当前默认 |
+| `vole agents create <id>` | 创建 `agents/<id>/` 并写入种子 AGENTS.md / SOUL.md / USER.md / MEMORY.md |
+| `vole agents switch <id>` | 写 `.vole/active-agent` 让后续运行使用该 agent |
+| `vole agents remove <id> --confirm` | 把 `agents/<id>/` 归档到 `agents/.archive/` |
 | `vole memory review` | 列出 DREAMS.md 中待审阅的候选条目 |
 | `vole memory review approve <id\|all>` | 把 DREAMS.md 条目提升到 MEMORY.md |
 | `vole memory review reject <id\|all>` | 把 DREAMS.md 条目归档到 DREAMS/archive/ |
