@@ -1,9 +1,32 @@
 # Phase 15：Channels 与多 Agent 身份
 
-状态：计划中
-日期：2026-05-11
+状态：部分（Step 1、4 已交付；Step 2、3、5、6、7 推迟到 Phase 15b）
+日期：2026-05-12
 
 English version: [phase-15-channels-and-multi-agent-identity.md](./phase-15-channels-and-multi-agent-identity.md)
+
+## 进度
+
+状态：部分 —— 入站界面接口就位，新架构文档确立了设计；per-agent 身份目录、真实后端、gateway 接线推迟到 Phase 15b。
+
+已完成提交：
+
+- [x] Step 1：docs(arch) multi-agent-runtime 的 Phase 15 提示 + 新 `channels.md` — `2d9365f`
+- [x] Step 4：feat(channels) `@vole/channels` package，含 `Channel` 接口、`ChannelRegistry`、`FakeChannel`、`sessionKeyForInbound` — `567b7cb`
+- [x] Step 8：docs 标 Phase 15 部分 + roadmap 更新 — （本次提交）
+
+推迟到 Phase 15b：
+
+- [ ] Step 2：`agents/<id>/` 目录布局 + `agents.list[]` / `agents.defaults` 配置；`@vole/config` 中的 per-agent 身份加载器。基础但侵入：触及 `loadConfig`、`redactedConfig` 与每个 workspace-file 读取器（AGENTS.md、SOUL.md、USER.md、MEMORY.md）。最好与 `vole agents` CLI 在同一连贯变更里落地。
+- [ ] Step 3：`vole agents list / create / switch / remove` CLI 子命令。依赖 Step 2。
+- [ ] Step 5：Telegram 后端（`@vole/channels-telegram` 或子路径）。需要长轮询 bot 客户端 + mock-server 集成测试。
+- [ ] Step 6：Email 后端。需要 IMAP/SMTP 客户端 + 内嵌邮件测试 harness。
+- [ ] Step 7：`apps/cli` 与 `apps/web` 的 gateway channel 路由 + `vole channel add / list / remove / test` CLI。依赖 Step 5/6（至少 FakeChannel 可先用于路由）。
+
+今天可用：
+
+- 构造 `FakeChannel` 与 `ChannelRegistry`，把 `startAll(handler)` 接到任意提交工作的函数 —— 这正是 gateway 之后要做的 —— 端到端在测试中观察入站 → 出站。
+- `sessionKeyForInbound(msg)` 已产出 gateway 兼容的 `channel:<id>:<thread>` session key，所以未来路由接线是机械工作。
 
 ## 1. 目的
 

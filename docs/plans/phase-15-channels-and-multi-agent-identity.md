@@ -1,9 +1,32 @@
 # Phase 15: Channels and Multi-Agent Identity
 
-Status: Planned
-Date: 2026-05-11
+Status: Partial (Steps 1, 4 shipped; Steps 2, 3, 5, 6, 7 deferred to Phase 15b)
+Date: 2026-05-12
 
 Simplified Chinese version: [phase-15-channels-and-multi-agent-identity.zh-CN.md](./phase-15-channels-and-multi-agent-identity.zh-CN.md)
+
+## Progress
+
+Status: Partial — the inbound-surface interface is in place and a new architecture doc establishes the design; per-agent identity directories, real backends, and gateway wiring are deferred to Phase 15b.
+
+Completed commits:
+
+- [x] Step 1: docs(arch) Phase 15 callout on multi-agent-runtime + new `channels.md` — `2d9365f`
+- [x] Step 4: feat(channels) `@vole/channels` package with `Channel` interface, `ChannelRegistry`, `FakeChannel`, `sessionKeyForInbound` — `567b7cb`
+- [x] Step 8: docs mark Phase 15 partial + roadmap update — (this commit)
+
+Deferred to Phase 15b:
+
+- [ ] Step 2: `agents/<id>/` directory layout + `agents.list[]` / `agents.defaults` config; per-agent identity loader in `@vole/config`. Foundational but invasive: touches `loadConfig`, `redactedConfig`, and every workspace-file reader (AGENTS.md, SOUL.md, USER.md, MEMORY.md). Better landed alongside `vole agents` CLI in one coherent change.
+- [ ] Step 3: `vole agents list / create / switch / remove` CLI subcommands. Depends on Step 2.
+- [ ] Step 5: Telegram backend (`@vole/channels-telegram` or sub-path). Requires a long-polling bot client + mock-server integration tests.
+- [ ] Step 6: Email backend. Requires IMAP/SMTP clients + an embedded mail test harness.
+- [ ] Step 7: gateway channel routing in `apps/cli` and `apps/web` + `vole channel add / list / remove / test` CLI. Depends on Steps 5/6 (at least the FakeChannel can already route).
+
+What is usable today:
+
+- Construct a `FakeChannel` and a `ChannelRegistry`, wire `startAll(handler)` to any function that submits work — exactly what the gateway will do later — and observe inbound → outbound flow end-to-end in tests.
+- `sessionKeyForInbound(msg)` already produces the gateway-compatible `channel:<id>:<thread>` session keys, so future routing wiring is mechanical.
 
 ## 1. Purpose
 

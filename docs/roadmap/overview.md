@@ -47,7 +47,7 @@ The roadmap follows a dual-track approach:
 | Phase 12 | Complete | Multi-agent runtime maturity | Push-completion sub-agents with fork mode, depth and concurrency policy | Sub-agent push announce, fork context, sub-agent management surface |
 | Phase 13 | Partial | Memory and prompt enhancement | Foundations: @vole/memory package, inline directive parser. Hybrid search + DREAMS + flush + prompt sections in 13b. | @vole/memory split, parseInlineDirectives, EmbeddingProvider interface, MemoryFlushOptions |
 | Phase 14 | Partial | SQLite storage unification | SqliteSessionStore + SqliteTaskFlowStore shipped; memory index + migration in 14b | SQLite stores, FTS5 memory index, migration tooling |
-| Phase 15 | Planned | Channels and multi-agent identity | Telegram and email channels with independent agent identities | agents/<id>/ layout, Channel interface, Telegram, Email |
+| Phase 15 | Partial | Channels and multi-agent identity | Channel interface + ChannelRegistry shipped; agents/<id>/ identity + real backends in 15b | agents/<id>/ layout, Channel interface, Telegram, Email |
 | Phase 16 | Planned | Sandbox and plugin runtime | Safe third-party skill execution, Docker / worker sandboxing, doctor tool | SandboxBackend, WorkerThreadSandbox, vole doctor |
 
 Some later-phase learning documents are listed as planned filenames before they exist. They should be created when that phase is being actively designed, not all at once during MVP setup.
@@ -602,11 +602,13 @@ Non-goals: no PostgreSQL / remote database; no schema migration DSL; no removal 
 
 ## 19. Phase 15: Channels and Multi-Agent Identity
 
-Status: Planned. Plan document: [phase-15-channels-and-multi-agent-identity.md](../plans/phase-15-channels-and-multi-agent-identity.md).
+Status: Partial. Plan document: [phase-15-channels-and-multi-agent-identity.md](../plans/phase-15-channels-and-multi-agent-identity.md).
 
 Goal: introduce independent multi-agent identity (`agents/<id>/` with own SOUL / AGENTS / MEMORY / credentials) and real channel integrations (Telegram and email) so Vole becomes a multi-surface personal agent platform.
 
-Architecture added: per-agent workspace subtree; `agents.list[]` config; `vole agents` CLI subcommands; `packages/channels` with `Channel` interface; Telegram and Email backends; gateway channel routing with privacy guards on MEMORY.md access.
+Architecture added (this phase): new `docs/architecture/channels.md`; bilingual Phase 15 callout on `multi-agent-runtime.md` explaining the second multi-agent axis (identity, not just sub-agent spawning); new `@vole/channels` package with `Channel` interface, `ChannelRegistry`, `FakeChannel` reference implementation, and `sessionKeyForInbound` helper that already produces gateway-compatible session keys.
+
+Deferred to Phase 15b: `agents/<id>/` workspace subtree + `agents.list[]` config + per-agent identity loader; `vole agents` CLI; Telegram backend with mock-server tests; email backend with embedded IMAP/SMTP harness; gateway channel routing and `vole channel` CLI.
 
 Non-goals: no Slack / Discord / WhatsApp / webhook channels (Phase 17+); no cross-agent direct invocation; no hosted multi-tenant deployment; no agent process isolation.
 
