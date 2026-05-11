@@ -236,6 +236,13 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 
 // ─── Compaction ────────────────────────────────────────────────────────────────
 
+export interface MemoryFlushOptions {
+  /** Whether to prepend a pre-compaction "save durable facts" reminder before summarization. Default: true. */
+  enabled?: boolean;
+  /** System message text injected ahead of summarization. */
+  prompt?: string;
+}
+
 export interface CompactionOptions {
   /** Token-based trigger: compact when estimated token count exceeds this. Default: 60 000. */
   maxTokens: number;
@@ -243,14 +250,77 @@ export interface CompactionOptions {
   maxMessages: number;
   keepRecent: number;
   summarySystemPrompt: string;
+  /** Phase 13 pre-compaction memory flush: inject a reminder so the agent records durable facts before history is summarized. */
+  memoryFlush?: MemoryFlushOptions;
 }
+
+// Phase 13 Step 7: inline directive parser.
+// Strips magic tokens out of user input and returns them as structured hints so
+// the runtime / gateway can honour them without ever showing the tokens to the model.
+
+export type ThinkLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "adaptive" | "max";
+
+export const THINK_LEVELS: readonly ThinkLevel[] = [
+  "off", "minimal", "low", "medium", "high", "xhigh", "adaptive", "max"
+];
+
+export interface InlineDirectives {
+  /** /think:<level> — request a specific thinking budget for this run. */
+  think?: ThinkLevel;
+  /** /stop — abort the current or next run as soon as the gateway sees it. */
+  stop: boolean;
+  /** /compact — force compaction at the start of the next turn. */
+  compact: boolean;
+}
+
+export interface ParsedInlineDirectives {
+  /** The user message with directive tokens removed. May be empty when input consisted only of directives. */
+  cleanedMessage: string;
+  directives: InlineDirectives;
+}
+
+const INLINE_THINK_RE = /\/think:([a-zA-Z]+)/g;
+const INLINE_STOP_RE = /(?:^|\s)\/stop(?:\s|$)/g;
+const INLINE_COMPACT_RE = /(?:^|\s)\/compact(?:\s|$)/g;
+
+export function parseInlineDirectives(input: string): ParsedInlineDirectives {
+  const directives: InlineDirectives = { stop: false, compact: false };
+  let cleaned = input;
+
+  cleaned = cleaned.replace(INLINE_THINK_RE, (_, level: string) => {
+    const lowered = level.toLowerCase() as ThinkLevel;
+    if (THINK_LEVELS.includes(lowered)) {
+      directives.think = lowered;
+    }
+    return "";
+  });
+
+  if (INLINE_STOP_RE.test(cleaned)) {
+    directives.stop = true;
+    cleaned = cleaned.replace(INLINE_STOP_RE, " ");
+  }
+
+  if (INLINE_COMPACT_RE.test(cleaned)) {
+    directives.compact = true;
+    cleaned = cleaned.replace(INLINE_COMPACT_RE, " ");
+  }
+
+  return {
+    cleanedMessage: cleaned.replace(/\s+/g, " ").trim(),
+    directives
+  };
+}
+
+export const DEFAULT_MEMORY_FLUSH_PROMPT =
+  "Before this conversation is compressed, take this opportunity to record any durable facts the user will care about across sessions. Prefer the append_daily_memory tool when it is available. Skip if there is nothing worth preserving.";
 
 export const DEFAULT_COMPACTION_OPTIONS: CompactionOptions = {
   maxTokens: 60_000,
   maxMessages: 400,
   keepRecent: 12,
   summarySystemPrompt:
-    "You are a context distiller for an AI agent. The conversation history has grown too long and must be reduced. Extract only what the agent needs to continue working: tools called and their key outcomes, decisions reached, important facts discovered, files created or modified, errors encountered, and the current task state. Discard pleasantries, repetition, and details that no longer affect the agent's ability to proceed. Output concise factual statements only."
+    "You are a context distiller for an AI agent. The conversation history has grown too long and must be reduced. Extract only what the agent needs to continue working: tools called and their key outcomes, decisions reached, important facts discovered, files created or modified, errors encountered, and the current task state. Discard pleasantries, repetition, and details that no longer affect the agent's ability to proceed. Output concise factual statements only.",
+  memoryFlush: { enabled: true, prompt: DEFAULT_MEMORY_FLUSH_PROMPT }
 };
 
 /**

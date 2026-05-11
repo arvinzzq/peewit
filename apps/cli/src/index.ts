@@ -14,7 +14,7 @@ import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, redactedConfig, resolveSessionsDirectory, type EffectiveConfig, type LoadConfigInput, type RedactedConfigView } from "@vole/config";
-import { DefaultContextAssembler } from "@vole/context";
+import { DefaultContextAssembler, parseInlineDirectives } from "@vole/context";
 import { AgentRuntime, InMemoryRuntimeTraceStore, createCheckSubagentTool, createSpawnSubagentAsyncTool, createSpawnSubagentTool, createSubagentsTool, type AgentRuntimeInput, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore, type SubagentControlSurface, type SubagentFactory } from "@vole/core";
 import { GatewayCore, type GatewaySession } from "@vole/gateway";
 import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@vole/models";
@@ -244,6 +244,10 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
   gwCmd.command("status").description("Show lane occupancy and active runs across processes")
     .action(async () => { actionResult = await runGatewayStatus(options); });
 
+  // ── compact ───────────────────────────────────────────────────────────────
+  program.command("compact").description("Print compaction status and how to trigger it in chat")
+    .action(async () => { actionResult = await runCompactInfo(); });
+
   // ── subagents ─────────────────────────────────────────────────────────────
   const saCmd = program.command("subagents").description("Inspect and control async sub-agents");
   saCmd.action(async () => { actionResult = await runSubagentsList(options); });
@@ -467,6 +471,23 @@ function isPidAlive(pid: number): boolean {
     }
     return true;
   }
+}
+
+async function runCompactInfo(): Promise<CliResult> {
+  const lines = [
+    "Compaction:",
+    "  Vole compacts the conversation history automatically when the estimated token",
+    "  count exceeds the configured maxTokens (default 60000) OR when the message count",
+    "  exceeds maxMessages (default 400).",
+    "",
+    "  Inside an interactive chat, you can hint the model to save durable facts and",
+    "  request immediate compaction by including the /compact directive in your message;",
+    "  the runtime strips the token before the model sees the message and queues a",
+    "  compaction pass on the next turn.",
+    "",
+    "  Forced standalone compaction (without an active chat session) is Phase 13b work."
+  ];
+  return { exitCode: 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
 }
 
 async function runSubagentsList(options: RunCliOptions): Promise<CliResult> {
@@ -1410,9 +1431,27 @@ export class CliChatSession {
     );
   }
 
-  async sendMessage(message: string, opts: { onEvent?: (event: RuntimeEvent) => void; signal?: AbortSignal } = {}): Promise<CliChatTurnResult> {
+  async sendMessage(rawMessage: string, opts: { onEvent?: (event: RuntimeEvent) => void; signal?: AbortSignal } = {}): Promise<CliChatTurnResult> {
     const events: RuntimeEvent[] = [];
     const approvalStartIndex = this.#approvalPromptLog.length;
+    // Phase 13 Step 7: strip inline directives (/think:<level>, /stop, /compact) from the
+    // user message before it reaches the model. /stop short-circuits the run via gateway.cancel.
+    // /think and /compact are recorded but full enforcement (thinking budget override,
+    // forced next-turn compaction) lands with Phase 13 Step 5 / 13b.
+    const parsed = parseInlineDirectives(rawMessage);
+    const message = parsed.cleanedMessage.length > 0 ? parsed.cleanedMessage : rawMessage;
+    if (parsed.directives.stop && this.#gateway !== undefined) {
+      // Best-effort: cancel any in-flight run for this session. There may be none — that's fine.
+      for (const r of this.#gateway.status().activeRuns) {
+        if (r.sessionKey === this.#sessionId) this.#gateway.cancel(r.runId);
+      }
+      return {
+        assistantText: "Stopped via /stop directive.",
+        approvalLines: [],
+        todosLines: [],
+        events: []
+      };
+    }
     await this.#ensureSession();
     // Load all messages without a limit — compact_boundary handles truncation in #replay()
     const recentMessages = (await this.#sessionStore.listMessages(this.#sessionId)).map(

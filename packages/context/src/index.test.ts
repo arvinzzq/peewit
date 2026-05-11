@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FakeModelProvider } from "@vole/models";
-import { DefaultContextAssembler, compactMessages, estimateMessageTokens, thinToolMessage, type ContextAssembler } from "./index.js";
+import { DefaultContextAssembler, compactMessages, estimateMessageTokens, parseInlineDirectives, thinToolMessage, type ContextAssembler } from "./index.js";
 
 describe("context assembler sections", () => {
   test("assembles provider-ready messages in deterministic section order", async () => {
@@ -514,5 +514,50 @@ describe("full context assembly", () => {
       "skills",
       "user_message"
     ]);
+  });
+});
+
+describe("parseInlineDirectives (Phase 13 Step 7)", () => {
+  test("returns the original message unchanged when no directives are present", () => {
+    const parsed = parseInlineDirectives("Please summarize the changelog.");
+    expect(parsed.cleanedMessage).toBe("Please summarize the changelog.");
+    expect(parsed.directives).toEqual({ stop: false, compact: false });
+  });
+
+  test("strips /think:<level> and returns it on the directives object", () => {
+    const parsed = parseInlineDirectives("/think:high refactor the auth module");
+    expect(parsed.cleanedMessage).toBe("refactor the auth module");
+    expect(parsed.directives.think).toBe("high");
+  });
+
+  test("ignores unknown think levels", () => {
+    const parsed = parseInlineDirectives("/think:nonsense rebuild the index");
+    expect(parsed.cleanedMessage).toBe("rebuild the index");
+    expect(parsed.directives.think).toBeUndefined();
+  });
+
+  test("captures /stop and removes the token from the cleaned message", () => {
+    const parsed = parseInlineDirectives("Please /stop the run before tests fail.");
+    expect(parsed.directives.stop).toBe(true);
+    expect(parsed.cleanedMessage).not.toMatch(/\/stop/);
+  });
+
+  test("captures /compact and removes the token from the cleaned message", () => {
+    const parsed = parseInlineDirectives("/compact and then summarize the diff");
+    expect(parsed.directives.compact).toBe(true);
+    expect(parsed.cleanedMessage).toBe("and then summarize the diff");
+  });
+
+  test("handles multiple directives in one message", () => {
+    const parsed = parseInlineDirectives("/think:max /compact please rewrite the README");
+    expect(parsed.directives.think).toBe("max");
+    expect(parsed.directives.compact).toBe(true);
+    expect(parsed.cleanedMessage).toBe("please rewrite the README");
+  });
+
+  test("a message consisting only of directives leaves cleanedMessage empty", () => {
+    const parsed = parseInlineDirectives("/stop");
+    expect(parsed.cleanedMessage).toBe("");
+    expect(parsed.directives.stop).toBe(true);
   });
 });
