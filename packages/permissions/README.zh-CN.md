@@ -92,7 +92,9 @@ interface SandboxBackend {
 - 遵守 `timeoutMs`，将超时报告为 `{ completed: false, reason: "timeout" }`。
 - `available(): true` 无条件成立；无外部依赖。
 
-`DockerSandbox`（每次执行起容器）与 `WorkerThreadSandbox`（JS skill 隔离）推迟到 Phase 16b。两者都将实现同一 `SandboxBackend` 接口，调用方代码无需修改。
+`WorkerThreadSandbox`（Phase 16b）在 `node:worker_threads` 中运行 JS 片段。worker 用内联 bootstrap 把片段包成 async 函数，把结果字符串发回，受 `timeoutMs`（默认 5 秒）+ `maxMemoryMB`（默认 64MB，映射到 `resourceLimits.maxOldGenerationSizeMb`）双重约束。抛错的片段呈现为 `{ completed: true, exitCode: 1, stderr }`；超时呈现为 `{ completed: false, reason: "timeout" }`。
+
+`DockerSandbox`（Phase 16b）每次在临时容器中执行命令（`docker run --rm`）。workspace 以只读方式挂载到 `/workspace`；默认 deny 网络，需要通过 `SandboxOptions.network: "allow"` 显式放行。`available()` 探测 docker daemon，未安装 Docker 时 `execute()` 解析为 `{ completed: false, reason: "unavailable" }`，调用方优雅降级。
 
 ## 实现原理
 

@@ -108,7 +108,9 @@ interface SandboxBackend {
 - Honors `timeoutMs` and reports timeouts as `{ completed: false, reason: "timeout" }`.
 - Reports `available(): true` unconditionally; it has no external dependency.
 
-`DockerSandbox` (per-execution containers) and `WorkerThreadSandbox` (JS skill isolation) are deferred to Phase 16b. Both will implement the same `SandboxBackend` interface, so callers do not change.
+`WorkerThreadSandbox` (Phase 16b) runs JS snippets inside `node:worker_threads`. The worker boots from an inline bootstrap that wraps the snippet in an async function, posts the stringified result back, and is bounded by `timeoutMs` (default 5s) plus `maxMemoryMB` (default 64MB, mapped to `resourceLimits.maxOldGenerationSizeMb`). Throwing snippets surface as `{ completed: true, exitCode: 1, stderr }`; timeouts surface as `{ completed: false, reason: "timeout" }`.
+
+`DockerSandbox` (Phase 16b) runs each command in an ephemeral container (`docker run --rm`). The workspace is mounted read-only at `/workspace`; network is denied by default and opted in via `SandboxOptions.network: "allow"`. `available()` probes the docker daemon and `execute()` resolves to `{ completed: false, reason: "unavailable" }` when Docker is not installed, so callers degrade gracefully.
 
 ## Implementation Principles
 

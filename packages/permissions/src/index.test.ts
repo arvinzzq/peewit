@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import {
   DefaultPermissionPolicy,
+  DockerSandbox,
+  WorkerThreadSandbox,
   WorkspaceSandbox,
   type PermissionPolicy
 } from "./index.js";
@@ -219,6 +221,64 @@ describe("WorkspaceSandbox", () => {
     expect(result.completed).toBe(true);
     if (result.completed) {
       expect(result.exitCode).toBe(7);
+    }
+  });
+});
+
+describe("WorkerThreadSandbox", () => {
+  test("reports available true and identifies as worker backend", async () => {
+    const sandbox = new WorkerThreadSandbox();
+    expect(sandbox.name).toBe("worker");
+    await expect(sandbox.available()).resolves.toBe(true);
+  });
+
+  test("evaluates a JS expression and returns the result on stdout", async () => {
+    const sandbox = new WorkerThreadSandbox();
+    const result = await sandbox.execute({ command: "return 2 + 3;" });
+    expect(result.completed).toBe(true);
+    if (result.completed) {
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toBe("5");
+    }
+  });
+
+  test("captures thrown errors as non-zero exit + stderr", async () => {
+    const sandbox = new WorkerThreadSandbox();
+    const result = await sandbox.execute({ command: "throw new Error('boom');" });
+    expect(result.completed).toBe(true);
+    if (result.completed) {
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("boom");
+    }
+  });
+
+  test("surfaces timeout as a non-completed result", async () => {
+    const sandbox = new WorkerThreadSandbox({ defaultTimeoutMs: 50 });
+    const result = await sandbox.execute({
+      command: "return new Promise((r) => { /* never resolves */ });"
+    });
+    expect(result).toMatchObject({ completed: false, reason: "timeout" });
+  });
+});
+
+describe("DockerSandbox", () => {
+  test("identifies as docker backend", () => {
+    const sandbox = new DockerSandbox({ workspaceRoot: "/tmp" });
+    expect(sandbox.name).toBe("docker");
+  });
+
+  test("execute returns unavailable when Docker is not installed", async () => {
+    // The test environment is not guaranteed to have Docker. If the daemon is
+    // reachable, this test asserts the happy path; otherwise it asserts the
+    // unavailable degradation. Both are valid outcomes for the same code path.
+    const sandbox = new DockerSandbox({ workspaceRoot: "/tmp", defaultTimeoutMs: 2_000 });
+    const available = await sandbox.available();
+    if (!available) {
+      const result = await sandbox.execute({ command: "true" });
+      expect(result).toMatchObject({ completed: false, reason: "unavailable" });
+    } else {
+      const result = await sandbox.execute({ command: "true" });
+      expect(result.completed).toBe(true);
     }
   });
 });
