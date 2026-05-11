@@ -137,6 +137,8 @@ Hooks provide lifecycle interception without subclassing:
 
 `compaction_triggered` events now include a `summary: string` field. On a Phase 2 success this contains the summary text extracted from the compacted messages; the adapter uses it to call `appendCompactBoundary()` on the session store.
 
+`memory_flush_triggered` (Phase 13b Step 5) fires immediately before `compaction_triggered` when (a) compaction is predicted to fire this turn AND (b) `compaction.memoryFlush.enabled !== false`. The event has the shape `{ executed: boolean; toolsInvoked: string[]; reason?: "disabled" | "model_error" }`. When `executed: true`, the runtime made one extra silent model call with the conversation plus a flush prompt, executed any returned memory-write tool calls inline (skipping high/blocked-risk tools), and dropped the assistant text — so the flush is observable in `toolsInvoked` and via session traces but never appears in the user-facing message stream. When `executed: false`, the run did not perform the side call (disabled by config, model error, or compaction not predicted).
+
 All hook errors are caught with `console.warn` in non-production environments.
 
 ### ExecutionContract

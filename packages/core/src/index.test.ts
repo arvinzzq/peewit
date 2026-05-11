@@ -30,6 +30,7 @@ describe("runtime event contracts", () => {
     expect(runtimeEventTypes).toEqual([
       "run_started",
       "context_assembled",
+      "memory_flush_triggered",
       "compaction_triggered",
       "todos_updated",
       "planning_stall_detected",
@@ -1423,6 +1424,78 @@ describe("compaction_triggered event", () => {
 
     const events = await collect(runtime.runTurn({ sessionId: "s1", message: "Hi." }));
     expect(events.map((e) => e.type)).not.toContain("compaction_triggered");
+  });
+
+  test("emits memory_flush_triggered before compaction_triggered when memoryFlush is enabled", async () => {
+    const recentMessages: import("@vole/models").ModelMessage[] = Array.from({ length: 29 }, (_, i) => ({
+      role: i % 2 === 0 ? "user" : "assistant",
+      content: `message ${i}`
+    }));
+
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([
+        { type: "message", content: "(silent flush response)" }, // memory flush call
+        { type: "message", content: "Summarised." },              // compaction call
+        { type: "message", content: "Done." }                     // main turn response
+      ]),
+      systemInstruction: "You are Vole.",
+      compaction: { maxMessages: 30, keepRecent: 12, summarySystemPrompt: "Distil.", memoryFlush: { enabled: true, prompt: "Flush durable facts." } },
+      createRunId: () => "run_flush",
+      createEventId: (() => { let n = 0; return () => `evt_f_${++n}`; })(),
+      now: () => "2026-05-07T00:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ sessionId: "s1", message: "Go.", recentMessages }));
+    const types = events.map((e) => e.type);
+    expect(types).toContain("memory_flush_triggered");
+    expect(types).toContain("compaction_triggered");
+    expect(types.indexOf("memory_flush_triggered")).toBeLessThan(types.indexOf("compaction_triggered"));
+
+    const flush = events.find((e) => e.type === "memory_flush_triggered") as import("./index.js").MemoryFlushTriggeredEvent;
+    expect(flush.executed).toBe(true);
+    expect(flush.toolsInvoked).toEqual([]);
+  });
+
+  test("emits memory_flush_triggered with reason=disabled when memoryFlush.enabled is false", async () => {
+    const recentMessages: import("@vole/models").ModelMessage[] = Array.from({ length: 29 }, (_, i) => ({
+      role: i % 2 === 0 ? "user" : "assistant",
+      content: `message ${i}`
+    }));
+
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([
+        { type: "message", content: "Summarised." },
+        { type: "message", content: "Done." }
+      ]),
+      systemInstruction: "You are Vole.",
+      compaction: { maxMessages: 30, keepRecent: 12, summarySystemPrompt: "Distil.", memoryFlush: { enabled: false } },
+      createRunId: () => "run_no_flush",
+      createEventId: (() => { let n = 0; return () => `evt_nf_${++n}`; })(),
+      now: () => "2026-05-07T00:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ sessionId: "s1", message: "Go.", recentMessages }));
+    const flush = events.find((e) => e.type === "memory_flush_triggered") as import("./index.js").MemoryFlushTriggeredEvent | undefined;
+    expect(flush).toBeDefined();
+    expect(flush?.executed).toBe(false);
+    expect(flush?.reason).toBe("disabled");
+  });
+
+  test("does not emit memory_flush_triggered when compaction is not predicted", async () => {
+    const runtime = new AgentRuntime({
+      contextAssembler: new DefaultContextAssembler(),
+      modelProvider: new FakeModelProvider([{ type: "message", content: "Done." }]),
+      systemInstruction: "You are Vole.",
+      compaction: { maxMessages: 30, keepRecent: 12, summarySystemPrompt: "Distil." },
+      createRunId: () => "run_no_flush_no_compact",
+      createEventId: (() => { let n = 0; return () => `evt_nfnc_${++n}`; })(),
+      now: () => "2026-05-07T00:00:00.000Z"
+    });
+
+    const events = await collect(runtime.runTurn({ sessionId: "s1", message: "Hi." }));
+    expect(events.map((e) => e.type)).not.toContain("memory_flush_triggered");
   });
 });
 

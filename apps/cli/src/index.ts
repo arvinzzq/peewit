@@ -2103,6 +2103,10 @@ function traceEventLabel(event: RuntimeEvent): string {
       return "Assembled context";
     case "compaction_triggered":
       return `Compacted context (${event.messagesBefore} → ${event.messagesAfter} messages)`;
+    case "memory_flush_triggered":
+      return event.executed
+        ? `Memory flush ran${event.toolsInvoked.length > 0 ? ` (tools: ${event.toolsInvoked.join(", ")})` : ""}`
+        : `Memory flush skipped (${event.reason ?? "unknown"})`;
     case "todos_updated":
       return `Updated todos (${event.todos.length} items)`;
     case "planning_stall_detected":

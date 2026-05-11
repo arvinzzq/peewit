@@ -1,6 +1,6 @@
 /**
  * INPUT: ModelProvider (required), and optionally: ContextAssembler (defaults to MinimalContextAssembler), systemInstruction, PermissionPolicy (defaults to DefaultPermissionPolicy), ApprovalResolver, tools, hooks, ExecutionContract, maxSteps, runtime metadata, user turn input, recent messages.
- * OUTPUT: createAgent() factory, AgentRuntime, CreateAgentOptions, runtime events (turn_complete, compaction_triggered+summary, token_delta, todos_updated, planning_stall_detected, tool/permission/approval), SubagentFactory, spawn tools, AsyncTaskStore, trace store.
+ * OUTPUT: createAgent() factory, AgentRuntime, CreateAgentOptions, runtime events (turn_complete, compaction_triggered+summary, memory_flush_triggered, token_delta, todos_updated, planning_stall_detected, tool/permission/approval), SubagentFactory, spawn tools, AsyncTaskStore, trace store.
  * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -13,7 +13,13 @@ import type {
   ContextToolSummary,
   PromptMode
 } from "@vole/context";
-import { compactMessages, MinimalContextAssembler } from "@vole/context";
+import {
+  compactMessages,
+  DEFAULT_COMPACTION_OPTIONS,
+  DEFAULT_MEMORY_FLUSH_PROMPT,
+  estimateMessageTokens,
+  MinimalContextAssembler
+} from "@vole/context";
 import { isStreamingProvider } from "@vole/models";
 import type { ModelMessage, ModelOutput, ModelProvider, ModelUsage, ModelToolCall, ModelToolDefinition } from "@vole/models";
 import {
@@ -30,6 +36,7 @@ export const corePackageName = "@vole/core";
 export const runtimeEventTypes = [
   "run_started",
   "context_assembled",
+  "memory_flush_triggered",
   "compaction_triggered",
   "todos_updated",
   "planning_stall_detected",
@@ -75,6 +82,16 @@ export interface CompactionTriggeredEvent extends RuntimeEventBase {
   messagesBefore: number;
   messagesAfter: number;
   summary: string;
+}
+
+export interface MemoryFlushTriggeredEvent extends RuntimeEventBase {
+  type: "memory_flush_triggered";
+  /** True if the silent flush model call was executed; false when skipped (disabled, or compaction not predicted). */
+  executed: boolean;
+  /** Names of tools the model invoked during the flush turn (if any). */
+  toolsInvoked: string[];
+  /** Reason when not executed: "disabled" | "not_needed" | "model_error". */
+  reason?: string;
 }
 
 export interface TodosUpdatedEvent extends RuntimeEventBase {
@@ -185,6 +202,7 @@ export type RuntimeEvent =
   | RunStartedEvent
   | ContextAssembledEvent
   | CompactionTriggeredEvent
+  | MemoryFlushTriggeredEvent
   | TodosUpdatedEvent
   | PlanningStallDetectedEvent
   | ModelRequestStartedEvent
@@ -478,6 +496,24 @@ export class AgentRuntime {
         }
 
         if (this.#compaction !== undefined) {
+          // Phase 13b Step 5: pre-compaction memory flush. Before compactMessages
+          // potentially discards old turns, give the agent one silent turn to
+          // write durable facts via append_daily_memory. Triggers only when:
+          //  - memoryFlush.enabled is not explicitly false (default true)
+          //  - compaction would actually run (token/message threshold exceeded)
+          const opts = { ...DEFAULT_COMPACTION_OPTIONS, ...this.#compaction };
+          const flushEnabled = opts.memoryFlush?.enabled !== false;
+          const willCompact =
+            estimateMessageTokens(messages) > opts.maxTokens ||
+            messages.length > opts.maxMessages;
+
+          if (willCompact && flushEnabled) {
+            const flushResult = await this.#performMemoryFlush(messages, opts.memoryFlush?.prompt ?? DEFAULT_MEMORY_FLUSH_PROMPT);
+            yield emitAndCollect(this.#event({ ...base, type: "memory_flush_triggered", executed: flushResult.executed, toolsInvoked: flushResult.toolsInvoked, ...(flushResult.reason !== undefined ? { reason: flushResult.reason } : {}) }));
+          } else if (!flushEnabled) {
+            yield emitAndCollect(this.#event({ ...base, type: "memory_flush_triggered", executed: false, toolsInvoked: [], reason: "disabled" }));
+          }
+
           const before = messages.length;
           messages = await compactMessages(messages, this.#modelProvider, this.#compaction);
           const after = messages.length;
@@ -746,6 +782,70 @@ export class AgentRuntime {
       // In-process per-session serialization is now handled by @vole/lanes (session lane,
       // concurrency 1) inside GatewayCore. The runtime no longer holds any mutex here.
     }
+  }
+
+  /**
+   * Phase 13b Step 5: pre-compaction memory flush silent turn.
+   *
+   * Calls the model once with the existing conversation plus a system message
+   * nudging it to record durable facts via append_daily_memory. Tool calls in
+   * the model's response are executed directly through the tool's `execute`
+   * function. No runtime events fire for individual tool calls during this
+   * silent turn — only the wrapping memory_flush_triggered event is emitted by
+   * the caller after this resolves. The user-visible assistant text (if any)
+   * is dropped.
+   *
+   * Returns:
+   *  - executed: true when the model call completed (with or without tool calls).
+   *  - toolsInvoked: names of memory-write tools actually run.
+   *  - reason: "model_error" when the model call threw or errored out.
+   */
+  async #performMemoryFlush(
+    messages: ModelMessage[],
+    prompt: string
+  ): Promise<{ executed: boolean; toolsInvoked: string[]; reason?: string }> {
+    const toolDefinitions = this.#buildToolDefinitions();
+    const flushMessages: ModelMessage[] = [...messages, { role: "system", content: prompt }];
+
+    let output: ModelOutput;
+    try {
+      output = await this.#modelProvider.generate({
+        messages: flushMessages,
+        ...(toolDefinitions.length > 0 ? { tools: toolDefinitions } : {})
+      });
+    } catch {
+      return { executed: false, toolsInvoked: [], reason: "model_error" };
+    }
+
+    if (output.type === "error") {
+      return { executed: false, toolsInvoked: [], reason: "model_error" };
+    }
+    if (output.type !== "tool_calls") {
+      return { executed: true, toolsInvoked: [] };
+    }
+
+    const invoked: string[] = [];
+    const execContext: ToolExecutionContext = {
+      workspaceRoot: this.#runtime?.workspace ?? process.cwd(),
+      parentRecentMessages: messages.map((m) => ({ role: m.role, content: m.content })),
+      depth: this.#depth
+    };
+    for (const call of output.calls) {
+      const tool = this.#tools.get(call.name);
+      if (tool === undefined) continue;
+      // Conservative scope: only run reversible memory-write tools during the
+      // silent flush. High-risk and blocked tools are dropped to avoid the
+      // model performing destructive work without the normal permission UI.
+      if (tool.risk === "high" || tool.risk === "blocked") continue;
+      try {
+        await tool.execute(call.input, execContext);
+        invoked.push(call.name);
+      } catch {
+        // Swallow errors — the flush is best-effort and must not stall the
+        // upcoming compaction or the user-visible turn loop.
+      }
+    }
+    return { executed: true, toolsInvoked: invoked };
   }
 
   async #callAfterTurn(events: RuntimeEvent[]): Promise<void> {
