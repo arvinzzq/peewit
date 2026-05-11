@@ -1,6 +1,6 @@
 /**
  * INPUT: Task definitions, task status updates, parent/child relationships, completed-child announcements.
- * OUTPUT: TaskRecord, TaskStatus, TaskRuntime, PendingAnnouncement types, JsonlTaskFlowStore with push-based announcement drain, task lifecycle management.
+ * OUTPUT: TaskRecord, TaskStatus, TaskRuntime, PendingAnnouncement types, JsonlTaskFlowStore with push-based announcement drain, SqliteTaskFlowStore (with SQLITE_TASKFLOW_SCHEMA_SQL DDL) and migrateJsonlTaskFlowToSqlite migration helper, task lifecycle management.
  * POS: TaskFlow layer; owns persistent cross-session task graph state and the parent-facing push-completion mailbox.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -152,6 +152,90 @@ export { join };
 
 import Database from "better-sqlite3";
 
+/**
+ * Schema DDL for the SQLite taskflow store. Exported so the Phase 14b migration
+ * helper can initialize a fresh database without going through the store
+ * constructor.
+ */
+export const SQLITE_TASKFLOW_SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS task_records (
+    id TEXT PRIMARY KEY,
+    runtime TEXT NOT NULL,
+    task TEXT NOT NULL,
+    status TEXT NOT NULL,
+    progressSummary TEXT,
+    terminalSummary TEXT,
+    parentId TEXT,
+    sessionId TEXT,
+    pendingAnnouncementJson TEXT,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS task_records_status_idx ON task_records(status);
+  CREATE INDEX IF NOT EXISTS task_records_parent_idx ON task_records(parentId);
+  CREATE INDEX IF NOT EXISTS task_records_runtime_idx ON task_records(runtime);
+  CREATE INDEX IF NOT EXISTS task_records_created_idx ON task_records(createdAt);
+
+  CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY);
+`;
+
+export interface JsonlTaskFlowMigrationStats {
+  taskRecords: number;
+}
+
+/**
+ * Migrate a JSONL taskflow file into a fresh SQLite database. Idempotent: rows
+ * with the same id are skipped via INSERT OR IGNORE.
+ */
+export async function migrateJsonlTaskFlowToSqlite(
+  sourceJsonlPath: string,
+  targetDbPath: string,
+  options: { dryRun?: boolean } = {}
+): Promise<JsonlTaskFlowMigrationStats> {
+  const stats: JsonlTaskFlowMigrationStats = { taskRecords: 0 };
+  let content: string;
+  try {
+    content = await readFile(sourceJsonlPath, "utf-8");
+  } catch (error) {
+    if (error instanceof Error && "code" in error && (error as { code?: string }).code === "ENOENT") return stats;
+    throw error;
+  }
+
+  const lines = content.split("\n").filter((line) => line.trim().length > 0);
+  if (lines.length === 0) return stats;
+
+  const db = options.dryRun === true ? undefined : new Database(targetDbPath);
+  if (db !== undefined) {
+    db.pragma("journal_mode = WAL");
+    db.pragma("synchronous = NORMAL");
+    db.exec(SQLITE_TASKFLOW_SCHEMA_SQL);
+  }
+
+  try {
+    for (const line of lines) {
+      const record = JSON.parse(line) as TaskRecord;
+      stats.taskRecords++;
+      if (db !== undefined) {
+        db.prepare(
+          `INSERT OR IGNORE INTO task_records (
+            id, runtime, task, status, progressSummary, terminalSummary,
+            parentId, sessionId, pendingAnnouncementJson, createdAt, updatedAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(
+          record.id, record.runtime, record.task, record.status,
+          record.progressSummary ?? null, record.terminalSummary ?? null,
+          record.parentId ?? null, record.sessionId ?? null,
+          record.pendingAnnouncement === undefined ? null : JSON.stringify(record.pendingAnnouncement),
+          record.createdAt, record.updatedAt
+        );
+      }
+    }
+  } finally {
+    db?.close();
+  }
+  return stats;
+}
+
 export interface SqliteTaskFlowStoreOptions {
   databasePath: string;
 }
@@ -182,27 +266,7 @@ export class SqliteTaskFlowStore implements TaskFlowStore {
   }
 
   #initSchema(): void {
-    this.#db.exec(`
-      CREATE TABLE IF NOT EXISTS task_records (
-        id TEXT PRIMARY KEY,
-        runtime TEXT NOT NULL,
-        task TEXT NOT NULL,
-        status TEXT NOT NULL,
-        progressSummary TEXT,
-        terminalSummary TEXT,
-        parentId TEXT,
-        sessionId TEXT,
-        pendingAnnouncementJson TEXT,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS task_records_status_idx ON task_records(status);
-      CREATE INDEX IF NOT EXISTS task_records_parent_idx ON task_records(parentId);
-      CREATE INDEX IF NOT EXISTS task_records_runtime_idx ON task_records(runtime);
-      CREATE INDEX IF NOT EXISTS task_records_created_idx ON task_records(createdAt);
-
-      CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY);
-    `);
+    this.#db.exec(SQLITE_TASKFLOW_SCHEMA_SQL);
     const row = this.#db.prepare("SELECT version FROM schema_version LIMIT 1").get() as { version?: number } | undefined;
     if (row === undefined) {
       this.#db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(1);

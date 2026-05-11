@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { CliChatSession, renderCompactTrace, runCli } from "./index.js";
@@ -1456,6 +1456,64 @@ describe("runCli", () => {
 
       const after = await readFile(taskflowPath, "utf8");
       expect(after).toContain("\"status\":\"cancelled\"");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("migrate jsonl-to-sqlite defaults to dry-run and reports counts", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-migrate-"));
+    try {
+      const sessionsDir = join(directory, "sessions");
+      await mkdir(sessionsDir, { recursive: true });
+      await writeFile(
+        join(sessionsDir, "sess_a.jsonl"),
+        JSON.stringify({ type: "session", session: { id: "sess_a", createdAt: "2026-05-01T00:00:00Z", updatedAt: "2026-05-01T00:01:00Z" } }) + "\n" +
+        JSON.stringify({ type: "message", message: { id: "msg_1", sessionId: "sess_a", role: "user", content: "Hi", createdAt: "2026-05-01T00:00:10Z" } }) + "\n"
+      );
+      await writeFile(
+        join(directory, "taskflow.jsonl"),
+        JSON.stringify({ id: "task_1", runtime: "subagent", task: "Work", status: "succeeded", createdAt: "2026-05-01T00:00:00Z", updatedAt: "2026-05-01T00:01:00Z" }) + "\n"
+      );
+
+      const result = await runCli(["migrate", "jsonl-to-sqlite"], "0.0.0", { sessionsDirectory: sessionsDir });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("dry-run");
+      expect(result.stdout).toContain("sessions:           1");
+      expect(result.stdout).toContain("messages:           1");
+      expect(result.stdout).toContain("task records:       1");
+      expect(result.stdout).toContain("Dry-run only");
+
+      const sessionsDbPath = join(sessionsDir, "sessions.db");
+      const taskflowDbPath = join(directory, "taskflow.db");
+      const sessionsAfterDry = await stat(sessionsDbPath).catch(() => undefined);
+      const taskflowAfterDry = await stat(taskflowDbPath).catch(() => undefined);
+      expect(sessionsAfterDry).toBeUndefined();
+      expect(taskflowAfterDry).toBeUndefined();
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("migrate jsonl-to-sqlite --apply writes the SQLite databases", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-migrate-apply-"));
+    try {
+      const sessionsDir = join(directory, "sessions");
+      await mkdir(sessionsDir, { recursive: true });
+      await writeFile(
+        join(sessionsDir, "sess_b.jsonl"),
+        JSON.stringify({ type: "session", session: { id: "sess_b", createdAt: "2026-05-01T00:00:00Z", updatedAt: "2026-05-01T00:01:00Z" } }) + "\n" +
+        JSON.stringify({ type: "message", message: { id: "msg_b1", sessionId: "sess_b", role: "user", content: "Hello", createdAt: "2026-05-01T00:00:10Z" } }) + "\n"
+      );
+
+      const result = await runCli(["migrate", "jsonl-to-sqlite", "--apply"], "0.0.0", { sessionsDirectory: sessionsDir });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("apply");
+      expect(result.stdout).toContain("Migration complete");
+
+      const sessionsDbPath = join(sessionsDir, "sessions.db");
+      const sessionsAfter = await stat(sessionsDbPath);
+      expect(sessionsAfter.size).toBeGreaterThan(0);
     } finally {
       await rm(directory, { force: true, recursive: true });
     }

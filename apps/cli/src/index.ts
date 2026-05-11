@@ -1,6 +1,6 @@
 /**
  * INPUT: CLI args, config, model providers, skill loader, session/trace stores, taskflow store, built-in tools, optional fake outputs and line reader.
- * OUTPUT: Chat, approvals, tool execution, todos, skill subcommands, session/task/taskflow listings, daemon cron, trace, redacted config, stdout/stderr, GatewayCore admission for chat runs (global / subagent / session lanes), run --dream consolidation to DREAMS.md, `vole memory review` approve / reject flow, session persistence of all turn messages and compaction boundaries, `vole doctor` read-only diagnostics.
+ * OUTPUT: chat, approvals, tools, todos, skills, sessions/tasks/taskflow listings, daemon, trace, redacted config, GatewayCore submission, run --dream to DREAMS.md, vole memory review approve/reject, vole doctor, vole migrate jsonl-to-sqlite (dry-run + --apply).
  * POS: CLI adapter layer; translates terminal commands and approval prompts; submits chat runs to GatewayCore without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -20,8 +20,8 @@ import { GatewayCore, type GatewaySession } from "@vole/gateway";
 import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@vole/models";
 import { CLI_CAPABILITIES, filterToolsByProfile, type ToolProfile } from "@vole/adapters";
 import { BackgroundApprovalResolver, CronScheduler, JsonlTaskStore, writeHeartbeat, type HeartbeatState, type TaskDefinition, type TaskRunRecord } from "@vole/scheduler";
-import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@vole/sessions";
-import { JsonlTaskFlowStore } from "@vole/taskflow";
+import { InMemorySessionStore, JsonlSessionStore, migrateJsonlSessionsToSqlite, type SessionStore } from "@vole/sessions";
+import { JsonlTaskFlowStore, migrateJsonlTaskFlowToSqlite } from "@vole/taskflow";
 import { SkillLoader, SkillManager, toSkillSummary, type SkillDefinition } from "@vole/skills";
 import { createAppendFileTool, createEditFileTool, createListDirectoryTool, createLoadSkillTool, createReadFileTool, createReadWebPageTool, createSearchFilesTool, createShellTool, createUpdateHeartbeatTool, createWriteFileTool, type SkillFileMap } from "@vole/tools";
 import {
@@ -257,6 +257,13 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
   // ── doctor ────────────────────────────────────────────────────────────────
   program.command("doctor").description("Read-only diagnostic checks for workspace, sessions, taskflow, and skills")
     .action(async () => { actionResult = await runDoctor(options); });
+
+  // ── migrate ───────────────────────────────────────────────────────────────
+  const migrateCmd = program.command("migrate").description("Migrate data between storage backends");
+  migrateCmd.command("jsonl-to-sqlite")
+    .description("Migrate JSONL sessions + taskflow data into SQLite databases. Defaults to dry-run; pass --apply to actually write.")
+    .option("--apply", "Write to the SQLite databases. Without this flag, the command only previews counts.")
+    .action(async (opts: OptionValues) => { actionResult = await runMigrateJsonlToSqlite(options, { apply: opts["apply"] === true }); });
 
   // ── memory ────────────────────────────────────────────────────────────────
   const memCmd = program.command("memory").description("Inspect and curate workspace memory");
@@ -710,6 +717,46 @@ async function runDoctor(options: RunCliOptions): Promise<CliResult> {
   }
 
   return { exitCode: err > 0 ? 1 : 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
+}
+
+async function runMigrateJsonlToSqlite(
+  options: RunCliOptions,
+  flags: { apply: boolean }
+): Promise<CliResult> {
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
+  const effectiveConfig = options.sessionsDirectory
+    ? { ...config, sessions: { directory: options.sessionsDirectory } }
+    : config;
+  const sessionsDir = resolveSessionsDirectory(effectiveConfig, options.env);
+  const sessionsDbPath = join(sessionsDir, "sessions.db");
+  const taskflowJsonlPath = join(dirname(sessionsDir), "taskflow.jsonl");
+  const taskflowDbPath = join(dirname(sessionsDir), "taskflow.db");
+
+  const dryRun = !flags.apply;
+  const sessionsStats = await migrateJsonlSessionsToSqlite(sessionsDir, sessionsDbPath, { dryRun });
+  const taskflowStats = await migrateJsonlTaskFlowToSqlite(taskflowJsonlPath, taskflowDbPath, { dryRun });
+
+  const lines: string[] = [
+    `vole migrate jsonl-to-sqlite (${dryRun ? "dry-run" : "apply"}):`,
+    "",
+    `Sessions (${sessionsDir}):`,
+    `  sessions:           ${sessionsStats.sessions}`,
+    `  messages:           ${sessionsStats.messages}`,
+    `  trace events:       ${sessionsStats.traceEvents}`,
+    `  compact boundaries: ${sessionsStats.compactBoundaries}`,
+    `  target:             ${sessionsDbPath}`,
+    "",
+    `Taskflow (${taskflowJsonlPath}):`,
+    `  task records:       ${taskflowStats.taskRecords}`,
+    `  target:             ${taskflowDbPath}`,
+    ""
+  ];
+  if (dryRun) {
+    lines.push("Dry-run only — no files written. Re-run with --apply to perform the migration.");
+  } else {
+    lines.push("Migration complete. JSONL sources are left in place; remove them once you have verified the SQLite copies.");
+  }
+  return { exitCode: 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
 }
 
 async function runMemoryReviewList(options: RunCliOptions): Promise<CliResult> {

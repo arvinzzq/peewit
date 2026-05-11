@@ -68,6 +68,8 @@ vole sessions
 | `vole memory review` | List pending DREAMS.md candidate entries |
 | `vole memory review approve <id\|all>` | Promote DREAMS.md entry into MEMORY.md |
 | `vole memory review reject <id\|all>` | Archive DREAMS.md entry under DREAMS/archive/ |
+| `vole migrate jsonl-to-sqlite` | Dry-run preview of JSONL → SQLite migration (sessions + taskflow) |
+| `vole migrate jsonl-to-sqlite --apply` | Actually write the SQLite databases |
 
 ## Chat slash commands
 

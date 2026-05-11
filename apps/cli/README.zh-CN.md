@@ -68,6 +68,8 @@ vole sessions
 | `vole memory review` | 列出 DREAMS.md 中待审阅的候选条目 |
 | `vole memory review approve <id\|all>` | 把 DREAMS.md 条目提升到 MEMORY.md |
 | `vole memory review reject <id\|all>` | 把 DREAMS.md 条目归档到 DREAMS/archive/ |
+| `vole migrate jsonl-to-sqlite` | 预览 JSONL → SQLite 迁移（sessions + taskflow），不实际写入 |
+| `vole migrate jsonl-to-sqlite --apply` | 实际写入 SQLite 数据库 |
 
 ## 对话内指令
 

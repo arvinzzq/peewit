@@ -1,6 +1,6 @@
 /**
  * INPUT: Session creation requests, conversation messages (including tool_use and tool_result), compaction boundaries, runtime trace events, persistence directories, injectable ID/time providers, and cross-process file lock options.
- * OUTPUT: Session records, message/trace records, compact_boundary records, session store contracts, in-memory storage, JSONL session storage with cross-process file lock, and acquireSessionFileLock helper.
+ * OUTPUT: Session records, message/trace records, compact_boundary records, session store contracts, in-memory storage, JSONL session storage with cross-process file lock, acquireSessionFileLock helper, SQLite-backed SqliteSessionStore (with SQLITE_SESSIONS_SCHEMA_SQL DDL), and migrateJsonlSessionsToSqlite migration helper.
  * POS: Session storage layer; owns replayable short-term conversation state with compaction support and cross-process write serialization. The in-process lane (in @vole/lanes) serializes within one Node process; this file lock serializes across processes targeting the same session JSONL.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -692,6 +692,54 @@ export async function acquireSessionFileLock(
 }
 
 // ----------------------------------------------------------------------------
+/**
+ * Schema DDL for the SQLite session store. Exported so the Phase 14b migration
+ * helper can initialize a fresh database without going through the store
+ * constructor (which would auto-generate session IDs on every createSession).
+ */
+export const SQLITE_SESSIONS_SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    title TEXT,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS sessions_updated_idx ON sessions(updatedAt DESC);
+
+  CREATE TABLE IF NOT EXISTS messages (
+    id TEXT PRIMARY KEY,
+    sessionId TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    content TEXT,
+    toolCallsJson TEXT,
+    toolCallId TEXT,
+    createdAt TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS messages_session_created_idx ON messages(sessionId, createdAt);
+
+  CREATE TABLE IF NOT EXISTS trace_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sessionId TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    eventJson TEXT NOT NULL,
+    createdAt TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS trace_events_session_created_idx ON trace_events(sessionId, createdAt);
+
+  CREATE TABLE IF NOT EXISTS compact_boundaries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sessionId TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    summary TEXT NOT NULL,
+    messagesBefore INTEGER NOT NULL,
+    messagesAfter INTEGER NOT NULL,
+    createdAt TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS compact_boundaries_session_created_idx ON compact_boundaries(sessionId, createdAt);
+
+  CREATE TABLE IF NOT EXISTS schema_version (
+    version INTEGER PRIMARY KEY
+  );
+`;
+
 // SqliteSessionStore — Phase 14 Step 3
 // ----------------------------------------------------------------------------
 
@@ -742,48 +790,7 @@ export class SqliteSessionStore implements SessionStore {
   }
 
   #initSchema(): void {
-    this.#db.exec(`
-      CREATE TABLE IF NOT EXISTS sessions (
-        id TEXT PRIMARY KEY,
-        title TEXT,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS sessions_updated_idx ON sessions(updatedAt DESC);
-
-      CREATE TABLE IF NOT EXISTS messages (
-        id TEXT PRIMARY KEY,
-        sessionId TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-        role TEXT NOT NULL,
-        content TEXT,
-        toolCallsJson TEXT,
-        toolCallId TEXT,
-        createdAt TEXT NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS messages_session_created_idx ON messages(sessionId, createdAt);
-
-      CREATE TABLE IF NOT EXISTS trace_events (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        sessionId TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-        eventJson TEXT NOT NULL,
-        createdAt TEXT NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS trace_events_session_created_idx ON trace_events(sessionId, createdAt);
-
-      CREATE TABLE IF NOT EXISTS compact_boundaries (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        sessionId TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-        summary TEXT NOT NULL,
-        messagesBefore INTEGER NOT NULL,
-        messagesAfter INTEGER NOT NULL,
-        createdAt TEXT NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS compact_boundaries_session_created_idx ON compact_boundaries(sessionId, createdAt);
-
-      CREATE TABLE IF NOT EXISTS schema_version (
-        version INTEGER PRIMARY KEY
-      );
-    `);
+    this.#db.exec(SQLITE_SESSIONS_SCHEMA_SQL);
     const row = this.#db.prepare("SELECT version FROM schema_version LIMIT 1").get() as { version?: number } | undefined;
     if (row === undefined) {
       this.#db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(1);
@@ -940,6 +947,116 @@ export class SqliteSessionStore implements SessionStore {
       createdAt: row.createdAt
     }));
   }
+}
+
+// ─── Phase 14b Step 6: jsonl → sqlite migration ────────────────────────────────
+
+export interface JsonlMigrationStats {
+  sessions: number;
+  messages: number;
+  traceEvents: number;
+  compactBoundaries: number;
+}
+
+/**
+ * Read every `<sessionId>.jsonl` file in `sourceDir` and write its contents
+ * into a fresh SQLite database at `targetDbPath`. Preserves original session,
+ * message, and trace-event IDs so existing references survive the move.
+ *
+ * - When `options.dryRun` is true, scans the source files and returns counts
+ *   without opening or writing to `targetDbPath`.
+ * - When `options.dryRun` is false (default), opens (or creates) the target
+ *   database, initializes the schema, and inserts every record. Existing
+ *   records with the same primary key are skipped via INSERT OR IGNORE so
+ *   reruns are idempotent.
+ */
+export async function migrateJsonlSessionsToSqlite(
+  sourceDir: string,
+  targetDbPath: string,
+  options: { dryRun?: boolean } = {}
+): Promise<JsonlMigrationStats> {
+  const stats: JsonlMigrationStats = { sessions: 0, messages: 0, traceEvents: 0, compactBoundaries: 0 };
+  let entries: string[];
+  try {
+    entries = (await readdir(sourceDir)).filter((entry) => entry.endsWith(".jsonl"));
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return stats;
+    throw error;
+  }
+  if (entries.length === 0) return stats;
+
+  const db = options.dryRun === true ? undefined : new Database(targetDbPath);
+  if (db !== undefined) {
+    db.pragma("journal_mode = WAL");
+    db.pragma("synchronous = NORMAL");
+    db.pragma("foreign_keys = ON");
+    db.exec(SQLITE_SESSIONS_SCHEMA_SQL);
+  }
+
+  try {
+    for (const entry of entries) {
+      const content = await readFile(join(sourceDir, entry), "utf8");
+      let currentSessionId: string | undefined;
+      for (const line of content.split("\n")) {
+        if (line.trim() === "") continue;
+        const record = JSON.parse(line) as JsonlSessionRecord;
+        if (record.type === "session") {
+          currentSessionId = record.session.id;
+          stats.sessions++;
+          if (db !== undefined) {
+            db.prepare("INSERT OR IGNORE INTO sessions (id, title, createdAt, updatedAt) VALUES (?, ?, ?, ?)").run(
+              record.session.id,
+              record.session.title ?? null,
+              record.session.createdAt,
+              record.session.updatedAt
+            );
+          }
+        } else if (record.type === "message") {
+          stats.messages++;
+          if (db !== undefined) {
+            db.prepare(
+              "INSERT OR IGNORE INTO messages (id, sessionId, role, content, toolCallsJson, toolCallId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)"
+            ).run(
+              record.message.id,
+              record.message.sessionId,
+              record.message.role,
+              record.message.content ?? null,
+              record.message.toolCalls === undefined ? null : JSON.stringify(record.message.toolCalls),
+              record.message.toolCallId ?? null,
+              record.message.createdAt
+            );
+          }
+        } else if (record.type === "trace") {
+          stats.traceEvents++;
+          if (db !== undefined) {
+            db.prepare(
+              "INSERT INTO trace_events (sessionId, eventJson, createdAt) VALUES (?, ?, ?)"
+            ).run(
+              record.traceEvent.sessionId,
+              JSON.stringify(record.traceEvent.event),
+              record.traceEvent.createdAt
+            );
+          }
+        } else if (record.type === "compact_boundary") {
+          stats.compactBoundaries++;
+          if (db !== undefined && currentSessionId !== undefined) {
+            db.prepare(
+              "INSERT INTO compact_boundaries (sessionId, summary, messagesBefore, messagesAfter, createdAt) VALUES (?, ?, ?, ?, ?)"
+            ).run(
+              currentSessionId,
+              record.summary,
+              record.messagesBefore,
+              record.messagesAfter,
+              record.createdAt
+            );
+          }
+        }
+      }
+    }
+  } finally {
+    db?.close();
+  }
+  return stats;
 }
 
 function rowToSessionRecord(row: { id: string; title: string | null; createdAt: string; updatedAt: string }): SessionRecord {
