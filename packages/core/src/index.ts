@@ -285,6 +285,8 @@ export interface AgentRuntimeDependencies {
   promptMode?: PromptMode;
   hooks?: AgentHooks;
   executionContract?: ExecutionContract;
+  /** Phase 12: push-completion mailbox. When provided alongside an `input.sessionId`, runTurn drains pending announcements addressed to that session id at the start of every turn. */
+  taskStore?: AsyncTaskStore;
   createRunId?: () => string;
   createEventId?: () => string;
   now?: () => string;
@@ -338,6 +340,7 @@ export class AgentRuntime {
   readonly #compaction: Partial<CompactionOptions> | undefined;
   readonly #promptMode: PromptMode | undefined;
   readonly #hooks: AgentHooks | undefined;
+  readonly #taskStore: AsyncTaskStore | undefined;
   readonly #executionContract: ExecutionContract;
   readonly #createRunId: () => string;
   readonly #createEventId: () => string;
@@ -364,6 +367,7 @@ export class AgentRuntime {
     this.#compaction = dependencies.compaction;
     this.#promptMode = dependencies.promptMode;
     this.#hooks = dependencies.hooks;
+    this.#taskStore = dependencies.taskStore;
     this.#createRunId = dependencies.createRunId ?? randomId("run");
     this.#createEventId = dependencies.createEventId ?? randomId("evt");
     this.#now = dependencies.now ?? (() => new Date().toISOString());
@@ -399,6 +403,30 @@ export class AgentRuntime {
 
       yield emitAndCollect(this.#event({ ...base, type: "run_started", userMessage: input.message }));
 
+      // Phase 12: drain pending sub-agent completion announcements addressed to this session.
+      // Each drained announcement is injected as a system message before context assembly so the
+      // model sees its children's results at the top of the turn. The store atomically clears the
+      // mailbox entries during the drain, guaranteeing exactly-once delivery.
+      const announcementMessages: ModelMessage[] = [];
+      if (this.#taskStore !== undefined && input.sessionId !== undefined) {
+        try {
+          const announcements = await this.#taskStore.drainPendingForParent(input.sessionId);
+          for (const a of announcements) {
+            announcementMessages.push({
+              role: "system",
+              content: formatSubagentAnnouncement(a)
+            });
+          }
+        } catch (err) {
+          if (typeof process !== "undefined" && process.env["NODE_ENV"] !== "production") {
+            console.warn("[AgentRuntime] drainPendingForParent failed:", err);
+          }
+        }
+      }
+      const effectiveRecentMessages = announcementMessages.length > 0
+        ? [...announcementMessages, ...(input.recentMessages ?? [])]
+        : input.recentMessages;
+
       const contextToolSummaries = this.#buildContextToolSummaries();
       const assembled = await this.#contextAssembler.assemble({
         systemInstruction: this.#systemInstruction,
@@ -406,7 +434,7 @@ export class AgentRuntime {
         ...(contextToolSummaries.length > 0 ? { tools: contextToolSummaries } : {}),
         permissionGuidance: DEFAULT_PERMISSION_GUIDANCE,
         ...(this.#skillIndex.length > 0 ? { skillIndex: this.#skillIndex } : {}),
-        ...(input.recentMessages ? { recentMessages: input.recentMessages } : {}),
+        ...(effectiveRecentMessages ? { recentMessages: effectiveRecentMessages } : {}),
         ...(this.#promptMode !== undefined ? { promptMode: this.#promptMode } : {}),
         userMessage: input.message
       });
@@ -749,6 +777,24 @@ function randomId(prefix: string): () => string {
   return () => `${prefix}_${crypto.randomUUID()}`;
 }
 
+/**
+ * Phase 12: format a push-completion announcement as a `system` role message.
+ * The structured layout mirrors OpenClaw's announcement convention so the model
+ * can recognise sub-agent completions reliably across providers.
+ */
+export function formatSubagentAnnouncement(a: AsyncPendingAnnouncement): string {
+  const lines = [
+    `[subagent #${a.taskId} ${a.status}]`,
+    `goal: ${a.goal}`,
+    `status: ${a.status}`
+  ];
+  if (a.terminalSummary !== undefined && a.terminalSummary.length > 0) {
+    lines.push(`result: ${a.terminalSummary}`);
+  }
+  lines.push(`completedAt: ${a.completedAt}`);
+  return lines.join("\n");
+}
+
 function createToolPermissionAction(call: ModelToolCall, risk: PermissionRiskLevel): {
   kind: "tool";
   name: string;
@@ -808,6 +854,7 @@ export interface CreateAgentOptions {
   hooks?: AgentHooks;
   executionContract?: ExecutionContract;
   skillIndex?: ContextSkillSummary[];
+  taskStore?: AsyncTaskStore;
 }
 
 export function createAgent(options: CreateAgentOptions): AgentRuntime {
@@ -825,15 +872,28 @@ export function createAgent(options: CreateAgentOptions): AgentRuntime {
   if (options.hooks !== undefined) deps.hooks = options.hooks;
   if (options.executionContract !== undefined) deps.executionContract = options.executionContract;
   if (options.skillIndex !== undefined) deps.skillIndex = options.skillIndex;
+  if (options.taskStore !== undefined) deps.taskStore = options.taskStore;
   return new AgentRuntime(deps);
+}
+
+// Minimal pending-announcement shape needed by core; satisfied by
+// @vole/taskflow's PendingAnnouncement.
+export interface AsyncPendingAnnouncement {
+  taskId: string;
+  goal: string;
+  status: string;
+  terminalSummary?: string;
+  completedAt: string;
 }
 
 // AsyncTaskStore is a duck-typed interface for storing async task records.
 // Core uses this instead of importing @vole/taskflow to avoid coupling.
 export interface AsyncTaskStore {
   create(record: { id: string; runtime: string; task: string; status: string; parentId?: string }): Promise<{ id: string }>;
-  update(id: string, updates: { status?: string; terminalSummary?: string }): Promise<unknown>;
+  update(id: string, updates: { status?: string; terminalSummary?: string; pendingAnnouncement?: AsyncPendingAnnouncement; clearPendingAnnouncement?: boolean }): Promise<unknown>;
   get(id: string): Promise<{ id: string; status: string; terminalSummary?: string } | undefined>;
+  /** Phase 12: atomically read and clear pending announcements addressed to the given parent task id. */
+  drainPendingForParent(parentId: string): Promise<AsyncPendingAnnouncement[]>;
 }
 
 export interface AsyncSubagentOptions {

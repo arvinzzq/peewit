@@ -1248,7 +1248,9 @@ export class CliChatSession {
     const allToolsRaw = [
       ...builtInTools,
       createSpawnSubagentTool(factory),
-      createSpawnSubagentAsyncTool(factory, { taskStore: taskFlowStore }),
+      // Stamp the spawned child task with parentId = this session id so the parent
+      // runtime can later drain push announcements addressed to it.
+      createSpawnSubagentAsyncTool(factory, { taskStore: taskFlowStore, parentTaskId: sessionId }),
       createCheckSubagentTool(taskFlowStore)
     ];
     const allTools = config.runtime.toolProfile !== undefined
@@ -1281,6 +1283,9 @@ export class CliChatSession {
         approvalResolver,
         maxSteps: 20,
         compaction: {},
+        // Phase 12 push completion: the parent runtime drains pending announcements
+        // addressed to its session id (which doubles as its parent task id) at every turn start.
+        taskStore: taskFlowStore,
         ...(config.runtime.promptMode !== undefined ? { promptMode: config.runtime.promptMode } : {}),
         ...(config.runtime.executionContract !== undefined ? { executionContract: config.runtime.executionContract } : {})
       }),

@@ -1510,6 +1510,9 @@ describe("createSpawnSubagentAsyncTool", () => {
       async get(id) {
         const record = createdRecords.find((r) => r.id === id);
         return record ? { id: record.id, status: record.status } : undefined;
+      },
+      async drainPendingForParent() {
+        return [];
       }
     };
 
@@ -1548,7 +1551,8 @@ describe("createCheckSubagentTool", () => {
     const taskStore: AsyncTaskStore = {
       async create(record) { return { id: record.id }; },
       async update() {},
-      async get(id) { return records.find((r) => r.id === id); }
+      async get(id) { return records.find((r) => r.id === id); },
+      async drainPendingForParent() { return []; }
     };
 
     const tool = createCheckSubagentTool(taskStore);
@@ -1566,7 +1570,8 @@ describe("createCheckSubagentTool", () => {
     const taskStore: AsyncTaskStore = {
       async create(record) { return { id: record.id }; },
       async update() {},
-      async get() { return undefined; }
+      async get() { return undefined; },
+      async drainPendingForParent() { return []; }
     };
 
     const tool = createCheckSubagentTool(taskStore);
@@ -1579,7 +1584,8 @@ describe("createCheckSubagentTool", () => {
     const taskStore: AsyncTaskStore = {
       async create(record) { return { id: record.id }; },
       async update() {},
-      async get() { return undefined; }
+      async get() { return undefined; },
+      async drainPendingForParent() { return []; }
     };
 
     const tool = createCheckSubagentTool(taskStore);
@@ -1592,7 +1598,8 @@ describe("createCheckSubagentTool", () => {
     const taskStore: AsyncTaskStore = {
       async create(record) { return { id: record.id }; },
       async update() {},
-      async get(id) { return { id, status: "running" }; }
+      async get(id) { return { id, status: "running" }; },
+      async drainPendingForParent() { return []; }
     };
 
     const tool = createCheckSubagentTool(taskStore);
@@ -1611,3 +1618,112 @@ async function collect(events: AsyncIterable<RuntimeEvent>): Promise<RuntimeEven
 
   return collected;
 }
+
+describe("AgentRuntime — pending announcement drain (Phase 12)", () => {
+  test("drains pending announcements addressed to the session and injects them as system messages", async () => {
+    const drained: string[] = [];
+    const modelProvider = new FakeModelProvider([
+      { type: "message", content: "Acknowledged." }
+    ]);
+
+    const taskStore: AsyncTaskStore = {
+      async create(record) { return { id: record.id }; },
+      async update() {},
+      async get() { return undefined; },
+      async drainPendingForParent(parentId: string) {
+        drained.push(parentId);
+        return [
+          {
+            taskId: "child_1",
+            goal: "Refactor auth",
+            status: "succeeded",
+            terminalSummary: "Done; 4 files changed.",
+            completedAt: "2026-05-11T22:00:00.000Z"
+          },
+          {
+            taskId: "child_2",
+            goal: "Run lint",
+            status: "failed",
+            completedAt: "2026-05-11T22:01:00.000Z"
+          }
+        ];
+      }
+    };
+
+    const runtime = new AgentRuntime({
+      modelProvider,
+      taskStore,
+      systemInstruction: "You are Vole.",
+      runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-11" }
+    });
+
+    await collect(runtime.runTurn({ sessionId: "sess_parent", message: "Hi." }));
+
+    expect(drained).toEqual(["sess_parent"]);
+
+    // Verify the model received the announcement as a system message in the input.
+    const requestMessages = modelProvider.requests[0]?.messages ?? [];
+    const systemAnnouncements = requestMessages.filter(
+      (m) => m.role === "system" && typeof m.content === "string" && m.content.includes("[subagent #")
+    );
+    expect(systemAnnouncements).toHaveLength(2);
+    expect(systemAnnouncements[0]?.content).toContain("child_1");
+    expect(systemAnnouncements[0]?.content).toContain("succeeded");
+    expect(systemAnnouncements[0]?.content).toContain("Done; 4 files changed.");
+    expect(systemAnnouncements[1]?.content).toContain("child_2");
+    expect(systemAnnouncements[1]?.content).toContain("failed");
+  });
+
+  test("does not call drain when taskStore is not configured", async () => {
+    const modelProvider = new FakeModelProvider([{ type: "message", content: "Hi." }]);
+    const runtime = new AgentRuntime({
+      modelProvider,
+      systemInstruction: "You are Vole.",
+      runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-11" }
+    });
+
+    await collect(runtime.runTurn({ sessionId: "sess_x", message: "Hello." }));
+    // No assertion needed — the run must simply complete without errors.
+  });
+
+  test("does not call drain when sessionId is absent", async () => {
+    let drainCalled = false;
+    const taskStore: AsyncTaskStore = {
+      async create(record) { return { id: record.id }; },
+      async update() {},
+      async get() { return undefined; },
+      async drainPendingForParent() { drainCalled = true; return []; }
+    };
+    const modelProvider = new FakeModelProvider([{ type: "message", content: "Hi." }]);
+
+    const runtime = new AgentRuntime({
+      modelProvider,
+      taskStore,
+      systemInstruction: "You are Vole.",
+      runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-11" }
+    });
+
+    await collect(runtime.runTurn({ message: "Hello." }));
+    expect(drainCalled).toBe(false);
+  });
+
+  test("a drain error is swallowed and the turn still runs", async () => {
+    const taskStore: AsyncTaskStore = {
+      async create(record) { return { id: record.id }; },
+      async update() {},
+      async get() { return undefined; },
+      async drainPendingForParent() { throw new Error("store unavailable"); }
+    };
+    const modelProvider = new FakeModelProvider([{ type: "message", content: "Survived." }]);
+
+    const runtime = new AgentRuntime({
+      modelProvider,
+      taskStore,
+      systemInstruction: "You are Vole.",
+      runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-11" }
+    });
+
+    const events = await collect(runtime.runTurn({ sessionId: "sess_err", message: "Hello." }));
+    expect(events.some((e) => e.type === "run_completed")).toBe(true);
+  });
+});
