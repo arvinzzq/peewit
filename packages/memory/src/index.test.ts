@@ -4,9 +4,11 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { AppendDailyMemoryResult, MemoryGetResult, MemorySearchResult } from "@vole/tools";
 import {
+  FakeEmbeddingProvider,
   createAppendDailyMemoryTool,
   createMemoryGetTool,
-  createMemorySearchTool
+  createMemorySearchTool,
+  type EmbeddingProvider
 } from "./index.js";
 
 describe("append_daily_memory tool", () => {
@@ -138,6 +140,86 @@ describe("createMemorySearchTool", () => {
       const result = await tool.execute({ query: "architecture" }, ctx) as MemorySearchResult;
       expect(result.total).toBeGreaterThan(0);
       expect(result.results[0]?.file).toContain("2026-05-05.md");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("FakeEmbeddingProvider", () => {
+  test("produces deterministic L2-normalized vectors", async () => {
+    const provider = new FakeEmbeddingProvider({ dimensions: 32 });
+    const [a, b] = await provider.embed(["hello world", "hello world"]);
+    expect(a).toBeDefined();
+    expect(b).toBeDefined();
+    let dot = 0;
+    for (let i = 0; i < 32; i++) dot += (a![i] ?? 0) * (b![i] ?? 0);
+    expect(dot).toBeCloseTo(1, 5);
+  });
+
+  test("orthogonal-ish vectors for token-disjoint texts", async () => {
+    const provider = new FakeEmbeddingProvider({ dimensions: 64 });
+    const [a, b] = await provider.embed(["cat dog parrot", "calculus integral derivative"]);
+    let dot = 0;
+    for (let i = 0; i < 64; i++) dot += (a![i] ?? 0) * (b![i] ?? 0);
+    expect(Math.abs(dot)).toBeLessThan(0.95);
+  });
+});
+
+describe("createMemorySearchTool (hybrid)", () => {
+  const ctx = { workspaceRoot: "/ws" };
+
+  test("uses vector ranking when an EmbeddingProvider is supplied", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-memsearch-hybrid-"));
+    try {
+      await writeFile(
+        join(dir, "MEMORY.md"),
+        "The user prefers concise answers.\n\nPython is the preferred language for data work.\n\nWeather today is sunny."
+      );
+      const provider = new FakeEmbeddingProvider({ dimensions: 64 });
+      const tool = createMemorySearchTool(dir, { embeddingProvider: provider });
+      // Query shares no surface keyword with "Python" paragraph but does share with "concise answers".
+      const result = await tool.execute({ query: "user concise" }, ctx) as MemorySearchResult;
+      expect(result.ok).toBe(true);
+      expect(result.results[0]?.excerpt).toContain("concise");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("falls back to keyword-only on embedding provider failure", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-memsearch-fallback-"));
+    try {
+      await writeFile(join(dir, "MEMORY.md"), "Important architectural decision logged here.");
+      const failingProvider: EmbeddingProvider = {
+        name: "openai",
+        dimensions: 8,
+        async embed(): Promise<Float32Array[]> {
+          throw new Error("simulated provider outage");
+        }
+      };
+      const tool = createMemorySearchTool(dir, { embeddingProvider: failingProvider });
+      const result = await tool.execute({ query: "architectural" }, ctx) as MemorySearchResult;
+      expect(result.ok).toBe(true);
+      expect(result.total).toBeGreaterThan(0);
+      expect(result.results[0]?.excerpt).toContain("architectural");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("fuses keyword and vector signals via RRF when both rank a paragraph highly", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-memsearch-rrf-"));
+    try {
+      await writeFile(
+        join(dir, "MEMORY.md"),
+        Array.from({ length: 8 }, (_, i) => `Paragraph ${i} about distinct topic ${"abcdefgh"[i] ?? "z"}`).join("\n\n") +
+          "\n\nThis paragraph mentions database migrations explicitly."
+      );
+      const tool = createMemorySearchTool(dir, { embeddingProvider: new FakeEmbeddingProvider() });
+      const result = await tool.execute({ query: "database migrations" }, ctx) as MemorySearchResult;
+      expect(result.ok).toBe(true);
+      expect(result.results[0]?.excerpt).toContain("database migrations");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

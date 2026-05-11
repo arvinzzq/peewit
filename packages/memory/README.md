@@ -27,7 +27,7 @@ Phase 13 Step 2 split this package off from `@vole/tools` so memory concerns can
   → { ok: true; results: Array<{ file: string; excerpt: string }>; total: number }
 ```
 
-Today the tool does paragraph-level keyword matching across `MEMORY.md`, `USER.md`, and every file under `memory/`. Phase 13 Step 3 will add embedding-based vector retrieval that fuses with the keyword path via reciprocal rank fusion; the tool signature stays the same.
+Paragraph-level keyword matching across `MEMORY.md`, `USER.md`, and every file under `memory/` is the always-on path. When `createMemorySearchTool(workspaceRoot, { embeddingProvider })` is supplied, the tool additionally embeds every paragraph plus the query, ranks paragraphs by cosine similarity (top-K, default 10), and **fuses the vector ranking with the keyword ranking via reciprocal rank fusion** (default constant k=60). The tool signature is identical to the keyword-only path. If the provider throws, the tool silently falls back to keyword-only — an embedding outage cannot block the agent.
 
 ### memory_get
 
@@ -47,17 +47,17 @@ Safe-read by path. Rejects `..` traversal, absolute paths, and non-`.md` files. 
 
 Appends a timestamped `## HH:MM` block to today's daily file. Creates the `memory/` directory on first use. Empty content is rejected with `ok: false`.
 
-### EmbeddingProvider (reserved)
+### EmbeddingProvider
 
 ```ts
 interface EmbeddingProvider {
-  readonly name: "openai" | "voyage";
+  readonly name: "openai" | "voyage" | "fake";
   readonly dimensions: number;
   embed(texts: string[]): Promise<Float32Array[]>;
 }
 ```
 
-Exported now as a forward-looking type. Phase 13 Step 3 adds the two adapters and wires hybrid search.
+`FakeEmbeddingProvider` ships with the package — deterministic SHA-256-derived token-bag vectors, L2-normalized. It is the safe default for unit tests and is what the agent uses when no real provider is configured. Real `openai` / `voyage` adapters consume the same interface and slot in without changing call sites.
 
 ## Implementation Principles
 
@@ -79,8 +79,8 @@ Memory has its own roadmap: hybrid retrieval, dreaming, review workflow, eventua
 |---|---|---|
 | `package.json` | Package manifest | Declares the memory package with one workspace dependency on `@vole/tools` (for result types). |
 | `tsconfig.json` | TypeScript config | Builds the memory package; references `@vole/tools`. |
-| `src/index.ts` | Memory tools | Exports `memoryPackageName`, `EmbeddingProvider`, `createMemorySearchTool`, `createMemoryGetTool`, `createAppendDailyMemoryTool`. |
-| `src/index.test.ts` | Memory tests | Migrated from `@vole/tools`. Covers append (success + empty content + multi-append + directory creation), search (empty dir, MEMORY.md + USER.md + daily notes hits, case-insensitive, maxResults), get (valid + missing + traversal + absolute + non-md rejection). |
+| `src/index.ts` | Memory tools + hybrid retrieval | Exports `memoryPackageName`, `EmbeddingProvider`, `EmbeddingProviderName`, `FakeEmbeddingProvider`, `MemorySearchToolOptions`, `createMemorySearchTool`, `createMemoryGetTool`, `createAppendDailyMemoryTool`. |
+| `src/index.test.ts` | Memory tests | Covers append (success + empty + multi-append + directory creation), keyword search (empty dir, MEMORY.md + USER.md + daily notes hits, case-insensitive, maxResults), hybrid search (deterministic + orthogonal vectors, vector ranking with provider supplied, keyword-only fallback on provider failure, RRF fusion when both signals rank the same paragraph), get (valid + missing + traversal + absolute + non-md rejection). |
 
 ## Update Reminder
 

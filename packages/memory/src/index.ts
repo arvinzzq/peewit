@@ -1,10 +1,11 @@
 /**
- * INPUT: Workspace root, memory file paths (MEMORY.md, USER.md, memory/YYYY-MM-DD.md), search queries, append content, current date.
- * OUTPUT: Memory tools (memory_search, memory_get, append_daily_memory) returning MemorySearchResult / MemoryGetResult / AppendDailyMemoryResult; reserved EmbeddingProvider interface for Phase 13 Step 3 hybrid retrieval.
- * POS: Memory layer; owns workspace-file reads/writes for the agent's durable mailbox. Replaces the equivalent factories that previously lived in @vole/tools.
+ * INPUT: Workspace root, memory file paths (MEMORY.md, USER.md, memory/YYYY-MM-DD.md), search queries, append content, current date, optional EmbeddingProvider for vector-augmented retrieval.
+ * OUTPUT: Memory tools (memory_search, memory_get, append_daily_memory) returning MemorySearchResult / MemoryGetResult / AppendDailyMemoryResult; EmbeddingProvider interface plus FakeEmbeddingProvider; hybrid retrieval with reciprocal rank fusion when an EmbeddingProvider is supplied, keyword-only otherwise.
+ * POS: Memory layer; owns workspace-file reads/writes for the agent's durable mailbox plus retrieval ranking. Replaces the equivalent factories that previously lived in @vole/tools.
  *
  * Update this header and the parent directory docs when responsibilities change.
  */
+import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, writeFile as writeFileFs, access } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
 import type {
@@ -17,18 +18,117 @@ import type {
 
 export const memoryPackageName = "@vole/memory";
 
-// Phase 13 Step 3 placeholder: full implementation lands in the next commit.
-// The interface is exported now so downstream callers can begin to depend on it.
+export type EmbeddingProviderName = "openai" | "voyage" | "fake";
+
 export interface EmbeddingProvider {
-  readonly name: "openai" | "voyage";
+  readonly name: EmbeddingProviderName;
   readonly dimensions: number;
   embed(texts: string[]): Promise<Float32Array[]>;
 }
 
-export function createMemorySearchTool(workspaceRoot: string): ExecutableTool {
+/**
+ * FakeEmbeddingProvider: deterministic token-bag embeddings useful for unit tests
+ * and for graceful degradation when no real provider credentials are configured.
+ * Vectors are SHA-256 derived per-token and summed, then L2-normalized so cosine
+ * similarity reflects token overlap. Paragraphs sharing tokens land near each
+ * other in vector space; paragraphs with no shared tokens are orthogonal.
+ */
+export class FakeEmbeddingProvider implements EmbeddingProvider {
+  readonly name = "fake" as const;
+  readonly dimensions: number;
+
+  constructor(options?: { dimensions?: number }) {
+    this.dimensions = options?.dimensions ?? 64;
+  }
+
+  async embed(texts: string[]): Promise<Float32Array[]> {
+    return texts.map((text) => this.embedOne(text));
+  }
+
+  private embedOne(text: string): Float32Array {
+    const v = new Float32Array(this.dimensions);
+    const tokens = text.toLowerCase().split(/[^a-z0-9]+/u).filter((t) => t.length > 0);
+    for (const token of tokens) {
+      const hash = createHash("sha256").update(token).digest();
+      for (let i = 0; i < this.dimensions; i++) {
+        const byte = hash[i % hash.length] ?? 0;
+        v[i] = (v[i] ?? 0) + (byte - 127) / 127;
+      }
+    }
+    let norm = 0;
+    for (let i = 0; i < this.dimensions; i++) norm += (v[i] ?? 0) * (v[i] ?? 0);
+    norm = Math.sqrt(norm);
+    if (norm > 0) {
+      for (let i = 0; i < this.dimensions; i++) v[i] = (v[i] ?? 0) / norm;
+    }
+    return v;
+  }
+}
+
+function cosineSimilarity(a: Float32Array, b: Float32Array): number {
+  const len = Math.min(a.length, b.length);
+  let dot = 0;
+  for (let i = 0; i < len; i++) dot += (a[i] ?? 0) * (b[i] ?? 0);
+  return dot;
+}
+
+interface ParagraphRecord {
+  file: string;
+  excerpt: string;
+}
+
+/**
+ * Reciprocal Rank Fusion: combines two ranked lists into one. For each item,
+ * score = sum over lists of 1 / (k + rank). The classic choice k = 60.
+ */
+function reciprocalRankFusion(
+  ranked: Array<Array<{ key: string; record: ParagraphRecord }>>,
+  k: number
+): ParagraphRecord[] {
+  const scores = new Map<string, { score: number; record: ParagraphRecord }>();
+  for (const list of ranked) {
+    list.forEach((item, idx) => {
+      const rank = idx + 1;
+      const contribution = 1 / (k + rank);
+      const existing = scores.get(item.key);
+      if (existing) {
+        existing.score += contribution;
+      } else {
+        scores.set(item.key, { score: contribution, record: item.record });
+      }
+    });
+  }
+  return [...scores.values()]
+    .sort((a, b) => b.score - a.score)
+    .map((entry) => entry.record);
+}
+
+export interface MemorySearchToolOptions {
+  /**
+   * Optional EmbeddingProvider. When supplied, memory_search runs hybrid
+   * retrieval: vector top-K plus keyword paragraph match, fused with
+   * reciprocal rank fusion. When omitted, falls back to keyword-only.
+   */
+  embeddingProvider?: EmbeddingProvider;
+  /** Vector top-K before fusion. Default 10. */
+  topKVector?: number;
+  /** RRF constant k. Default 60. */
+  fusionConstant?: number;
+}
+
+export function createMemorySearchTool(
+  workspaceRoot: string,
+  options?: MemorySearchToolOptions
+): ExecutableTool {
+  const embeddingProvider = options?.embeddingProvider;
+  const topKVector = options?.topKVector ?? 10;
+  const fusionConstant = options?.fusionConstant ?? 60;
+
   return {
     name: "memory_search",
-    description: "Search over memory files (MEMORY.md, USER.md, memory/YYYY-MM-DD.md) for relevant content. Returns matching excerpts.",
+    description: embeddingProvider === undefined
+      ? "Search over memory files (MEMORY.md, USER.md, memory/YYYY-MM-DD.md) for relevant content. Returns matching excerpts."
+      : "Hybrid search over memory files (MEMORY.md, USER.md, memory/YYYY-MM-DD.md): combines keyword paragraph match with vector top-K from the configured embedding provider, fused via reciprocal rank fusion.",
     risk: "low",
     inputSchema: {
       type: "object",
@@ -74,11 +174,7 @@ export function createMemorySearchTool(workspaceRoot: string): ExecutableTool {
         return { ok: true, results: [], total: 0 };
       }
 
-      const queryWords = query.toLowerCase().split(/\s+/).filter((w) => w.length > 0);
-      const matches: Array<{ file: string; excerpt: string }> = [];
-
-      // Scan all files before truncating to maxResults so that a single large file
-      // cannot crowd out matches in USER.md, daily notes, or other memory files.
+      const allParagraphs: Array<{ key: string; record: ParagraphRecord }> = [];
       for (const filePath of candidateFiles) {
         let content: string;
         try {
@@ -86,19 +182,54 @@ export function createMemorySearchTool(workspaceRoot: string): ExecutableTool {
         } catch {
           continue;
         }
-
         const paragraphs = content.split(/\n\n+/);
         const relPath = relative(workspaceRoot, filePath);
-
-        for (const paragraph of paragraphs) {
-          const lowerParagraph = paragraph.toLowerCase();
-          if (queryWords.some((word) => lowerParagraph.includes(word))) {
-            matches.push({ file: relPath, excerpt: paragraph.trim() });
-          }
-        }
+        paragraphs.forEach((paragraph, idx) => {
+          const trimmed = paragraph.trim();
+          if (trimmed.length === 0) return;
+          allParagraphs.push({
+            key: `${relPath}#${idx}`,
+            record: { file: relPath, excerpt: trimmed }
+          });
+        });
       }
 
-      const truncated = matches.slice(0, maxResults);
+      if (allParagraphs.length === 0) {
+        return { ok: true, results: [], total: 0 };
+      }
+
+      const queryWords = query.toLowerCase().split(/\s+/).filter((w) => w.length > 0);
+      const keywordRanked = allParagraphs.filter((entry) => {
+        const lower = entry.record.excerpt.toLowerCase();
+        return queryWords.some((word) => lower.includes(word));
+      });
+
+      if (embeddingProvider === undefined) {
+        const truncated = keywordRanked.slice(0, maxResults).map((item) => item.record);
+        return { ok: true, results: truncated, total: truncated.length };
+      }
+
+      // Hybrid path: embed query + all paragraphs, rank by cosine, fuse with keyword rank.
+      let vectorRanked: Array<{ key: string; record: ParagraphRecord }> = [];
+      try {
+        const embeddings = await embeddingProvider.embed([query, ...allParagraphs.map((p) => p.record.excerpt)]);
+        const queryVec = embeddings[0];
+        if (queryVec !== undefined && embeddings.length === allParagraphs.length + 1) {
+          const scored = allParagraphs.map((entry, idx) => {
+            const vec = embeddings[idx + 1];
+            const score = vec === undefined ? 0 : cosineSimilarity(queryVec, vec);
+            return { entry, score };
+          });
+          scored.sort((a, b) => b.score - a.score);
+          vectorRanked = scored.slice(0, topKVector).map((s) => s.entry);
+        }
+      } catch {
+        // embedding failure → silently fall back to keyword-only
+        vectorRanked = [];
+      }
+
+      const fused = reciprocalRankFusion([vectorRanked, keywordRanked], fusionConstant);
+      const truncated = fused.slice(0, maxResults);
       return { ok: true, results: truncated, total: truncated.length };
     }
   };
