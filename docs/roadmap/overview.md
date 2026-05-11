@@ -45,7 +45,7 @@ The roadmap follows a dual-track approach:
 | Phase 10 | Complete | Full personal agent platform | OpenClaw-like personal agent with multiple models, agents, nodes, and sandboxed tools | Gateway, multi-agent runtime, node protocol, sandboxing |
 | Phase 11 | Complete | Gateway and lanes | Cross-process safe runtime infrastructure | GatewayCore, LaneRegistry, session key naming, file lock |
 | Phase 12 | Complete | Multi-agent runtime maturity | Push-completion sub-agents with fork mode, depth and concurrency policy | Sub-agent push announce, fork context, sub-agent management surface |
-| Phase 13 | Planned | Memory and prompt enhancement | Hybrid memory search, DREAMS.md review, full 14-section prompt | EmbeddingProvider, DREAMS workflow, pre-compaction flush, inline directives |
+| Phase 13 | Partial | Memory and prompt enhancement | Foundations: @vole/memory package, inline directive parser. Hybrid search + DREAMS + flush + prompt sections in 13b. | @vole/memory split, parseInlineDirectives, EmbeddingProvider interface, MemoryFlushOptions |
 | Phase 14 | Planned | SQLite storage unification | Indexed session / TaskFlow / memory storage at scale | SQLite stores, FTS5 memory index, migration tooling |
 | Phase 15 | Planned | Channels and multi-agent identity | Telegram and email channels with independent agent identities | agents/<id>/ layout, Channel interface, Telegram, Email |
 | Phase 16 | Planned | Sandbox and plugin runtime | Safe third-party skill execution, Docker / worker sandboxing, doctor tool | SandboxBackend, WorkerThreadSandbox, vole doctor |
@@ -578,11 +578,13 @@ Non-goals: no process or worker-thread isolation of children; no per-child ident
 
 ## 17. Phase 13: Memory and Prompt Enhancement
 
-Status: Planned. Plan document: [phase-13-memory-and-prompt-enhancement.md](../plans/phase-13-memory-and-prompt-enhancement.md).
+Status: Partial. Plan document: [phase-13-memory-and-prompt-enhancement.md](../plans/phase-13-memory-and-prompt-enhancement.md).
 
 Goal: hybrid memory retrieval with embeddings, reviewable DREAMS.md promotion workflow, a complete 14-section system prompt aligned with OpenClaw, pre-compaction memory flush, and inline directive parsing (`/think`, `/stop`, `/compact`, `NO_REPLY`).
 
-Architecture added: new `packages/memory`; `EmbeddingProvider` with OpenAI and Voyage adapters; reciprocal rank fusion in `memory_search`; `DREAMS.md` plus `vole memory review`; six new prompt sections (Reasoning, Reply Tags, Documentation, Self-Update, Execution Bias, Current Date & Time).
+Architecture added (this phase): new `packages/memory` with the three memory tools and a reserved `EmbeddingProvider` interface; `MemoryFlushOptions` on `CompactionOptions` (data shape ready; runtime hook deferred); `parseInlineDirectives` in `@vole/context` that strips `/think:<level>`, `/stop`, `/compact` from user input and applies them at intake; `vole compact` info command in the CLI.
+
+Deferred to Phase 13b (after Phases 14 and 15): real OpenAI + Voyage embedding adapters + hybrid `memory_search` with reciprocal rank fusion; `DREAMS.md` staging plus `vole memory review` promotion; runtime-side silent turn that fires `append_daily_memory` before `compactMessages`; the six new prompt sections (Reasoning, Reply Tags, Documentation, Self-Update, Execution Bias, Current Date & Time).
 
 Non-goals: no Gemini / Mistral embeddings; no SQLite (Phase 14); no memory-core plugin interface (Phase 16); no per-agent memory isolation (Phase 15).
 

@@ -1,9 +1,27 @@
 # Phase 13: Memory and Prompt Enhancement
 
-Status: Planned
+Status: Partial (Steps 1, 2, 7 shipped; Steps 3, 4, 5, 6 deferred to Phase 13b)
 Date: 2026-05-11
 
 Simplified Chinese version: [phase-13-memory-and-prompt-enhancement.zh-CN.md](./phase-13-memory-and-prompt-enhancement.zh-CN.md)
+
+## Progress
+
+Status: Partial — the foundations are in place; the runtime-invasive steps are deferred to Phase 13b once Phase 14 (SQLite) and Phase 15 (multi-agent identity) land.
+
+Completed commits:
+
+- [x] Step 1: docs(arch) Phase 13 callouts on memory-system / context-compaction / prompt-assembly — `229a608`, `daa9e6c`
+- [x] Step 2: feat(memory) extract memory tools into `@vole/memory`; reserved `EmbeddingProvider` interface — `1ef9cd8`
+- [x] Step 7: feat(context,cli) `parseInlineDirectives` + `vole compact` info command — `f2b84b9`
+- [x] Step 8: docs mark Phase 13 partial + roadmap update — (this commit)
+
+Deferred to Phase 13b:
+
+- [ ] Step 3: hybrid `memory_search` with OpenAI + Voyage adapters. Interface already exported in `@vole/memory`; real adapter wiring + reciprocal rank fusion + index storage pending.
+- [ ] Step 4: `DREAMS.md` review workflow. Current `vole run --dream` appends to `MEMORY.md`; needs split into staged `DREAMS.md` + `vole memory review` promotion command.
+- [ ] Step 5: pre-compaction memory flush silent turn. `MemoryFlushOptions` already exists on `CompactionOptions`; needs a runtime-side helper that issues a side-channel model call honoring tool execution but discarding the assistant text. Best done after Phase 14 once SQLite makes durable writes cheap.
+- [ ] Step 6: six new system prompt sections (Reasoning / Reply Tags / Documentation / Self-Update / Execution Bias / Current Date & Time). The context assembler architecture supports this trivially but each section needs careful prompt-engineering review.
 
 ## 1. Purpose
 
