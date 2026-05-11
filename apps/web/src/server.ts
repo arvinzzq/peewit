@@ -47,9 +47,10 @@ import {
   InMemoryRuntimeTraceStore,
   type ApprovalRequest,
   type ApprovalResolution,
-  type ApprovalResolver
+  type ApprovalResolver,
+  type RuntimeEvent
 } from "@vole/core";
-import { SessionGateway } from "@vole/gateway";
+import { GatewayCore } from "@vole/gateway";
 import {
   AnthropicProvider,
   OpenAICompatibleProvider,
@@ -71,8 +72,8 @@ import {
   createWriteFileTool
 } from "@vole/tools";
 
-/** Module-level SessionGateway singleton — tracks all active Web sessions in this process. */
-const webGateway = new SessionGateway();
+/** Module-level GatewayCore singleton — tracks active Web sessions and admits every turn through global / subagent / session lanes. */
+const webGateway = new GatewayCore();
 
 // ─── Web Approval Resolver ────────────────────────────────────────────────────
 
@@ -117,8 +118,8 @@ let sharedStore: SessionStore | undefined;
 /** Transient runtime state per active session in this process. */
 const sessions = new Map<string, WebSessionRuntime>();
 
-/** AbortControllers for in-flight turns — keyed by sessionId. */
-const runningTurns = new Map<string, AbortController>();
+/** Active runId per sessionId for in-flight turns. The gateway holds the AbortController; this map lets DELETE /turns find the runId to cancel. */
+const runningTurns = new Map<string, string>();
 
 function getOrCreateSharedStore(config: EffectiveConfig): SessionStore {
   if (sharedStore === undefined) {
@@ -372,31 +373,50 @@ app.post("/api/sessions/:id/turns", async (c) => {
   const recentRaw = await store.listMessages(id, { limit: 12 });
   const recentMessages = recentRaw.map((m) => ({ role: m.role, content: m.content }));
 
-  const controller = new AbortController();
-  runningTurns.set(id, controller);
+  const runId = `run_${crypto.randomUUID()}`;
+  runningTurns.set(id, runId);
+  const runtime = session.runtime;
 
   return streamSSE(c, async (stream) => {
     let assistantText = "";
+    let aborted = false;
 
     try {
-    for await (const event of session.runtime.runTurn({ sessionId: id, recentMessages, message, signal: controller.signal })) {
-      await session.traceStore.append(event);
-      await store.appendTraceEvent({ sessionId: id, event });
+      const eventStream = webGateway.submit<RuntimeEvent>({
+        runId,
+        sessionKey: id,
+        agentId: "default",
+        run: async function* (signal: AbortSignal) {
+          for await (const event of runtime.runTurn({ sessionId: id, recentMessages, message, signal })) {
+            yield event;
+          }
+        }
+      });
 
-      await stream.writeSSE({ event: event.type, data: JSON.stringify(event) });
+      for await (const event of eventStream) {
+        await session.traceStore.append(event);
+        await store.appendTraceEvent({ sessionId: id, event });
 
-      if (event.type === "assistant_message_created") {
-        assistantText = event.message.content;
+        await stream.writeSSE({ event: event.type, data: JSON.stringify(event) });
+
+        if (event.type === "assistant_message_created") {
+          assistantText = event.message.content;
+        }
+
+        if (event.type === "run_completed" || event.type === "run_failed") break;
       }
-
-      if (event.type === "run_completed" || event.type === "run_failed") break;
-    }
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        aborted = true;
+      } else {
+        throw err;
+      }
     } finally {
       runningTurns.delete(id);
     }
 
     // Persist messages after the turn completes (skip if aborted mid-turn)
-    if (!controller.signal.aborted) {
+    if (!aborted) {
       await store.appendMessage({ sessionId: id, role: "user", content: message });
       if (assistantText !== "") {
         await store.appendMessage({ sessionId: id, role: "assistant", content: assistantText });
@@ -411,9 +431,10 @@ app.post("/api/sessions/:id/turns", async (c) => {
 // DELETE /api/sessions/:id/turns — abort the running turn for a session
 app.delete("/api/sessions/:id/turns", (c) => {
   const id = c.req.param("id");
-  const controller = runningTurns.get(id);
-  if (controller === undefined) return c.json({ ok: false, reason: "no running turn" }, 404);
-  controller.abort();
+  const runId = runningTurns.get(id);
+  if (runId === undefined) return c.json({ ok: false, reason: "no running turn" }, 404);
+  webGateway.cancel(runId);
+  runningTurns.delete(id);
   return c.json({ ok: true });
 });
 
@@ -507,7 +528,20 @@ server.on("upgrade", (request, socket, head) => {
           const recentRaw = await store.listMessages(sessionId, { limit: 12 });
           const recentMessages = recentRaw.map((m) => ({ role: m.role, content: m.content }));
 
-          for await (const runtimeEvent of currentSession.runtime.runTurn({ sessionId, recentMessages, message: userMessage })) {
+          const wsRunId = `run_${crypto.randomUUID()}`;
+          const runtime = currentSession.runtime;
+          const wsEventStream = webGateway.submit<RuntimeEvent>({
+            runId: wsRunId,
+            sessionKey: sessionId,
+            agentId: "default",
+            run: async function* (signal: AbortSignal) {
+              for await (const event of runtime.runTurn({ sessionId, recentMessages, message: userMessage, signal })) {
+                yield event;
+              }
+            }
+          });
+
+          for await (const runtimeEvent of wsEventStream) {
             await currentSession.traceStore.append(runtimeEvent);
             await store.appendTraceEvent({ sessionId, event: runtimeEvent });
             ws.send(JSON.stringify(runtimeEvent));
