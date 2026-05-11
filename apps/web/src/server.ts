@@ -155,7 +155,7 @@ async function createWebSession(config: EffectiveConfig, existingSessionId?: str
 
   const skillDefinitions = await new SkillLoader().load({ workspaceRoot: config.workspace.root });
   const skillIndex = skillDefinitions.map(toSkillSummary);
-  const skillFileMap = new Map(skillDefinitions.map((s) => [s.name, s.filePath]));
+  const skillFileMap = new Map(skillDefinitions.map((s) => [s.name, s.body]));
 
   const allWebTools = [
     createReadFileTool(),

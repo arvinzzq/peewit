@@ -1904,7 +1904,7 @@ export class CliChatSession {
 
     const skillDefinitions = await new SkillLoader().load({ workspaceRoot: config.workspace.root });
     const skillIndex = skillDefinitions.map(toSkillSummary);
-    const skillFileMap = new Map(skillDefinitions.map((s) => [s.name, s.filePath]));
+    const skillFileMap = new Map(skillDefinitions.map((s) => [s.name, s.body]));
 
     const configuredProvider = createConfiguredProvider(config, options);
     const approvalResolver = sessionOptions.approvalResolver ?? createCliApprovalResolver(options, approvalPromptLog);

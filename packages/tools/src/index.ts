@@ -126,7 +126,17 @@ export interface LoadSkillResult {
   error?: string;
 }
 
-export type SkillFileMap = Map<string, string>;
+/**
+ * Map of skill name → skill body. The body is the post-frontmatter content
+ * returned by `parseSKILLMd`, already loaded into memory by SkillLoader. The
+ * load_skill tool reads from this map directly, so it works equally well for
+ * built-in skills (body inlined in the SkillDefinition) and disk-loaded skills
+ * (body read from SKILL.md at load time).
+ */
+export type SkillBodyMap = Map<string, string>;
+
+/** @deprecated Renamed to `SkillBodyMap` — the map's value is now the skill body, not its file path. Kept as an alias for one minor release. */
+export type SkillFileMap = SkillBodyMap;
 
 export interface MemorySearchResult {
   ok: true;
@@ -871,7 +881,7 @@ export function createUpdateTodosTool(onUpdate?: (todos: TodoItem[]) => void): E
   };
 }
 
-export function createLoadSkillTool(skillFileMap: SkillFileMap): ExecutableTool {
+export function createLoadSkillTool(skillBodyMap: SkillBodyMap): ExecutableTool {
   return {
     name: "load_skill",
     description: "Load the full instructions for a named skill. Call this when you need to follow a skill's detailed guidance. Available skills are listed in the <skills> section.",
@@ -885,17 +895,11 @@ export function createLoadSkillTool(skillFileMap: SkillFileMap): ExecutableTool 
     },
     async execute(rawInput): Promise<LoadSkillResult> {
       const { name } = rawInput as { name: string };
-      const filePath = skillFileMap.get(name);
-      if (filePath === undefined) {
+      const body = skillBodyMap.get(name);
+      if (body === undefined) {
         return { ok: false, error: `Skill "${name}" not found. Check the skills list for available names.` };
       }
-      try {
-        const { readFile } = await import("node:fs/promises");
-        const content = await readFile(filePath, "utf-8");
-        return { ok: true, content };
-      } catch {
-        return { ok: false, error: `Could not read skill file for "${name}".` };
-      }
+      return { ok: true, content: body };
     }
   };
 }

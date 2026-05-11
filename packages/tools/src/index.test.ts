@@ -945,26 +945,18 @@ describe("createUpdateHeartbeatTool", () => {
 describe("createLoadSkillTool", () => {
   const ctx = { workspaceRoot: "/ws" };
 
-  test("returns skill content for a known skill name", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "vole-skills-"));
-    try {
-      const filePath = join(dir, "SKILL.md");
-      await writeFile(filePath, "# Skill instructions here");
+  test("returns skill body for a known skill name", async () => {
+    const skillBodyMap = new Map([["my-skill", "# Skill instructions here"]]);
+    const tool = createLoadSkillTool(skillBodyMap);
 
-      const skillFileMap = new Map([["my-skill", filePath]]);
-      const tool = createLoadSkillTool(skillFileMap);
+    const result = await tool.execute({ name: "my-skill" }, ctx);
 
-      const result = await tool.execute({ name: "my-skill" }, ctx);
-
-      expect(result).toMatchObject({ ok: true, content: "# Skill instructions here" });
-    } finally {
-      await import("node:fs/promises").then((fs) => fs.rm(dir, { recursive: true, force: true }));
-    }
+    expect(result).toMatchObject({ ok: true, content: "# Skill instructions here" });
   });
 
   test("returns error for unknown skill name", async () => {
-    const skillFileMap = new Map([["other-skill", "/some/path.md"]]);
-    const tool = createLoadSkillTool(skillFileMap);
+    const skillBodyMap = new Map([["other-skill", "body"]]);
+    const tool = createLoadSkillTool(skillBodyMap);
 
     const result = await tool.execute({ name: "missing-skill" }, ctx);
 
@@ -972,14 +964,17 @@ describe("createLoadSkillTool", () => {
     expect((result as { error?: string }).error).toContain("missing-skill");
   });
 
-  test("returns error when file cannot be read", async () => {
-    const skillFileMap = new Map([["bad-skill", "/nonexistent/path/SKILL.md"]]);
-    const tool = createLoadSkillTool(skillFileMap);
+  test("returns built-in skill bodies (no file read needed)", async () => {
+    // Built-in skills ship with body inlined and filePath = "". The tool used
+    // to call readFile("") and surface "Could not read skill file" — this
+    // regression test pins the fixed behavior.
+    const builtInBody = "Search relevant sources and summarize with citations.";
+    const skillBodyMap = new Map([["research", builtInBody]]);
+    const tool = createLoadSkillTool(skillBodyMap);
 
-    const result = await tool.execute({ name: "bad-skill" }, ctx);
+    const result = await tool.execute({ name: "research" }, ctx);
 
-    expect(result).toMatchObject({ ok: false });
-    expect((result as { error?: string }).error).toContain("bad-skill");
+    expect(result).toMatchObject({ ok: true, content: builtInBody });
   });
 });
 
