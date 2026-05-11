@@ -9,15 +9,19 @@ import {
   AgentRuntime,
   InMemoryRuntimeTraceStore,
   createRuntimeEvent,
+  createSubagentsTool,
   isTerminalRuntimeEvent,
   runtimeEventTypes,
   createCheckSubagentTool,
   createSpawnSubagentTool,
   createSpawnSubagentAsyncTool,
+  type ActiveRunHandleSummary,
   type AgentHooks,
   type AsyncTaskStore,
   type RuntimeEvent,
+  type SubagentControlSurface,
   type SubagentFactory,
+  type SubagentsToolResult,
   type TurnCompleteEvent
 } from "./index.js";
 
@@ -1618,6 +1622,91 @@ async function collect(events: AsyncIterable<RuntimeEvent>): Promise<RuntimeEven
 
   return collected;
 }
+
+describe("createSubagentsTool (Phase 12 management surface)", () => {
+  function makeControl(active: ActiveRunHandleSummary[], cancelled: string[]): SubagentControlSurface {
+    return {
+      listActiveRuns: () => active,
+      cancel: (runId) => {
+        if (active.some((r) => r.runId === runId)) {
+          cancelled.push(runId);
+          return true;
+        }
+        return false;
+      }
+    };
+  }
+
+  test("list filters by parentSessionKey from execContext", async () => {
+    const cancelled: string[] = [];
+    const control = makeControl(
+      [
+        { runId: "r_mine_1", sessionKey: "s1", agentId: "default", isSubagent: true, startedAt: "x", parentSessionKey: "agent:default:main" },
+        { runId: "r_other", sessionKey: "s2", agentId: "default", isSubagent: true, startedAt: "x", parentSessionKey: "agent:other:main" }
+      ],
+      cancelled
+    );
+    const tool = createSubagentsTool({ control });
+    const result = await tool.execute(
+      { command: "list" },
+      { workspaceRoot: "/workspace", parentSessionId: "agent:default:main" }
+    );
+    expect((result as SubagentsToolResult).children?.map((c) => c.runId)).toEqual(["r_mine_1"]);
+  });
+
+  test("info returns the task record when present", async () => {
+    const records = [{ id: "task_x", status: "succeeded", terminalSummary: "Done" }];
+    const taskStore: AsyncTaskStore = {
+      async create(r) { return { id: r.id }; },
+      async update() {},
+      async get(id) { return records.find((r) => r.id === id); },
+      async drainPendingForParent() { return []; }
+    };
+    const tool = createSubagentsTool({ control: makeControl([], []), taskStore });
+    const result = await tool.execute({ command: "info", taskId: "task_x" }, { workspaceRoot: "/" });
+    expect((result as SubagentsToolResult).record).toMatchObject({ id: "task_x", status: "succeeded" });
+  });
+
+  test("kill cancels the specified run id", async () => {
+    const cancelled: string[] = [];
+    const control = makeControl(
+      [{ runId: "r_kill", sessionKey: "s", agentId: "default", isSubagent: true, startedAt: "x", parentSessionKey: "p" }],
+      cancelled
+    );
+    const tool = createSubagentsTool({ control });
+    const result = await tool.execute({ command: "kill", taskId: "r_kill" }, { workspaceRoot: "/" });
+    expect((result as SubagentsToolResult).stopped).toEqual(["r_kill"]);
+    expect(cancelled).toEqual(["r_kill"]);
+  });
+
+  test("kill all cancels every child of the current parent", async () => {
+    const cancelled: string[] = [];
+    const control = makeControl(
+      [
+        { runId: "r1", sessionKey: "a", agentId: "default", isSubagent: true, startedAt: "x", parentSessionKey: "P" },
+        { runId: "r2", sessionKey: "b", agentId: "default", isSubagent: true, startedAt: "x", parentSessionKey: "P" },
+        { runId: "r3", sessionKey: "c", agentId: "default", isSubagent: true, startedAt: "x", parentSessionKey: "OTHER" }
+      ],
+      cancelled
+    );
+    const tool = createSubagentsTool({ control });
+    const result = await tool.execute(
+      { command: "kill", taskId: "all" },
+      { workspaceRoot: "/", parentSessionId: "P" }
+    );
+    expect((result as SubagentsToolResult).stopped?.sort()).toEqual(["r1", "r2"]);
+    expect(cancelled.sort()).toEqual(["r1", "r2"]);
+  });
+
+  test("reserved commands respond with ok=false and a clear message", async () => {
+    const tool = createSubagentsTool({ control: makeControl([], []) });
+    for (const command of ["log", "steer", "send"] as const) {
+      const result = (await tool.execute({ command, taskId: "x" }, { workspaceRoot: "/" })) as SubagentsToolResult;
+      expect(result.ok).toBe(false);
+      expect(result.message).toMatch(/reserved/);
+    }
+  });
+});
 
 describe("SubagentFactory options (Phase 12: depth + fork)", () => {
   test("spawn_subagent passes depth = parent depth + 1 to factory", async () => {

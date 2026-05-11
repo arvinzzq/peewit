@@ -1413,6 +1413,54 @@ describe("runCli", () => {
     }
   });
 
+  test("subagents list reports no records when taskflow store is empty", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-sa-empty-"));
+    try {
+      const result = await runCli(["subagents", "list"], "0.0.0", {
+        sessionsDirectory: directory
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Sub-agent task records:");
+      expect(result.stdout).toContain("(none)");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("subagents kill <id> marks the matching task as cancelled in the store", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-sa-kill-"));
+    try {
+      // Seed a fake running sub-agent task in the taskflow.jsonl.
+      const taskflowPath = join(directory, "taskflow.jsonl");
+      await writeFile(
+        taskflowPath,
+        JSON.stringify({
+          id: "task_kill_me",
+          runtime: "subagent",
+          task: "Long work",
+          status: "running",
+          createdAt: "2026-05-11T22:00:00.000Z",
+          updatedAt: "2026-05-11T22:00:00.000Z"
+        }) + "\n"
+      );
+
+      const sessionsDir = join(directory, "sessions");
+      await mkdir(sessionsDir, { recursive: true });
+      const result = await runCli(["subagents", "kill", "task_kill_me"], "0.0.0", {
+        sessionsDirectory: sessionsDir
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Cancelled:");
+      expect(result.stdout).toContain("task_kill_me");
+
+      const after = await readFile(taskflowPath, "utf8");
+      expect(after).toContain("\"status\":\"cancelled\"");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
   test("gateway status surfaces alive and stale locks distinctly", async () => {
     const directory = await mkdtemp(join(tmpdir(), "vole-gw-locks-"));
     try {

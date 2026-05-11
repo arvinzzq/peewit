@@ -62,6 +62,8 @@ vole sessions
 | `vole daemon` | 启动 Cron 调度守护进程（`--once` 仅执行一次） |
 | `vole taskflow list/show/cancel` | 查看跨会话任务记录 |
 | `vole gateway status` | 显示当前进程的 lane 占用与跨进程 session 锁 |
+| `vole subagents list` | 列出近期子代理任务记录（taskflow） |
+| `vole subagents kill <id\|all>` | 把子代理任务标记为已取消（或用 "all" 停掉所有 running） |
 
 ## 对话内指令
 

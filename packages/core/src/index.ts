@@ -1123,3 +1123,116 @@ export function createSpawnSubagentTool(factory: SubagentFactory): ExecutableToo
     }
   };
 }
+
+// Phase 12: management surface for sub-agents. The tool reads from a control
+// surface (typically wrapping a GatewayCore) plus the task store, so core does
+// not depend on @vole/gateway directly.
+export interface ActiveRunHandleSummary {
+  runId: string;
+  sessionKey: string;
+  agentId: string;
+  isSubagent: boolean;
+  startedAt: string;
+  parentSessionKey?: string;
+}
+
+export interface SubagentControlSurface {
+  /** Return a snapshot of all currently active runs in the gateway. The tool
+   * filters by parentSessionKey to expose only the caller's children. */
+  listActiveRuns(): ActiveRunHandleSummary[];
+  /** Cancel an active run by id. Returns true if such a run existed. */
+  cancel(runId: string): boolean;
+}
+
+export interface CreateSubagentsToolOptions {
+  control: SubagentControlSurface;
+  taskStore?: AsyncTaskStore;
+}
+
+export type SubagentsToolCommand = "list" | "info" | "kill" | "log" | "steer" | "send";
+
+export interface SubagentsToolResult {
+  type: "subagents_result";
+  command: SubagentsToolCommand;
+  ok: boolean;
+  /** Active children of the current session (list command). */
+  children?: ActiveRunHandleSummary[];
+  /** Task record for a single child (info command). */
+  record?: { id: string; status: string; terminalSummary?: string };
+  /** Run ids that were aborted (kill command). */
+  stopped?: string[];
+  /** Reason for failure or a deferred-feature note (log/steer/send). */
+  message?: string;
+}
+
+export function createSubagentsTool(options: CreateSubagentsToolOptions): ExecutableTool {
+  return {
+    name: "subagents",
+    description: "Inspect and control the parent agent's active sub-agents. Commands: list, info, kill, log (reserved), steer (reserved), send (reserved).",
+    risk: "low",
+    inputSchema: {
+      type: "object",
+      properties: {
+        command: { type: "string", enum: ["list", "info", "kill", "log", "steer", "send"], description: "Action to perform." },
+        taskId: { type: "string", description: "Target run id (for info / kill / log / steer / send). Pass \"all\" to kill to stop every active child." },
+        message: { type: "string", description: "Message body for steer / send (reserved)." }
+      },
+      required: ["command"]
+    },
+    async execute(rawInput, execContext): Promise<SubagentsToolResult> {
+      const input = rawInput as { command: SubagentsToolCommand; taskId?: string; message?: string };
+      const parentSessionKey = execContext?.parentSessionId;
+
+      if (input.command === "list") {
+        const active = options.control.listActiveRuns();
+        const children = parentSessionKey !== undefined
+          ? active.filter((r) => r.parentSessionKey === parentSessionKey)
+          : active.filter((r) => r.isSubagent);
+        return { type: "subagents_result", command: "list", ok: true, children };
+      }
+
+      if (input.command === "info") {
+        if (input.taskId === undefined || input.taskId === "") {
+          return { type: "subagents_result", command: "info", ok: false, message: "taskId is required for info." };
+        }
+        if (options.taskStore === undefined) {
+          return { type: "subagents_result", command: "info", ok: false, message: "No task store configured." };
+        }
+        const record = await options.taskStore.get(input.taskId);
+        if (record === undefined) {
+          return { type: "subagents_result", command: "info", ok: false, message: `No task found with id "${input.taskId}".` };
+        }
+        return { type: "subagents_result", command: "info", ok: true, record };
+      }
+
+      if (input.command === "kill") {
+        if (input.taskId === undefined || input.taskId === "") {
+          return { type: "subagents_result", command: "kill", ok: false, message: "taskId is required (or pass \"all\")." };
+        }
+        const stopped: string[] = [];
+        if (input.taskId === "all") {
+          const active = options.control.listActiveRuns();
+          const targets = parentSessionKey !== undefined
+            ? active.filter((r) => r.parentSessionKey === parentSessionKey)
+            : active.filter((r) => r.isSubagent);
+          for (const r of targets) {
+            if (options.control.cancel(r.runId)) {
+              stopped.push(r.runId);
+            }
+          }
+        } else if (options.control.cancel(input.taskId)) {
+          stopped.push(input.taskId);
+        }
+        return { type: "subagents_result", command: "kill", ok: true, stopped };
+      }
+
+      // Reserved commands: surface a clear "not yet implemented" without failing.
+      return {
+        type: "subagents_result",
+        command: input.command,
+        ok: false,
+        message: `Command "${input.command}" is reserved for a future phase.`
+      };
+    }
+  };
+}

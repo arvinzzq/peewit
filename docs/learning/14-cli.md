@@ -127,6 +127,8 @@ making it trivially testable.
 
 `vole gateway status` (Phase 11 Step 6) prints two views: the in-process gateway state for this CLI invocation (lane occupancy, active runs — usually empty for a one-shot CLI call) and the cross-process view, which scans the sessions directory for `.lock` sidecars left by other vole processes, reads their pid + startedAt, and marks each entry as `alive` or `stale`. The two views compose: lanes order writes within one Node process; the file lock and the `.lock` view order writes across processes.
 
+`vole subagents list` and `vole subagents kill <id|all>` (Phase 12 Step 6) inspect and control the cross-session sub-agent task graph. List reads `taskflow.jsonl` and prints up to 50 sub-agent records with parent linkage and terminal summaries. Kill marks the matching record as `cancelled`; a long-running daemon that owns that task sees the cancellation on its next drain. Real-time cross-process cancel of a running sub-agent in another vole process is daemon-RPC work (Phase 17+).
+
 ### RunCliOptions: six injectable seams
 
 | Field | Production default | What it fakes |

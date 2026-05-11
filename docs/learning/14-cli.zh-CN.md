@@ -114,6 +114,8 @@ export async function runCli(args, packageVersion, options = {}): Promise<CliRes
 
 `vole gateway status`（Phase 11 Step 6）打印两个视图：当前 CLI 调用的进程内 gateway 状态（lane 占用、活跃 run —— 一次性 CLI 调用通常为空）；以及跨进程视图，扫描 sessions 目录下其他 vole 进程留下的 `.lock` 旁车文件，读取它们的 pid + startedAt，将每条标为 `alive` 或 `stale`。两视图组合：lane 在一个 Node 进程内排序写入；文件锁与 `.lock` 视图在多进程间排序写入。
 
+`vole subagents list` 与 `vole subagents kill <id|all>`（Phase 12 Step 6）检视并控制跨会话的子代理任务图。`list` 读取 `taskflow.jsonl` 并打印最多 50 条子代理记录，附带父子链接与终态摘要。`kill` 把匹配记录标为 `cancelled`；持有该任务的长驻 daemon 在下一次 drain 时看到取消。跨进程实时取消另一个 vole 进程中正在运行的子代理属于 daemon RPC 工作（Phase 17+）。
+
 ### RunCliOptions：六个可注入接缝
 
 | 字段 | 生产默认值 | 它 fake 了什么 |

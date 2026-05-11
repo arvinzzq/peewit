@@ -15,7 +15,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, redactedConfig, resolveSessionsDirectory, type EffectiveConfig, type LoadConfigInput, type RedactedConfigView } from "@vole/config";
 import { DefaultContextAssembler } from "@vole/context";
-import { AgentRuntime, InMemoryRuntimeTraceStore, createCheckSubagentTool, createSpawnSubagentAsyncTool, createSpawnSubagentTool, type AgentRuntimeInput, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore, type SubagentFactory } from "@vole/core";
+import { AgentRuntime, InMemoryRuntimeTraceStore, createCheckSubagentTool, createSpawnSubagentAsyncTool, createSpawnSubagentTool, createSubagentsTool, type AgentRuntimeInput, type ApprovalRequest, type ApprovalResolution, type ApprovalResolver, type RuntimeEvent, type RuntimeTraceStore, type SubagentControlSurface, type SubagentFactory } from "@vole/core";
 import { GatewayCore, type GatewaySession } from "@vole/gateway";
 import { AnthropicProvider, FakeModelProvider, OpenAICompatibleProvider, type ModelInput, type ModelOutput, type ModelProvider } from "@vole/models";
 import { CLI_CAPABILITIES, filterToolsByProfile, type ToolProfile } from "@vole/adapters";
@@ -243,6 +243,14 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
   gwCmd.command("status").description("Show lane occupancy and active runs across processes")
     .action(async () => { actionResult = await runGatewayStatus(options); });
 
+  // ── subagents ─────────────────────────────────────────────────────────────
+  const saCmd = program.command("subagents").description("Inspect and control async sub-agents");
+  saCmd.action(async () => { actionResult = await runSubagentsList(options); });
+  saCmd.command("list").description("List active and recent sub-agent runs")
+    .action(async () => { actionResult = await runSubagentsList(options); });
+  saCmd.command("kill <id>").description("Cancel a sub-agent by taskId, or pass \"all\" to stop every active one")
+    .action(async (id: string) => { actionResult = await runSubagentsKill(id, options); });
+
   // ── taskflow ──────────────────────────────────────────────────────────────
   const tfCmd = program.command("taskflow").description("Inspect cross-session task records");
   tfCmd.action(async () => { actionResult = await runTaskflowList(options, undefined); });
@@ -458,6 +466,62 @@ function isPidAlive(pid: number): boolean {
     }
     return true;
   }
+}
+
+async function runSubagentsList(options: RunCliOptions): Promise<CliResult> {
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
+  const effectiveConfig = options.sessionsDirectory
+    ? { ...config, sessions: { directory: options.sessionsDirectory } }
+    : config;
+  const taskflowPath = join(dirname(resolveSessionsDirectory(effectiveConfig, options.env)), "taskflow.jsonl");
+  const taskFlowStore = new JsonlTaskFlowStore(taskflowPath);
+  const records = await taskFlowStore.list({ runtime: "subagent" } as never).catch(async () =>
+    (await taskFlowStore.list()).filter((r) => r.runtime === "subagent")
+  );
+
+  const lines: string[] = ["Sub-agent task records:"];
+  if (records.length === 0) {
+    lines.push("  (none)");
+  } else {
+    for (const r of records.slice(-50)) {
+      const summary = r.terminalSummary !== undefined ? ` — ${r.terminalSummary.slice(0, 80)}` : "";
+      const parent = r.parentId !== undefined ? ` parent=${r.parentId}` : "";
+      lines.push(`  ${r.id}\t${r.status}\t${r.updatedAt}${parent}${summary}`);
+    }
+  }
+  return { exitCode: 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
+}
+
+async function runSubagentsKill(taskId: string, options: RunCliOptions): Promise<CliResult> {
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
+  const effectiveConfig = options.sessionsDirectory
+    ? { ...config, sessions: { directory: options.sessionsDirectory } }
+    : config;
+  const taskflowPath = join(dirname(resolveSessionsDirectory(effectiveConfig, options.env)), "taskflow.jsonl");
+  const taskFlowStore = new JsonlTaskFlowStore(taskflowPath);
+
+  // Standalone CLI invocation: the in-process gateway is empty. We mark records as
+  // cancelled in the TaskFlow store so a long-running daemon's drain reflects the
+  // cancellation on its next turn. True real-time cancel of a different process's
+  // run is Phase 17 (daemon RPC) work.
+  const targets = taskId === "all"
+    ? (await taskFlowStore.list()).filter((r) => r.runtime === "subagent" && (r.status === "running" || r.status === "queued"))
+    : (() => {
+        return taskFlowStore.get(taskId).then((r) => (r === undefined ? [] : [r]));
+      })();
+  const list = targets instanceof Promise ? await targets : targets;
+  const stopped: string[] = [];
+  for (const r of list) {
+    await taskFlowStore.update(r.id, { status: "cancelled" });
+    stopped.push(r.id);
+  }
+  return {
+    exitCode: 0,
+    stdout: stopped.length === 0
+      ? `No matching sub-agent task to cancel.\n`
+      : `Cancelled:\n${stopped.map((id) => `  ${id}`).join("\n")}\n`,
+    stderr: ""
+  };
 }
 
 async function runMemoryDreaming(options: RunCliOptions): Promise<CliResult> {
@@ -1274,13 +1338,29 @@ export class CliChatSession {
     const taskflowPath = join(dirname(resolveSessionsDirectory(config, options.env)), "taskflow.jsonl");
     const taskFlowStore = new JsonlTaskFlowStore(taskflowPath);
 
+    // Phase 12: bind a SubagentControlSurface to the CLI gateway so the subagents
+    // tool can list and cancel children. listActiveRuns wraps cliGateway.status().
+    const subagentControl: SubagentControlSurface = {
+      listActiveRuns: () =>
+        cliGateway.status().activeRuns.map((r) => ({
+          runId: r.runId,
+          sessionKey: r.sessionKey,
+          agentId: r.agentId,
+          isSubagent: r.isSubagent,
+          startedAt: r.startedAt,
+          ...(r.parentSessionKey !== undefined ? { parentSessionKey: r.parentSessionKey } : {})
+        })),
+      cancel: (runId: string) => cliGateway.cancel(runId)
+    };
+
     const allToolsRaw = [
       ...builtInTools,
       createSpawnSubagentTool(factory),
       // Stamp the spawned child task with parentId = this session id so the parent
       // runtime can later drain push announcements addressed to it.
       createSpawnSubagentAsyncTool(factory, { taskStore: taskFlowStore, parentTaskId: sessionId }),
-      createCheckSubagentTool(taskFlowStore)
+      createCheckSubagentTool(taskFlowStore),
+      createSubagentsTool({ control: subagentControl, taskStore: taskFlowStore })
     ];
     const allTools = config.runtime.toolProfile !== undefined
       ? filterToolsByProfile(allToolsRaw, config.runtime.toolProfile as ToolProfile)

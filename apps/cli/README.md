@@ -62,6 +62,8 @@ vole sessions
 | `vole daemon` | Start the cron scheduler daemon (use `--once` for a one-shot run) |
 | `vole taskflow list/show/cancel` | Inspect cross-session task records |
 | `vole gateway status` | Show lane occupancy in this process and cross-process session locks |
+| `vole subagents list` | List recent sub-agent task records (taskflow) |
+| `vole subagents kill <id\|all>` | Mark a sub-agent task as cancelled (or all running ones with "all") |
 
 ## Chat slash commands
 
