@@ -1,7 +1,7 @@
 # Configuration System
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [configuration-system.zh-CN.md](./configuration-system.zh-CN.md)
 

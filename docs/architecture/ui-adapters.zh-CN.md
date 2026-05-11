@@ -1,7 +1,7 @@
 # UI 适配器
 
 状态：草稿
-日期：2026-05-05
+日期：2026-05-11
 
 English version: [ui-adapters.md](./ui-adapters.md)
 

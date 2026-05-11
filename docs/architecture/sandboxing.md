@@ -1,7 +1,7 @@
 # Sandboxing
 
 Status: Phase 10
-Date: 2026-05-05
+Date: 2026-05-11
 
 Simplified Chinese version: [sandboxing.zh-CN.md](./sandboxing.zh-CN.md)
 

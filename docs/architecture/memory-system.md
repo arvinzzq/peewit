@@ -1,7 +1,7 @@
 # Memory System
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [memory-system.zh-CN.md](./memory-system.zh-CN.md)
 
@@ -329,9 +329,9 @@ Design principles for future implementation:
 - Dreaming produces a `memory_dream_completed` trace event with the number of entries proposed.
 - If a dreaming run produces no proposals, it records a `memory_dream_empty` trace event.
 
-Status: Planned. Not implemented in any current phase.
+Status: Shipped — invoke via `vole run --dream` (requires `VOLE_LONG_TERM_MEMORY=write`). The CLI dispatches a consolidation goal to `runBackgroundTask` in `auto` mode; the agent reads daily notes and appends a consolidation summary to `MEMORY.md`.
 
-OpenClaw alignment: OpenClaw implements memory dreaming as a scheduled agent run that uses a dedicated memory consolidation skill. Vole should follow the same pattern when implementing this feature.
+OpenClaw alignment: OpenClaw implements memory dreaming as a scheduled agent run with a dedicated consolidation skill. Vole uses the same model-driven consolidation pattern, exposed as a one-shot CLI subcommand rather than a permanent skill.
 
 ## 19. Acceptance Criteria
 

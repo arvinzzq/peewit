@@ -6,7 +6,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-≥22-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-f69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
-[![Tests](https://img.shields.io/badge/tests-411%20passing-22c55e)](#开发)
+[![Tests](https://img.shields.io/badge/tests-419%20passing-22c55e)](#开发)
 
 English version: [README.md](./README.md)
 
@@ -78,7 +78,8 @@ Vole 是一个从零开始用 TypeScript 构建的个人通用 Agent。
 
 ```bash
 npm install -g vole-agent
-vole chat
+vole              # 真实终端中，直接执行 vole 默认进入交互式聊天
+vole chat         # 显式形式，行为一致
 ```
 
 首次运行时，Vole 会提示配置 API Key。推荐写入 `~/.vole/config.json`：
@@ -130,6 +131,7 @@ pnpm cli -- chat
 `pnpm cli --` 直接从源码运行，开发阶段无需构建。
 
 ```bash
+pnpm cli                                   # 无参数调用 → 交互式聊天（TTY）
 pnpm cli -- chat                           # 交互式聊天
 pnpm cli -- chat --resume                  # 恢复最近会话
 pnpm cli -- chat --session <id>            # 命名会话

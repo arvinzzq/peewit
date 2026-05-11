@@ -1,7 +1,7 @@
 # Trace 可视化
 
 状态：草稿
-日期：2026-05-05
+日期：2026-05-11
 
 English version: [trace-visualization.md](./trace-visualization.md)
 

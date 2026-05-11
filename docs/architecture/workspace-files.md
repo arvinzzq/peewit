@@ -1,7 +1,7 @@
 # Workspace Files
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [workspace-files.zh-CN.md](./workspace-files.zh-CN.md)
 

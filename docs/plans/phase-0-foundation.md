@@ -1,7 +1,7 @@
 # Phase 0 Foundation Plan
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [phase-0-foundation.zh-CN.md](./phase-0-foundation.zh-CN.md)
 

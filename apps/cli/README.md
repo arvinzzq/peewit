@@ -28,8 +28,9 @@ Sessions are stored per-project under `<git-root>/.vole/sessions/` when inside a
 ## Usage
 
 ```bash
-# Interactive chat
-vole chat
+# Interactive chat (bare `vole` defaults to chat in a real terminal)
+vole
+vole chat                              # explicit form
 
 # Resume previous session
 vole chat --resume
@@ -48,14 +49,18 @@ vole sessions
 
 | Command | Description |
 |---|---|
+| `vole` | Bare invocation defaults to interactive chat (when stdin is a TTY) |
 | `vole chat` | Start an interactive chat session |
 | `vole chat --resume` | Resume the most recent session |
 | `vole chat --session <id>` | Resume a specific session |
 | `vole run "<goal>"` | Run a one-shot background task |
+| `vole run --dream` | Consolidate daily memory notes into `MEMORY.md` |
 | `vole web` | Open the web dashboard |
 | `vole sessions` | List stored sessions |
 | `vole tasks` | List background task runs |
-| `vole skills` | Manage agent skills |
+| `vole skills` | List loaded skills (also `install`/`enable`/`disable`/`trust`/`review` subcommands) |
+| `vole daemon` | Start the cron scheduler daemon (use `--once` for a one-shot run) |
+| `vole taskflow list/show/cancel` | Inspect cross-session task records |
 
 ## Chat slash commands
 
@@ -89,11 +94,19 @@ Configuration is loaded from (in order of precedence): environment variables →
 
 | Variable | Default | Description |
 |---|---|---|
-| `VOLE_API_KEY` | — | Anthropic API key |
-| `OPENROUTER_API_KEY` | — | OpenRouter API key (alternative) |
-| `VOLE_MODEL` | `claude-sonnet-4-6` | Model to use |
-| `VOLE_MODEL_PROVIDER` | `anthropic` | Provider (`anthropic` or `openai-compatible`) |
-| `VOLE_MAX_TOKENS` | `16000` | Max output tokens |
+| `ANTHROPIC_API_KEY` | — | Use Anthropic provider (claude-haiku-4-5) |
+| `OPENROUTER_API_KEY` | — | Use OpenRouter (needs `VOLE_MODEL`) |
+| `VOLE_API_KEY` | — | Generic API key override |
+| `VOLE_BASE_URL` | `https://api.openai.com/v1` | Provider base URL |
+| `VOLE_MODEL` | `gpt-4.1-mini` | Model name |
+| `VOLE_DEFAULT_MODE` | `confirm` | Autonomy mode: `observe` / `confirm` / `auto` |
+| `VOLE_WORKSPACE_ROOT` | `.` | Working directory |
+| `VOLE_LONG_TERM_MEMORY` | `disabled` | Memory policy: `disabled` / `read-only` / `write` |
+| `VOLE_PROMPT_MODE` | `full` | Prompt rendering: `full` / `minimal` / `none` |
+| `VOLE_EXECUTION_CONTRACT` | `default` | Execution discipline: `default` / `strict-agentic` |
+| `VOLE_TOOL_PROFILE` | `full` | Tool capability set: `coding` / `full` / `messaging` / `background` |
+| `VOLE_SANDBOX` | `false` | Restrict shell to workspace root: `true` / `false` |
+| `VOLE_THINKING_BUDGET` | `adaptive` | Anthropic reasoning depth: `off` / `minimal` … `max` / `adaptive` |
 
 ## License
 

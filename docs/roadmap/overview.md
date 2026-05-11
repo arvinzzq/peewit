@@ -1,7 +1,7 @@
 # Vole Roadmap
 
-Status: Draft
-Date: 2026-05-10
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [overview.zh-CN.md](./overview.zh-CN.md)
 
@@ -509,29 +509,29 @@ Implementation plan: [Phase 10 Full Platform](../plans/phase-10-full-platform.md
 - No guarantee of parity with OpenClaw.
 - No enterprise SaaS assumptions unless explicitly chosen later.
 
-## 14. OpenClaw Alignment Backlog
+## 14. OpenClaw Alignment Status
 
-Phases 0–10 are complete. The following gaps remain between Vole and OpenClaw's production capabilities.
+Phases 0–10 are complete. The OpenClaw alignment backlog originally tracked 18 capability gaps. All items have shipped.
 
-Full design: [OpenClaw Alignment Plan](../plans/openclaw-alignment.md)
+Full design and iteration history: [OpenClaw Alignment Plan](../plans/openclaw-alignment.md)
 
-| Priority | Gap | Iteration |
+| Capability | Status | Surface |
 | --- | --- | --- |
-| 🔴 High | Context compaction | 1 |
-| 🔴 High | Skill body on-demand loading (`load_skill` tool) | 1 |
-| 🔴 High | `memory_search` tool | 2 |
-| 🟡 Medium | Prompt modes (full / minimal / none) | 1 |
-| 🟡 Medium | `memory_get` tool | 2 |
-| 🟡 Medium | Additional workspace files (TOOLS.md, IDENTITY.md, HEARTBEAT.md, BOOTSTRAP.md) | 2 |
-| 🟡 Medium | Heartbeat mechanism | 2 |
-| 🟡 Medium | Strict-agentic execution contract | 3 |
-| 🟡 Medium | Per-session write locks | 3 |
-| 🟡 Medium | Hooks system | 3 |
-| 🟡 Medium | Tool profiles (coding / full / messaging / background) | 4 |
-| 🟡 Medium | Sandbox enforcement (workspace-boundary shell) | 4 |
-| 🟡 Medium | Cron daemon (`vole daemon`) | 5 |
-| 🟢 Low | TaskFlow (persistent cross-session task graph) | 6 |
-| 🟢 Low | Async subagents (push-based, fork context mode) | 6 |
-| 🟢 Low | WebSocket support | 7 |
-| 🟢 Low | Thinking budget configuration | 7 |
-| 🟢 Low | Memory dreaming / promotion | 7 |
+| Context compaction | ✓ Shipped | `packages/context` `compactMessages`, `compaction_triggered` event, JSONL compact boundary |
+| Skill body on-demand loading | ✓ Shipped | `load_skill` tool (`packages/tools`), `SkillManager` (`packages/skills`) |
+| `memory_search` tool | ✓ Shipped | `packages/tools/memory_search`, indexes `MEMORY.md` + `memory/*.md` |
+| `memory_get` tool | ✓ Shipped | `packages/tools/memory_get` |
+| Prompt modes (full / minimal / none) | ✓ Shipped | `VOLE_PROMPT_MODE`, `PromptMode` in `packages/context` |
+| Additional workspace files | ✓ Shipped | `AGENTS.md`, `SOUL.md`, `TOOLS.md`, `IDENTITY.md`, `HEARTBEAT.md`, `BOOTSTRAP.md`, `USER.md`, `MEMORY.md` |
+| Heartbeat mechanism | ✓ Shipped | `update_heartbeat` tool, daemon `writeHeartbeat` |
+| Strict-agentic execution contract | ✓ Shipped | `VOLE_EXECUTION_CONTRACT`, contract enforcement in `AgentRuntime` |
+| Per-session write locks | ✓ Shipped | Session mutex in `packages/sessions` |
+| Hooks system | ✓ Shipped | `beforeTurn`, `beforeToolCall`, `onCompaction` |
+| Tool profiles | ✓ Shipped | `filterToolsByProfile`, `VOLE_TOOL_PROFILE` |
+| Sandbox enforcement | ✓ Shipped | `VOLE_SANDBOX=true` restricts shell to workspace root |
+| Cron daemon | ✓ Shipped | `vole daemon`, `CronScheduler`, `BackgroundApprovalResolver` |
+| TaskFlow | ✓ Shipped | `JsonlTaskFlowStore`, `vole taskflow list/show/cancel` |
+| Async subagents | ✓ Shipped | `spawn_subagent_async`, `check_subagent` |
+| WebSocket support | ✓ Shipped | `apps/web` `/ws/:id` bidirectional channel |
+| Thinking budget configuration | ✓ Shipped | `VOLE_THINKING_BUDGET`, Anthropic provider |
+| Memory dreaming / promotion | ✓ Shipped | `vole run --dream` consolidation flow |

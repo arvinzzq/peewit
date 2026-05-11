@@ -1,7 +1,7 @@
 # Progressive Composition
 
 Status: Stable
-Date: 2026-05-08
+Date: 2026-05-11
 
 Simplified Chinese version: [progressive-composition.zh-CN.md](./progressive-composition.zh-CN.md)
 

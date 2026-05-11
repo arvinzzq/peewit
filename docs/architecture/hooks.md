@@ -1,7 +1,7 @@
 # Hooks System
 
 Status: Design
-Date: 2026-05-05
+Date: 2026-05-11
 
 Simplified Chinese version: [hooks.zh-CN.md](./hooks.zh-CN.md)
 

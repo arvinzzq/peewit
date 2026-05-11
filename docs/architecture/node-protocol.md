@@ -1,7 +1,7 @@
 # Node Protocol
 
 Status: Phase 10 Foundation
-Date: 2026-05-05
+Date: 2026-05-11
 
 Simplified Chinese version: [node-protocol.zh-CN.md](./node-protocol.zh-CN.md)
 

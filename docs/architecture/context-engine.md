@@ -1,7 +1,7 @@
 # Context Engine
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [context-engine.zh-CN.md](./context-engine.zh-CN.md)
 

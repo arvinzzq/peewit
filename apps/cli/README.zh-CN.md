@@ -28,8 +28,9 @@ export OPENROUTER_API_KEY=sk-or-...   # OpenRouter
 ## 使用
 
 ```bash
-# 交互式对话
-vole chat
+# 交互式对话（在真实终端中，直接执行 vole 默认进入 chat）
+vole
+vole chat                              # 显式形式
 
 # 恢复上次会话
 vole chat --resume
@@ -48,14 +49,18 @@ vole sessions
 
 | 命令 | 说明 |
 |---|---|
+| `vole` | 无参数调用默认进入交互式聊天（stdin 是真实终端时） |
 | `vole chat` | 开始交互式对话 |
 | `vole chat --resume` | 恢复最近的会话 |
 | `vole chat --session <id>` | 恢复指定会话 |
 | `vole run "<目标>"` | 运行一次性后台任务 |
+| `vole run --dream` | 将日记合并进 `MEMORY.md` |
 | `vole web` | 打开 Web 界面 |
 | `vole sessions` | 列出所有会话 |
 | `vole tasks` | 列出后台任务记录 |
-| `vole skills` | 管理智能体技能 |
+| `vole skills` | 列出已加载技能（含 `install`/`enable`/`disable`/`trust`/`review` 子命令） |
+| `vole daemon` | 启动 Cron 调度守护进程（`--once` 仅执行一次） |
+| `vole taskflow list/show/cancel` | 查看跨会话任务记录 |
 
 ## 对话内指令
 
@@ -89,11 +94,19 @@ vole sessions
 
 | 变量 | 默认值 | 说明 |
 |---|---|---|
-| `VOLE_API_KEY` | — | Anthropic API key |
-| `OPENROUTER_API_KEY` | — | OpenRouter API key（备选） |
-| `VOLE_MODEL` | `claude-sonnet-4-6` | 使用的模型 |
-| `VOLE_MODEL_PROVIDER` | `anthropic` | 提供商（`anthropic` 或 `openai-compatible`） |
-| `VOLE_MAX_TOKENS` | `16000` | 最大输出 token 数 |
+| `ANTHROPIC_API_KEY` | — | 使用 Anthropic Provider（claude-haiku-4-5） |
+| `OPENROUTER_API_KEY` | — | 使用 OpenRouter（需配合 `VOLE_MODEL`） |
+| `VOLE_API_KEY` | — | 通用 API Key 覆盖 |
+| `VOLE_BASE_URL` | `https://api.openai.com/v1` | Provider Base URL |
+| `VOLE_MODEL` | `gpt-4.1-mini` | 模型名称 |
+| `VOLE_DEFAULT_MODE` | `confirm` | 自主模式：`observe` / `confirm` / `auto` |
+| `VOLE_WORKSPACE_ROOT` | `.` | 工作目录 |
+| `VOLE_LONG_TERM_MEMORY` | `disabled` | 记忆策略：`disabled` / `read-only` / `write` |
+| `VOLE_PROMPT_MODE` | `full` | 提示词渲染：`full` / `minimal` / `none` |
+| `VOLE_EXECUTION_CONTRACT` | `default` | 执行纪律：`default` / `strict-agentic` |
+| `VOLE_TOOL_PROFILE` | `full` | 工具能力集：`coding` / `full` / `messaging` / `background` |
+| `VOLE_SANDBOX` | `false` | 将 Shell 限制在工作区根目录：`true` / `false` |
+| `VOLE_THINKING_BUDGET` | `adaptive` | Anthropic 推理深度：`off` / `minimal` … `max` / `adaptive` |
 
 ## 许可证
 

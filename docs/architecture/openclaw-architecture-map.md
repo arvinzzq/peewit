@@ -1,7 +1,7 @@
 # OpenClaw Architecture Map
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [openclaw-architecture-map.zh-CN.md](./openclaw-architecture-map.zh-CN.md)
 

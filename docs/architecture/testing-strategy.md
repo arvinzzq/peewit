@@ -1,7 +1,7 @@
 # Testing Strategy
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [testing-strategy.zh-CN.md](./testing-strategy.zh-CN.md)
 

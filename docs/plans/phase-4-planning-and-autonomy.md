@@ -1,7 +1,7 @@
 # Phase 4: Planning and Autonomy
 
-Status: Draft
-Date: 2026-05-04
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [phase-4-planning-and-autonomy.zh-CN.md](./phase-4-planning-and-autonomy.zh-CN.md)
 

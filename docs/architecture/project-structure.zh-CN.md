@@ -1,7 +1,7 @@
 # 项目结构
 
-状态：草案
-日期：2026-05-02
+状态：活跃
+日期：2026-05-11
 
 English version: [project-structure.md](./project-structure.md)
 

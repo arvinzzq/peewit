@@ -1,7 +1,7 @@
 # Run Queue
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [run-queue.zh-CN.md](./run-queue.zh-CN.md)
 

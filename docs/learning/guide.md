@@ -1,7 +1,7 @@
 # Vole Agent — Learning Guide
 
-Status: Draft
-Date: 2026-05-07
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [guide.zh-CN.md](./guide.zh-CN.md)
 

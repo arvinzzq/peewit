@@ -1,7 +1,7 @@
 # Execution Trace
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [execution-trace.zh-CN.md](./execution-trace.zh-CN.md)
 

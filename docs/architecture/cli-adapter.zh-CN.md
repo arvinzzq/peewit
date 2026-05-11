@@ -1,7 +1,7 @@
 # CLI Adapter
 
-状态：草案
-日期：2026-05-02
+状态：活跃
+日期：2026-05-11
 
 English version: [cli-adapter.md](./cli-adapter.md)
 
@@ -44,31 +44,60 @@ MVP CLI 应支持：
 
 CLI 应该像一个可用工具，而不只是 demo wrapper。
 
-## 4. MVP 命令
+## 4. 命令
 
-初始命令：
+Phase 1–10 已全部交付。在真实终端（TTY）中，无参数调用默认进入交互式 chat。
 
-| 命令 | 用途 | 阶段 |
-| --- | --- | --- |
-| `vole chat` | 使用 configured provider settings 开始一个交互式 chat session | Phase 1 |
-| `vole chat --session <id>` | 开始或继续一个 JSONL-backed named chat session | Phase 5 |
-| `vole chat --resume` | 继续最近更新的 JSONL-backed chat session | Phase 5 |
-| `vole chat --fake-interactive` | 使用 fake provider 开始一个本地学习用交互 session | Phase 1 |
-| `vole chat --fake "<message>"` | 运行一次 fake-provider smoke path | Phase 1 |
-| `vole sessions` | 列出 stored JSONL chat sessions | Phase 5 |
-| `vole --version` | 显示版本 | Phase 0-1 |
-| `vole --help` | 显示可用命令 | Phase 0-1 |
-
-早期后续命令：
+Chat：
 
 | 命令 | 用途 | 阶段 |
 | --- | --- | --- |
-| `vole run "<goal>"` | 运行一次性 goal 后退出 | Phase 2-4 |
-| `vole trace <session>` | 检查已存储 trace events | Phase 5 |
-| `vole skills` | 列出已加载 skills | Phase 3 |
-| `vole config` | 检查生效配置 | Phase 1-2 |
+| `vole` | 无参数调用，stdin 是 TTY 时默认进入交互式 chat | Phase 10 |
+| `vole chat` | 使用 configured provider settings 开始交互式 chat | Phase 1 |
+| `vole chat --session <id>` | 开始或继续 JSONL-backed named session | Phase 5 |
+| `vole chat --resume` | 继续最近更新的 JSONL-backed session | Phase 5 |
+| `vole chat --fake-interactive` | 使用 fake provider 本地测试交互 | Phase 1 |
+| `vole chat --fake "<message>"` | 一次 fake-provider smoke 测试 | Phase 1 |
+| `vole sessions` | 列出已存储 JSONL chat sessions | Phase 5 |
+| `vole --version` / `-v` | 显示版本 | Phase 0–1 |
+| `vole --help` / `-h` | 显示可用命令 | Phase 0–1 |
 
-MVP 应避免过大的命令表面。命令应该在底层模块存在并有测试保障后再出现。
+后台与自动化：
+
+| 命令 | 用途 | 阶段 |
+| --- | --- | --- |
+| `vole run "<goal>"` | 运行一次性后台任务 | Phase 8 |
+| `vole run "<goal>" --mode auto\|confirm\|observe` | 设置 run 的自主模式 | Phase 8 |
+| `vole run --dream` | 将日记合并进 `MEMORY.md` | Phase 8 |
+| `vole tasks [--limit N]` | 列出最近后台任务记录 | Phase 8 |
+| `vole daemon` | 启动 cron scheduler daemon | Phase 8 |
+| `vole daemon --once` | 一次性执行所有到期任务后退出 | Phase 8 |
+
+跨会话任务图：
+
+| 命令 | 用途 | 阶段 |
+| --- | --- | --- |
+| `vole taskflow list [--limit N]` | 列出跨会话任务记录 | Phase 8 |
+| `vole taskflow show <id>` | 显示任务记录完整详情 | Phase 8 |
+| `vole taskflow cancel <id>` | 将任务标记为 cancelled | Phase 8 |
+
+Skills：
+
+| 命令 | 用途 | 阶段 |
+| --- | --- | --- |
+| `vole skills` | 列出已加载技能（workspace > user > built-in） | Phase 3 |
+| `vole skills install <path>` | 从 `.md` 文件安装技能 | Phase 9 |
+| `vole skills enable <name>` | 重新启用已禁用技能 | Phase 9 |
+| `vole skills disable <name>` | 禁用已安装技能 | Phase 9 |
+| `vole skills trust <name>` | 信任用户安装的技能 | Phase 9 |
+| `vole skills review <name>` | 查看技能完整元数据、权限与正文 | Phase 9 |
+
+Web UI：
+
+| 命令 | 用途 | 阶段 |
+| --- | --- | --- |
+| `vole web [-p PORT]` | 启动捆绑的 web 仪表板（默认端口 3120） | Phase 6 |
+| `vole web --no-open` | 不自动打开浏览器 | Phase 6 |
 
 ## 5. 交互式 Chat
 
@@ -247,29 +276,31 @@ Streaming 不应改变 package boundaries。
 
 ## 15. CLI 渲染框架
 
-MVP CLI 使用原生 Node.js stdout（`process.stdout.write`）和 readline 处理所有输出和输入。这对于 non-streaming、逐行 turn 输出已经足够，并且无需 UI 框架依赖。
+**Phase 6 已交付。** 交互式聊天（`vole chat` 与无参数 `vole`）使用 **Ink**（[npmjs.com/package/ink](https://www.npmjs.com/package/ink)）渲染——一个基于 React 的终端 UI 框架。Ink 路径位于 `apps/cli/src/app.tsx`，由 `main()` 通过动态 `import()` 加载，仅当需要真实 TTY 交互 session 时启用；非交互场景（测试、`--fake`、脚本、管道 stdin、`sessions`/`run` 等子命令）仍走 `apps/cli/src/index.ts` 中基于 readline 的路径。
 
-当流式模型输出和更丰富的终端 UI 成为必要时，计划的渲染升级方案是 **Ink**（[npmjs.com/package/ink](https://www.npmjs.com/package/ink)）。
+采用 Ink 的原因：
 
-Ink 是一个基于 React 的终端 UI 框架，允许组件在原地渲染和重新渲染。它适合 Vole 的原因：
+- Streaming token 输出在同一终端区域原地更新，而不是不断追加新行。
+- Tool 进度指示器（spinner、步骤计数）在多步 run 期间实时更新。
+- Permission prompts 可以是一个完整块，展示风险说明、输入预览和审批控件。
+- Slash 命令的 picker（`/resume`）使用方向键选择会话列表。
+- OpenClaw 本身就使用 Ink，保持架构对齐。
 
-- Streaming token 输出需要就地更新同一终端区域，而不是不断追加新行。
-- Tool 进度指示器（spinner、步骤计数）在多步 run 期间需要实时更新。
-- Permission prompts 可以更丰富：以块的形式展示风险说明、输入预览和审批控件。
-- Trace 面板可以随 events 到达而更新，而不是逐行追加。
-- OpenClaw 本身就使用 Ink，采用它可以保持架构对齐。
+Ink 路径仅限于 `apps/cli/src/app.tsx`。Agent Core、context assembly、tools、permissions 和 session packages 完全不受影响。Adapter 的逻辑：
 
-升级路径仅限于 CLI adapter 层。Agent Core、context assembly、tools、permissions 和 session packages 不变。Adapter 将 stdout 调用替换为 Ink 组件渲染。
+1. 检测 stdin 是否是 TTY，以及子命令是否是 `chat`（或没有子命令——bare `vole`）。
+2. 满足时动态 import `./app.js` 并调用 `runInkChat()`。
+3. 否则路由到 `runCli()`，使用基于 readline 的路径以兼容测试/脚本。
 
-此次迁移应在 streaming output 加入时（Phase 6）进行，先于任何 Web UI 工作，因为 streaming 本来就会迫使终端渲染架构演进。
+`runInkChat()` 构造 `CliChatSession`、在进程内 `SessionGateway` 中注册，并渲染 `<ChatApp>`，该组件处理 streaming、todos 面板、approval modal 和 slash 命令。
 
-Ink 的采用推迟到：
+## 16. 无参数调用
 
-- `ModelProvider.generate()` 支持 streaming 变体。
-- Event stream 包含 token delta events，CLI 可以增量显示。
-- Approval prompt 需要超出单行文本 prompt 的能力。
+`vole` 无子命令时默认进入交互式 chat，但仅当 `process.stdin.isTTY === true` 时。非 TTY 场景（管道 stdin、CI、脚本）会落到 commander 路径，commander 会打印帮助。这避免了在测试 harness 或 pipeline 中无意启动 chat 进程。
 
-## 16. Cancellation
+供测试使用的 `runCli` 库函数同样会在无参数调用时短路到 `runInteractiveConfiguredChat`，让 readline-based 测试路径获得相同的逻辑行为而不必依赖 Ink。
+
+## 17. Cancellation
 
 CLI 最终应支持取消 active run。
 
@@ -281,7 +312,7 @@ MVP cancellation 可以是 best-effort：
 
 Run queue 拥有 run state。CLI 只发送 cancellation request。
 
-## 17. 与 Agent Core 的关系
+## 18. 与 Agent Core 的关系
 
 CLI 将 user input 和 local decisions 发送给 Agent Core。
 
@@ -295,7 +326,7 @@ CLI 接收：
 
 CLI 不能代表模型直接调用 tools。
 
-## 18. 与 Web UI 的关系
+## 19. 与 Web UI 的关系
 
 CLI 是第一个 adapter。它应该证明 adapter boundary。
 
@@ -310,7 +341,7 @@ Web UI 后续需要的一切，都应该已经有非视觉等价物：
 
 如果某个行为无法在不依赖终端假设的情况下表达，它很可能属于 adapter layer。
 
-## 19. 测试要求
+## 20. 测试要求
 
 CLI adapter tests 应聚焦用户可见工作流和边界。
 
@@ -330,7 +361,7 @@ CLI adapter tests 应聚焦用户可见工作流和边界。
 
 任何改变 Agent Core events、permission prompts、trace events、session handling 或 context reports 的迭代，都应更新 CLI adapter tests。
 
-## 20. 验收标准
+## 21. 验收标准
 
 MVP CLI adapter 成功标准：
 
@@ -342,7 +373,7 @@ MVP CLI adapter 成功标准：
 - CLI 不拥有 prompt assembly、tool selection、provider logic、permission policy 或 session persistence rules。
 - CLI behavior 有聚焦测试覆盖。
 
-## 21. 相关文档
+## 22. 相关文档
 
 - [Main design](../product/vole-design.zh-CN.md)
 - [Roadmap](../roadmap/overview.zh-CN.md)

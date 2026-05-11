@@ -1,7 +1,7 @@
 # UI Adapters
 
-Status: Draft
-Date: 2026-05-05
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [ui-adapters.zh-CN.md](./ui-adapters.zh-CN.md)
 

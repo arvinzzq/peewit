@@ -1,7 +1,7 @@
 # Phase 4：规划与自主执行
 
-状态：草案
-日期：2026-05-04
+状态：活跃
+日期：2026-05-11
 
 English version: [phase-4-planning-and-autonomy.md](./phase-4-planning-and-autonomy.md)
 

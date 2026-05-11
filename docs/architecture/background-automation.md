@@ -1,7 +1,7 @@
 # Background Automation
 
-Status: Draft
-Date: 2026-05-05
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [background-automation.zh-CN.md](./background-automation.zh-CN.md)
 

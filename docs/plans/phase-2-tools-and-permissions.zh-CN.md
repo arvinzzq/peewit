@@ -1,13 +1,13 @@
 # Phase 2 Tools and Permissions Plan
 
-状态：草案
-日期：2026-05-02
+状态：活跃
+日期：2026-05-11
 
 English version: [phase-2-tools-and-permissions.md](./phase-2-tools-and-permissions.md)
 
 ## Progress
 
-状态：In Progress
+状态：Complete
 
 已完成：
 

@@ -1,7 +1,7 @@
 # Gateway
 
-状态：草案（计划中 — Phase 10）
-日期：2026-05-05
+状态：活跃（Phase 10 已交付）
+日期：2026-05-11
 
 English version: [gateway.md](./gateway.md)
 

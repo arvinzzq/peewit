@@ -1,7 +1,7 @@
 # Context Compaction
 
 Status: Design
-Date: 2026-05-05
+Date: 2026-05-11
 
 Simplified Chinese version: [context-compaction.zh-CN.md](./context-compaction.zh-CN.md)
 

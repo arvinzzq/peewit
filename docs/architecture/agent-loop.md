@@ -1,7 +1,7 @@
 # Agent Loop
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [agent-loop.zh-CN.md](./agent-loop.zh-CN.md)
 

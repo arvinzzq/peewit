@@ -1,7 +1,7 @@
 # Prompt Assembly
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [prompt-assembly.zh-CN.md](./prompt-assembly.zh-CN.md)
 

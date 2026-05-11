@@ -1,7 +1,7 @@
 # Memory System
 
-状态：草案
-日期：2026-05-02
+状态：活跃
+日期：2026-05-11
 
 English version: [memory-system.md](./memory-system.md)
 
@@ -318,9 +318,9 @@ Memory 需要强测试，因为它会改变未来行为。
 - Dreaming 产生 `memory_dream_completed` Trace 事件，记录提议条目数量。
 - 如果 Dreaming 运行没有产生提议，记录 `memory_dream_empty` Trace 事件。
 
-状态：计划中。当前阶段尚未实现。
+状态：已交付——通过 `vole run --dream` 调用（需 `VOLE_LONG_TERM_MEMORY=write`）。CLI 将整合目标派发到 `auto` 模式的 `runBackgroundTask`；Agent 读取日记并向 `MEMORY.md` 追加整合摘要。
 
-OpenClaw 对齐：OpenClaw 将记忆 Dreaming 实现为使用专用记忆整合 Skill 的定时 Agent 运行。Vole 实现此功能时应遵循相同模式。
+OpenClaw 对齐：OpenClaw 将 Memory Dreaming 实现为使用专用整合 Skill 的定时 Agent 运行。Vole 采用相同的模型驱动整合模式，但以一次性 CLI 子命令的形式提供，而不是常驻 Skill。
 
 ## 19. 验收标准
 

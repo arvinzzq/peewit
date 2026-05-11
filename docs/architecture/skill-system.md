@@ -1,7 +1,7 @@
 # Skill System
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [skill-system.zh-CN.md](./skill-system.zh-CN.md)
 

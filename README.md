@@ -6,7 +6,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-≥22-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-f69220?logo=pnpm&logoColor=white)](https://pnpm.io/)
-[![Tests](https://img.shields.io/badge/tests-411%20passing-22c55e)](#development)
+[![Tests](https://img.shields.io/badge/tests-419%20passing-22c55e)](#development)
 
 Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
@@ -78,7 +78,8 @@ It is both a **real, usable product** and an **architecture learning project**. 
 
 ```bash
 npm install -g vole-agent
-vole chat
+vole              # bare `vole` defaults to interactive chat in a real terminal
+vole chat         # explicit form, identical behavior
 ```
 
 On first run, Vole will prompt you to configure an API key. You can set one in `~/.vole/config.json`:
@@ -130,6 +131,7 @@ pnpm cli -- chat
 The `pnpm cli --` shortcut runs the CLI directly from source — no build step needed during development.
 
 ```bash
+pnpm cli                                   # bare invocation → interactive chat (TTY)
 pnpm cli -- chat                           # interactive chat
 pnpm cli -- chat --resume                  # resume most recent session
 pnpm cli -- chat --session <id>            # named session

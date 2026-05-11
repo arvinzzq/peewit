@@ -1,7 +1,7 @@
 # Gateway
 
-Status: Draft (Planned — Phase 10)
-Date: 2026-05-05
+Status: Active (Shipped in Phase 10)
+Date: 2026-05-11
 
 Simplified Chinese version: [gateway.zh-CN.md](./gateway.zh-CN.md)
 

@@ -1,13 +1,13 @@
 # Phase 2 Tools and Permissions Plan
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [phase-2-tools-and-permissions.zh-CN.md](./phase-2-tools-and-permissions.zh-CN.md)
 
 ## Progress
 
-Status: In Progress
+Status: Complete
 
 Completed:
 

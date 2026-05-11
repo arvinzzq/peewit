@@ -1,7 +1,7 @@
 # Skill System
 
-状态：草案
-日期：2026-05-02
+状态：活跃
+日期：2026-05-11
 
 English version: [skill-system.md](./skill-system.md)
 

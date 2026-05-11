@@ -1,7 +1,7 @@
 # Tool Profiles
 
 状态：设计
-日期：2026-05-05
+日期：2026-05-11
 
 English version: [tool-profiles.md](./tool-profiles.md)
 

@@ -1,7 +1,7 @@
 # Execution Contract
 
 Status: Design
-Date: 2026-05-05
+Date: 2026-05-11
 
 Simplified Chinese version: [execution-contract.zh-CN.md](./execution-contract.zh-CN.md)
 

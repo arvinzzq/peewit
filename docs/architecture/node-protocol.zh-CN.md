@@ -1,7 +1,7 @@
 # Node Protocol
 
 状态：Phase 10 基础
-日期：2026-05-05
+日期：2026-05-11
 
 English version: [node-protocol.md](./node-protocol.md)
 

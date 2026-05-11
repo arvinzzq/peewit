@@ -1,7 +1,7 @@
 # Project Structure
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [project-structure.zh-CN.md](./project-structure.zh-CN.md)
 

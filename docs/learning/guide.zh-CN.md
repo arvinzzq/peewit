@@ -1,7 +1,7 @@
 # Vole Agent — 深度学习指南
 
-Status: Draft
-Date: 2026-05-07
+Status: Active
+Date: 2026-05-11
 
 English version: [guide.md](./guide.md)
 

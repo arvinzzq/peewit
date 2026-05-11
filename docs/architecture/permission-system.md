@@ -1,7 +1,7 @@
 # Permission System
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [permission-system.zh-CN.md](./permission-system.zh-CN.md)
 

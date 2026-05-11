@@ -1,7 +1,7 @@
 # CLI Adapter
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [cli-adapter.zh-CN.md](./cli-adapter.zh-CN.md)
 
@@ -44,31 +44,60 @@ MVP CLI should support:
 
 The CLI should feel like a usable tool, not only a demo wrapper.
 
-## 4. MVP Commands
+## 4. Commands
 
-Initial commands:
+All commands shipped through Phase 1–10. Bare invocation defaults to interactive chat in a real terminal (TTY).
+
+Chat:
 
 | Command | Purpose | Phase |
 | --- | --- | --- |
+| `vole` | Bare invocation defaults to interactive chat when stdin is a TTY | Phase 10 |
 | `vole chat` | Start an interactive chat session using configured provider settings | Phase 1 |
 | `vole chat --session <id>` | Start or continue a named JSONL-backed chat session | Phase 5 |
 | `vole chat --resume` | Continue the most recently updated JSONL-backed chat session | Phase 5 |
-| `vole chat --fake-interactive` | Start an interactive local learning session with a fake provider | Phase 1 |
-| `vole chat --fake "<message>"` | Run a one-turn fake-provider smoke path | Phase 1 |
+| `vole chat --fake-interactive` | Interactive chat using fake provider for local testing | Phase 1 |
+| `vole chat --fake "<message>"` | One-turn fake-provider smoke path | Phase 1 |
 | `vole sessions` | List stored JSONL chat sessions | Phase 5 |
-| `vole --version` | Show version | Phase 0-1 |
-| `vole --help` | Show available commands | Phase 0-1 |
+| `vole --version` / `-v` | Show version | Phase 0–1 |
+| `vole --help` / `-h` | Show available commands | Phase 0–1 |
 
-Early follow-up commands:
+Background and automation:
 
 | Command | Purpose | Phase |
 | --- | --- | --- |
-| `vole run "<goal>"` | Run a one-off goal and exit | Phase 2-4 |
-| `vole trace <session>` | Inspect stored trace events | Phase 5 |
-| `vole skills` | List loaded skills | Phase 3 |
-| `vole config` | Inspect effective configuration | Phase 1-2 |
+| `vole run "<goal>"` | Run a one-shot background task | Phase 8 |
+| `vole run "<goal>" --mode auto\|confirm\|observe` | Set autonomy mode for the run | Phase 8 |
+| `vole run --dream` | Consolidate daily memory notes into `MEMORY.md` | Phase 8 |
+| `vole tasks [--limit N]` | List recent background task runs | Phase 8 |
+| `vole daemon` | Start the cron scheduler daemon | Phase 8 |
+| `vole daemon --once` | Execute all due tasks once and exit | Phase 8 |
 
-MVP should avoid a large command surface. Commands should appear when the underlying module exists and has tests.
+Cross-session task graph:
+
+| Command | Purpose | Phase |
+| --- | --- | --- |
+| `vole taskflow list [--limit N]` | List cross-session task records | Phase 8 |
+| `vole taskflow show <id>` | Show full task record details | Phase 8 |
+| `vole taskflow cancel <id>` | Mark a task as cancelled | Phase 8 |
+
+Skills:
+
+| Command | Purpose | Phase |
+| --- | --- | --- |
+| `vole skills` | List loaded skills (workspace > user > built-in) | Phase 3 |
+| `vole skills install <path>` | Install a skill from a `.md` file | Phase 9 |
+| `vole skills enable <name>` | Re-enable a disabled skill | Phase 9 |
+| `vole skills disable <name>` | Disable an installed skill | Phase 9 |
+| `vole skills trust <name>` | Mark a user-installed skill as trusted | Phase 9 |
+| `vole skills review <name>` | Show full skill metadata, permissions, and body | Phase 9 |
+
+Web UI:
+
+| Command | Purpose | Phase |
+| --- | --- | --- |
+| `vole web [-p PORT]` | Start the bundled web dashboard (default port 3120) | Phase 6 |
+| `vole web --no-open` | Don't auto-open the browser | Phase 6 |
 
 ## 5. Interactive Chat
 
@@ -247,27 +276,29 @@ Streaming should not change package boundaries.
 
 ## 15. CLI Rendering Framework
 
-The MVP CLI uses plain Node.js stdout (`process.stdout.write`) and readline for all output and input. This is sufficient for non-streaming, line-by-line turn output, and works without a build-time dependency on a UI framework.
+**Shipped in Phase 6.** Interactive chat (`vole chat` and bare `vole`) is rendered with **Ink** ([npmjs.com/package/ink](https://www.npmjs.com/package/ink)) — a React-based terminal UI framework. The Ink path lives in `apps/cli/src/app.tsx` and is loaded via dynamic `import()` from `main()` only when a real TTY interactive session is needed; non-interactive paths (tests, `--fake`, scripts, piped stdin, sub-commands like `sessions`/`run`) still use the readline-based code path in `apps/cli/src/index.ts`.
 
-When streaming model output and richer terminal UI become necessary, the planned rendering upgrade is **Ink** ([npmjs.com/package/ink](https://www.npmjs.com/package/ink)).
+Why Ink:
 
-Ink is a React-based terminal UI framework that lets components render and re-render in-place. It is the right choice for Vole because:
+- Streaming token output updates the same terminal region rather than printing new lines.
+- Tool progress indicators (spinner, step counter) update live during multi-step runs.
+- Permission prompts can be a block with risk explanation, input preview, and approval controls.
+- The slash-command picker (`/resume`) renders arrow-key selectable session list.
+- OpenClaw itself uses Ink, keeping us architecturally aligned.
 
-- Streaming token output requires updating the same terminal region rather than printing new lines.
-- Tool progress indicators (spinner, step counter) need live updates during a multi-step run.
-- Permission prompts can be richer: show risk explanation, input preview, and approval controls as a block.
-- Trace panels can update as events arrive rather than being appended one line at a time.
-- OpenClaw itself uses Ink, so adopting it keeps us architecturally aligned.
+The Ink path is contained in `apps/cli/src/app.tsx`. Agent Core, context assembly, tools, permissions, and session packages did not change. The adapter:
 
-The upgrade path is contained to the CLI adapter layer. Agent Core, context assembly, tools, permissions, and session packages do not change. The adapter replaces its stdout calls with Ink component renders.
+1. Detects whether stdin is a TTY and whether the subcommand is `chat` (or absent — bare `vole`).
+2. If so, dynamically imports `./app.js` and calls `runInkChat()`.
+3. Otherwise routes to the readline-based `runCli()` path for backward-compatible test/script use.
 
-This transition should happen when streaming output is added (Phase 6) and before any Web UI work, because streaming forces the terminal rendering architecture to evolve anyway.
+`runInkChat()` builds a `CliChatSession`, registers it with the in-process `SessionGateway`, and renders `<ChatApp>` which handles streaming, todos panel, approval modal, and slash commands.
 
-Ink adoption is deferred until:
+## 16. Bare Invocation
 
-- `ModelProvider.generate()` supports a streaming variant.
-- The event stream carries token delta events that the CLI can display incrementally.
-- The approval prompt needs more than a one-line text prompt.
+`vole` with no subcommand defaults to interactive chat, but only when `process.stdin.isTTY === true`. Non-TTY contexts (piped stdin, CI, scripts) fall through to commander, which prints help. This avoids accidentally starting a chat process when `vole` is invoked from a test harness or pipeline.
+
+The `runCli` library function (used by tests) short-circuits bare invocation to `runInteractiveConfiguredChat` so the readline-based test path still gets the same logical behavior without Ink.
 
 ## 17. Cancellation
 

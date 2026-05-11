@@ -1,7 +1,7 @@
 # Sandboxing
 
 状态：Phase 10
-日期：2026-05-05
+日期：2026-05-11
 
 English version: [sandboxing.md](./sandboxing.md)
 

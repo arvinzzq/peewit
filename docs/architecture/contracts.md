@@ -1,7 +1,7 @@
 # Architecture Contracts
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [contracts.zh-CN.md](./contracts.zh-CN.md)
 

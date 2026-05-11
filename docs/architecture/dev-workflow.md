@@ -1,7 +1,7 @@
 # Development Workflow
 
-Status: Draft
-Date: 2026-05-02
+Status: Active
+Date: 2026-05-11
 
 Simplified Chinese version: [dev-workflow.zh-CN.md](./dev-workflow.zh-CN.md)
 
