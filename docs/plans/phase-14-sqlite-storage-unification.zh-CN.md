@@ -1,9 +1,32 @@
 # Phase 14：SQLite 存储统一升级
 
-状态：计划中
+状态：部分（Step 1–4 已交付；Step 5、6、7 推迟到 Phase 14b）
 日期：2026-05-11
 
 English version: [phase-14-sqlite-storage-unification.md](./phase-14-sqlite-storage-unification.md)
+
+## 进度
+
+状态：部分 —— 两个高流量 store 现在已经有 SQLite 实现与 JSONL 并列；记忆索引与迁移工具推迟。
+
+已完成提交：
+
+- [x] Step 1：docs(arch) session-storage 与 task-flow 的 Phase 14 提示 — `2d0d0f2`
+- [x] Step 2 + 3：feat(sessions) better-sqlite3 + 带 WAL 的 SqliteSessionStore — `0c72269`
+- [x] Step 4：feat(taskflow) SqliteTaskFlowStore，drainPendingForParent 单事务实现 — `c83edd8`
+- [x] Step 8：docs 标记 Phase 14 部分 + roadmap 更新 — （本次提交）
+
+推迟到 Phase 14b：
+
+- [ ] Step 5：带 FTS5 与可选 sqlite-vec 的 SQLite 记忆索引。被 Phase 13 推迟的混合 `memory_search` 阻塞。
+- [ ] Step 6：`vole migrate jsonl-to-sqlite` 命令，含 `--dry-run`、`--force`、自动备份与行数校验。机械工作但需要谨慎的损坏恢复测试。
+- [ ] Step 7：启动迁移提示。Step 6 落地后是 trivial 的；一起做。
+
+今天可用：
+
+- 在测试代码或未来 adapter 中直接 `new SqliteSessionStore({ databasePath })` 或 `new SqliteTaskFlowStore({ databasePath })`。
+- 两个 store 满足与 JSONL 完全相同的接口契约；gateway / CLI 可通过未来的 `storage.backend` 配置开关切换 backend，消费者无需改动。
+- 从现有 JSONL 数据迁移的路径在 Phase 14b；目前 SQLite store 从空数据库起步。
 
 ## 1. 目的
 

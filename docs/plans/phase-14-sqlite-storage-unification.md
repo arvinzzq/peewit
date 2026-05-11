@@ -1,9 +1,32 @@
 # Phase 14: SQLite Storage Unification
 
-Status: Planned
+Status: Partial (Steps 1–4 shipped; Steps 5, 6, 7 deferred to Phase 14b)
 Date: 2026-05-11
 
 Simplified Chinese version: [phase-14-sqlite-storage-unification.zh-CN.md](./phase-14-sqlite-storage-unification.zh-CN.md)
+
+## Progress
+
+Status: Partial — the two highest-traffic stores are now SQLite-capable side-by-side with the JSONL implementations; the memory index and migration tooling are deferred.
+
+Completed commits:
+
+- [x] Step 1: docs(arch) Phase 14 callouts on session-storage and task-flow — `2d0d0f2`
+- [x] Step 2 + 3: feat(sessions) better-sqlite3 + SqliteSessionStore with WAL — `0c72269`
+- [x] Step 4: feat(taskflow) SqliteTaskFlowStore with single-transaction drainPendingForParent — `c83edd8`
+- [x] Step 8: docs mark Phase 14 partial + roadmap update — (this commit)
+
+Deferred to Phase 14b:
+
+- [ ] Step 5: SQLite memory index with FTS5 + optional sqlite-vec for embedding similarity. Blocked by Phase 13's hybrid `memory_search` work which itself was deferred to 13b.
+- [ ] Step 6: `vole migrate jsonl-to-sqlite` command with `--dry-run`, `--force`, automatic backup, and row-count verification. Mechanical work but needs careful corruption-recovery testing.
+- [ ] Step 7: startup migration prompt. Trivial after Step 6 lands; bundled with it.
+
+What is usable today:
+
+- Construct `SqliteSessionStore({ databasePath })` or `SqliteTaskFlowStore({ databasePath })` directly in test code or future adapters.
+- Both stores satisfy the same interfaces as the existing JSONL stores; the gateway / CLI wiring can be flipped via a future `storage.backend` config knob without changing the consumers.
+- The migration path from existing JSONL data lives in Phase 14b; for now the SQLite stores start with empty databases.
 
 ## 1. Purpose
 
