@@ -5,6 +5,8 @@ Date: 2026-05-11
 
 Simplified Chinese version: [prompt-assembly.zh-CN.md](./prompt-assembly.zh-CN.md)
 
+> **Phase 13 update**: the system prompt grows from 8 sections to a full 14-section layout aligned with OpenClaw: adds Reasoning, Reply Tags, Documentation, Self-Update, Execution Bias, and Current Date & Time. Intake gains an inline directive parser that strips `/think:<level>`, `/stop`, and `/compact` tokens from user input before the model sees the message and applies each as a runtime hint. The `vole compact` CLI command exposes user-initiated compaction at the gateway level. See [Phase 13 plan](../plans/phase-13-memory-and-prompt-enhancement.md).
+
 ## 1. Purpose
 
 Prompt assembly builds the model-facing instructions and context for an agent run.

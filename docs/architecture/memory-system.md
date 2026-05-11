@@ -1,9 +1,11 @@
 # Memory System
 
-Status: Active
+Status: Active · Phase 13 expansion in progress (hybrid search, DREAMS.md review, pre-compaction flush)
 Date: 2026-05-11
 
 Simplified Chinese version: [memory-system.zh-CN.md](./memory-system.zh-CN.md)
+
+> **Phase 13 update**: the memory tools (`memory_search`, `memory_get`, `append_daily_memory`) move from `@vole/tools` into a dedicated `@vole/memory` package. `memory_search` becomes hybrid (vector top-K via an `EmbeddingProvider` + keyword fallback, fused with reciprocal rank fusion). Dreaming output writes to `DREAMS.md` for human review; promotion to `MEMORY.md` requires `vole memory review` approval. Before every compaction, the runtime inserts a silent "save durable facts" turn so the agent gets one chance to call `append_daily_memory` before the conversation is compressed. See [Phase 13 plan](../plans/phase-13-memory-and-prompt-enhancement.md).
 
 ## 1. Purpose
 

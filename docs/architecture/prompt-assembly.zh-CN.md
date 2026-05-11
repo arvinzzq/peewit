@@ -5,6 +5,8 @@
 
 English version: [prompt-assembly.md](./prompt-assembly.md)
 
+> **Phase 13 更新**：system prompt 从 8 段扩展到完整的 14 段布局，对齐 OpenClaw：新增 Reasoning、Reply Tags、Documentation、Self-Update、Execution Bias、Current Date & Time。intake 阶段加入 inline 指令解析器，模型看到消息之前剥除用户输入里的 `/think:<level>`、`/stop`、`/compact`，并把每条作为运行时 hint 应用。`vole compact` CLI 命令在 gateway 层暴露用户主动触发的压缩。见 [Phase 13 计划](../plans/phase-13-memory-and-prompt-enhancement.zh-CN.md)。
+
 ## 1. 目的
 
 Prompt assembly 为一次 Agent run 构建模型可见的指令和上下文。

@@ -5,6 +5,8 @@
 
 English version: [context-compaction.md](./context-compaction.md)
 
+> **Phase 13 更新**：压缩前先跑一回合"记忆 flush"。运行时注入一条 system 消息，请 agent 通过 `append_daily_memory` 落盘任何持久事实；agent 在旧消息被压缩前有一回合的机会照做。这避免只存在于即将被压缩窗口的事实丢失。可通过 `compaction.memoryFlush.enabled` 配置（默认 `true`）。见 [Phase 13 计划](../plans/phase-13-memory-and-prompt-enhancement.zh-CN.md)。
+
 ## 1. 目的
 
 随着 session 增长，累积的会话消息最终会接近模型的 context window 上限。如果没有 compaction，长时间运行的 agent session 会因 context overflow 错误失败，或静默地丢弃早期消息。
