@@ -1,6 +1,6 @@
 /**
  * INPUT: CLI args, config, model providers, skill loader, session/trace stores, taskflow store, built-in tools, optional fake outputs and line reader.
- * OUTPUT: Chat, approvals, tool execution, todos, skill subcommands, session/task/taskflow listings, daemon cron, trace, redacted config, stdout/stderr, GatewayCore admission for chat runs (global / subagent / session lanes), run --dream consolidation, session persistence of all turn messages and compaction boundaries, `vole doctor` read-only diagnostics.
+ * OUTPUT: Chat, approvals, tool execution, todos, skill subcommands, session/task/taskflow listings, daemon cron, trace, redacted config, stdout/stderr, GatewayCore admission for chat runs (global / subagent / session lanes), run --dream consolidation to DREAMS.md, `vole memory review` approve / reject flow, session persistence of all turn messages and compaction boundaries, `vole doctor` read-only diagnostics.
  * POS: CLI adapter layer; translates terminal commands and approval prompts; submits chat runs to GatewayCore without owning agent behavior.
  *
  * Update this header and the parent directory docs when responsibilities change.
@@ -24,7 +24,13 @@ import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@vol
 import { JsonlTaskFlowStore } from "@vole/taskflow";
 import { SkillLoader, SkillManager, toSkillSummary, type SkillDefinition } from "@vole/skills";
 import { createAppendFileTool, createEditFileTool, createListDirectoryTool, createLoadSkillTool, createReadFileTool, createReadWebPageTool, createSearchFilesTool, createShellTool, createUpdateHeartbeatTool, createWriteFileTool, type SkillFileMap } from "@vole/tools";
-import { createAppendDailyMemoryTool, createMemoryGetTool, createMemorySearchTool } from "@vole/memory";
+import {
+  applyDreamDecision,
+  createAppendDailyMemoryTool,
+  createMemoryGetTool,
+  createMemorySearchTool,
+  readDreamsFile
+} from "@vole/memory";
 
 export const cliPackageName = "@vole/cli";
 
@@ -251,6 +257,17 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
   // ── doctor ────────────────────────────────────────────────────────────────
   program.command("doctor").description("Read-only diagnostic checks for workspace, sessions, taskflow, and skills")
     .action(async () => { actionResult = await runDoctor(options); });
+
+  // ── memory ────────────────────────────────────────────────────────────────
+  const memCmd = program.command("memory").description("Inspect and curate workspace memory");
+  const reviewCmd = memCmd.command("review").description("Review DREAMS.md candidate entries");
+  reviewCmd.action(async () => { actionResult = await runMemoryReviewList(options); });
+  reviewCmd.command("list").description("List pending DREAMS.md entries")
+    .action(async () => { actionResult = await runMemoryReviewList(options); });
+  reviewCmd.command("approve <id>").description("Promote a DREAMS.md entry into MEMORY.md, or pass \"all\" to approve every pending entry")
+    .action(async (id: string) => { actionResult = await runMemoryReviewDecision("approve", id, options); });
+  reviewCmd.command("reject <id>").description("Archive a DREAMS.md entry to DREAMS/archive/, or pass \"all\" to reject every pending entry")
+    .action(async (id: string) => { actionResult = await runMemoryReviewDecision("reject", id, options); });
 
   // ── subagents ─────────────────────────────────────────────────────────────
   const saCmd = program.command("subagents").description("Inspect and control async sub-agents");
@@ -695,6 +712,72 @@ async function runDoctor(options: RunCliOptions): Promise<CliResult> {
   return { exitCode: err > 0 ? 1 : 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
 }
 
+async function runMemoryReviewList(options: RunCliOptions): Promise<CliResult> {
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
+  const workspace = config.workspace.root;
+  const entries = await readDreamsFile(workspace);
+  const pending = entries.filter((e) => e.status === "pending");
+  const lines: string[] = ["DREAMS.md review:", ""];
+  if (pending.length === 0) {
+    lines.push("  (no pending entries)");
+    lines.push("");
+    lines.push("Run `vole run --dream` to generate candidate entries.");
+    return { exitCode: 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
+  }
+  for (const entry of pending) {
+    lines.push(`  ${entry.id}${entry.source !== undefined ? `  (source: ${entry.source})` : ""}`);
+    const preview = entry.body.split("\n").slice(0, 3).join(" ").slice(0, 120);
+    lines.push(`    ${preview}`);
+    lines.push("");
+  }
+  lines.push(`${pending.length} pending entr${pending.length === 1 ? "y" : "ies"}.`);
+  lines.push("Approve: vole memory review approve <id>   Reject: vole memory review reject <id>");
+  return { exitCode: 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
+}
+
+async function runMemoryReviewDecision(
+  decision: "approve" | "reject",
+  id: string,
+  options: RunCliOptions
+): Promise<CliResult> {
+  const config = await loadCliConfig({ ...(options.env ? { env: options.env } : {}), ...(options.cwd ? { cwd: options.cwd } : {}) });
+  const workspace = config.workspace.root;
+
+  if (id === "all") {
+    const entries = await readDreamsFile(workspace);
+    const pending = entries.filter((e) => e.status === "pending");
+    if (pending.length === 0) {
+      return { exitCode: 0, stdout: "No pending DREAMS.md entries.\n", stderr: "" };
+    }
+    const handled: string[] = [];
+    for (const entry of pending) {
+      const result = await applyDreamDecision(workspace, entry.id, decision);
+      if (result !== undefined) handled.push(entry.id);
+    }
+    return {
+      exitCode: 0,
+      stdout: `${decision === "approve" ? "Approved" : "Rejected"}:\n${handled.map((h) => `  ${h}`).join("\n")}\n`,
+      stderr: ""
+    };
+  }
+
+  const result = await applyDreamDecision(workspace, id, decision);
+  if (result === undefined) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: `DREAMS.md has no pending entry with id "${id}".\n`
+    };
+  }
+  return {
+    exitCode: 0,
+    stdout: decision === "approve"
+      ? `Approved ${id}; appended to MEMORY.md.\n`
+      : `Rejected ${id}; archived to DREAMS/archive/${id}.md.\n`,
+    stderr: ""
+  };
+}
+
 async function runCompactInfo(): Promise<CliResult> {
   const lines = [
     "Compaction:",
@@ -787,11 +870,26 @@ async function runMemoryDreaming(options: RunCliOptions): Promise<CliResult> {
     };
   }
 
-  const dreamGoal = `You are a memory consolidation agent.
-Review the recent daily memory files and the current MEMORY.md in the workspace.
-Identify key facts, decisions, and patterns worth preserving long-term.
-Append a consolidation summary to MEMORY.md using the write_file tool.
-Be concise and factual. Do not duplicate what is already in MEMORY.md.`;
+  const dreamGoal = `You are a memory consolidation agent. Review the recent daily memory files (memory/YYYY-MM-DD.md) and the current MEMORY.md.
+
+Write candidate consolidation entries to DREAMS.md using the write_file tool. DO NOT modify MEMORY.md directly — every promotion requires the user's explicit approval via \`vole memory review approve <id>\`.
+
+DREAMS.md format (append to whatever already exists; preserve existing entries):
+
+  # Dream Entries — Pending Review
+
+  ## [pending] <YYYY-MM-DD-NNN>
+  **Source**: <comma-separated list of source files>
+
+  <one short paragraph summarizing the durable fact or pattern>
+
+  ---
+
+Rules:
+- Each entry id must be unique. Use today's date plus a zero-padded serial (e.g. 2026-05-12-001).
+- One paragraph per entry. Be concise and factual.
+- Do not propose entries that duplicate facts already in MEMORY.md.
+- If there is nothing new worth promoting, write a single header line and stop — do not invent material.`;
 
   return runBackgroundTask(dreamGoal, "auto", options);
 }

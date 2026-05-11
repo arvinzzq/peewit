@@ -278,6 +278,164 @@ export function createMemoryGetTool(workspaceRoot: string): ExecutableTool {
   };
 }
 
+// ─── Phase 13b Step 4: DREAMS.md review workflow ──────────────────────────────
+
+export type DreamEntryStatus = "pending" | "approved" | "rejected";
+
+export interface DreamEntry {
+  id: string;
+  status: DreamEntryStatus;
+  source?: string;
+  body: string;
+}
+
+const DREAM_ENTRY_HEADER_RE = /^## \[(pending|approved|rejected)\]\s+([A-Za-z0-9_.\-]+)\s*$/;
+const DREAM_SOURCE_LINE_RE = /^\*\*Source\*\*:\s*(.*)$/;
+
+/**
+ * Parse a DREAMS.md document into its individual entries. Entries are separated
+ * by `---` lines; each entry starts with `## [status] <id>` and may have a
+ * `**Source**: ...` second line. The remaining lines until the next `---` or
+ * end-of-file form the body.
+ *
+ * Free-form text outside entry blocks is silently skipped — the agent is
+ * allowed to add notes between entries and they will not become DreamEntry
+ * records.
+ */
+export function parseDreamsFile(content: string): DreamEntry[] {
+  const entries: DreamEntry[] = [];
+  const lines = content.split(/\r?\n/);
+  let current: { id: string; status: DreamEntryStatus; source?: string; bodyLines: string[] } | undefined;
+
+  const flush = () => {
+    if (current === undefined) return;
+    while (current.bodyLines.length > 0 && current.bodyLines[current.bodyLines.length - 1]?.trim() === "") {
+      current.bodyLines.pop();
+    }
+    while (current.bodyLines.length > 0 && current.bodyLines[0]?.trim() === "") {
+      current.bodyLines.shift();
+    }
+    entries.push({
+      id: current.id,
+      status: current.status,
+      ...(current.source !== undefined ? { source: current.source } : {}),
+      body: current.bodyLines.join("\n").trim()
+    });
+    current = undefined;
+  };
+
+  for (const line of lines) {
+    const headerMatch = line.match(DREAM_ENTRY_HEADER_RE);
+    if (headerMatch !== null) {
+      flush();
+      const [, statusRaw, id] = headerMatch;
+      current = {
+        id: id ?? "",
+        status: (statusRaw ?? "pending") as DreamEntryStatus,
+        bodyLines: []
+      };
+      continue;
+    }
+    if (line.trim() === "---") {
+      flush();
+      continue;
+    }
+    if (current === undefined) continue;
+    if (current.source === undefined && current.bodyLines.length === 0) {
+      const sourceMatch = line.match(DREAM_SOURCE_LINE_RE);
+      if (sourceMatch !== null) {
+        current.source = (sourceMatch[1] ?? "").trim();
+        continue;
+      }
+    }
+    current.bodyLines.push(line);
+  }
+  flush();
+  return entries;
+}
+
+export function serializeDreamsFile(entries: DreamEntry[]): string {
+  const blocks: string[] = ["# Dream Entries — Pending Review", ""];
+  for (const entry of entries) {
+    blocks.push(`## [${entry.status}] ${entry.id}`);
+    if (entry.source !== undefined) blocks.push(`**Source**: ${entry.source}`);
+    blocks.push("");
+    blocks.push(entry.body.trim());
+    blocks.push("");
+    blocks.push("---");
+    blocks.push("");
+  }
+  return blocks.join("\n");
+}
+
+/**
+ * Read DREAMS.md from the workspace and return its parsed entries. Returns
+ * an empty array if the file does not exist.
+ */
+export async function readDreamsFile(workspaceRoot: string): Promise<DreamEntry[]> {
+  const dreamsPath = resolve(workspaceRoot, "DREAMS.md");
+  try {
+    const content = await readFile(dreamsPath, "utf8");
+    return parseDreamsFile(content);
+  } catch (error) {
+    if (isFileNotFound(error)) return [];
+    throw error;
+  }
+}
+
+function isFileNotFound(error: unknown): boolean {
+  return error instanceof Error && "code" in error && (error as { code?: string }).code === "ENOENT";
+}
+
+/**
+ * Apply a single approve/reject decision to DREAMS.md.
+ *
+ * - "approve": removes the entry from DREAMS.md and appends it to MEMORY.md as
+ *   a timestamped section.
+ * - "reject": removes the entry from DREAMS.md and archives it under
+ *   `DREAMS/archive/<id>.md`.
+ *
+ * Returns the post-decision DreamEntry (with updated status) or undefined when
+ * no entry with the given id was found.
+ */
+export async function applyDreamDecision(
+  workspaceRoot: string,
+  id: string,
+  decision: "approve" | "reject",
+  options?: { now?: () => Date }
+): Promise<DreamEntry | undefined> {
+  const root = resolve(workspaceRoot);
+  const dreamsPath = resolve(root, "DREAMS.md");
+  const memoryPath = resolve(root, "MEMORY.md");
+
+  let entries: DreamEntry[];
+  try {
+    entries = parseDreamsFile(await readFile(dreamsPath, "utf8"));
+  } catch (error) {
+    if (isFileNotFound(error)) return undefined;
+    throw error;
+  }
+
+  const idx = entries.findIndex((entry) => entry.id === id);
+  if (idx === -1) return undefined;
+  const target = entries[idx]!;
+  const remaining = [...entries.slice(0, idx), ...entries.slice(idx + 1)];
+
+  if (decision === "approve") {
+    const now = (options?.now?.() ?? new Date()).toISOString();
+    const block = `\n## Promoted from DREAMS.md (${id}, ${now})\n\n${target.body}\n`;
+    await writeFileFs(memoryPath, block, { flag: "a" });
+  } else {
+    const archiveDir = resolve(root, "DREAMS", "archive");
+    await mkdir(archiveDir, { recursive: true });
+    const body = `# ${id}\n\nStatus: rejected\nArchived-At: ${(options?.now?.() ?? new Date()).toISOString()}\n\n${target.body}\n`;
+    await writeFileFs(resolve(archiveDir, `${id}.md`), body);
+  }
+
+  await writeFileFs(dreamsPath, serializeDreamsFile(remaining));
+  return { ...target, status: decision === "approve" ? "approved" : "rejected" };
+}
+
 export function createAppendDailyMemoryTool(
   options?: { getCurrentDate?: () => string }
 ): ExecutableTool {

@@ -1461,6 +1461,94 @@ describe("runCli", () => {
     }
   });
 
+  test("memory review list reports no pending entries on empty workspace", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-memreview-empty-"));
+    try {
+      const result = await runCli(["memory", "review"], "0.0.0", {
+        cwd: directory,
+        env: { ...process.env, VOLE_WORKSPACE_ROOT: directory }
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("DREAMS.md review:");
+      expect(result.stdout).toContain("(no pending entries)");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("memory review approve promotes entry to MEMORY.md and removes from DREAMS.md", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-memreview-approve-"));
+    try {
+      const dreams = [
+        "# Dream Entries — Pending Review",
+        "",
+        "## [pending] 2026-05-12-001",
+        "**Source**: memory/2026-05-10.md",
+        "",
+        "User prefers concise answers.",
+        "",
+        "---",
+        ""
+      ].join("\n");
+      await writeFile(join(directory, "DREAMS.md"), dreams);
+      const result = await runCli(["memory", "review", "approve", "2026-05-12-001"], "0.0.0", {
+        cwd: directory,
+        env: { ...process.env, VOLE_WORKSPACE_ROOT: directory }
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Approved 2026-05-12-001");
+      const memory = await readFile(join(directory, "MEMORY.md"), "utf8");
+      expect(memory).toContain("Promoted from DREAMS.md (2026-05-12-001");
+      expect(memory).toContain("User prefers concise answers.");
+      const remaining = await readFile(join(directory, "DREAMS.md"), "utf8");
+      expect(remaining).not.toContain("2026-05-12-001");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("memory review reject archives entry under DREAMS/archive/", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-memreview-reject-"));
+    try {
+      const dreams = [
+        "# Dream Entries — Pending Review",
+        "",
+        "## [pending] 2026-05-12-002",
+        "",
+        "Speculative pattern not worth keeping.",
+        "",
+        "---",
+        ""
+      ].join("\n");
+      await writeFile(join(directory, "DREAMS.md"), dreams);
+      const result = await runCli(["memory", "review", "reject", "2026-05-12-002"], "0.0.0", {
+        cwd: directory,
+        env: { ...process.env, VOLE_WORKSPACE_ROOT: directory }
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Rejected 2026-05-12-002");
+      const archived = await readFile(join(directory, "DREAMS", "archive", "2026-05-12-002.md"), "utf8");
+      expect(archived).toContain("Status: rejected");
+      expect(archived).toContain("Speculative pattern");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("memory review approve unknown id exits non-zero", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-memreview-unknown-"));
+    try {
+      const result = await runCli(["memory", "review", "approve", "does-not-exist"], "0.0.0", {
+        cwd: directory,
+        env: { ...process.env, VOLE_WORKSPACE_ROOT: directory }
+      });
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("does-not-exist");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
   test("doctor reports ok summary on an empty workspace", async () => {
     const directory = await mkdtemp(join(tmpdir(), "vole-doctor-empty-"));
     try {

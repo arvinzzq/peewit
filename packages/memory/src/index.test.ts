@@ -5,9 +5,14 @@ import { tmpdir } from "node:os";
 import type { AppendDailyMemoryResult, MemoryGetResult, MemorySearchResult } from "@vole/tools";
 import {
   FakeEmbeddingProvider,
+  applyDreamDecision,
   createAppendDailyMemoryTool,
   createMemoryGetTool,
   createMemorySearchTool,
+  parseDreamsFile,
+  readDreamsFile,
+  serializeDreamsFile,
+  type DreamEntry,
   type EmbeddingProvider
 } from "./index.js";
 
@@ -222,6 +227,111 @@ describe("createMemorySearchTool (hybrid)", () => {
       expect(result.results[0]?.excerpt).toContain("database migrations");
     } finally {
       await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("DREAMS.md review workflow", () => {
+  const sample = [
+    "# Dream Entries — Pending Review",
+    "",
+    "## [pending] 2026-05-12-001",
+    "**Source**: memory/2026-05-10.md, memory/2026-05-11.md",
+    "",
+    "The user strongly prefers concise responses without trailing summaries.",
+    "",
+    "---",
+    "",
+    "## [pending] 2026-05-12-002",
+    "",
+    "Vole now ships SqliteSessionStore as an option.",
+    "",
+    "---",
+    ""
+  ].join("\n");
+
+  test("parseDreamsFile reads pending entries with id, source, and body", () => {
+    const entries = parseDreamsFile(sample);
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toMatchObject({
+      id: "2026-05-12-001",
+      status: "pending",
+      source: "memory/2026-05-10.md, memory/2026-05-11.md"
+    });
+    expect(entries[0]?.body).toContain("concise responses");
+    expect(entries[1]?.id).toBe("2026-05-12-002");
+    expect(entries[1]?.source).toBeUndefined();
+    expect(entries[1]?.body).toContain("SqliteSessionStore");
+  });
+
+  test("serializeDreamsFile round-trips entries through parse", () => {
+    const original: DreamEntry[] = [
+      { id: "a", status: "pending", body: "First body." },
+      { id: "b", status: "pending", source: "MEMORY.md", body: "Second body." }
+    ];
+    const reparsed = parseDreamsFile(serializeDreamsFile(original));
+    expect(reparsed).toEqual(original);
+  });
+
+  test("readDreamsFile returns empty list when DREAMS.md is missing", async () => {
+    const ws = await mkdtemp(join(tmpdir(), "vole-dreams-missing-"));
+    try {
+      expect(await readDreamsFile(ws)).toEqual([]);
+    } finally {
+      await rm(ws, { force: true, recursive: true });
+    }
+  });
+
+  test("applyDreamDecision approve appends entry to MEMORY.md and removes from DREAMS.md", async () => {
+    const ws = await mkdtemp(join(tmpdir(), "vole-dreams-approve-"));
+    try {
+      await writeFile(join(ws, "DREAMS.md"), sample);
+      const result = await applyDreamDecision(ws, "2026-05-12-001", "approve", {
+        now: () => new Date("2026-05-12T10:00:00Z")
+      });
+      expect(result?.status).toBe("approved");
+
+      const memory = await readFile(join(ws, "MEMORY.md"), "utf8");
+      expect(memory).toContain("Promoted from DREAMS.md (2026-05-12-001");
+      expect(memory).toContain("concise responses");
+
+      const remaining = parseDreamsFile(await readFile(join(ws, "DREAMS.md"), "utf8"));
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0]?.id).toBe("2026-05-12-002");
+    } finally {
+      await rm(ws, { force: true, recursive: true });
+    }
+  });
+
+  test("applyDreamDecision reject moves entry to DREAMS/archive/<id>.md", async () => {
+    const ws = await mkdtemp(join(tmpdir(), "vole-dreams-reject-"));
+    try {
+      await writeFile(join(ws, "DREAMS.md"), sample);
+      const result = await applyDreamDecision(ws, "2026-05-12-002", "reject", {
+        now: () => new Date("2026-05-12T10:00:00Z")
+      });
+      expect(result?.status).toBe("rejected");
+
+      const archived = await readFile(join(ws, "DREAMS", "archive", "2026-05-12-002.md"), "utf8");
+      expect(archived).toContain("Status: rejected");
+      expect(archived).toContain("SqliteSessionStore");
+
+      const remaining = parseDreamsFile(await readFile(join(ws, "DREAMS.md"), "utf8"));
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0]?.id).toBe("2026-05-12-001");
+    } finally {
+      await rm(ws, { force: true, recursive: true });
+    }
+  });
+
+  test("applyDreamDecision returns undefined when id is not present", async () => {
+    const ws = await mkdtemp(join(tmpdir(), "vole-dreams-missing-id-"));
+    try {
+      await writeFile(join(ws, "DREAMS.md"), sample);
+      const result = await applyDreamDecision(ws, "no-such-id", "approve");
+      expect(result).toBeUndefined();
+    } finally {
+      await rm(ws, { force: true, recursive: true });
     }
   });
 });

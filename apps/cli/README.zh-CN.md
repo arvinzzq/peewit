@@ -65,6 +65,9 @@ vole sessions
 | `vole subagents list` | 列出近期子代理任务记录（taskflow） |
 | `vole subagents kill <id\|all>` | 把子代理任务标记为已取消（或用 "all" 停掉所有 running） |
 | `vole doctor` | 只读诊断：workspace、sessions、taskflow、skills 状态 |
+| `vole memory review` | 列出 DREAMS.md 中待审阅的候选条目 |
+| `vole memory review approve <id\|all>` | 把 DREAMS.md 条目提升到 MEMORY.md |
+| `vole memory review reject <id\|all>` | 把 DREAMS.md 条目归档到 DREAMS/archive/ |
 
 ## 对话内指令
 

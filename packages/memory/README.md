@@ -79,8 +79,8 @@ Memory has its own roadmap: hybrid retrieval, dreaming, review workflow, eventua
 |---|---|---|
 | `package.json` | Package manifest | Declares the memory package with one workspace dependency on `@vole/tools` (for result types). |
 | `tsconfig.json` | TypeScript config | Builds the memory package; references `@vole/tools`. |
-| `src/index.ts` | Memory tools + hybrid retrieval | Exports `memoryPackageName`, `EmbeddingProvider`, `EmbeddingProviderName`, `FakeEmbeddingProvider`, `MemorySearchToolOptions`, `createMemorySearchTool`, `createMemoryGetTool`, `createAppendDailyMemoryTool`. |
-| `src/index.test.ts` | Memory tests | Covers append (success + empty + multi-append + directory creation), keyword search (empty dir, MEMORY.md + USER.md + daily notes hits, case-insensitive, maxResults), hybrid search (deterministic + orthogonal vectors, vector ranking with provider supplied, keyword-only fallback on provider failure, RRF fusion when both signals rank the same paragraph), get (valid + missing + traversal + absolute + non-md rejection). |
+| `src/index.ts` | Memory tools + hybrid retrieval + DREAMS workflow | Exports `memoryPackageName`, `EmbeddingProvider`, `EmbeddingProviderName`, `FakeEmbeddingProvider`, `MemorySearchToolOptions`, `createMemorySearchTool`, `createMemoryGetTool`, `createAppendDailyMemoryTool`, plus the Phase 13b Step 4 DREAMS.md primitives: `DreamEntry`, `DreamEntryStatus`, `parseDreamsFile`, `serializeDreamsFile`, `readDreamsFile`, `applyDreamDecision`. |
+| `src/index.test.ts` | Memory tests | Covers append, keyword search, hybrid search (FakeEmbedding determinism + orthogonality, vector ranking, keyword-only fallback, RRF fusion), get (valid + missing + traversal + absolute + non-md), and DREAMS workflow (parse, serialize round-trip, missing-file empty list, approve appends to MEMORY.md, reject archives under DREAMS/archive/, unknown-id returns undefined). |
 
 ## Update Reminder
 

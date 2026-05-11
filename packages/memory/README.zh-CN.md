@@ -79,8 +79,8 @@ interface EmbeddingProvider {
 |---|---|---|
 | `package.json` | Package manifest | 声明 memory package，单一 workspace 依赖 `@vole/tools`（取结果类型）。 |
 | `tsconfig.json` | TypeScript 配置 | 构建 memory package；引用 `@vole/tools`。 |
-| `src/index.ts` | 记忆工具 + 混合检索 | 导出 `memoryPackageName`、`EmbeddingProvider`、`EmbeddingProviderName`、`FakeEmbeddingProvider`、`MemorySearchToolOptions`、`createMemorySearchTool`、`createMemoryGetTool`、`createAppendDailyMemoryTool`。 |
-| `src/index.test.ts` | 记忆测试 | 覆盖 append（成功 + 空 + 多次追加 + 目录创建）、关键词 search（空目录、MEMORY.md + USER.md + 日记命中、大小写不敏感、maxResults）、混合 search（确定性 + 正交向量、传 provider 时按向量排序、provider 失败时回退到关键词、两路信号同时命中时的 RRF 融合）、get（合法 + 缺失 + 穿越 + 绝对 + 非 md 拒绝）。 |
+| `src/index.ts` | 记忆工具 + 混合检索 + DREAMS 工作流 | 导出 `memoryPackageName`、`EmbeddingProvider`、`EmbeddingProviderName`、`FakeEmbeddingProvider`、`MemorySearchToolOptions`、`createMemorySearchTool`、`createMemoryGetTool`、`createAppendDailyMemoryTool`，以及 Phase 13b Step 4 DREAMS.md 原语：`DreamEntry`、`DreamEntryStatus`、`parseDreamsFile`、`serializeDreamsFile`、`readDreamsFile`、`applyDreamDecision`。 |
+| `src/index.test.ts` | 记忆测试 | 覆盖 append、关键词 search、混合 search（FakeEmbedding 确定性 + 正交、向量排序、provider 失败回退、RRF 融合）、get（合法 + 缺失 + 穿越 + 绝对 + 非 md），以及 DREAMS 工作流（parse、serialize round-trip、缺失文件返回空列表、approve 追加到 MEMORY.md、reject 归档到 DREAMS/archive/、未知 id 返回 undefined）。 |
 
 ## 更新提醒
 
