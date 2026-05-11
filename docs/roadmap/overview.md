@@ -46,7 +46,7 @@ The roadmap follows a dual-track approach:
 | Phase 11 | Complete | Gateway and lanes | Cross-process safe runtime infrastructure | GatewayCore, LaneRegistry, session key naming, file lock |
 | Phase 12 | Complete | Multi-agent runtime maturity | Push-completion sub-agents with fork mode, depth and concurrency policy | Sub-agent push announce, fork context, sub-agent management surface |
 | Phase 13 | Partial | Memory and prompt enhancement | Foundations: @vole/memory package, inline directive parser. Hybrid search + DREAMS + flush + prompt sections in 13b. | @vole/memory split, parseInlineDirectives, EmbeddingProvider interface, MemoryFlushOptions |
-| Phase 14 | Planned | SQLite storage unification | Indexed session / TaskFlow / memory storage at scale | SQLite stores, FTS5 memory index, migration tooling |
+| Phase 14 | Partial | SQLite storage unification | SqliteSessionStore + SqliteTaskFlowStore shipped; memory index + migration in 14b | SQLite stores, FTS5 memory index, migration tooling |
 | Phase 15 | Planned | Channels and multi-agent identity | Telegram and email channels with independent agent identities | agents/<id>/ layout, Channel interface, Telegram, Email |
 | Phase 16 | Planned | Sandbox and plugin runtime | Safe third-party skill execution, Docker / worker sandboxing, doctor tool | SandboxBackend, WorkerThreadSandbox, vole doctor |
 
@@ -590,11 +590,13 @@ Non-goals: no Gemini / Mistral embeddings; no SQLite (Phase 14); no memory-core 
 
 ## 18. Phase 14: SQLite Storage Unification
 
-Status: Planned. Plan document: [phase-14-sqlite-storage-unification.md](../plans/phase-14-sqlite-storage-unification.md).
+Status: Partial. Plan document: [phase-14-sqlite-storage-unification.md](../plans/phase-14-sqlite-storage-unification.md).
 
 Goal: migrate all persistent stores from JSONL to SQLite — sessions, TaskFlow records, and the memory index — with FTS5 keyword search, indexed queries, and atomic multi-record updates.
 
-Architecture added: `better-sqlite3` dependency; `SqliteSessionStore`, `SqliteTaskFlowStore`, SQLite memory index with FTS5 plus optional `sqlite-vec`; `vole migrate jsonl-to-sqlite` command; startup migration prompt; schema versioning.
+Architecture added (this phase): `better-sqlite3` dependency (compiled via pnpm `onlyBuiltDependencies`, marked external in the CLI tsup bundle); `SqliteSessionStore` and `SqliteTaskFlowStore` implementing the existing `SessionStore` / `TaskFlowStore` interfaces with WAL journal mode and proper indexes; `drainPendingForParent` now runs as a single SQLite transaction instead of a full file rewrite.
+
+Deferred to Phase 14b: SQLite memory index with FTS5 + optional `sqlite-vec` (blocked by Phase 13 hybrid `memory_search`); `vole migrate jsonl-to-sqlite` command with backup + row-count verification; startup migration prompt.
 
 Non-goals: no PostgreSQL / remote database; no schema migration DSL; no removal of JSONL stores from the codebase.
 
