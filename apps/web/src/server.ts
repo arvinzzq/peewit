@@ -64,13 +64,12 @@ import { SkillLoader, toSkillSummary } from "@vole/skills";
 import {
   createListDirectoryTool,
   createLoadSkillTool,
-  createMemoryGetTool,
-  createMemorySearchTool,
   createReadFileTool,
   createReadWebPageTool,
   createShellTool,
   createWriteFileTool
 } from "@vole/tools";
+import { createMemoryGetTool, createMemorySearchTool } from "@vole/memory";
 
 /** Module-level GatewayCore singleton — tracks active Web sessions and admits every turn through global / subagent / session lanes. */
 const webGateway = new GatewayCore();

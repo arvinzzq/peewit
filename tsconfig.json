@@ -33,6 +33,9 @@
       "path": "./packages/lanes"
     },
     {
+      "path": "./packages/memory"
+    },
+    {
       "path": "./packages/models"
     },
     {

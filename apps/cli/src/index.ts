@@ -23,7 +23,8 @@ import { BackgroundApprovalResolver, CronScheduler, JsonlTaskStore, writeHeartbe
 import { InMemorySessionStore, JsonlSessionStore, type SessionStore } from "@vole/sessions";
 import { JsonlTaskFlowStore } from "@vole/taskflow";
 import { SkillLoader, SkillManager, toSkillSummary, type SkillDefinition } from "@vole/skills";
-import { createAppendDailyMemoryTool, createAppendFileTool, createEditFileTool, createListDirectoryTool, createLoadSkillTool, createMemoryGetTool, createMemorySearchTool, createReadFileTool, createReadWebPageTool, createSearchFilesTool, createShellTool, createUpdateHeartbeatTool, createWriteFileTool, type SkillFileMap } from "@vole/tools";
+import { createAppendFileTool, createEditFileTool, createListDirectoryTool, createLoadSkillTool, createReadFileTool, createReadWebPageTool, createSearchFilesTool, createShellTool, createUpdateHeartbeatTool, createWriteFileTool, type SkillFileMap } from "@vole/tools";
+import { createAppendDailyMemoryTool, createMemoryGetTool, createMemorySearchTool } from "@vole/memory";
 
 export const cliPackageName = "@vole/cli";
 

@@ -32,6 +32,7 @@
     "@vole/context": "workspace:*",
     "@vole/core": "workspace:*",
     "@vole/gateway": "workspace:*",
+    "@vole/memory": "workspace:*",
     "@vole/models": "workspace:*",
     "@vole/scheduler": "workspace:*",
     "@vole/sessions": "workspace:*",

@@ -16,6 +16,7 @@
     "@vole/context": "workspace:*",
     "@vole/core": "workspace:*",
     "@vole/gateway": "workspace:*",
+    "@vole/memory": "workspace:*",
     "@vole/models": "workspace:*",
     "@vole/sessions": "workspace:*",
     "@vole/skills": "workspace:*",

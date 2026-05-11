@@ -66,6 +66,9 @@ importers:
       '@vole/gateway':
         specifier: workspace:*
         version: link:../../packages/gateway
+      '@vole/memory':
+        specifier: workspace:*
+        version: link:../../packages/memory
       '@vole/models':
         specifier: workspace:*
         version: link:../../packages/models
@@ -108,6 +111,9 @@ importers:
       '@vole/gateway':
         specifier: workspace:*
         version: link:../../packages/gateway
+      '@vole/memory':
+        specifier: workspace:*
+        version: link:../../packages/memory
       '@vole/models':
         specifier: workspace:*
         version: link:../../packages/models
@@ -196,6 +202,12 @@ importers:
         version: link:../lanes
 
   packages/lanes: {}
+
+  packages/memory:
+    dependencies:
+      '@vole/tools':
+        specifier: workspace:*
+        version: link:../tools
 
   packages/models:
     dependencies:
