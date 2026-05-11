@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { JsonlTaskFlowStore, type PendingAnnouncement } from "./index.js";
+import { JsonlTaskFlowStore, SqliteTaskFlowStore, type PendingAnnouncement } from "./index.js";
 
 function makeTempPath(dir: string, filename: string): string {
   return join(dir, filename);
@@ -254,6 +254,100 @@ describe("JsonlTaskFlowStore — pendingAnnouncement (Phase 12)", () => {
 
       await store.update("c_clear", { clearPendingAnnouncement: true });
       expect((await store.get("c_clear"))?.pendingAnnouncement).toBeUndefined();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("SqliteTaskFlowStore (Phase 14 Step 4)", () => {
+  test("creates and reads a task record", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-sqlite-tf-"));
+    try {
+      const store = new SqliteTaskFlowStore({ databasePath: join(dir, "taskflow.sqlite") });
+      const rec = await store.create({ id: "t1", runtime: "subagent", task: "Do X", status: "queued" });
+      expect(rec.id).toBe("t1");
+      const got = await store.get("t1");
+      expect(got?.task).toBe("Do X");
+      store.close();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("update merges fields and bumps updatedAt", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-sqlite-tf-"));
+    try {
+      const store = new SqliteTaskFlowStore({ databasePath: join(dir, "taskflow.sqlite") });
+      await store.create({ id: "tu", runtime: "subagent", task: "X", status: "queued" });
+      const updated = await store.update("tu", { status: "succeeded", terminalSummary: "done" });
+      expect(updated?.status).toBe("succeeded");
+      expect(updated?.terminalSummary).toBe("done");
+      store.close();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("filters list by status and parentId", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-sqlite-tf-"));
+    try {
+      const store = new SqliteTaskFlowStore({ databasePath: join(dir, "taskflow.sqlite") });
+      await store.create({ id: "p1", runtime: "cli", task: "Parent", status: "running" });
+      await store.create({ id: "c1", runtime: "subagent", task: "Child A", status: "queued", parentId: "p1" });
+      await store.create({ id: "c2", runtime: "subagent", task: "Child B", status: "succeeded", parentId: "p1" });
+      await store.create({ id: "x1", runtime: "cli", task: "Other", status: "queued" });
+
+      const children = await store.list({ parentId: "p1" });
+      expect(children.map((r) => r.id).sort()).toEqual(["c1", "c2"]);
+
+      const queued = await store.list({ status: "queued" });
+      expect(queued.map((r) => r.id).sort()).toEqual(["c1", "x1"]);
+
+      store.close();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("drainPendingForParent atomically returns and clears children's pendingAnnouncements", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-sqlite-tf-"));
+    try {
+      const store = new SqliteTaskFlowStore({ databasePath: join(dir, "taskflow.sqlite") });
+      await store.create({ id: "parent", runtime: "cli", task: "P", status: "running" });
+      await store.create({ id: "c1", runtime: "subagent", task: "C1", status: "queued", parentId: "parent" });
+      await store.create({ id: "c2", runtime: "subagent", task: "C2", status: "queued", parentId: "parent" });
+      const a1: PendingAnnouncement = { taskId: "c1", goal: "G1", status: "succeeded", completedAt: "t1" };
+      const a2: PendingAnnouncement = { taskId: "c2", goal: "G2", status: "failed", completedAt: "t2" };
+      await store.update("c1", { pendingAnnouncement: a1 });
+      await store.update("c2", { pendingAnnouncement: a2 });
+
+      const drained = await store.drainPendingForParent("parent");
+      expect(drained.map((a) => a.taskId).sort()).toEqual(["c1", "c2"]);
+
+      // Children no longer have pendingAnnouncement.
+      expect((await store.get("c1"))?.pendingAnnouncement).toBeUndefined();
+      expect((await store.get("c2"))?.pendingAnnouncement).toBeUndefined();
+
+      // Drain again returns empty.
+      expect(await store.drainPendingForParent("parent")).toEqual([]);
+
+      store.close();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("clearPendingAnnouncement sentinel removes the mailbox column entry", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-sqlite-tf-"));
+    try {
+      const store = new SqliteTaskFlowStore({ databasePath: join(dir, "taskflow.sqlite") });
+      await store.create({ id: "c", runtime: "subagent", task: "X", status: "queued" });
+      await store.update("c", { pendingAnnouncement: { taskId: "c", goal: "X", status: "succeeded", completedAt: "t" } });
+      expect((await store.get("c"))?.pendingAnnouncement).toBeDefined();
+      await store.update("c", { clearPendingAnnouncement: true });
+      expect((await store.get("c"))?.pendingAnnouncement).toBeUndefined();
+      store.close();
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

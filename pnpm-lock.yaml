@@ -246,6 +246,13 @@ importers:
       '@vole/sessions':
         specifier: workspace:*
         version: link:../sessions
+      better-sqlite3:
+        specifier: ^12.9.0
+        version: 12.9.0
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.13
+        version: 7.6.13
 
   packages/tools: {}
 

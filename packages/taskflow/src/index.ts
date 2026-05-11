@@ -145,3 +145,191 @@ export class JsonlTaskFlowStore implements TaskFlowStore {
 
 // Re-export join for consumers that need to build file paths
 export { join };
+
+// ----------------------------------------------------------------------------
+// SqliteTaskFlowStore — Phase 14 Step 4
+// ----------------------------------------------------------------------------
+
+import Database from "better-sqlite3";
+
+export interface SqliteTaskFlowStoreOptions {
+  databasePath: string;
+}
+
+/**
+ * SqliteTaskFlowStore is a drop-in replacement for JsonlTaskFlowStore backed by
+ * better-sqlite3. The `pendingAnnouncement` mailbox column is updated and
+ * cleared with single SQL statements instead of a full file rewrite.
+ *
+ * Schema:
+ *   task_records(id PK, runtime, task, status, progressSummary?, terminalSummary?,
+ *                parentId?, sessionId?, pendingAnnouncementJson?,
+ *                createdAt, updatedAt)
+ *   indexes on status, parentId, runtime, createdAt
+ */
+export class SqliteTaskFlowStore implements TaskFlowStore {
+  readonly #db: Database.Database;
+
+  constructor(options: SqliteTaskFlowStoreOptions) {
+    this.#db = new Database(options.databasePath);
+    this.#db.pragma("journal_mode = WAL");
+    this.#db.pragma("synchronous = NORMAL");
+    this.#initSchema();
+  }
+
+  close(): void {
+    this.#db.close();
+  }
+
+  #initSchema(): void {
+    this.#db.exec(`
+      CREATE TABLE IF NOT EXISTS task_records (
+        id TEXT PRIMARY KEY,
+        runtime TEXT NOT NULL,
+        task TEXT NOT NULL,
+        status TEXT NOT NULL,
+        progressSummary TEXT,
+        terminalSummary TEXT,
+        parentId TEXT,
+        sessionId TEXT,
+        pendingAnnouncementJson TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS task_records_status_idx ON task_records(status);
+      CREATE INDEX IF NOT EXISTS task_records_parent_idx ON task_records(parentId);
+      CREATE INDEX IF NOT EXISTS task_records_runtime_idx ON task_records(runtime);
+      CREATE INDEX IF NOT EXISTS task_records_created_idx ON task_records(createdAt);
+
+      CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY);
+    `);
+    const row = this.#db.prepare("SELECT version FROM schema_version LIMIT 1").get() as { version?: number } | undefined;
+    if (row === undefined) {
+      this.#db.prepare("INSERT INTO schema_version (version) VALUES (?)").run(1);
+    }
+  }
+
+  async create(record: Omit<TaskRecord, "createdAt" | "updatedAt">): Promise<TaskRecord> {
+    const now = new Date().toISOString();
+    const full: TaskRecord = { ...record, createdAt: now, updatedAt: now };
+    this.#db
+      .prepare(`INSERT INTO task_records (
+        id, runtime, task, status, progressSummary, terminalSummary,
+        parentId, sessionId, pendingAnnouncementJson, createdAt, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(
+        full.id, full.runtime, full.task, full.status,
+        full.progressSummary ?? null, full.terminalSummary ?? null,
+        full.parentId ?? null, full.sessionId ?? null,
+        full.pendingAnnouncement === undefined ? null : JSON.stringify(full.pendingAnnouncement),
+        full.createdAt, full.updatedAt
+      );
+    return full;
+  }
+
+  async update(id: string, updates: TaskUpdate): Promise<TaskRecord | undefined> {
+    const existing = await this.get(id);
+    if (existing === undefined) return undefined;
+    const { clearPendingAnnouncement, ...fields } = updates;
+    const next: TaskRecord = { ...existing, ...fields, updatedAt: new Date().toISOString() };
+    if (clearPendingAnnouncement === true) {
+      delete next.pendingAnnouncement;
+    }
+    this.#db
+      .prepare(`UPDATE task_records SET
+        status = ?, progressSummary = ?, terminalSummary = ?,
+        pendingAnnouncementJson = ?, updatedAt = ?
+        WHERE id = ?`)
+      .run(
+        next.status,
+        next.progressSummary ?? null,
+        next.terminalSummary ?? null,
+        next.pendingAnnouncement === undefined ? null : JSON.stringify(next.pendingAnnouncement),
+        next.updatedAt,
+        id
+      );
+    return next;
+  }
+
+  async get(id: string): Promise<TaskRecord | undefined> {
+    const row = this.#db
+      .prepare("SELECT * FROM task_records WHERE id = ?")
+      .get(id) as TaskRecordRow | undefined;
+    return row === undefined ? undefined : rowToTaskRecord(row);
+  }
+
+  async list(query?: { status?: TaskStatus; parentId?: string; limit?: number }): Promise<TaskRecord[]> {
+    const where: string[] = [];
+    const params: Array<string | number> = [];
+    if (query?.status !== undefined) {
+      where.push("status = ?");
+      params.push(query.status);
+    }
+    if (query?.parentId !== undefined) {
+      where.push("parentId = ?");
+      params.push(query.parentId);
+    }
+    const whereClause = where.length === 0 ? "" : ` WHERE ${where.join(" AND ")}`;
+    const limitClause = query?.limit === undefined ? "" : ` LIMIT ${query.limit}`;
+    const orderClause = " ORDER BY createdAt ASC";
+    let sql = `SELECT * FROM task_records${whereClause}${orderClause}`;
+    if (query?.limit !== undefined) {
+      sql = `SELECT * FROM (SELECT * FROM task_records${whereClause} ORDER BY createdAt DESC${limitClause}) ORDER BY createdAt ASC`;
+    }
+    const rows = this.#db.prepare(sql).all(...params) as TaskRecordRow[];
+    return rows.map(rowToTaskRecord);
+  }
+
+  async drainPendingForParent(parentId: string): Promise<PendingAnnouncement[]> {
+    const rows = this.#db
+      .prepare("SELECT id, pendingAnnouncementJson FROM task_records WHERE parentId = ? AND pendingAnnouncementJson IS NOT NULL")
+      .all(parentId) as Array<{ id: string; pendingAnnouncementJson: string }>;
+    if (rows.length === 0) return [];
+    const announcements: PendingAnnouncement[] = [];
+    const now = new Date().toISOString();
+    this.#db.transaction(() => {
+      const clear = this.#db.prepare("UPDATE task_records SET pendingAnnouncementJson = NULL, updatedAt = ? WHERE id = ?");
+      for (const row of rows) {
+        try {
+          announcements.push(JSON.parse(row.pendingAnnouncementJson) as PendingAnnouncement);
+        } catch {
+          // Skip corrupt entry but still clear it.
+        }
+        clear.run(now, row.id);
+      }
+    })();
+    return announcements;
+  }
+}
+
+interface TaskRecordRow {
+  id: string;
+  runtime: string;
+  task: string;
+  status: string;
+  progressSummary: string | null;
+  terminalSummary: string | null;
+  parentId: string | null;
+  sessionId: string | null;
+  pendingAnnouncementJson: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function rowToTaskRecord(row: TaskRecordRow): TaskRecord {
+  return {
+    id: row.id,
+    runtime: row.runtime as TaskRuntime,
+    task: row.task,
+    status: row.status as TaskStatus,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    ...(row.progressSummary !== null ? { progressSummary: row.progressSummary } : {}),
+    ...(row.terminalSummary !== null ? { terminalSummary: row.terminalSummary } : {}),
+    ...(row.parentId !== null ? { parentId: row.parentId } : {}),
+    ...(row.sessionId !== null ? { sessionId: row.sessionId } : {}),
+    ...(row.pendingAnnouncementJson !== null
+      ? { pendingAnnouncement: JSON.parse(row.pendingAnnouncementJson) as PendingAnnouncement }
+      : {})
+  };
+}
