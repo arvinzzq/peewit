@@ -270,3 +270,23 @@ path patterns, or requires approval only during certain hours — all without to
    > determined by the model's input (e.g., "this bash command looks safe"), the permission
    > system could be bypassed by crafting inputs that appear low-risk. The tool author —
    > not the model — is the authority on how dangerous a capability is.
+
+## 9. Phase 16 Update — SandboxBackend Lives Here Too
+
+In Phase 16 the permissions package took on a second responsibility: the **execution-boundary abstraction**. The policy still decides allow/ask/deny *before* a tool runs, but for tools that execute external code (`run_shell`, untrusted skills, future code-eval tools) there is now also a question of *how* they run. The `SandboxBackend` interface in this same package answers that:
+
+```typescript
+interface SandboxBackend {
+  readonly name: "workspace" | "docker" | "worker";
+  execute(command: SandboxCommand, options?: SandboxOptions): Promise<SandboxResult>;
+  available(): Promise<boolean>;
+}
+```
+
+`SandboxResult` is a tagged union — routine refusals (`reason: "rejected" | "timeout" | "unavailable"`) surface as explicit non-completed results rather than thrown exceptions, so callers always handle them.
+
+`WorkspaceSandbox` is the reference backend shipped in Phase 16. It pins `cwd` to the workspace root, rejects shell snippets matching workspace-escape heuristics, and honors `timeoutMs`. `DockerSandbox` (per-execution containers) and `WorkerThreadSandbox` (JS skill isolation) are deferred to Phase 16b but will implement the same interface — callers will not change.
+
+**Why colocated with policy**: both concerns reason about execution boundaries. The policy answers "is this tool call permitted at all?"; the backend answers "if it runs, in what isolation?". Keeping them in one package makes it impossible to bypass one while observing the other.
+
+**Mental model**: `policy.evaluate` → "may we?"; `sandbox.execute` → "now do it, but bounded". Tools never call `child_process.spawn` directly once the Phase 16 wiring is complete; they call `sandbox.execute(...)`.
