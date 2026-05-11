@@ -1,9 +1,11 @@
 # Memory System
 
-状态：活跃
+状态：活跃 · Phase 13 扩展进行中（混合检索、DREAMS.md 审阅、压缩前 flush）
 日期：2026-05-11
 
 English version: [memory-system.md](./memory-system.md)
+
+> **Phase 13 更新**：记忆工具（`memory_search`、`memory_get`、`append_daily_memory`）从 `@vole/tools` 迁出到独立的 `@vole/memory` package。`memory_search` 升级为混合检索（通过 `EmbeddingProvider` 的向量 top-K + 关键词 fallback，用 reciprocal rank fusion 融合）。Dreaming 输出写到 `DREAMS.md` 供人审阅；提升到 `MEMORY.md` 需要 `vole memory review` 确认。每次压缩前，运行时注入一条静默"落盘持久事实"回合，给 agent 一次机会在对话被压缩前调用 `append_daily_memory`。见 [Phase 13 计划](../plans/phase-13-memory-and-prompt-enhancement.zh-CN.md)。
 
 ## 1. 目的
 
