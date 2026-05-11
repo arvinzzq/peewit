@@ -1,27 +1,24 @@
 # Phase 13：记忆与提示增强
 
-状态：部分完成（Step 1、2、7 已交付；Step 3、4、5、6 推迟到 Phase 13b）
-日期：2026-05-11
+状态：已完成（全部 8 步都已交付 —— Step 3、4、5、6 落在 Phase 13b）
+日期：2026-05-12
 
 English version: [phase-13-memory-and-prompt-enhancement.md](./phase-13-memory-and-prompt-enhancement.md)
 
 ## 进度
 
-状态：部分完成 —— 基础就位；运行时侵入式的几步推迟到 Phase 13b（在 Phase 14 SQLite 与 Phase 15 多代理身份之后再做）。
+状态：已完成 —— Phase 13b 关闭了所有遗留缺口。混合检索、DREAMS 工作流、silent flush、六段 prompt 全部落地。
 
 已完成提交：
 
 - [x] Step 1：docs(arch) 在 memory-system / context-compaction / prompt-assembly 加 Phase 13 提示 — `229a608`、`daa9e6c`
 - [x] Step 2：feat(memory) 把记忆工具抽到 `@vole/memory`；预留 `EmbeddingProvider` 接口 — `1ef9cd8`
+- [x] Step 3（13b）：feat(memory) 混合 `memory_search` + EmbeddingProvider + FakeEmbeddingProvider + reciprocal rank fusion — `c1cf437`
+- [x] Step 4（13b）：feat(memory,cli) DREAMS.md 审阅工作流 —— parseDreamsFile、applyDreamDecision、`vole memory review` CLI — `b7fa52b`
+- [x] Step 5（13b）：feat(core) 压缩前记忆 flush silent turn —— `memory_flush_triggered` 事件、静默 side-channel 模型调用 — `9d92f80`、`75ede20`
+- [x] Step 6（13b）：feat(context) 六个新 system prompt section（Reasoning / Reply Tags / Documentation / Self-Update / Execution Bias / Current Date & Time）— `393d4e0`
 - [x] Step 7：feat(context,cli) `parseInlineDirectives` + `vole compact` 说明命令 — `f2b84b9`
-- [x] Step 8：docs 标 Phase 13 部分完成 + roadmap 更新 — （本次提交）
-
-推迟到 Phase 13b：
-
-- [ ] Step 3：带 OpenAI + Voyage 适配的混合 `memory_search`。`@vole/memory` 已经导出接口；适配实现 + reciprocal rank fusion + 索引存储待补。
-- [ ] Step 4：`DREAMS.md` 审阅工作流。当前 `vole run --dream` 直接追加到 `MEMORY.md`；需要拆分为暂存 `DREAMS.md` + `vole memory review` 提升命令。
-- [ ] Step 5：压缩前记忆 flush silent turn。`MemoryFlushOptions` 已在 `CompactionOptions` 中存在；需要 runtime 侧的辅助函数发起 side-channel 模型调用，允许工具执行但丢弃 assistant 文本。Phase 14 SQLite 让持久化变便宜后再做。
-- [ ] Step 6：六个新 system prompt section（Reasoning / Reply Tags / Documentation / Self-Update / Execution Bias / Current Date & Time）。上下文装配器结构上完全支持；每段需要仔细的 prompt 工程评审。
+- [x] Step 8：docs 标 Phase 13 完成 + roadmap 更新 — （本次提交）
 
 ## 1. 目的
 

@@ -1,26 +1,26 @@
 # Phase 14：SQLite 存储统一升级
 
-状态：部分（Step 1–4 已交付；Step 5、6、7 推迟到 Phase 14b）
-日期：2026-05-11
+状态：部分（Step 1–4 + Step 6 已交付；Step 5、7 推迟到 Phase 14b）
+日期：2026-05-12
 
 English version: [phase-14-sqlite-storage-unification.md](./phase-14-sqlite-storage-unification.md)
 
 ## 进度
 
-状态：部分 —— 两个高流量 store 现在已经有 SQLite 实现与 JSONL 并列；记忆索引与迁移工具推迟。
+状态：部分 —— 两个高流量 store 都已 SQLite-capable；13b 在内存路径上接通了混合 `memory_search`；JSONL → SQLite 迁移命令已可用。FTS5 / 向量索引与启动迁移提示仍在排队。
 
 已完成提交：
 
 - [x] Step 1：docs(arch) session-storage 与 task-flow 的 Phase 14 提示 — `2d0d0f2`
 - [x] Step 2 + 3：feat(sessions) better-sqlite3 + 带 WAL 的 SqliteSessionStore — `0c72269`
 - [x] Step 4：feat(taskflow) SqliteTaskFlowStore，drainPendingForParent 单事务实现 — `c83edd8`
+- [x] Step 6（14b）：feat(sessions,taskflow,cli) `vole migrate jsonl-to-sqlite`（dry-run + --apply）；为让迁移 helper 不走"自动生成 ID"路径，把 schema DDL 抽出为 `SQLITE_SESSIONS_SCHEMA_SQL` / `SQLITE_TASKFLOW_SCHEMA_SQL` — `df041e6`
 - [x] Step 8：docs 标记 Phase 14 部分 + roadmap 更新 — （本次提交）
 
 推迟到 Phase 14b：
 
-- [ ] Step 5：带 FTS5 与可选 sqlite-vec 的 SQLite 记忆索引。被 Phase 13 推迟的混合 `memory_search` 阻塞。
-- [ ] Step 6：`vole migrate jsonl-to-sqlite` 命令，含 `--dry-run`、`--force`、自动备份与行数校验。机械工作但需要谨慎的损坏恢复测试。
-- [ ] Step 7：启动迁移提示。Step 6 落地后是 trivial 的；一起做。
+- [ ] Step 5：带 FTS5 与可选 sqlite-vec 的 SQLite 记忆索引。13b 混合 `memory_search` 现在按 query 跑在内存中；换 FTS5 持久化纯粹是性能 / 规模升级，可独立落地。
+- [ ] Step 7：启动迁移提示。Step 6 已落地；在 SQLite 模式下检测到现有 JSONL store 时建议运行 migrate 命令。
 
 今天可用：
 

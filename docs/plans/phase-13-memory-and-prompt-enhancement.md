@@ -1,27 +1,24 @@
 # Phase 13: Memory and Prompt Enhancement
 
-Status: Partial (Steps 1, 2, 7 shipped; Steps 3, 4, 5, 6 deferred to Phase 13b)
-Date: 2026-05-11
+Status: Complete (all 8 steps shipped — Steps 3, 4, 5, 6 landed in Phase 13b)
+Date: 2026-05-12
 
 Simplified Chinese version: [phase-13-memory-and-prompt-enhancement.zh-CN.md](./phase-13-memory-and-prompt-enhancement.zh-CN.md)
 
 ## Progress
 
-Status: Partial — the foundations are in place; the runtime-invasive steps are deferred to Phase 13b once Phase 14 (SQLite) and Phase 15 (multi-agent identity) land.
+Status: Complete — Phase 13b closed every remaining gap. Hybrid retrieval, DREAMS workflow, silent flush, and six prompt sections all shipped.
 
 Completed commits:
 
 - [x] Step 1: docs(arch) Phase 13 callouts on memory-system / context-compaction / prompt-assembly — `229a608`, `daa9e6c`
 - [x] Step 2: feat(memory) extract memory tools into `@vole/memory`; reserved `EmbeddingProvider` interface — `1ef9cd8`
+- [x] Step 3 (13b): feat(memory) hybrid `memory_search` with EmbeddingProvider + FakeEmbeddingProvider + reciprocal rank fusion — `c1cf437`
+- [x] Step 4 (13b): feat(memory,cli) DREAMS.md review workflow — parseDreamsFile, applyDreamDecision, `vole memory review` CLI — `b7fa52b`
+- [x] Step 5 (13b): feat(core) pre-compaction memory flush silent turn — `memory_flush_triggered` event, silent side-channel model call — `9d92f80`, `75ede20`
+- [x] Step 6 (13b): feat(context) six new system prompt sections (Reasoning / Reply Tags / Documentation / Self-Update / Execution Bias / Current Date & Time) — `393d4e0`
 - [x] Step 7: feat(context,cli) `parseInlineDirectives` + `vole compact` info command — `f2b84b9`
-- [x] Step 8: docs mark Phase 13 partial + roadmap update — (this commit)
-
-Deferred to Phase 13b:
-
-- [ ] Step 3: hybrid `memory_search` with OpenAI + Voyage adapters. Interface already exported in `@vole/memory`; real adapter wiring + reciprocal rank fusion + index storage pending.
-- [ ] Step 4: `DREAMS.md` review workflow. Current `vole run --dream` appends to `MEMORY.md`; needs split into staged `DREAMS.md` + `vole memory review` promotion command.
-- [ ] Step 5: pre-compaction memory flush silent turn. `MemoryFlushOptions` already exists on `CompactionOptions`; needs a runtime-side helper that issues a side-channel model call honoring tool execution but discarding the assistant text. Best done after Phase 14 once SQLite makes durable writes cheap.
-- [ ] Step 6: six new system prompt sections (Reasoning / Reply Tags / Documentation / Self-Update / Execution Bias / Current Date & Time). The context assembler architecture supports this trivially but each section needs careful prompt-engineering review.
+- [x] Step 8: docs mark Phase 13 complete + roadmap update — (this commit)
 
 ## 1. Purpose
 

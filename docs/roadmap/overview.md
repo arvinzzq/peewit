@@ -45,8 +45,8 @@ The roadmap follows a dual-track approach:
 | Phase 10 | Complete | Full personal agent platform | OpenClaw-like personal agent with multiple models, agents, nodes, and sandboxed tools | Gateway, multi-agent runtime, node protocol, sandboxing |
 | Phase 11 | Complete | Gateway and lanes | Cross-process safe runtime infrastructure | GatewayCore, LaneRegistry, session key naming, file lock |
 | Phase 12 | Complete | Multi-agent runtime maturity | Push-completion sub-agents with fork mode, depth and concurrency policy | Sub-agent push announce, fork context, sub-agent management surface |
-| Phase 13 | Partial | Memory and prompt enhancement | Foundations: @vole/memory package, inline directive parser. Hybrid search + DREAMS + flush + prompt sections in 13b. | @vole/memory split, parseInlineDirectives, EmbeddingProvider interface, MemoryFlushOptions |
-| Phase 14 | Partial | SQLite storage unification | SqliteSessionStore + SqliteTaskFlowStore shipped; memory index + migration in 14b | SQLite stores, FTS5 memory index, migration tooling |
+| Phase 13 | Complete | Memory and prompt enhancement | All 8 steps shipped (Steps 3, 4, 5, 6 landed in 13b) | hybrid memory_search via FakeEmbeddingProvider + RRF, DREAMS.md review workflow, pre-compaction memory_flush_triggered, six new system prompt sections |
+| Phase 14 | Partial | SQLite storage unification | Stores + migrate command shipped; FTS5 memory index + startup migration prompt in 14b | SQLite stores, vole migrate jsonl-to-sqlite, FTS5 memory index, migration prompt |
 | Phase 15 | Partial | Channels and multi-agent identity | Channel interface + ChannelRegistry shipped; agents/<id>/ identity + real backends in 15b | agents/<id>/ layout, Channel interface, Telegram, Email |
 | Phase 16 | Partial | Sandbox and plugin runtime | SandboxBackend interface + WorkspaceSandbox + `vole doctor` read-only checks shipped; Docker + worker-thread backends and `--fix` actions in 16b | SandboxBackend, WorkerThreadSandbox, vole doctor |
 
@@ -578,15 +578,13 @@ Non-goals: no process or worker-thread isolation of children; no per-child ident
 
 ## 17. Phase 13: Memory and Prompt Enhancement
 
-Status: Partial. Plan document: [phase-13-memory-and-prompt-enhancement.md](../plans/phase-13-memory-and-prompt-enhancement.md).
+Status: Complete. Plan document: [phase-13-memory-and-prompt-enhancement.md](../plans/phase-13-memory-and-prompt-enhancement.md).
 
 Goal: hybrid memory retrieval with embeddings, reviewable DREAMS.md promotion workflow, a complete 14-section system prompt aligned with OpenClaw, pre-compaction memory flush, and inline directive parsing (`/think`, `/stop`, `/compact`, `NO_REPLY`).
 
-Architecture added (this phase): new `packages/memory` with the three memory tools and a reserved `EmbeddingProvider` interface; `MemoryFlushOptions` on `CompactionOptions` (data shape ready; runtime hook deferred); `parseInlineDirectives` in `@vole/context` that strips `/think:<level>`, `/stop`, `/compact` from user input and applies them at intake; `vole compact` info command in the CLI.
+Architecture added (across Phase 13 + 13b): `packages/memory` with the three memory tools and a real `EmbeddingProvider` interface plus `FakeEmbeddingProvider`; hybrid `memory_search` that fuses vector top-K with keyword paragraph match via reciprocal rank fusion (default k=60); `DREAMS.md` parser / serializer + `vole memory review approve|reject` CLI for staged promotion to `MEMORY.md`; `memory_flush_triggered` runtime event + silent pre-compaction model call that runs memory-write tools without surfacing assistant text; six new optional sections on `ContextAssemblyInput` (`currentDateTime`, `executionBias`, `reasoningPolicy`, `replyTagsPolicy`, `documentationPolicy`, `selfUpdatePolicy`) emitted in the documented order; `parseInlineDirectives` in `@vole/context`; `vole compact` info command.
 
-Deferred to Phase 13b (after Phases 14 and 15): real OpenAI + Voyage embedding adapters + hybrid `memory_search` with reciprocal rank fusion; `DREAMS.md` staging plus `vole memory review` promotion; runtime-side silent turn that fires `append_daily_memory` before `compactMessages`; the six new prompt sections (Reasoning, Reply Tags, Documentation, Self-Update, Execution Bias, Current Date & Time).
-
-Non-goals: no Gemini / Mistral embeddings; no SQLite (Phase 14); no memory-core plugin interface (Phase 16); no per-agent memory isolation (Phase 15).
+Non-goals: no Gemini / Mistral embeddings; no per-agent memory isolation (Phase 15); no memory-core plugin interface (Phase 16).
 
 ## 18. Phase 14: SQLite Storage Unification
 
@@ -594,9 +592,9 @@ Status: Partial. Plan document: [phase-14-sqlite-storage-unification.md](../plan
 
 Goal: migrate all persistent stores from JSONL to SQLite — sessions, TaskFlow records, and the memory index — with FTS5 keyword search, indexed queries, and atomic multi-record updates.
 
-Architecture added (this phase): `better-sqlite3` dependency (compiled via pnpm `onlyBuiltDependencies`, marked external in the CLI tsup bundle); `SqliteSessionStore` and `SqliteTaskFlowStore` implementing the existing `SessionStore` / `TaskFlowStore` interfaces with WAL journal mode and proper indexes; `drainPendingForParent` now runs as a single SQLite transaction instead of a full file rewrite.
+Architecture added (this phase): `better-sqlite3` dependency (compiled via pnpm `onlyBuiltDependencies`, marked external in the CLI tsup bundle); `SqliteSessionStore` and `SqliteTaskFlowStore` implementing the existing `SessionStore` / `TaskFlowStore` interfaces with WAL journal mode and proper indexes; `drainPendingForParent` now runs as a single SQLite transaction instead of a full file rewrite. Phase 14b added `migrateJsonlSessionsToSqlite` / `migrateJsonlTaskFlowToSqlite` helpers, extracted `SQLITE_SESSIONS_SCHEMA_SQL` / `SQLITE_TASKFLOW_SCHEMA_SQL` DDL constants, and the `vole migrate jsonl-to-sqlite` CLI (dry-run + `--apply`).
 
-Deferred to Phase 14b: SQLite memory index with FTS5 + optional `sqlite-vec` (blocked by Phase 13 hybrid `memory_search`); `vole migrate jsonl-to-sqlite` command with backup + row-count verification; startup migration prompt.
+Deferred to Phase 14b: SQLite memory index with FTS5 + optional `sqlite-vec` (now a pure performance / scale upgrade since 13b runs hybrid retrieval per-query in memory); startup migration prompt that detects JSONL stores when SQLite mode is configured and suggests the migrate command.
 
 Non-goals: no PostgreSQL / remote database; no schema migration DSL; no removal of JSONL stores from the codebase.
 
