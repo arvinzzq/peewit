@@ -4,15 +4,21 @@ Simplified Chinese version: [README.zh-CN.md](./README.zh-CN.md)
 
 ## Architecture Overview
 
-`@vole/gateway` owns the **session gateway registry**: an in-process registry that tracks which sessions are active, which adapter is hosting each session, and what capabilities that adapter has. It enables multi-adapter coordination without coupling adapters to each other.
+`@vole/gateway` is the **single accept point for every agent run**. It owns two layers:
+
+1. `SessionGateway` — the original in-process session registry from Phase 10: which sessions are active, which adapter hosts each one, and what capabilities that adapter has.
+2. `GatewayCore` — the Phase 11 expansion that adds run admission, cancellation, and status reporting on top of the registry. Every accepted run is threaded through the global / sub-agent / per-session lane chain from `@vole/lanes` before the caller's run function executes.
 
 ```
-apps/cli ──register──▶
-apps/web ──register──▶  SessionGateway  ◀── future: multi-agent coordinator
-scheduler ───────────▶
+apps/cli ──submit──▶
+apps/web ──submit──▶  GatewayCore  ──runThroughLanes──▶  AgentRuntime.runTurn
+scheduler ─────────▶       │
+                           ├── SessionGateway registry (register, list, ...)
+                           ├── LaneRegistry (global / subagent / session)
+                           └── activeRuns map (for cancel + status)
 ```
 
-The gateway holds no agent logic, stores no messages, and makes no policy decisions. It is a pure registry: record which sessions exist and which adapter owns them.
+The gateway holds no agent logic, stores no messages, and makes no policy decisions. It is pure orchestration: which sessions exist, which lanes admit a run, which runs are currently active.
 
 ## Core Concepts
 
@@ -30,7 +36,7 @@ interface GatewaySession {
 
 ### SessionGateway
 
-Five operations:
+The Phase 10 registry, preserved as a separate base class:
 
 | Method | Description |
 |---|---|
@@ -41,36 +47,67 @@ Five operations:
 | `list()` | Returns all active sessions |
 | `listByAdapter(adapterName)` | Returns sessions for a specific adapter |
 
-The gateway is backed by a `Map<string, GatewaySession>` and is entirely in-memory. There is no persistence — sessions are re-registered each time an adapter starts.
+In-memory only; sessions are re-registered each time an adapter starts.
+
+### GatewayCore
+
+Extends `SessionGateway` with Phase 11 admission semantics:
+
+```typescript
+interface RunRequest<TEvent = unknown> {
+  runId: string;
+  sessionKey: string;
+  agentId: string;
+  isSubagent?: boolean;
+  run: (signal: AbortSignal) => AsyncIterable<TEvent>;
+}
+
+class GatewayCore extends SessionGateway {
+  submit<TEvent>(req: RunRequest<TEvent>): AsyncIterable<TEvent>;
+  cancel(runId: string): boolean;
+  status(): GatewayStatus;
+}
+```
+
+`submit` accepts a caller-provided `run` function, threads it through the lane chain, and yields events as they are produced. `cancel` aborts the run by calling `controller.abort()`; the run function is expected to honour the signal at safe checkpoints. `status()` returns a snapshot of lane occupancy plus the active run handles for the `vole gateway status` command.
+
+### Type Genericity
+
+`GatewayCore` is event-type-agnostic. `RunRequest<TEvent>` is generic so the caller can specialise the event type without the gateway depending on `@vole/core`. The CLI / Web adapters parameterise it with `RuntimeEvent`; tests use `string` for simplicity.
 
 ## Implementation Principles
 
-### Why a Separate Package
+### Why the Gateway Owns Admission
 
-Without the gateway, a multi-adapter system would require adapters to import each other's code to answer questions like "is there another CLI session already open for this workspace?" or "which sessions support approval prompts?" The gateway decouples this: adapters register with the gateway on startup and query it without needing to know about each other.
+A single `AgentRuntime` worked when there was one session per process. As Vole grows, four problems emerged that only a centralised gateway can solve:
 
-### Why Not Persist
+- Multiple adapters need to reach the same agent sessions without coupling.
+- Concurrency must be bounded: unbounded sub-agent spawning corrupts state.
+- Cancellation needs a single point of authority that knows which lane to interrupt.
+- Status (`vole gateway status`) needs one place to read live occupancy.
 
-The gateway tracks _live_ sessions — sessions that are currently connected. When a process restarts, all sessions end and adapters re-register. Historical session data belongs in `@vole/sessions`, not the gateway. The gateway's single source of truth is the current process state.
+The gateway is the only legitimate caller of `AgentRuntime.runTurn` from Phase 11 onward.
 
-### touch() vs. Direct Update
+### No Direct Dependency on @vole/core
 
-`touch()` exists as a distinct method (rather than requiring callers to update `lastActivityAt` manually) so that adapters can signal activity without re-registering the entire session record. It also makes the activity timestamp authoritative — only the gateway sets it, preventing clock skew between adapters.
+The gateway does not import `@vole/core`. Instead, the caller wraps `AgentRuntime` construction and invocation in a `run(signal) => AsyncIterable<events>` callback. This inversion keeps the dependency graph acyclic: gateway → lanes, gateway → adapters, but not gateway → core.
 
-### Capability-Aware Routing (Future)
+### Cancellation Semantics
 
-The `capabilities` field on each `GatewaySession` enables future routing decisions:
-- A multi-agent coordinator can check `session.capabilities.approvalPrompts` before routing an approval request to a particular session.
-- A background orchestrator can filter `listByAdapter("background")` to find all unattended sessions.
+`cancel(runId)` returns `true` if a matching run exists and was signalled. It does not wait for the run to actually stop — the caller decides what counts as a safe stop point. If a queued run is cancelled before its lane slot opens, the run function still starts but observes `signal.aborted === true` immediately and is expected to return without doing work.
+
+### AsyncEventQueue (Internal)
+
+The internal `AsyncEventQueue` bridges the lane-chained run (which is promise-based) and the caller (which is iteration-based). Producer pushes events, consumer iterates; closing the queue ends iteration cleanly, failing it throws on the next iteration. This is not exported.
 
 ## File Inventory
 
 | File | Role | Purpose |
 |---|---|---|
-| `package.json` | Package manifest | Declares the gateway package with dependency on `@vole/adapters`. |
-| `tsconfig.json` | TypeScript config | Builds the gateway package with a project reference to adapters. |
-| `src/index.ts` | Session gateway | All exports: `GatewaySession`, `SessionGateway`, `gatewayPackageName`. |
-| `src/index.test.ts` | Gateway tests | Protects register, unregister, touch, get, list, and listByAdapter behavior including edge cases. |
+| `package.json` | Package manifest | Declares the gateway package with dependencies on `@vole/adapters` and `@vole/lanes`. |
+| `tsconfig.json` | TypeScript config | Builds the gateway package with project references to adapters and lanes. |
+| `src/index.ts` | Gateway primitives | All exports: `GatewaySession`, `SessionGateway`, `GatewayCore`, `RunRequest`, `RunHandle`, `GatewayStatus`, `GatewayCoreOptions`, `gatewayPackageName`. |
+| `src/index.test.ts` | Gateway tests | Covers `SessionGateway` registry semantics plus `GatewayCore` event streaming, lane admission ordering, cancellation, status snapshots, error propagation, and sub-agent lane caps. |
 
 ## Update Reminder
 

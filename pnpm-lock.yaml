@@ -191,6 +191,9 @@ importers:
       '@vole/adapters':
         specifier: workspace:*
         version: link:../adapters
+      '@vole/lanes':
+        specifier: workspace:*
+        version: link:../lanes
 
   packages/lanes: {}
 

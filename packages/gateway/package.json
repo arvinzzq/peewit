@@ -16,6 +16,7 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@vole/adapters": "workspace:*"
+    "@vole/adapters": "workspace:*",
+    "@vole/lanes": "workspace:*"
   }
 }

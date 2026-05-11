@@ -1,231 +1,252 @@
 # 模块 12：@vole/gateway
 
-状态：已完成（Phase 10 基线）· Phase 11 Step 3 扩展进行中
-日期：2026-05-07（上次完整复盘）；2026-05-11（增加前瞻提示）
+状态：完成（Phase 11 Step 3 重写）
+日期：2026-05-11
 
 英文版：`13-gateway.md`
 
 相关源码：`packages/gateway/src/index.ts`
 
-> **前瞻提示**：本文档描述的是 49 行的 Phase 10 `SessionGateway` 注册表。Phase 11 Step 3 把这个 package 扩展为 `GatewayCore`，新增 `submit / subscribe / cancel / status`，通过 `@vole/lanes` 做 lane 准入（见 [16-lanes.zh-CN.md](./16-lanes.zh-CN.md)），并在 session JSONL 周围加跨进程文件锁。Step 3 落地后会端到端重写本文档。在此之前：阅读本文档了解历史基线；阅读 [Phase 11 计划](../plans/phase-11-gateway-and-lanes.zh-CN.md)、[gateway.zh-CN.md](../architecture/gateway.zh-CN.md) 与 [lanes.zh-CN.md](../architecture/lanes.zh-CN.md) 了解未来形态。
-
 ## 0. 如何使用本文档
 
-本文档属于学习指南第四阶段（扩展系统）。
-请在 [12-adapters.zh-CN.md](./12-adapters.zh-CN.md) 之后阅读——`GatewaySession` 携带了
-来自 adapters 包的 `AdapterCapabilities`。
+本文档是[学习指南](./guide.zh-CN.md) Stage 4（扩展系统）的一部分。读之前请先读
+[16-lanes.zh-CN.md](./16-lanes.zh-CN.md) —— `GatewayCore` 将那里定义的 `LaneRegistry`
+组合成每个 run 必须穿过的准入链。
 
-**阅读前**：通读 `packages/gateway/src/index.ts`（49 行），只有一个类和一个接口。然后在
-`apps/cli` 和 `apps/web` 中 grep `SessionGateway`，看看它如何被使用。
+**阅读前**：通读 `packages/gateway/src/index.ts`。它是一份文件，含两个类（`SessionGateway`、
+`GatewayCore`）、一个内部队列辅助类、若干类型。再读 `packages/gateway/src/index.test.ts` ——
+lane 排序测试是理解为何要做准入的最清晰例子。
 
-**聚焦问题**：
-- `SessionGateway` 仅在内存中。进程重启后，所有已注册的 session 会发生什么？
-- `touch()` 对未知 session ID 静默忽略。为什么这是正确的行为？
-- CLI 和 Web 各自创建了自己的 `SessionGateway` 单例。它们能看到彼此的 session 吗？应该能吗？
+**关注问题**：
 
-**检查点**：能够解释 `SessionGateway` 解决了 `JsonlSessionStore` 解决不了的什么问题，以及为什么
-gateway 在内存中而 sessions 在磁盘上，即表示理解了本模块。
+- Gateway 从不 import `@vole/core`。那它如何调用 `AgentRuntime.runTurn`？
+- `cancel(runId)` 立即返回。Run 实际什么时候停下？
+- 从调用方视角看 `submit` 是 async generator。为什么 lane-chained 的工作是 fire-and-forget，而不是在同一个 generator 里 `await`？
 
-## 1. 这个模块做什么
+**检查点**：当你能画出一次 submit 的完整路径 —— 从调用方的 `gateway.submit(req)`、穿过 lane 准入、进入 run 函数、再以可迭代事件流出 —— 并解释每个 early-exit（取消、错误、完成）住在哪里时，你就理解了本模块。
 
-**白话版**：把 gateway 想象成繁忙写字楼的前台。前台不保存永久员工档案（那是 HR 的工作——session store）。
-它维护一块实时白板，记录现在楼里有谁、从哪层进来的、上次在走廊看到他是什么时候。有人离开，名字就擦掉。
-白板只反映当下。
+## 1. 本模块做什么
 
-**技术总结**：`@vole/gateway` 提供 `SessionGateway`，一个跨 adapter 界面追踪当前活跃 session 的
-内存注册表。每个条目是一条 `GatewaySession` 记录：session ID、adapter 名称、能力、注册时间和
-最后活动时间戳。注册表支持 register、unregister、touch（更新活动时间）、get、list 和 listByAdapter。
-它没有持久化——数据只存在于进程生命周期内。
+**通俗讲**：Gateway 像饭店前台 + 排队管理员。每位客人（run）从同一扇门（`submit`）进来。前台检查包间剩余容量（global lane、subagent lane、客人预订的座位 = session lane），有座时引导入座，让厨房（调用方的 run 函数）开始备餐。出菜（事件）时前台维护一份当前就座者名单（`activeRuns`），经理可借此请人离开（`cancel`）或打印 status 报告（`status`）。
 
-## 2. 为什么这个模块存在
+**技术摘要**：`@vole/gateway` 提供两个协作的类。`SessionGateway` 是进程内活跃 session 注册表
+（register / unregister / touch / list）。`GatewayCore` 在此之上扩展 `submit`、`cancel`、`status` ——
+把每个 run 穿过 `@vole/lanes` 提供的 global、subagent、session 三层 lane；按 `runId` 跟踪活跃 run
+以便取消；为 `vole gateway status` 命令报告 lane 占用。Package 不依赖 `@vole/core`；调用方把真实的 runtime
+调用作为 `run` 函数提供。
 
-`JsonlSessionStore` 跨进程重启持久化对话历史，回答"session X 说了什么？"。Gateway 回答不同的问题：
-"现在哪些 session 是活跃的，来自哪个界面？"
+## 2. 为什么存在
 
-没有 gateway，就无法：
-- 列出当前进程中所有打开的 CLI session
-- 暴露显示活跃 web session 的 API endpoint
-- 强制执行并发运行守卫（"session X 已经在运行，拒绝这次新的 turn"）
-- 当多个 adapter 共存时将消息路由到正确界面
+Phase 10 之前，adapter 直接构造 `AgentRuntime` 并用 `SessionMutex` 串行化 per-session。这对单用户单 shell 够用。
+Vole 演进后开始失效：
 
-Gateway 是实时存在层；session store 是历史层。它们互补，有意分离。
+- 多个 adapter（CLI、Web、scheduler、未来的 channel）都想为同一 workspace 启动 run。没有集中准入点时，每个 adapter 都要自己重新实现排队。
+- 子代理 spawn 能产生大量并发 run。无上限并发会损坏状态、耗尽资源。
+- Cancel 需要单一权威点。两个 adapter 同时 cancel 同一个 run 不应竞争。
+- `vole gateway status` 命令需要一个读取实时占用的地方。
 
-## 3. 公开接口
+Gateway 集中处理这四件事。Phase 11 起每个 run 都过它。
+
+## 3. 公共接口
 
 ```ts
 interface GatewaySession {
   id: string;
-  adapterName: string;           // "cli"、"web" 等
+  adapterName: string;            // "cli" | "web" | "background" | ...
   capabilities: AdapterCapabilities;
-  registeredAt: string;          // ISO 8601
-  lastActivityAt: string;        // ISO 8601，由 touch() 更新
+  registeredAt: string;
+  lastActivityAt: string;
 }
 
 class SessionGateway {
-  register(session: GatewaySession): void
-  unregister(sessionId: string): void
-  touch(sessionId: string): void         // 更新 lastActivityAt；对未知 ID 为空操作
-  get(sessionId: string): GatewaySession | undefined
-  list(): GatewaySession[]
-  listByAdapter(adapterName: string): GatewaySession[]
+  register(session: GatewaySession): void;
+  unregister(sessionId: string): void;
+  touch(sessionId: string): void;
+  get(sessionId: string): GatewaySession | undefined;
+  list(): GatewaySession[];
+  listByAdapter(adapterName: string): GatewaySession[];
+}
+
+interface RunRequest<TEvent = unknown> {
+  runId: string;
+  sessionKey: string;
+  agentId: string;
+  isSubagent?: boolean;
+  run: (signal: AbortSignal) => AsyncIterable<TEvent>;
+}
+
+interface RunHandle {
+  runId: string;
+  sessionKey: string;
+  agentId: string;
+  isSubagent: boolean;
+  startedAt: string;
+}
+
+interface GatewayStatus {
+  lanes: LaneRegistryStatus;
+  activeRuns: RunHandle[];
+}
+
+class GatewayCore extends SessionGateway {
+  constructor(options?: { lanes?: LaneRegistryOptions; now?: () => string });
+  submit<TEvent = unknown>(req: RunRequest<TEvent>): AsyncIterable<TEvent>;
+  cancel(runId: string): boolean;
+  status(): GatewayStatus;
 }
 ```
+
+`SessionGateway` API 与 Phase 10 完全相同 —— 保留基线测试不被破坏。其余都是 Phase 11 Step 3 新加。
 
 ## 4. 实现走读
 
-### 内存 Map，无持久化
+### submit：lane 链 + 异步队列
+
+`submit` 的概念流程：
+
+1. 为本 run 分配 `AbortController`。
+2. 把 run 注册到 `#activeRuns`，让 `cancel` 与 `status` 找得到。
+3. 构造 `AsyncEventQueue<TEvent>` 桥接生产者（run 函数）与消费者（调用方迭代返回的 iterable）。
+4. Fire `runThroughLanes(this.#lanes, { sessionId, isSubagent }, work)`。注意：不 await。
+   这是 fire-and-forget：lane 链异步执行，我们立刻返回队列。
+5. 当 `runThroughLanes` 解决（工作完成，或准入前失败），close 或 fail 队列，并从 `#activeRuns` 移除该 run。
+6. 把队列作为 async iterable 返回给调用方。
+
+Fire-and-forget 是同时做到"立刻准入"和"让调用方懒迭代"的唯一办法。如果我们在 async generator 里 await
+`runThroughLanes`，调用方就得消费事件才能让准入推进 —— 倒过来了。
+
+### Lane 链内的 work 函数
 
 ```ts
-class SessionGateway {
-  readonly #sessions = new Map<string, GatewaySession>();
-}
-```
-
-就是一个私有的 `Map<string, GatewaySession>`。register 添加条目，unregister 删除，touch 用更新后的
-`lastActivityAt` 替换值。进程重启清空一切——这是有意为之，因为"当前活跃"只对当前进程有意义。
-
-### touch：不可变更新
-
-```ts
-touch(sessionId: string): void {
-  const s = this.#sessions.get(sessionId);
-  if (s !== undefined) {
-    this.#sessions.set(sessionId, { ...s, lastActivityAt: new Date().toISOString() });
+async () => {
+  if (controller.signal.aborted) return;
+  for await (const event of req.run(controller.signal)) {
+    if (controller.signal.aborted) break;
+    queue.push(event);
   }
 }
 ```
 
-`GatewaySession` 记录被替换而非原地修改。展开运算符创建带有更新时间戳的新对象，避免调用者持有旧记录
-引用时的别名 bug。
+两次 abort 检查：一次在调用 `req.run` 之前（干净处理 cancel-before-admission：run 永不启动），
+一次在迭代内（cancel-during-run 时立即停止 push）。调用方的 run 函数也拿到同一 signal，被期望在
+更安全的检查点（模型调用之间、工具调用之间）尊重它。
 
-`if (s !== undefined)` 守卫使 `touch` 对未知 ID 静默为空操作。替代方案——抛出异常——会要求每个调用者
-防御性地处理过期 session ID，对进程内注册表来说不值得。
-
-### 每个 adapter 一个单例，而非一个全局 gateway
-
-CLI 和 Web 各创建模块级单例：
+### 活跃 run 的清理顺序
 
 ```ts
-// apps/cli/src/index.ts
-const cliGateway = new SessionGateway();
-
-// apps/web/src/server.ts
-const webGateway = new SessionGateway();
-```
-
-它们是独立实例（在独立进程中，或即使在同一进程中也由模块隔离）。CLI session 和 Web session 互不出现
-在对方的注册表中。这是正确的：gateway 为一个 adapter 的协调需求追踪 session，而非跨进程存在。
-
-### CLI 如何使用它
-
-CLI 的 `ChatSession` 类（管理单个交互式聊天的 Ink 组件）在构造时注册自身，在清理时注销：
-
-```ts
-// session 开始时注册
-const gatewaySession: GatewaySession = {
-  id: this.#sessionId,
-  adapterName: "cli",
-  capabilities: CLI_CAPABILITIES,
-  registeredAt: new Date().toISOString(),
-  lastActivityAt: new Date().toISOString()
-};
-cliGateway.register(gatewaySession);
-
-// 组件卸载时清理
-this.#gateway?.unregister(this.#sessionId);
-```
-
-### Web 如何使用它
-
-Web 服务器在 turn 开始时注册 session，并通过 REST endpoint 暴露实时列表：
-
-```ts
-// GET /api/gateway/sessions — 返回实时 session 列表
-app.get("/api/gateway/sessions", (c) => {
-  return c.json({ sessions: webGateway.list() });
+.then(() => {
+  activeRuns.delete(req.runId);
+  queue.close();
+})
+.catch((err: unknown) => {
+  activeRuns.delete(req.runId);
+  queue.fail(err);
 });
 ```
 
+删除在 close/fail 之前同步完成。这保证：当 consumer 的 iterator 看到 `done: true`（或抛错）时，
+`gateway.status().activeRuns` 已经不包含此 run。如果把删除放在 `.finally()`，微任务顺序可能让 status
+测试看到陈旧条目。这是一个真实存在的 bug，被 "status reports the active run while it is running" 测试抓到。
+
+### AsyncEventQueue：生产-消费桥
+
+生产者（`push`、`close`、`fail`）与消费者（`Symbol.asyncIterator → next()`）通过三种状态合作：
+
+- Buffer 非空 → consumer 的 `next()` 立即以 head 解决。
+- Buffer 空且未关闭 → consumer 的 `next()` 返回一个等候 promise，下一次 `push` 解决它。
+- 已关闭 → consumer 的 `next()` 要么以 `{done: true}` 解决，要么以已存错误 reject。
+
+不导出。调用方只看到产出的 `AsyncIterable`。
+
 ## 5. OpenClaw 对齐
 
-| OpenClaw | Vole | 说明 |
+| OpenClaw | Vole | 注 |
 |---|---|---|
-| 多入口协调的 session 注册表 | `SessionGateway` | 相同的内存 Map 方式 |
-| 每个 adapter 的 session 隔离 | 每个 adapter 独立的 gateway 单例 | 相同模式 |
-| 存在检测的活动时间戳 | `GatewaySession.lastActivityAt` + `touch()` | 相同概念 |
-| Gateway sessions API endpoint | `GET /api/gateway/sessions` | 相同模式 |
+| `agentCommand` 编排 | `GatewayCore.submit` | 同样工作：解析 session、准入 run、暴露结果流 |
+| Per-session + global 队列准入 | `runThroughLanes` 链 | 形态相同，打包为 `@vole/lanes` |
+| `runEmbeddedPiAgent` 调用 | 调用方传给 `submit` 的 `run` 函数 | Vole 反转依赖 —— gateway 从不 import core |
+| 推送式取消 | `cancel(runId)` + `AbortController` | 语义相同 |
+| Session 写锁（跨进程） | Phase 11 Step 4 在 `@vole/sessions` | 叠在 session lane 之下 |
+
+最大差异：OpenClaw 的 gateway 直接调用 embedded runner。Vole 的 gateway 与 runtime 无关 ——
+adapter 通过 `run` 回调把 runtime 接到 gateway。这保持依赖图无环，并让 gateway 不启动 `AgentRuntime`
+也能测试。
 
 ## 6. 关键设计决策
 
-**仅内存——有意不持久化**
+**Gateway 不 import @vole/core**。直接依赖会迫使 `@vole/gateway` 重新导出每个 runtime 事件类型，
+并把准入耦合到特定 runtime 实现。`run` 回调是让两层独立、依赖图干净的接缝。
 
-Gateway 追踪存在，而非历史。已结束的 session 不再"存在"，不属于注册表。持久化注册表会增加过期条目
-清理的复杂度（如果进程崩溃而从未注销怎么办？），而没有带来任何价值。session store 处理历史；gateway
-处理活跃性。
+**`submit` 返回 `AsyncIterable`，而不是 `Promise<AsyncIterable>`**。调用方可立即开始迭代。Lane 准入
+在后台推进；首个槽位空出时事件开始流。如果调用方不迭代，run 仍跑到完成，事件没有目的地 —— 队列是缓冲。
+这是正确权衡：回压是未来问题；先保证正确性。
 
-**每个 adapter 独立单例，而非一个全局 gateway**
+**先 delete 再 close，而非 `.finally`**。队列 `close()` 引发的 iterator 解决与 `.finally()` 回调
+之间的微任务顺序不确定。把删除放在 close/fail 同函数中能让迭代结束后的 `activeRuns` 状态可预测。
 
-全局 gateway 需要所有 adapter 共享注册表，意味着要协调 session ID 命名空间和 adapter 标记。每个
-adapter 独立单例更简单：每个 adapter 只注册自己的 session，只查询自己的注册表。`listByAdapter` 方法
-适用于一个 adapter 托管多个命名子界面的情况。
+**两次 abort 检查而非一次**。准入前取消与运行中取消最终态相同（不再有事件），但路径不同：前者无需调用
+run 函数即返回，后者中断进行中的迭代。两者都值得显式处理以保证可读性。
 
-**`touch` 对未知 ID 为空操作**
-
-正常操作中，`touch` 在活跃 session 的 turn 期间调用。session 在 `touch` 调用前刚好被注销的竞争条件
-不应该抛出异常——turn 无论如何都快结束了。对过期引用的正确响应是静默空操作。
-
-**`GatewaySession` 携带能力，而非仅 ID**
-
-在 session 记录中包含 `AdapterCapabilities` 允许任何收到 `GatewaySession` 的代码做出能力感知的决策
-（例如"这个 session 能流式输出吗？"），而无需单独查找 adapter。能力在注册时设置，在 session 生命周期
-内视为不可变。
+**Subscribe 推迟**。让第二个 consumer 加入运行中 session 的事件流，在架构文档中提过，但不在 Phase 11。
+该用例（Web UI 加入 CLI 正在驱动的 session）只有 channel 存在后才重要。增加它需要队列的多订阅 fan-out，
+非平凡。Phase 12 或 Phase 15 再说。
 
 ## 7. 测试方式
 
-测试在 `packages/gateway/src/index.test.ts` 中。所有测试都是同步内存操作——无文件系统、无异步：
+测试在 `packages/gateway/src/index.test.ts`。覆盖：
 
-- `register` / `get`：注册后 session 可检索
-- `unregister`：移除 session；`get` 返回 `undefined`
-- 未知 ID 的 `get`：返回 `undefined`
-- `list`：返回所有已注册 session；无 session 时返回空数组
-- `listByAdapter`：正确过滤；不匹配的 adapter 返回空数组
-- `touch`：更新 `lastActivityAt`；未知 ID 为空操作（不抛出异常）
+- `SessionGateway` 注册表语义（Phase 10 基线测试，未改）。
+- `GatewayCore` 继承注册表行为。
+- `submit` 把 run 函数的事件流出。
+- `status` 执行中报告活跃 run，结束后报告空列表。
+- 同 `sessionKey` 的两次 submit 串行化：第二次在第一次完成前不启动。
+- 子代理 submit 尊重 subagent lane 上限（cap=2 时 5 个里只 2 个活跃）。
+- 抛错的 run 函数把错误传播给 consumer 的迭代。
+- `cancel("nonexistent")` 返回 `false`。
+- `cancel("active")` 中止 run；run 函数的 `AbortSignal` 触发；run 解开。
+- 空闲 gateway 的 `status()` 返回空 lane 占用与无活跃 run。
 
-## 8. 洞察
+测试用 `deferred<T>()` 帮手确定性地控制 run 函数 —— 除了不可避免的"让事件循环转一圈"的短 pause，
+不用与测试竞争的 `setTimeout` 睡眠。
 
-**Gateway 和 session store 回答不同的问题。** `JsonlSessionStore.listMessages` 回答
-"agent 在 session X 中说了什么？"。`SessionGateway.list()` 回答"现在这个进程中哪些 session 是活跃的？"。
-这两个问题是正交的。一个 session 可以存在于 store 但不在 gateway 中（它已结束）；也可以存在于 gateway
-但还没有已存储的消息（它刚启动）。
+## 8. 洞见
 
-**Gateway 是并发运行守卫的正确位置。** 如果两个请求同时到达同一个 session ID，gateway 可以检测到：
-`get(sessionId)` 返回一条 `lastActivityAt` 异常近期的记录。在 gateway 记录上加互斥锁或"运行中"标志
-可以防止并发 agent 运行。目前 Vole 用 `@vole/sessions` 的 `SessionMutex` 来实现，但 gateway 才是
-多 adapter 存在协调的自然位置。
+**Gateway 是粘合层，不是独立层**。它没有领域逻辑。它组合 `SessionGateway`、`@vole/lanes` 与
+`AbortController`。这就是全部产品。把它独立成 package 是为了强制单一受理点 —— 不是因为代码大。
 
-**49 行——monorepo 中最小的包。** Gateway 只做一件事：在内存中追踪活跃 session。它的简洁是一个特性。
-增加持久化、驱逐策略或 TTL 清理都属于扩展的 gateway 层，不属于这个包。
+**`runThroughLanes` fire-and-forget 是全部窍门**。一旦看清这个细节，其余都顺理成章：队列必须存在
+（因为工作与 iterator 解耦）、删除顺序很重要（因为 `.finally` 太晚）、abort 检查必须在 work 函数里
+（因为调用方的 run 函数从 fire-and-forget 上下文调用）。
+
+**本 package 不会变大**。Phase 11 在 Phase 10 基线上加约 100 行。Phase 12 会在 activeRuns 跟踪里
+叠 per-parent 计数器以执行 `maxChildrenPerAgent`，但只是几行。Phase 15 channel 会引入 session-key
+前缀但不改 gateway 形态。本 package 的复杂度上限刻意压低。
+
+**Gateway 是放 `cancel` 的正确地方**。它已经跟踪活跃 run 并持有 AbortController。把 cancel 放别处
+（例如 runtime 上）会让每个 adapter 都维护自己的 runId-to-controller 表。集中化消除这种重复。
 
 ## 9. 复习问题
 
-1. 进程重启后 `SessionGateway` 的内容会怎样？
-   > 全部丢失。Gateway 是内存中的 `Map`——没有持久化。这是有意为之：gateway 追踪活跃性（现在谁
-   > 是活跃的），而非历史（说了什么）。重启前结束的 session 不是"活跃的"，不应该出现。
+1. 什么阻止 `submit` 变成普通 async 函数返回 `Promise<TEvent[]>`？
+   > 两件事。第一，调用方希望事件实时出现，不要等结束 —— 对实时 UI 更新有用。第二，缓冲的
+   > `Promise<TEvent[]>` 会让 lane 槽位的释放被推迟到整个 run 完成之后。通过 `AsyncIterable` 流式输出
+   > 让 consumer 在 run 完成的瞬间看到 `done: true`。
 
-2. CLI 和 Web 各自创建了 `SessionGateway` 单例。它们能看到彼此的 session 吗？
-   > 不能。它们是独立实例。CLI session 注册在 `cliGateway` 中；Web session 注册在 `webGateway` 中。
-   > 它们永远不共享状态。这是正确的：每个 adapter 独立协调自己的 session。
+2. Run 函数收到一个 `AbortSignal`。期望它做什么？
+   > 在安全检查点检查 —— 下一次模型调用之前、下一次工具调用之前、压缩各阶段之间 —— 一旦 aborted
+   > 干净退出。Gateway 也用 abort 检查包了 run 事件流的迭代，因此即使不感知 abort 的 run 也会很快
+   > 停止产生可见事件。但调用方尊重 signal 才是正确做法。
 
-3. `touch("unknown_id")` 会发生什么？
-   > 什么都不发生。`if (s !== undefined)` 守卫使它成为静默空操作。未知 ID 被忽略，不抛出异常。
-   > 这处理了 session 在 `touch` 调用前刚好被注销的竞争条件。
+3. 一个在 lane 槽位开启前被取消的 run 会怎样？
+   > Lane 最终派发被包装的工作；工作的第一个动作是 `if (controller.signal.aborted) return;`，不调用
+   > `req.run` 就返回。Lane 槽位短暂持有（一个事件循环 tick）后释放。队列 close，调用方的迭代立即结束。
 
-4. `GatewaySession.capabilities` 包含什么，为什么存储在 gateway 记录上？
-   > 包含拥有该 session 的 adapter 的 `AdapterCapabilities`：`streaming`、`approvalPrompts`、
-   > `background`。存储在记录上意味着任何 `GatewaySession` 的消费者都可以做出能力感知的决策，
-   > 而无需单独查找 adapter。能力在注册时固定，在 session 生命周期内不变。
+4. 为什么 gateway 不 import `@vole/core`？
+   > 循环依赖风险与 runtime 可移植性。如果 gateway import 了 core，那么任何想组合 gateway 行为的地方
+   > （例如未来的 scheduler）都会拖入 runtime。接受 `run` 回调让 gateway 维持薄编排层，任何调用方
+   > 都能接线。它也让 gateway 测试平凡 —— 用一个产生假事件的 fake `run` 即可。
 
-5. `SessionGateway` 解决了 `JsonlSessionStore` 解决不了的什么问题？
-   > `JsonlSessionStore` 是历史档案：它为每个 session 的每条消息和 trace 事件永久存储。如果不读取
-   > 每个文件并从时间戳推断活动，它无法回答"现在哪些 session 是活跃的"。`SessionGateway` 维护一个
-   > 带有 O(1) 查找的活跃 session 实时显式列表。两者互补：历史 vs. 存在。
+5. 如果 run 函数快速 push 1000 个事件但调用方迭代慢呢？
+   > 事件在队列的 `#buffer` 中积累。Phase 11 无回压 —— run 继续 emit、buffer 增长、调用方按自己节奏
+   > drain。对典型 Vole 负载（每回合少量事件）这是 OK 的。若未来高吞吐用例需要，可以加一个 high-water
+   > mark 暂停 run，但不是 Phase 11。
