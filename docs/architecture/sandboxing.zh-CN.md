@@ -5,6 +5,8 @@
 
 English version: [sandboxing.md](./sandboxing.md)
 
+> **Phase 16 更新**：sandbox 从 "`VOLE_SANDBOX=true` 一个布尔值锁 shell cwd" 升级为真正的后端系统。新的 `SandboxBackend` 接口住在 `@vole/permissions`，有三个实现：`WorkspaceSandbox`（把当前 cwd 限制行为重构到新接口下）、`DockerSandbox`（每次执行起容器；Phase 16b）、`WorkerThreadSandbox`（不可信 JS / skill 隔离；Phase 16b）。Shell 工具与不可信 skill 运行时调用 `backend.execute(...)` 而非直接 spawn 进程。见 [Phase 16 计划](../plans/phase-16-sandbox-and-plugin-runtime.zh-CN.md)。
+
 ## 1. 目的
 
 本文档描述 Vole 的当前 sandbox 状态、应用于 shell 和 file tools 的限制、workspace 边界执行、被阻止命令策略，以及 Phase 10 新增内容。

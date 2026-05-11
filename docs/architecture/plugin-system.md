@@ -2,6 +2,8 @@
 
 Simplified Chinese version: [plugin-system.zh-CN.md](./plugin-system.zh-CN.md)
 
+> **Phase 16 update**: untrusted skills (`vole skills trust` not run) execute via `WorkerThreadSandbox` from `@vole/permissions` rather than inline — a thrown error or memory blow-up in a third-party skill no longer crashes the main process. Trusted skills continue to run inline. See [Phase 16 plan](../plans/phase-16-sandbox-and-plugin-runtime.md). The worker-thread isolation layer is deferred to Phase 16b.
+
 ## 1. Purpose
 
 The plugin system gives users a managed way to install, enable, disable, and inspect skills that are not bundled with Vole. It records provenance, version, and trust status so that users always know where a skill came from and whether they have reviewed it.

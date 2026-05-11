@@ -2,6 +2,8 @@
 
 English version: [plugin-system.md](./plugin-system.md)
 
+> **Phase 16 更新**：不可信 skill（未 `vole skills trust` 标记的）通过 `@vole/permissions` 的 `WorkerThreadSandbox` 执行，不再 inline 跑 —— 第三方 skill 抛错或撑爆内存不再拖垮主进程。已信任 skill 继续 inline 运行。见 [Phase 16 计划](../plans/phase-16-sandbox-and-plugin-runtime.zh-CN.md)。worker-thread 隔离层推迟到 Phase 16b。
+
 ## 1. 目的
 
 Plugin system 为用户提供一种受管理的方式来安装、启用、禁用和检查非 Vole 内置的 skills。它记录来源、版本和 trust 状态，以便用户随时了解某个 skill 的来源及是否已审查。

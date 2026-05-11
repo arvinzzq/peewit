@@ -5,6 +5,8 @@ Date: 2026-05-11
 
 Simplified Chinese version: [sandboxing.zh-CN.md](./sandboxing.zh-CN.md)
 
+> **Phase 16 update**: the sandbox model graduates from "`VOLE_SANDBOX=true` boolean shell-cwd lock" to a proper backend system. A new `SandboxBackend` interface lives in `@vole/permissions` with three implementations: `WorkspaceSandbox` (refactored from today's cwd-restriction behavior), `DockerSandbox` (spins up a container per execution; Phase 16b), and `WorkerThreadSandbox` (untrusted JS / skill isolation; Phase 16b). Shell tools and untrusted skill runtimes call `backend.execute(...)` instead of spawning processes directly. See [Phase 16 plan](../plans/phase-16-sandbox-and-plugin-runtime.md).
+
 ## 1. Purpose
 
 This document describes Vole's current sandbox state, the restrictions applied to shell and file tools, workspace-boundary enforcement, the blocked command policy, and Phase 10 additions.
