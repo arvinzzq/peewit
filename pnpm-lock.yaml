@@ -172,6 +172,8 @@ importers:
 
   packages/adapters: {}
 
+  packages/channels: {}
+
   packages/config: {}
 
   packages/context:
