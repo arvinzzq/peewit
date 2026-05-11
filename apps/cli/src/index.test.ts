@@ -1627,6 +1627,50 @@ describe("runCli", () => {
     }
   });
 
+  test("doctor --fix removes stale session locks and cancels stale subagents", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vole-doctor-fix-"));
+    try {
+      const sessionsDir = join(directory, "sessions");
+      await mkdir(sessionsDir, { recursive: true });
+      // Stale .lock file (dead pid).
+      await writeFile(
+        join(sessionsDir, "sess_dead.lock"),
+        JSON.stringify({ pid: 999999, startedAt: Date.now() - 7000 })
+      );
+      // Stale subagent row in taskflow.jsonl.
+      const taskflowPath = join(directory, "taskflow.jsonl");
+      const oldIso = new Date(Date.now() - 90 * 60_000).toISOString();
+      await writeFile(
+        taskflowPath,
+        JSON.stringify({
+          id: "task_stuck_fix",
+          runtime: "subagent",
+          task: "Long-running stuck job",
+          status: "running",
+          createdAt: oldIso,
+          updatedAt: oldIso
+        }) + "\n"
+      );
+
+      const result = await runCli(["doctor", "--fix"], "0.0.0", { sessionsDirectory: sessionsDir });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("vole doctor --fix");
+      expect(result.stdout).toContain("Remediations:");
+      expect(result.stdout).toContain("removed 1 stale lock file");
+      expect(result.stdout).toContain("cancelled 1 stuck subagent");
+
+      // .lock file gone.
+      const lockAfter = await stat(join(sessionsDir, "sess_dead.lock")).catch(() => undefined);
+      expect(lockAfter).toBeUndefined();
+      // taskflow row now cancelled.
+      const taskflowAfter = await readFile(taskflowPath, "utf8");
+      expect(taskflowAfter).toContain("\"status\":\"cancelled\"");
+      expect(taskflowAfter).toContain("vole doctor --fix");
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
   test("doctor flags stale session locks", async () => {
     const directory = await mkdtemp(join(tmpdir(), "vole-doctor-locks-"));
     try {
@@ -1700,7 +1744,7 @@ describe("runCli", () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain("[WARN] stale subagents: 1 stuck subagent");
       expect(result.stdout).toContain("task_stuck — running since");
-      expect(result.stdout).toContain("Phase 16b");
+      expect(result.stdout).toContain("vole doctor --fix");
     } finally {
       await rm(directory, { force: true, recursive: true });
     }

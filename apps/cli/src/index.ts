@@ -8,7 +8,7 @@
 import "dotenv/config";
 import { Command, type OptionValues } from "commander";
 import { createInterface } from "node:readline";
-import { readdir, readFile, stat } from "node:fs/promises";
+import { readdir, readFile, rm, stat } from "node:fs/promises";
 import type { Stats } from "node:fs";
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
@@ -255,8 +255,9 @@ export async function runCli(args: string[], packageVersion: string, options: Ru
     .action(async () => { actionResult = await runCompactInfo(); });
 
   // ── doctor ────────────────────────────────────────────────────────────────
-  program.command("doctor").description("Read-only diagnostic checks for workspace, sessions, taskflow, and skills")
-    .action(async () => { actionResult = await runDoctor(options); });
+  program.command("doctor").description("Read-only diagnostic checks for workspace, sessions, taskflow, and skills (pass --fix to apply idempotent remediations)")
+    .option("--fix", "Apply remediations for fixable findings (stale session locks, stuck subagents, orphan TaskFlow rows). Read-only checks (config / workspace / skill files) are never auto-fixed.")
+    .action(async (opts: OptionValues) => { actionResult = await runDoctor(options, { fix: opts["fix"] === true }); });
 
   // ── migrate ───────────────────────────────────────────────────────────────
   const migrateCmd = program.command("migrate").description("Migrate data between storage backends");
@@ -560,11 +561,13 @@ interface DoctorCheck {
   level: DoctorLevel;
   summary: string;
   details: string[];
+  /** Optional remediation invoked when `vole doctor --fix` is set. Returns a one-line summary of what was done. */
+  fix?: () => Promise<string>;
 }
 
 const DOCTOR_STALE_SUBAGENT_MINUTES = 60;
 
-async function runDoctor(options: RunCliOptions): Promise<CliResult> {
+async function runDoctor(options: RunCliOptions, flags: { fix?: boolean } = {}): Promise<CliResult> {
   const checks: DoctorCheck[] = [];
   let config: EffectiveConfig | undefined;
 
@@ -658,6 +661,7 @@ async function runDoctor(options: RunCliOptions): Promise<CliResult> {
 
     if (directoryExists && lockEntries.length > 0) {
       const stale: string[] = [];
+      const stalePaths: string[] = [];
       for (const entry of lockEntries.sort()) {
         const sessionId = entry.slice(0, -".lock".length);
         const lockPath = join(sessionsDir, entry);
@@ -666,15 +670,29 @@ async function runDoctor(options: RunCliOptions): Promise<CliResult> {
           if (typeof body.pid === "number" && !isPidAlive(body.pid)) {
             const age = typeof body.startedAt === "number" ? `${Math.round((Date.now() - body.startedAt) / 1000)}s` : "?";
             stale.push(`${sessionId} — pid ${body.pid} (dead), held ${age}`);
+            stalePaths.push(lockPath);
           }
         } catch {
           stale.push(`${sessionId} — lock file unreadable`);
+          stalePaths.push(lockPath);
         }
       }
-      checks.push(stale.length === 0
-        ? { name: "stale session locks", level: "ok", summary: "all live", details: [] }
-        : { name: "stale session locks", level: "warn", summary: `${stale.length} stale lock(s)`, details: stale }
-      );
+      if (stale.length === 0) {
+        checks.push({ name: "stale session locks", level: "ok", summary: "all live", details: [] });
+      } else {
+        checks.push({
+          name: "stale session locks",
+          level: "warn",
+          summary: `${stale.length} stale lock(s)`,
+          details: stale,
+          fix: async () => {
+            for (const path of stalePaths) {
+              await rm(path, { force: true });
+            }
+            return `removed ${stalePaths.length} stale lock file(s)`;
+          }
+        });
+      }
     } else if (directoryExists) {
       checks.push({ name: "stale session locks", level: "ok", summary: "no locks held", details: [] });
     }
@@ -692,27 +710,43 @@ async function runDoctor(options: RunCliOptions): Promise<CliResult> {
         (r.status === "running" || r.status === "queued") &&
         Date.parse(r.updatedAt) < cutoff
       );
-      checks.push(stale.length === 0
-        ? { name: "stale subagents", level: "ok", summary: `none older than ${DOCTOR_STALE_SUBAGENT_MINUTES} minutes`, details: [] }
-        : {
-            name: "stale subagents",
-            level: "warn",
-            summary: `${stale.length} stuck subagent(s)`,
-            details: stale.map((r) => `${r.id} — ${r.status} since ${r.updatedAt}`)
+      if (stale.length === 0) {
+        checks.push({ name: "stale subagents", level: "ok", summary: `none older than ${DOCTOR_STALE_SUBAGENT_MINUTES} minutes`, details: [] });
+      } else {
+        const staleIds = stale.map((r) => r.id);
+        checks.push({
+          name: "stale subagents",
+          level: "warn",
+          summary: `${stale.length} stuck subagent(s)`,
+          details: stale.map((r) => `${r.id} — ${r.status} since ${r.updatedAt}`),
+          fix: async () => {
+            for (const id of staleIds) {
+              await store.update(id, { status: "cancelled", terminalSummary: "Cancelled by vole doctor --fix (stale > 60min)" });
+            }
+            return `cancelled ${staleIds.length} stuck subagent(s)`;
           }
-      );
+        });
+      }
 
       const ids = new Set(all.map((r) => r.id));
       const orphans = all.filter((r) => r.parentId !== undefined && !ids.has(r.parentId));
-      checks.push(orphans.length === 0
-        ? { name: "orphan TaskFlow children", level: "ok", summary: "no orphans", details: [] }
-        : {
-            name: "orphan TaskFlow children",
-            level: "warn",
-            summary: `${orphans.length} orphan(s)`,
-            details: orphans.map((r) => `${r.id} — parentId=${r.parentId ?? "?"} missing`)
+      if (orphans.length === 0) {
+        checks.push({ name: "orphan TaskFlow children", level: "ok", summary: "no orphans", details: [] });
+      } else {
+        const orphanIds = orphans.map((r) => r.id);
+        checks.push({
+          name: "orphan TaskFlow children",
+          level: "warn",
+          summary: `${orphans.length} orphan(s)`,
+          details: orphans.map((r) => `${r.id} — parentId=${r.parentId ?? "?"} missing`),
+          fix: async () => {
+            for (const id of orphanIds) {
+              await store.update(id, { status: "cancelled", terminalSummary: "Cancelled by vole doctor --fix (orphan child)" });
+            }
+            return `cancelled ${orphanIds.length} orphan child task(s)`;
           }
-      );
+        });
+      }
     } catch (error) {
       checks.push({
         name: "taskflow",
@@ -753,22 +787,49 @@ async function runDoctor(options: RunCliOptions): Promise<CliResult> {
   }
 
   // Render
-  const lines: string[] = ["vole doctor:", ""];
+  const lines: string[] = [flags.fix === true ? "vole doctor --fix:" : "vole doctor:", ""];
   for (const c of checks) {
     const tag = c.level === "ok" ? "[OK]   " : c.level === "warn" ? "[WARN] " : "[ERR]  ";
     lines.push(`${tag}${c.name}: ${c.summary}`);
     for (const d of c.details) lines.push(`         ${d}`);
   }
+
+  // Apply fixes when requested. Errors during a single fix do not abort the
+  // others; each is reported with its own line in the Remediations section.
+  let fixesApplied = 0;
+  let fixesFailed = 0;
+  if (flags.fix === true) {
+    const remediationLines: string[] = ["", "Remediations:"];
+    let any = false;
+    for (const c of checks) {
+      if (c.fix === undefined) continue;
+      any = true;
+      try {
+        const result = await c.fix();
+        remediationLines.push(`  ${c.name}: ${result}`);
+        fixesApplied++;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        remediationLines.push(`  ${c.name}: failed — ${message}`);
+        fixesFailed++;
+      }
+    }
+    if (!any) remediationLines.push("  (no auto-fixable findings)");
+    lines.push(...remediationLines);
+  }
+
   const ok = checks.filter((c) => c.level === "ok").length;
   const warn = checks.filter((c) => c.level === "warn").length;
   const err = checks.filter((c) => c.level === "error").length;
   lines.push("");
   lines.push(`Summary: ${checks.length} check(s) — ${ok} ok, ${warn} warning(s), ${err} error(s).`);
-  if (warn > 0 || err > 0) {
-    lines.push("Note: `vole doctor --fix` is Phase 16b work; for now, resolve issues manually.");
+  if (flags.fix === true) {
+    lines.push(`Remediations: ${fixesApplied} applied, ${fixesFailed} failed.`);
+  } else if (warn > 0 || err > 0) {
+    lines.push("Hint: run `vole doctor --fix` to apply idempotent remediations (stale locks, stuck subagents, orphan children).");
   }
 
-  return { exitCode: err > 0 ? 1 : 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
+  return { exitCode: err > 0 || fixesFailed > 0 ? 1 : 0, stdout: `${lines.join("\n")}\n`, stderr: "" };
 }
 
 async function runMigrateJsonlToSqlite(
