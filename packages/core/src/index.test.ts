@@ -8,7 +8,6 @@ import { createReadFileTool } from "@vole/tools";
 import {
   AgentRuntime,
   InMemoryRuntimeTraceStore,
-  SessionMutex,
   createRuntimeEvent,
   isTerminalRuntimeEvent,
   runtimeEventTypes,
@@ -1473,55 +1472,6 @@ describe("strict-agentic execution contract", () => {
       expect((stallEvents[0] as import("./index.js").PlanningStallDetectedEvent).maxRetries).toBe(2);
     }
     expect(events.at(-1)?.type).toBe("run_failed");
-  });
-});
-
-describe("SessionMutex", () => {
-  test("single acquire + release resolves immediately", async () => {
-    const mutex = new SessionMutex();
-    const release = await mutex.acquire("session-1");
-    expect(typeof release).toBe("function");
-    release();
-  });
-
-  test("two concurrent acquires for same session: second waits for first to release", async () => {
-    const mutex = new SessionMutex();
-    const order: number[] = [];
-
-    const release1 = await mutex.acquire("session-A");
-    order.push(1);
-
-    let release2: (() => void) | undefined;
-    const p2 = mutex.acquire("session-A").then((rel) => {
-      order.push(2);
-      release2 = rel;
-    });
-
-    // Give p2 a chance to run — it should NOT proceed yet
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(order).toEqual([1]);
-
-    // Now release the first lock
-    release1();
-    await p2;
-    expect(order).toEqual([1, 2]);
-    release2?.();
-  });
-
-  test("different sessions: both acquire without waiting", async () => {
-    const mutex = new SessionMutex();
-    const order: string[] = [];
-
-    const [rel1, rel2] = await Promise.all([
-      mutex.acquire("session-X").then((rel) => { order.push("X"); return rel; }),
-      mutex.acquire("session-Y").then((rel) => { order.push("Y"); return rel; })
-    ]);
-
-    expect(order).toHaveLength(2);
-    expect(order).toContain("X");
-    expect(order).toContain("Y");
-    rel1();
-    rel2();
   });
 });
 

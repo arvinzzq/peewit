@@ -1,5 +1,5 @@
 /**
- * INPUT: ModelProvider (required), and optionally: ContextAssembler (defaults to MinimalContextAssembler), systemInstruction, PermissionPolicy (defaults to DefaultPermissionPolicy), ApprovalResolver, tools, hooks, SessionMutex, ExecutionContract, maxSteps, runtime metadata, user turn input, recent messages.
+ * INPUT: ModelProvider (required), and optionally: ContextAssembler (defaults to MinimalContextAssembler), systemInstruction, PermissionPolicy (defaults to DefaultPermissionPolicy), ApprovalResolver, tools, hooks, ExecutionContract, maxSteps, runtime metadata, user turn input, recent messages.
  * OUTPUT: createAgent() factory, AgentRuntime, CreateAgentOptions, runtime events (turn_complete, compaction_triggered+summary, token_delta, todos_updated, planning_stall_detected, tool/permission/approval), SubagentFactory, spawn tools, AsyncTaskStore, trace store.
  * POS: Core runtime layer; coordinates a turn without owning adapters or vendor APIs.
  *
@@ -261,27 +261,6 @@ export interface ApprovalResolver {
 
 export type ExecutionContract = "default" | "strict-agentic";
 
-export class SessionMutex {
-  readonly #locks = new Map<string, Promise<void>>();
-
-  async acquire(sessionId: string): Promise<() => void> {
-    const existing = this.#locks.get(sessionId) ?? Promise.resolve();
-    let release!: () => void;
-    const next = existing.then(() => new Promise<void>((resolve) => {
-      release = resolve;
-    }));
-    this.#locks.set(sessionId, next);
-    await existing;
-    return () => {
-      release();
-      // Clean up if no more waiters
-      if (this.#locks.get(sessionId) === next) {
-        this.#locks.delete(sessionId);
-      }
-    };
-  }
-}
-
 export interface AgentHooks {
   beforeTurn?: (input: AgentRuntimeInput) => Promise<void>;
   afterTurn?: (events: RuntimeEvent[]) => Promise<void>;
@@ -305,7 +284,6 @@ export interface AgentRuntimeDependencies {
   compaction?: Partial<CompactionOptions>;
   promptMode?: PromptMode;
   hooks?: AgentHooks;
-  sessionMutex?: SessionMutex;
   executionContract?: ExecutionContract;
   createRunId?: () => string;
   createEventId?: () => string;
@@ -360,7 +338,6 @@ export class AgentRuntime {
   readonly #compaction: Partial<CompactionOptions> | undefined;
   readonly #promptMode: PromptMode | undefined;
   readonly #hooks: AgentHooks | undefined;
-  readonly #sessionMutex: SessionMutex | undefined;
   readonly #executionContract: ExecutionContract;
   readonly #createRunId: () => string;
   readonly #createEventId: () => string;
@@ -387,7 +364,6 @@ export class AgentRuntime {
     this.#compaction = dependencies.compaction;
     this.#promptMode = dependencies.promptMode;
     this.#hooks = dependencies.hooks;
-    this.#sessionMutex = dependencies.sessionMutex;
     this.#createRunId = dependencies.createRunId ?? randomId("run");
     this.#createEventId = dependencies.createEventId ?? randomId("evt");
     this.#now = dependencies.now ?? (() => new Date().toISOString());
@@ -403,11 +379,6 @@ export class AgentRuntime {
     const runId = this.#createRunId();
     const base = input.sessionId ? { runId, sessionId: input.sessionId } : { runId };
     const collectedEvents: RuntimeEvent[] = [];
-
-    // Acquire session mutex if configured
-    const release = this.#sessionMutex
-      ? await this.#sessionMutex.acquire(input.sessionId ?? "global")
-      : undefined;
 
     try {
       // beforeTurn hook — errors must not fail the run
@@ -730,7 +701,8 @@ export class AgentRuntime {
       yield stepLimitEv;
       await this.#callAfterTurn(collectedEvents);
     } finally {
-      release?.();
+      // In-process per-session serialization is now handled by @vole/lanes (session lane,
+      // concurrency 1) inside GatewayCore. The runtime no longer holds any mutex here.
     }
   }
 
@@ -834,7 +806,6 @@ export interface CreateAgentOptions {
   preferStreaming?: boolean;
   promptMode?: PromptMode;
   hooks?: AgentHooks;
-  sessionMutex?: SessionMutex;
   executionContract?: ExecutionContract;
   skillIndex?: ContextSkillSummary[];
 }
@@ -852,7 +823,6 @@ export function createAgent(options: CreateAgentOptions): AgentRuntime {
   if (options.compaction !== undefined) deps.compaction = options.compaction;
   if (options.promptMode !== undefined) deps.promptMode = options.promptMode;
   if (options.hooks !== undefined) deps.hooks = options.hooks;
-  if (options.sessionMutex !== undefined) deps.sessionMutex = options.sessionMutex;
   if (options.executionContract !== undefined) deps.executionContract = options.executionContract;
   if (options.skillIndex !== undefined) deps.skillIndex = options.skillIndex;
   return new AgentRuntime(deps);

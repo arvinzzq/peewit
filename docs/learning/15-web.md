@@ -121,13 +121,28 @@ only through the `WebApprovalResolver` map, keyed by `callId`.
 
 ## 5. SSE Turn Handler
 
+From Phase 11 Step 5b forward, the turn is submitted to `GatewayCore` instead of calling `runtime.runTurn` directly. The gateway threads it through the global / subagent / session lane chain from `@vole/lanes`. `runningTurns` now stores the active `runId` per session, and `DELETE /api/sessions/:id/turns` calls `webGateway.cancel(runId)` so cancellation flows through the gateway's `AbortController` into `runTurn`.
+
 ```ts
 app.post("/api/sessions/:id/turns", async (c) => {
   // ... ensure runtime is initialized for this session
   const recentMessages = await store.listMessages(id, { limit: 12 });
+  const runId = `run_${crypto.randomUUID()}`;
+  runningTurns.set(id, runId);
 
   return streamSSE(c, async (stream) => {
-    for await (const event of session.runtime.runTurn({ ... })) {
+    const eventStream = webGateway.submit<RuntimeEvent>({
+      runId,
+      sessionKey: id,
+      agentId: "default",
+      run: async function* (signal) {
+        for await (const event of runtime.runTurn({ sessionId: id, recentMessages, message, signal })) {
+          yield event;
+        }
+      }
+    });
+
+    for await (const event of eventStream) {
       await session.traceStore.append(event);
       await store.appendTraceEvent({ sessionId: id, event });
       await stream.writeSSE({ event: event.type, data: JSON.stringify(event) });
@@ -140,6 +155,7 @@ app.post("/api/sessions/:id/turns", async (c) => {
       await store.appendMessage({ sessionId: id, role: "assistant", content: assistantText });
     }
     webGateway.touch(id);
+    runningTurns.delete(id);
   });
 });
 ```

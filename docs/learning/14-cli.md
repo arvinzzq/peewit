@@ -154,11 +154,31 @@ the test suite for unit tests of the interactive loop.
 
 ### sendMessage: the turn engine
 
+From Phase 11 Step 5a forward, the chat run is submitted to a `GatewayCore` rather than calling `runtime.runTurn` directly. The gateway threads the run through the three-tier lane chain (global / subagent / session) defined in `@vole/lanes`, and routes the user-provided `opts.signal` to `gateway.cancel(runId)` so Ctrl+C aborts cleanly:
+
 ```ts
 async sendMessage(message, opts = {}): Promise<CliChatTurnResult> {
   const recentMessages = await this.#sessionStore.listMessages(this.#sessionId);
+  const runId = `run_${crypto.randomUUID()}`;
 
-  for await (const event of this.#runtime.runTurn({ sessionId, recentMessages, message })) {
+  if (this.#gateway && opts.signal) {
+    opts.signal.addEventListener("abort", () => this.#gateway.cancel(runId), { once: true });
+  }
+
+  const eventStream = this.#gateway
+    ? this.#gateway.submit<RuntimeEvent>({
+        runId,
+        sessionKey: this.#sessionId,
+        agentId: "default",
+        run: async function* (signal) {
+          for await (const event of runtime.runTurn({ sessionId, recentMessages, message, signal })) {
+            yield event;
+          }
+        }
+      })
+    : this.#runtime.runTurn({ sessionId, recentMessages, message, signal: opts.signal });
+
+  for await (const event of eventStream) {
     await this.#traceStore.append(event);
     await this.#sessionStore.appendTraceEvent({ sessionId, event });
     events.push(event);
@@ -185,7 +205,7 @@ Three special events:
 2. **`compaction_triggered`** → writes a `compact_boundary` record to session JSONL
 3. **`turn_complete`** → persists all messages from the turn (user + tool calls + tool results + assistant)
 
-This is where `@vole/core`'s event stream gets translated into `@vole/sessions` persistence.
+This is where `@vole/core`'s event stream gets translated into `@vole/sessions` persistence. The gateway is a thin orchestrator on the call path — it does not transform events. The `createFake` test path passes no gateway, so `sendMessage` falls back to `runtime.runTurn` directly.
 
 ### Slash commands: two levels
 

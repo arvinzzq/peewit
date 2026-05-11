@@ -139,11 +139,31 @@ export async function runCli(args, packageVersion, options = {}): Promise<CliRes
 
 ### sendMessage：turn 引擎
 
+Phase 11 Step 5a 起，聊天 run 提交给 `GatewayCore` 而非直接调用 `runtime.runTurn`。Gateway 把 run 穿过 `@vole/lanes` 定义的三层 lane 链（global / subagent / session），并把用户提供的 `opts.signal` 接到 `gateway.cancel(runId)`，让 Ctrl+C 中止干净流转：
+
 ```ts
 async sendMessage(message, opts = {}): Promise<CliChatTurnResult> {
   const recentMessages = await this.#sessionStore.listMessages(this.#sessionId);
+  const runId = `run_${crypto.randomUUID()}`;
 
-  for await (const event of this.#runtime.runTurn({ sessionId, recentMessages, message })) {
+  if (this.#gateway && opts.signal) {
+    opts.signal.addEventListener("abort", () => this.#gateway.cancel(runId), { once: true });
+  }
+
+  const eventStream = this.#gateway
+    ? this.#gateway.submit<RuntimeEvent>({
+        runId,
+        sessionKey: this.#sessionId,
+        agentId: "default",
+        run: async function* (signal) {
+          for await (const event of runtime.runTurn({ sessionId, recentMessages, message, signal })) {
+            yield event;
+          }
+        }
+      })
+    : this.#runtime.runTurn({ sessionId, recentMessages, message, signal: opts.signal });
+
+  for await (const event of eventStream) {
     await this.#traceStore.append(event);
     await this.#sessionStore.appendTraceEvent({ sessionId, event });
     events.push(event);
@@ -169,7 +189,7 @@ async sendMessage(message, opts = {}): Promise<CliChatTurnResult> {
 2. **`compaction_triggered`** → 向 session JSONL 写入 `compact_boundary` 记录
 3. **`turn_complete`** → 持久化本次 turn 的所有消息（用户 + 工具调用 + 工具结果 + assistant）
 
-这是 `@vole/core` 的事件流被翻译为 `@vole/sessions` 持久化的地方。
+这是 `@vole/core` 的事件流被翻译为 `@vole/sessions` 持久化的地方。Gateway 在调用路径上是薄编排层 —— 它不改写事件。`createFake` 测试路径不传 gateway，因此 `sendMessage` 回落到直接调用 `runtime.runTurn`。
 
 ### Slash 命令：两个层次
 
