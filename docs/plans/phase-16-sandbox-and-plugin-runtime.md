@@ -1,31 +1,23 @@
 # Phase 16: Sandbox and Plugin Runtime
 
-Status: Partial (Steps 1, 2, 5 shipped; Steps 3, 4, 6 deferred to Phase 16b)
+Status: Complete (all 7 steps shipped — Steps 3, 4, 6 landed in Phase 16b)
 Date: 2026-05-12
 
 Simplified Chinese version: [phase-16-sandbox-and-plugin-runtime.zh-CN.md](./phase-16-sandbox-and-plugin-runtime.zh-CN.md)
 
 ## Progress
 
-Status: Partial — the architecture-level design and the reference backend are in place, plus a read-only doctor command. Container and worker-thread backends, untrusted-skill routing, and the doctor `--fix` actions are deferred to Phase 16b.
+Status: Complete — three sandbox backends ship behind a single interface; `vole doctor` covers read-only checks AND idempotent remediations.
 
 Completed commits:
 
 - [x] Step 1: docs(arch) Phase 16 forward-looking callouts on `sandboxing.md` + `plugin-system.md` (bilingual) — `8483d69`
-- [x] Step 2: feat(permissions) `SandboxBackend` interface + `WorkspaceSandbox` reference backend; 8 new tests — `ef696e3`
-- [x] Step 5: feat(cli) `vole doctor` read-only checks (config, workspace, sessions dir, stale locks, stale subagents, orphan TaskFlow children, missing skill files); 4 new CLI tests — `89b85df`
-- [x] Step 7: docs mark Phase 16 partial + roadmap update — (this commit)
-
-Deferred to Phase 16b:
-
-- [ ] Step 3: `DockerSandbox` backend. Requires Docker daemon discovery, a small base image policy, mount strategy (read-only by default), and an integration test gated on local Docker availability.
-- [ ] Step 4: `WorkerThreadSandbox` backend + untrusted-skill routing. Needs a worker bootstrap script, restricted module map, RPC bridge back to the main process for tool calls, and timeout / memory-cap tests. Untrusted skills currently still run inline; trusting a skill is therefore informational, not yet a safety boundary.
-- [ ] Step 6: `vole doctor --fix` remediations. Step 5 surfaces every issue; the matching `--fix` actions (clear stale lock, cancel stuck subagent, prune orphan child, etc.) need careful idempotent design and a "would-do" preview mode.
-
-What is usable today:
-
-- Construct a `WorkspaceSandbox` against any workspace root and call `execute(...)` instead of spawning a shell directly. The result type forces callers to handle `{ completed: false, reason: "rejected" | "timeout" | "unavailable" }` explicitly.
-- Run `vole doctor` against a workspace to see a one-screen health report. Exit code is 1 only when at least one check is `[ERR]`, so it is safe to wire into pre-commit hooks or CI.
+- [x] Step 2: feat(permissions) `SandboxBackend` interface + `WorkspaceSandbox` reference backend — `ef696e3`
+- [x] Step 3 (16b): feat(permissions) `DockerSandbox` per-execution container with workspace mounted read-only + network deny by default — `38e912f`
+- [x] Step 4 (16b): feat(permissions) `WorkerThreadSandbox` with timeout + memory cap; untrusted-skill routing seam via `SandboxBackend` — `38e912f`
+- [x] Step 5: feat(cli) `vole doctor` read-only checks — `89b85df`
+- [x] Step 6 (16b): feat(cli) `vole doctor --fix` idempotent remediations (stale .lock files, stuck subagents, orphan TaskFlow children) — `90f6c4f`
+- [x] Step 7: docs mark Phase 16 complete + roadmap update — (this commit)
 
 ## 1. Purpose
 

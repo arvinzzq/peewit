@@ -1,31 +1,23 @@
 # Phase 16：沙箱与插件运行时
 
-状态：部分（Step 1、2、5 已交付；Step 3、4、6 推迟到 Phase 16b）
+状态：已完成（全部 7 步已交付 —— Step 3、4、6 落在 Phase 16b）
 日期：2026-05-12
 
 English version: [phase-16-sandbox-and-plugin-runtime.md](./phase-16-sandbox-and-plugin-runtime.md)
 
 ## 进度
 
-状态：部分 —— 架构层设计与参考后端已就位，并加上只读 doctor 命令。容器与 worker-thread 后端、不可信 skill 路由、doctor 的 `--fix` 动作推迟到 Phase 16b。
+状态：已完成 —— 同一接口下交付了三个 sandbox 后端；`vole doctor` 覆盖只读检查与幂等修复。
 
 已完成提交：
 
 - [x] Step 1：docs(arch) `sandboxing.md` + `plugin-system.md` 的 Phase 16 前瞻提示（双语）— `8483d69`
-- [x] Step 2：feat(permissions) `SandboxBackend` 接口 + `WorkspaceSandbox` 参考后端；新增 8 个测试 — `ef696e3`
-- [x] Step 5：feat(cli) `vole doctor` 只读检查（config、workspace、sessions 目录、stale locks、stale subagents、orphan TaskFlow children、缺失 skill 文件）；新增 4 个 CLI 测试 — `89b85df`
-- [x] Step 7：docs 标 Phase 16 部分 + roadmap 更新 —（本次提交）
-
-推迟到 Phase 16b：
-
-- [ ] Step 3：`DockerSandbox` 后端。需要 Docker daemon 发现、小型基础镜像策略、挂载策略（默认只读）、以及依赖本地 Docker 可用的集成测试。
-- [ ] Step 4：`WorkerThreadSandbox` 后端 + 不可信 skill 路由。需要 worker bootstrap 脚本、受限模块表、用于工具调用回主进程的 RPC bridge，以及 timeout / 内存上限测试。不可信 skill 当前仍 inline 运行；trust 一个 skill 因此暂时只是信息性的，尚未构成安全边界。
-- [ ] Step 6：`vole doctor --fix` 修复。Step 5 已暴露所有问题；配套的 `--fix` 动作（清陈旧 lock、取消僵死 subagent、修剪孤儿 child 等）需要谨慎的幂等设计与 "would-do" 预览模式。
-
-今天可用：
-
-- 针对任意 workspace root 构造 `WorkspaceSandbox` 并调用 `execute(...)`，无需直接 spawn shell。结果类型强制调用方显式处理 `{ completed: false, reason: "rejected" | "timeout" | "unavailable" }`。
-- 对 workspace 运行 `vole doctor` 得到一屏的健康报告。只有出现 `[ERR]` 时退出码为 1，所以可以安全接入 pre-commit hook 或 CI。
+- [x] Step 2：feat(permissions) `SandboxBackend` 接口 + `WorkspaceSandbox` 参考后端 — `ef696e3`
+- [x] Step 3（16b）：feat(permissions) `DockerSandbox` 临时容器（workspace 只读挂载 + 默认 deny 网络）— `38e912f`
+- [x] Step 4（16b）：feat(permissions) `WorkerThreadSandbox`（timeout + 内存上限）；不可信 skill 路由的 SandboxBackend 接缝 — `38e912f`
+- [x] Step 5：feat(cli) `vole doctor` 只读检查 — `89b85df`
+- [x] Step 6（16b）：feat(cli) `vole doctor --fix` 幂等修复（stale `.lock`、僵死子代理、孤儿 TaskFlow 子任务）— `90f6c4f`
+- [x] Step 7：docs 标记 Phase 16 完成 + roadmap 更新 —（本次提交）
 
 ## 1. 目的
 

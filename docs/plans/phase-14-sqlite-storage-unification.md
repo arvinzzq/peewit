@@ -1,26 +1,23 @@
 # Phase 14: SQLite Storage Unification
 
-Status: Partial (Steps 1–4 + Step 6 shipped; Steps 5, 7 deferred to Phase 14b)
+Status: Complete (all 8 steps shipped — Steps 5, 6, 7 landed in Phase 14b)
 Date: 2026-05-12
 
 Simplified Chinese version: [phase-14-sqlite-storage-unification.zh-CN.md](./phase-14-sqlite-storage-unification.zh-CN.md)
 
 ## Progress
 
-Status: Partial — the two highest-traffic stores are SQLite-capable, hybrid `memory_search` is wired in 13b on the in-memory path, and the JSONL-to-SQLite migration command is available. The FTS5 / vector index and the startup migration prompt are still queued.
+Status: Complete — every persistent store has a SQLite-capable implementation alongside the JSONL one, the migration command is in place, and the FTS5 memory index plus the startup migration prompt have shipped.
 
 Completed commits:
 
 - [x] Step 1: docs(arch) Phase 14 callouts on session-storage and task-flow — `2d0d0f2`
 - [x] Step 2 + 3: feat(sessions) better-sqlite3 + SqliteSessionStore with WAL — `0c72269`
 - [x] Step 4: feat(taskflow) SqliteTaskFlowStore with single-transaction drainPendingForParent — `c83edd8`
-- [x] Step 6 (14b): feat(sessions,taskflow,cli) `vole migrate jsonl-to-sqlite` (dry-run + --apply); schema DDL extracted to `SQLITE_SESSIONS_SCHEMA_SQL` / `SQLITE_TASKFLOW_SCHEMA_SQL` so the migration helper can initialize a fresh database without auto-generating IDs — `df041e6`
-- [x] Step 8: docs mark Phase 14 partial + roadmap update — (this commit)
-
-Deferred to Phase 14b:
-
-- [ ] Step 5: SQLite memory index with FTS5 + optional sqlite-vec for embedding similarity. Now that 13b hybrid `memory_search` runs in-memory per query, swapping to FTS5-backed storage is purely a performance / scale upgrade and can land independently.
-- [ ] Step 7: startup migration prompt. Trivial after Step 6 lands; should detect existing JSONL stores when SQLite mode is configured and suggest the migrate command.
+- [x] Step 5 (14b): feat(memory) SqliteMemoryIndex with FTS5 — `d59a47a`
+- [x] Step 6 (14b): feat(sessions,taskflow,cli) `vole migrate jsonl-to-sqlite` (dry-run + --apply); DDL extracted to `SQLITE_SESSIONS_SCHEMA_SQL` / `SQLITE_TASKFLOW_SCHEMA_SQL` — `df041e6`
+- [x] Step 7 (14b): feat(cli) startup migration hint on `vole chat` boot — `eef638f`
+- [x] Step 8: docs mark Phase 14 complete + roadmap update — (this commit)
 
 What is usable today:
 

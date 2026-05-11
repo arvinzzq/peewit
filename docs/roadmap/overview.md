@@ -46,9 +46,9 @@ The roadmap follows a dual-track approach:
 | Phase 11 | Complete | Gateway and lanes | Cross-process safe runtime infrastructure | GatewayCore, LaneRegistry, session key naming, file lock |
 | Phase 12 | Complete | Multi-agent runtime maturity | Push-completion sub-agents with fork mode, depth and concurrency policy | Sub-agent push announce, fork context, sub-agent management surface |
 | Phase 13 | Complete | Memory and prompt enhancement | All 8 steps shipped (Steps 3, 4, 5, 6 landed in 13b) | hybrid memory_search via FakeEmbeddingProvider + RRF, DREAMS.md review workflow, pre-compaction memory_flush_triggered, six new system prompt sections |
-| Phase 14 | Partial | SQLite storage unification | Stores + migrate command shipped; FTS5 memory index + startup migration prompt in 14b | SQLite stores, vole migrate jsonl-to-sqlite, FTS5 memory index, migration prompt |
-| Phase 15 | Partial | Channels and multi-agent identity | Channel interface + ChannelRegistry shipped; agents/<id>/ identity + real backends in 15b | agents/<id>/ layout, Channel interface, Telegram, Email |
-| Phase 16 | Partial | Sandbox and plugin runtime | SandboxBackend interface + WorkspaceSandbox + `vole doctor` read-only checks shipped; Docker + worker-thread backends and `--fix` actions in 16b | SandboxBackend, WorkerThreadSandbox, vole doctor |
+| Phase 14 | Complete | SQLite storage unification | All 8 steps shipped (Steps 5, 6, 7 landed in 14b) | SQLite stores, SqliteMemoryIndex (FTS5), vole migrate jsonl-to-sqlite, startup migration hint |
+| Phase 15 | Partial | Channels and multi-agent identity | per-agent identity + `vole agents` + channel↔submitter bridge shipped; Telegram + Email backends still need external infra | agents/<id>/ identity, vole agents CLI, channel bridge, Telegram (deferred), Email (deferred) |
+| Phase 16 | Complete | Sandbox and plugin runtime | All 7 steps shipped (Steps 3, 4, 6 landed in 16b) | SandboxBackend, WorkspaceSandbox, WorkerThreadSandbox, DockerSandbox, vole doctor + --fix |
 
 Some later-phase learning documents are listed as planned filenames before they exist. They should be created when that phase is being actively designed, not all at once during MVP setup.
 
@@ -588,13 +588,11 @@ Non-goals: no Gemini / Mistral embeddings; no per-agent memory isolation (Phase 
 
 ## 18. Phase 14: SQLite Storage Unification
 
-Status: Partial. Plan document: [phase-14-sqlite-storage-unification.md](../plans/phase-14-sqlite-storage-unification.md).
+Status: Complete. Plan document: [phase-14-sqlite-storage-unification.md](../plans/phase-14-sqlite-storage-unification.md).
 
 Goal: migrate all persistent stores from JSONL to SQLite — sessions, TaskFlow records, and the memory index — with FTS5 keyword search, indexed queries, and atomic multi-record updates.
 
-Architecture added (this phase): `better-sqlite3` dependency (compiled via pnpm `onlyBuiltDependencies`, marked external in the CLI tsup bundle); `SqliteSessionStore` and `SqliteTaskFlowStore` implementing the existing `SessionStore` / `TaskFlowStore` interfaces with WAL journal mode and proper indexes; `drainPendingForParent` now runs as a single SQLite transaction instead of a full file rewrite. Phase 14b added `migrateJsonlSessionsToSqlite` / `migrateJsonlTaskFlowToSqlite` helpers, extracted `SQLITE_SESSIONS_SCHEMA_SQL` / `SQLITE_TASKFLOW_SCHEMA_SQL` DDL constants, and the `vole migrate jsonl-to-sqlite` CLI (dry-run + `--apply`).
-
-Deferred to Phase 14b: SQLite memory index with FTS5 + optional `sqlite-vec` (now a pure performance / scale upgrade since 13b runs hybrid retrieval per-query in memory); startup migration prompt that detects JSONL stores when SQLite mode is configured and suggests the migrate command.
+Architecture added (Phase 14 + 14b): `better-sqlite3` dependency; `SqliteSessionStore` and `SqliteTaskFlowStore` with WAL journal mode; `drainPendingForParent` as a single SQLite transaction; `SqliteMemoryIndex` (FTS5-backed paragraph index with content-hash idempotent reindex); `migrateJsonlSessionsToSqlite` / `migrateJsonlTaskFlowToSqlite` helpers; extracted `SQLITE_SESSIONS_SCHEMA_SQL` / `SQLITE_TASKFLOW_SCHEMA_SQL` / `SQLITE_MEMORY_INDEX_SCHEMA_SQL` DDL constants; `vole migrate jsonl-to-sqlite` CLI (dry-run + `--apply`); startup migration hint on interactive boot.
 
 Non-goals: no PostgreSQL / remote database; no schema migration DSL; no removal of JSONL stores from the codebase.
 
@@ -604,20 +602,18 @@ Status: Partial. Plan document: [phase-15-channels-and-multi-agent-identity.md](
 
 Goal: introduce independent multi-agent identity (`agents/<id>/` with own SOUL / AGENTS / MEMORY / credentials) and real channel integrations (Telegram and email) so Vole becomes a multi-surface personal agent platform.
 
-Architecture added (this phase): new `docs/architecture/channels.md`; bilingual Phase 15 callout on `multi-agent-runtime.md` explaining the second multi-agent axis (identity, not just sub-agent spawning); new `@vole/channels` package with `Channel` interface, `ChannelRegistry`, `FakeChannel` reference implementation, and `sessionKeyForInbound` helper that already produces gateway-compatible session keys.
+Architecture added (Phase 15 + 15b): new `docs/architecture/channels.md`; bilingual Phase 15 callout on `multi-agent-runtime.md`; `@vole/channels` package with `Channel`, `ChannelRegistry`, `FakeChannel`, and `sessionKeyForInbound`; per-agent identity loader in `@vole/config` (`isValidAgentId`, `listAgentDirectories`, `resolveActiveAgentId`, `loadAgentIdentity`, `createAgentDirectory`, `setActiveAgentId`, `archiveAgentDirectory`) + `agents.default` + `VOLE_AGENT` env; `vole agents list / create / switch / remove --confirm` CLI; channel↔submitter bridge (`createGatewayInboundHandler`, `bridgeRegistryToSubmitter`) that pipes inbound channel messages through an adapter-supplied submitter so channels stay decoupled from the gateway.
 
-Deferred to Phase 15b: `agents/<id>/` workspace subtree + `agents.list[]` config + per-agent identity loader; `vole agents` CLI; Telegram backend with mock-server tests; email backend with embedded IMAP/SMTP harness; gateway channel routing and `vole channel` CLI.
+Still deferred (external infrastructure): Telegram backend (`@vole/channels-telegram`) needs long-polling bot client + mock-server test harness; Email backend needs IMAP/SMTP clients + embedded mail test harness. Once they exist, the channel adapter registers them with `ChannelRegistry` and uses `bridgeRegistryToSubmitter` — no further architecture changes.
 
 Non-goals: no Slack / Discord / WhatsApp / webhook channels (Phase 17+); no cross-agent direct invocation; no hosted multi-tenant deployment; no agent process isolation.
 
 ## 20. Phase 16: Sandbox and Plugin Runtime
 
-Status: Partial. Plan document: [phase-16-sandbox-and-plugin-runtime.md](../plans/phase-16-sandbox-and-plugin-runtime.md).
+Status: Complete. Plan document: [phase-16-sandbox-and-plugin-runtime.md](../plans/phase-16-sandbox-and-plugin-runtime.md).
 
 Goal: real sandbox backends (workspace, Docker, worker thread) instead of a single boolean; worker-thread-isolated plugin runtime so untrusted skills cannot crash the main process; `vole doctor` self-maintenance.
 
-Architecture added (this phase): bilingual Phase 16 callouts on `sandboxing.md` and `plugin-system.md`; `SandboxBackend` interface in `@vole/permissions` with `SandboxCommand` / `SandboxOptions` / `SandboxResult` value types; `WorkspaceSandbox` reference backend with workspace-escape rejection, cwd containment, timeout surfacing, and non-zero exit propagation; `vole doctor` top-level CLI command running read-only checks across config, workspace, sessions directory, stale `.lock` files (dead PIDs), stale subagent TaskFlow rows (>60 min), orphan TaskFlow children, and missing skill source files.
-
-Deferred to Phase 16b: `DockerSandbox` backend (Docker availability gating, default image, mount strategy); `WorkerThreadSandbox` backend and untrusted-skill routing (worker bootstrap, restricted module map, RPC bridge, timeout / memory tests); `vole doctor --fix` idempotent remediations and "would-do" preview.
+Architecture added (Phase 16 + 16b): bilingual Phase 16 callouts on `sandboxing.md` and `plugin-system.md`; `SandboxBackend` interface in `@vole/permissions` with `SandboxCommand` / `SandboxOptions` / `SandboxResult` value types and three implementations — `WorkspaceSandbox` (workspace-escape rejection, cwd containment, timeout, non-zero exit propagation), `WorkerThreadSandbox` (node:worker_threads with timeout + memory cap), `DockerSandbox` (per-execution `docker run --rm` with workspace mounted read-only, network deny by default, daemon availability gated); `vole doctor` top-level CLI command with read-only checks AND `--fix` flag for idempotent remediations (delete stale `.lock` files, cancel stuck subagents, cancel orphan TaskFlow children).
 
 Non-goals: no firejail / bubblewrap integration; no direct cgroup usage; no mandatory sandboxing of every tool; no remote sandbox dispatch.
