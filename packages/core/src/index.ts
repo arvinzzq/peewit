@@ -953,9 +953,25 @@ export function createSpawnSubagentAsyncTool(
           if (event.type === "run_failed") failed = true;
         }
         if (options?.taskStore !== undefined) {
+          const status = failed ? "failed" : "succeeded";
+          // Phase 12 push completion: write pendingAnnouncement so the parent's next
+          // turn drains it as a system message. Suppress when assistant text is the
+          // silent token NO_REPLY (case-insensitive), matching the OpenClaw convention
+          // for fire-and-forget background work.
+          const isSilent = /^\s*no_reply\s*$/i.test(assistantText);
+          const announcement = (options.parentTaskId !== undefined && !isSilent)
+            ? {
+                taskId,
+                goal: input.goal,
+                status,
+                ...(assistantText.length > 0 ? { terminalSummary: assistantText } : {}),
+                completedAt: new Date().toISOString()
+              } satisfies AsyncPendingAnnouncement
+            : undefined;
           await options.taskStore.update(taskId, {
-            status: failed ? "failed" : "succeeded",
-            ...(assistantText.length > 0 ? { terminalSummary: assistantText } : {})
+            status,
+            ...(assistantText.length > 0 ? { terminalSummary: assistantText } : {}),
+            ...(announcement !== undefined ? { pendingAnnouncement: announcement } : {})
           });
         }
       })();

@@ -1619,6 +1619,91 @@ async function collect(events: AsyncIterable<RuntimeEvent>): Promise<RuntimeEven
   return collected;
 }
 
+describe("createSpawnSubagentAsyncTool — pendingAnnouncement writes (Phase 12)", () => {
+  test("writes pendingAnnouncement with status and terminalSummary when parentTaskId is set", async () => {
+    const factory: SubagentFactory = {
+      create: () =>
+        new AgentRuntime({
+          modelProvider: new FakeModelProvider([{ type: "message", content: "child result text" }]),
+          systemInstruction: "You are a sub-agent.",
+          runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-11" }
+        })
+    };
+
+    const updates: Array<{ id: string; updates: object }> = [];
+    const taskStore: AsyncTaskStore = {
+      async create(record) { return { id: record.id }; },
+      async update(id, u) { updates.push({ id, updates: u }); },
+      async get() { return undefined; },
+      async drainPendingForParent() { return []; }
+    };
+
+    const tool = createSpawnSubagentAsyncTool(factory, { taskStore, parentTaskId: "parent_session" });
+    await tool.execute({ goal: "Refactor" }, { workspaceRoot: "/workspace" });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    const finalUpdate = updates[updates.length - 1];
+    expect(finalUpdate?.updates).toMatchObject({
+      status: "succeeded",
+      terminalSummary: "child result text",
+      pendingAnnouncement: expect.objectContaining({
+        goal: "Refactor",
+        status: "succeeded",
+        terminalSummary: "child result text"
+      })
+    });
+  });
+
+  test("does not write pendingAnnouncement when parentTaskId is absent", async () => {
+    const factory: SubagentFactory = {
+      create: () =>
+        new AgentRuntime({
+          modelProvider: new FakeModelProvider([{ type: "message", content: "result" }]),
+          systemInstruction: "Sub.",
+          runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-11" }
+        })
+    };
+    const updates: Array<{ id: string; updates: object }> = [];
+    const taskStore: AsyncTaskStore = {
+      async create(record) { return { id: record.id }; },
+      async update(id, u) { updates.push({ id, updates: u }); },
+      async get() { return undefined; },
+      async drainPendingForParent() { return []; }
+    };
+
+    const tool = createSpawnSubagentAsyncTool(factory, { taskStore });
+    await tool.execute({ goal: "Detached" }, { workspaceRoot: "/workspace" });
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(updates.every((u) => !("pendingAnnouncement" in u.updates))).toBe(true);
+  });
+
+  test("suppresses pendingAnnouncement when the assistant text is NO_REPLY", async () => {
+    const factory: SubagentFactory = {
+      create: () =>
+        new AgentRuntime({
+          modelProvider: new FakeModelProvider([{ type: "message", content: "NO_REPLY" }]),
+          systemInstruction: "Sub.",
+          runtime: { mode: "confirm", workspace: "/workspace", currentDate: "2026-05-11" }
+        })
+    };
+    const updates: Array<{ id: string; updates: object }> = [];
+    const taskStore: AsyncTaskStore = {
+      async create(record) { return { id: record.id }; },
+      async update(id, u) { updates.push({ id, updates: u }); },
+      async get() { return undefined; },
+      async drainPendingForParent() { return []; }
+    };
+
+    const tool = createSpawnSubagentAsyncTool(factory, { taskStore, parentTaskId: "parent_session" });
+    await tool.execute({ goal: "Silent work" }, { workspaceRoot: "/workspace" });
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(updates.every((u) => !("pendingAnnouncement" in u.updates))).toBe(true);
+  });
+});
+
 describe("AgentRuntime — pending announcement drain (Phase 12)", () => {
   test("drains pending announcements addressed to the session and injects them as system messages", async () => {
     const drained: string[] = [];
