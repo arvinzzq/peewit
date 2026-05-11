@@ -213,6 +213,13 @@ importers:
       '@vole/tools':
         specifier: workspace:*
         version: link:../tools
+      better-sqlite3:
+        specifier: ^12.9.0
+        version: 12.9.0
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.13
+        version: 7.6.13
 
   packages/models:
     dependencies:
