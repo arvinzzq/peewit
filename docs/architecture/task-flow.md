@@ -5,6 +5,8 @@ Date: 2026-05-11
 
 Simplified Chinese version: [task-flow.zh-CN.md](./task-flow.zh-CN.md)
 
+> **Phase 14 update**: a new `SqliteTaskFlowStore` joins `JsonlTaskFlowStore` under the same `TaskFlowStore` interface, with indexes on `status`, `parentId`, `runtime`, and `createdAt`. The new store also fits the read-modify-write pattern used by `drainPendingForParent` (Phase 12) more naturally — a single SQL UPDATE clears the mailbox column instead of rewriting the whole file. See [Phase 14 plan](../plans/phase-14-sqlite-storage-unification.md).
+
 ## 1. Purpose
 
 `update_todos` gives the model in-turn task visibility for a single run. It shows the user what the agent is doing right now — but it vanishes when the session ends.

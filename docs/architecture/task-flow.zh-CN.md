@@ -5,6 +5,8 @@
 
 English version: [task-flow.md](./task-flow.md)
 
+> **Phase 14 更新**：新增 `SqliteTaskFlowStore`，与 `JsonlTaskFlowStore` 一起实现同一 `TaskFlowStore` 接口，并在 `status`、`parentId`、`runtime`、`createdAt` 上建索引。新 store 也更天然地契合 Phase 12 `drainPendingForParent` 的 read-modify-write 模式 —— 一条 SQL UPDATE 即可清除邮箱列，无需重写整个文件。见 [Phase 14 计划](../plans/phase-14-sqlite-storage-unification.zh-CN.md)。
+
 ## 1. 目的
 
 `update_todos` 为单次运行提供 in-turn 任务可见性。它向用户展示 agent 当前正在做什么 — 但 session 结束时就消失了。

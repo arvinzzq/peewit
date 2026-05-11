@@ -5,6 +5,8 @@
 
 English version: [session-storage.md](./session-storage.md)
 
+> **Phase 14 更新**：新增 `SqliteSessionStore` 作为 `SessionStore` 接口的姐妹实现，与现有 `JsonlSessionStore` 并列。通过配置 `storage.backend: "sqlite" | "jsonl"` 选择（迁移 commit 后默认改为 `"sqlite"`）。两个 store 实现同一契约，消费者无需按 backend 分支。`vole migrate jsonl-to-sqlite` 命令做一次性原子转换，含行数校验与备份；Phase 11 Step 4 的跨进程文件锁继续保护并发写。见 [Phase 14 计划](../plans/phase-14-sqlite-storage-unification.zh-CN.md)。
+
 ## 1. 目的
 
 Session storage 持久化 Vole 的对话和执行历史。
