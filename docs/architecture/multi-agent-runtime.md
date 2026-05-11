@@ -5,6 +5,8 @@ Date: 2026-05-11
 
 Simplified Chinese version: [multi-agent-runtime.zh-CN.md](./multi-agent-runtime.zh-CN.md)
 
+> **Phase 15 update**: "multi-agent" gains its second axis. Until Phase 14 it meant "one parent spawns sub-agents inside one process"; Phase 15 introduces independent agent *identities* under `agents/<agentId>/`, each with its own SOUL.md, AGENTS.md, USER.md, MEMORY.md, and credentials. The runtime still drives a single `AgentRuntime` per turn — what changes is which identity subtree the context assembler reads from. Channels (Telegram, email, etc.) attach to an `agentId` and route inbound messages through `GatewayCore.submit` with the same session-lane admission. See [Phase 15 plan](../plans/phase-15-channels-and-multi-agent-identity.md) and the new [channels architecture doc](./channels.md).
+
 ## 1. Purpose
 
 This document describes how Vole supports running multiple `AgentRuntime` instances in a coordinated way. Phase 10 introduced in-process sub-agents with a pull-based completion model; Phase 12 makes the system production-shaped: completion is pushed back to the parent automatically, a `fork` context mode copies the parent transcript, lane admission enforces a per-parent child cap and an OS-level timeout, and a `subagents` tool family / CLI surface makes the runtime inspectable and controllable.

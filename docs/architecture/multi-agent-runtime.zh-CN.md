@@ -5,6 +5,8 @@
 
 English version: [multi-agent-runtime.md](./multi-agent-runtime.md)
 
+> **Phase 15 更新**："多代理"获得第二个维度。Phase 14 之前，它意味着"一个父代理在一个进程内派生子代理"；Phase 15 引入独立的 agent *身份*，位于 `agents/<agentId>/`，每个有自己的 SOUL.md、AGENTS.md、USER.md、MEMORY.md 与凭证。Runtime 仍每回合驱动单一 `AgentRuntime` —— 变的是上下文装配器读取哪个身份子树。Channels（Telegram、email 等）绑定到一个 `agentId`，并通过 `GatewayCore.submit` 路由入站消息，复用相同的 session-lane 准入。见 [Phase 15 计划](../plans/phase-15-channels-and-multi-agent-identity.zh-CN.md) 与新 [channels 架构文档](./channels.zh-CN.md)。
+
 ## 1. 目的
 
 本文档描述 Vole 如何协调多个 `AgentRuntime` 实例运行。Phase 10 引入进程内子代理，完成机制是轮询的；Phase 12 把这套系统做到生产形态：完成自动 push 回父代理，`fork` 上下文模式拷贝父 transcript，lane 准入强制 per-parent child 上限与 OS 级超时，`subagents` 工具族与 CLI 让运行时可检视、可控制。
