@@ -28,12 +28,13 @@ interface TaskRecord {
   terminalSummary?: string;   // final result description
   parentId?: string;          // links to parent task for sub-task hierarchies
   sessionId?: string;         // associated session ID if applicable
+  pendingAnnouncement?: PendingAnnouncement;  // Phase 12: push-to-parent mailbox
 }
 ```
 
 ### TaskStatus
 
-Seven terminal and non-terminal states:
+Nine terminal and non-terminal states:
 
 | Status | Terminal? | Meaning |
 |---|---|---|
@@ -43,8 +44,25 @@ Seven terminal and non-terminal states:
 | `"blocked"` | No | Cannot proceed (dependency failed) |
 | `"succeeded"` | Yes | Completed successfully |
 | `"failed"` | Yes | Completed with failure |
+| `"timed_out"` | Yes | Aborted because `runTimeoutSeconds` elapsed |
 | `"cancelled"` | Yes | Explicitly cancelled |
 | `"lost"` | Yes | Process died before recording a terminal status |
+
+### PendingAnnouncement
+
+```typescript
+interface PendingAnnouncement {
+  taskId: string;
+  goal: string;
+  status: "succeeded" | "failed" | "timed_out";
+  terminalSummary?: string;
+  completedAt: string;
+}
+```
+
+When an async sub-agent reaches a terminal state, the runtime writes a `PendingAnnouncement` to the child's `TaskRecord.pendingAnnouncement` field. The parent's next `runTurn` calls `drainPendingForParent(parentId)` to atomically read all pending announcements for its children and clear them in one read-modify-write pass. Each announcement is then injected as a `system` role message before the parent's prompt is assembled.
+
+Idempotency: the `taskId` doubles as an idempotency key. Once `drainPendingForParent` clears a field, the same announcement cannot be delivered twice.
 
 ### TaskRuntime
 
@@ -55,13 +73,16 @@ Seven terminal and non-terminal states:
 ```typescript
 interface TaskFlowStore {
   create(record: Omit<TaskRecord, "createdAt" | "updatedAt">): Promise<TaskRecord>;
-  update(id: string, updates: Partial<Pick<TaskRecord, "status" | "progressSummary" | "terminalSummary">>): Promise<TaskRecord | undefined>;
+  update(id: string, updates: TaskUpdate): Promise<TaskRecord | undefined>;
   get(id: string): Promise<TaskRecord | undefined>;
   list(query?: { status?: TaskStatus; parentId?: string; limit?: number }): Promise<TaskRecord[]>;
+  drainPendingForParent(parentId: string): Promise<PendingAnnouncement[]>;
 }
 ```
 
-Only `status`, `progressSummary`, and `terminalSummary` can be updated — structural fields (`id`, `runtime`, `task`, `parentId`, `sessionId`) are immutable after creation.
+`TaskUpdate` accepts mutable fields (`status`, `progressSummary`, `terminalSummary`, `pendingAnnouncement`) plus a sentinel `clearPendingAnnouncement: true` to remove the mailbox entry explicitly. Structural fields (`id`, `runtime`, `task`, `parentId`, `sessionId`) are immutable after creation.
+
+`drainPendingForParent(parentId)` atomically reads and clears every `pendingAnnouncement` for children of the given parent in a single read-modify-write pass. This is the parent runtime's mailbox-drain entry point.
 
 ## Implementation Principles
 
@@ -91,6 +112,16 @@ parent task (cli)
 
 `list({ parentId: "…" })` returns all direct children of a task. Full subtree traversal requires multiple queries.
 
+### Push-Completion Mailbox
+
+The `pendingAnnouncement` field on `TaskRecord` plus the `drainPendingForParent` store method together form the push-based completion channel for async sub-agents (Phase 12):
+
+1. When an async sub-agent reaches a terminal state, its runtime calls `update(childId, { status, terminalSummary, pendingAnnouncement })`.
+2. The parent's next `runTurn` calls `drainPendingForParent(parentId)` before assembling the prompt. The store atomically reads all pending announcements for the parent's children and clears the `pendingAnnouncement` field on each.
+3. Each drained announcement is injected as a `system` role message describing the completed child.
+
+Atomicity matters: the read-modify-write happens inside one `#readAll` / `#writeAll` cycle, so a child writing `pendingAnnouncement` concurrently with a parent draining cannot lose the announcement (the in-process JavaScript event loop serializes them). Cross-process atomicity is not guaranteed; this is acceptable today because async sub-agents only run from the same process that drains them.
+
 ### Difference from scheduler's JsonlTaskStore
 
 `@vole/scheduler` has its own `JsonlTaskStore` for scheduler-specific `TaskRunRecord` objects (which include `assistantText`, `completedAt`, and are tightly coupled to the scheduler's run lifecycle). `@vole/taskflow`'s `JsonlTaskFlowStore` stores `TaskRecord` objects with a richer status model and parent/child relationships for general-purpose cross-session task graphs. The two stores serve different layers: scheduler tracks execution history, taskflow tracks the logical task graph.
@@ -105,8 +136,8 @@ parent task (cli)
 |---|---|---|
 | `package.json` | Package manifest | Declares the taskflow package and exports. |
 | `tsconfig.json` | TypeScript config | Builds the taskflow package (no workspace package dependencies). |
-| `src/index.ts` | Task flow store | All exports: `TaskStatus`, `TaskRuntime`, `TaskRecord`, `TaskFlowStore`, `JsonlTaskFlowStore`, `taskflowPackageName`. |
-| `src/index.test.ts` | TaskFlow tests | Protects create with timestamps, update/get/list, status and parentId filtering, limit, and `undefined` on missing ID. |
+| `src/index.ts` | Task flow store | All exports: `TaskStatus` (now includes `timed_out`), `AnnouncementStatus`, `TaskRuntime`, `TaskRecord` (with optional `pendingAnnouncement`), `PendingAnnouncement`, `TaskUpdate`, `TaskFlowStore` (with `drainPendingForParent`), `JsonlTaskFlowStore`, `taskflowPackageName`. |
+| `src/index.test.ts` | TaskFlow tests | Protects create with timestamps, update/get/list, status and parentId filtering, limit, `undefined` on missing ID, plus the Phase 12 `pendingAnnouncement` lifecycle (set on update, atomic drain, explicit clear). |
 
 ## Update Reminder
 

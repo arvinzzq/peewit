@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { JsonlTaskFlowStore } from "./index.js";
+import { JsonlTaskFlowStore, type PendingAnnouncement } from "./index.js";
 
 function makeTempPath(dir: string, filename: string): string {
   return join(dir, filename);
@@ -163,6 +163,97 @@ describe("JsonlTaskFlowStore", () => {
       expect(limited).toHaveLength(2);
       // slice(-2) returns last two
       expect(limited.map((r) => r.id)).toEqual(["lim_4", "lim_5"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("JsonlTaskFlowStore — pendingAnnouncement (Phase 12)", () => {
+  function announcementFor(taskId: string, status: "succeeded" | "failed" | "timed_out", summary?: string): PendingAnnouncement {
+    return {
+      taskId,
+      goal: `Goal for ${taskId}`,
+      status,
+      ...(summary !== undefined ? { terminalSummary: summary } : {}),
+      completedAt: "2026-05-11T22:00:00.000Z"
+    };
+  }
+
+  test("update can set pendingAnnouncement alongside terminal status", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-taskflow-pa-"));
+    try {
+      const store = new JsonlTaskFlowStore(join(dir, "tasks.jsonl"));
+      await store.create({ id: "parent_pa", runtime: "cli", task: "Parent", status: "running" });
+      await store.create({ id: "child_pa", runtime: "subagent", task: "Child", status: "queued", parentId: "parent_pa" });
+
+      const announcement = announcementFor("child_pa", "succeeded", "Got it");
+      const updated = await store.update("child_pa", {
+        status: "succeeded",
+        terminalSummary: "Got it",
+        pendingAnnouncement: announcement
+      });
+
+      expect(updated?.pendingAnnouncement).toEqual(announcement);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("drainPendingForParent returns and clears all pending announcements for that parent", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-taskflow-drain-"));
+    try {
+      const store = new JsonlTaskFlowStore(join(dir, "tasks.jsonl"));
+      await store.create({ id: "parent_drain", runtime: "cli", task: "P", status: "running" });
+      await store.create({ id: "c1", runtime: "subagent", task: "Child 1", status: "queued", parentId: "parent_drain" });
+      await store.create({ id: "c2", runtime: "subagent", task: "Child 2", status: "queued", parentId: "parent_drain" });
+      await store.create({ id: "c3_other", runtime: "subagent", task: "Other parent", status: "queued", parentId: "different_parent" });
+
+      const a1 = announcementFor("c1", "succeeded");
+      const a2 = announcementFor("c2", "failed", "boom");
+      const a3 = announcementFor("c3_other", "succeeded");
+      await store.update("c1", { pendingAnnouncement: a1 });
+      await store.update("c2", { pendingAnnouncement: a2 });
+      await store.update("c3_other", { pendingAnnouncement: a3 });
+
+      const drained = await store.drainPendingForParent("parent_drain");
+      expect(drained).toHaveLength(2);
+      expect(drained.map((a) => a.taskId).sort()).toEqual(["c1", "c2"]);
+
+      // Children of parent_drain no longer have pendingAnnouncement.
+      expect((await store.get("c1"))?.pendingAnnouncement).toBeUndefined();
+      expect((await store.get("c2"))?.pendingAnnouncement).toBeUndefined();
+      // Unrelated parent's child is untouched.
+      expect((await store.get("c3_other"))?.pendingAnnouncement).toEqual(a3);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("drainPendingForParent returns empty array when no pending announcements", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-taskflow-empty-"));
+    try {
+      const store = new JsonlTaskFlowStore(join(dir, "tasks.jsonl"));
+      await store.create({ id: "parent_empty", runtime: "cli", task: "P", status: "running" });
+      await store.create({ id: "c_no_pa", runtime: "subagent", task: "Child", status: "succeeded", parentId: "parent_empty" });
+
+      const drained = await store.drainPendingForParent("parent_empty");
+      expect(drained).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("clearPendingAnnouncement on update removes the field explicitly", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "vole-taskflow-clear-"));
+    try {
+      const store = new JsonlTaskFlowStore(join(dir, "tasks.jsonl"));
+      await store.create({ id: "c_clear", runtime: "subagent", task: "Child", status: "queued" });
+      await store.update("c_clear", { pendingAnnouncement: announcementFor("c_clear", "succeeded") });
+      expect((await store.get("c_clear"))?.pendingAnnouncement).toBeDefined();
+
+      await store.update("c_clear", { clearPendingAnnouncement: true });
+      expect((await store.get("c_clear"))?.pendingAnnouncement).toBeUndefined();
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
